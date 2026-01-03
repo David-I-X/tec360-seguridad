@@ -1,0 +1,31 @@
+# --- Framework principal ---
+fastapi==0.115.5            # Compatible con Pydantic v2.x
+uvicorn[standard]==0.32.0
+
+# Variables de entorno
+python-dotenv==1.0.0
+
+# --- Dependencias de configuración y validación ---
+pydantic==2.12.1             # compatible con FastAPI y Supabase
+pydantic-settings==2.5.2
+
+# --- Cliente Supabase completo ---
+supabase==1.0.3
+httpx==0.23.3
+httpcore==0.16.3
+websockets==10.4
+
+
+
+
+
+# HTTP client para APIs externas (ya incluido en Supabase)
+
+# Testing (opcional, para pytest)
+pytest==7.4.4
+pytest-asyncio==0.23.3
+pytest-mock==3.12.0
+
+# Utilidades adicionales
+python-multipart==0.0.6  # Para subir archivos
+email-validator==2.1.0    # Validar emails en Pydantic
