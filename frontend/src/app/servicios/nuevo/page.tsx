@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, ArrowRight, Check } from "lucide-react"
+import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
@@ -26,6 +26,8 @@ const cities = ["Medellín", "Bogotá", "Cali", "Barranquilla", "Cartagena", "Bu
 export default function RequestServicePage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
   const [formData, setFormData] = useState({
     serviceType: "",
     title: "",
@@ -44,10 +46,26 @@ export default function RequestServicePage() {
     if (step > 1) setStep(step - 1)
   }
 
-  const handleSubmit = () => {
-    console.log("[v0] Submitting service request:", formData)
-    // Here you would send the data to your backend
-    router.push("/servicios")
+  const handleSubmit = async () => {
+    setError("")
+    setIsLoading(true)
+
+    try {
+      // TODO: Enviar al backend
+      // const response = await fetch('/api/servicios', {
+      //   method: 'POST',
+      //   body: JSON.stringify(formData)
+      // })
+
+      // Simulación temporal
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
+      router.push("/servicios")
+    } catch (err) {
+      setError("Error al crear el servicio. Por favor, intenta de nuevo.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const canProceed = () => {
@@ -91,6 +109,12 @@ export default function RequestServicePage() {
           ))}
         </div>
 
+        {error && (
+          <div className="mb-6 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+            {error}
+          </div>
+        )}
+
         <Card className="p-8">
           {/* Step 1: Service Type */}
           {step === 1 && (
@@ -108,6 +132,7 @@ export default function RequestServicePage() {
                     className={`flex flex-col items-center justify-center p-6 rounded-lg border-2 transition-all hover:border-blue-600 hover:bg-accent ${
                       formData.serviceType === type.id ? "border-blue-600 bg-blue-600/10" : "border-border"
                     }`}
+                    disabled={isLoading}
                   >
                     <div className="text-4xl mb-3">{type.icon}</div>
                     <span className="text-sm font-medium text-center">{type.label}</span>
@@ -134,6 +159,7 @@ export default function RequestServicePage() {
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     className="mt-1.5"
+                    disabled={isLoading}
                   />
                 </div>
 
@@ -146,13 +172,18 @@ export default function RequestServicePage() {
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={4}
                     className="mt-1.5"
+                    disabled={isLoading}
                   />
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <Label htmlFor="city">Ciudad</Label>
-                    <Select value={formData.city} onValueChange={(value) => setFormData({ ...formData, city: value })}>
+                    <Select 
+                      value={formData.city} 
+                      onValueChange={(value) => setFormData({ ...formData, city: value })}
+                      disabled={isLoading}
+                    >
                       <SelectTrigger id="city" className="mt-1.5">
                         <SelectValue placeholder="Selecciona una ciudad" />
                       </SelectTrigger>
@@ -174,6 +205,7 @@ export default function RequestServicePage() {
                       value={formData.preferredDate}
                       onChange={(e) => setFormData({ ...formData, preferredDate: e.target.value })}
                       className="mt-1.5"
+                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -186,6 +218,7 @@ export default function RequestServicePage() {
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     className="mt-1.5"
+                    disabled={isLoading}
                   />
                   <p className="text-xs text-muted-foreground mt-1.5">
                     Incluye detalles como número de apartamento, piso, etc.
@@ -212,6 +245,7 @@ export default function RequestServicePage() {
                   onChange={(e) => setFormData({ ...formData, additionalNotes: e.target.value })}
                   rows={6}
                   className="mt-1.5"
+                  disabled={isLoading}
                 />
               </div>
 
@@ -243,20 +277,39 @@ export default function RequestServicePage() {
 
           {/* Navigation buttons */}
           <div className="flex justify-between mt-8 pt-6 border-t border-border">
-            <Button variant="outline" onClick={handleBack} disabled={step === 1}>
+            <Button 
+              variant="outline" 
+              onClick={handleBack} 
+              disabled={step === 1 || isLoading}
+            >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Anterior
             </Button>
 
             {step < 3 ? (
-              <Button onClick={handleNext} disabled={!canProceed()}>
+              <Button 
+                onClick={handleNext} 
+                disabled={!canProceed() || isLoading}
+              >
                 Siguiente
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             ) : (
-              <Button onClick={handleSubmit} disabled={!canProceed()}>
-                Solicitar Servicio
-                <Check className="h-4 w-4 ml-2" />
+              <Button 
+                onClick={handleSubmit} 
+                disabled={!canProceed() || isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    Solicitar Servicio
+                    <Check className="h-4 w-4 ml-2" />
+                  </>
+                )}
               </Button>
             )}
           </div>

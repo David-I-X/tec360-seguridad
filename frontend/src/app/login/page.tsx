@@ -8,18 +8,41 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
-import { ArrowLeft, Mail, Lock } from "lucide-react"
+import { ArrowLeft, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 
 export default function LoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [rememberMe, setRememberMe] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("[v0] Login attempt:", { email, rememberMe })
-    // Login logic will be implemented later
+    setError("")
+    setIsLoading(true)
+
+    try {
+      // TODO: Integrar con Supabase Auth
+      // const { data, error } = await supabase.auth.signInWithPassword({
+      //   email,
+      //   password,
+      // })
+      
+      // Simulación temporal
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
+      // TODO: Redirigir según rol del usuario
+      router.push("/servicios")
+    } catch (err) {
+      setError("Credenciales incorrectas. Por favor, intenta de nuevo.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -42,6 +65,12 @@ export default function LoginPage() {
             <p className="mt-2 text-sm text-muted-foreground">Accede a tu cuenta de Tec360</p>
           </div>
 
+          {error && (
+            <div className="mb-6 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="email">Correo Electrónico</Label>
@@ -55,6 +84,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -65,13 +95,22 @@ export default function LoginPage() {
                 <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 pr-10"
                   required
+                  disabled={isLoading}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  disabled={isLoading}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
 
@@ -81,18 +120,34 @@ export default function LoginPage() {
                   id="remember"
                   checked={rememberMe}
                   onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                  disabled={isLoading}
                 />
                 <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">
                   Recordarme
                 </Label>
               </div>
-              <Link href="/forgot-password" className="text-sm text-blue-600 hover:text-blue-700">
+              <button
+                type="button"
+                onClick={() => setError("Funcionalidad próximamente disponible")}
+                className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
+              >
                 ¿Olvidaste tu contraseña?
-              </Link>
+              </button>
             </div>
 
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-              Iniciar Sesión
+            <Button 
+              type="submit" 
+              className="w-full bg-blue-600 hover:bg-blue-700"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Iniciando sesión...
+                </>
+              ) : (
+                "Iniciar Sesión"
+              )}
             </Button>
           </form>
 

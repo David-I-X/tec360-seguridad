@@ -5,6 +5,7 @@ import { TechnicianCard } from "./technician-card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card } from "@/components/ui/card"
 import { Search, Users } from "lucide-react"
 
 interface Technician {
@@ -28,6 +29,7 @@ export function TechnicianList({ technicians }: TechnicianListProps) {
   const [cityFilter, setCityFilter] = useState("all")
   const [specializationFilter, setSpecializationFilter] = useState("all")
   const [sortBy, setSortBy] = useState("rating")
+  const [actionError, setActionError] = useState("")
 
   // Filter and sort technicians
   let filteredTechnicians = technicians.filter((tech) => {
@@ -47,6 +49,27 @@ export function TechnicianList({ technicians }: TechnicianListProps) {
     if (sortBy === "reviews") return b.reviewCount - a.reviewCount
     return 0
   })
+
+  const handleContact = async (id: string) => {
+    try {
+      setActionError("")
+      // TODO: Implementar modal de contacto o navegación a chat
+      // Por ahora, redirigir a WhatsApp o mostrar modal
+      alert("Funcionalidad de contacto próximamente disponible")
+    } catch (err) {
+      setActionError("Error al contactar al técnico. Por favor, intenta de nuevo.")
+    }
+  }
+
+  const handleViewProfile = async (id: string) => {
+    try {
+      setActionError("")
+      // TODO: Implementar navegación a perfil
+      window.location.href = `/tecnicos/${id}`
+    } catch (err) {
+      setActionError("Error al ver el perfil. Por favor, intenta de nuevo.")
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -110,6 +133,12 @@ export function TechnicianList({ technicians }: TechnicianListProps) {
         </div>
       </div>
 
+      {actionError && (
+        <Card className="p-4 bg-destructive/10 border-destructive/20">
+          <p className="text-destructive text-sm">{actionError}</p>
+        </Card>
+      )}
+
       {filteredTechnicians.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
           <div className="rounded-full bg-muted p-6 mb-4">
@@ -126,8 +155,8 @@ export function TechnicianList({ technicians }: TechnicianListProps) {
             <TechnicianCard
               key={technician.id}
               {...technician}
-              onContact={() => console.log("[v0] Contact technician:", technician.id)}
-              onViewProfile={() => console.log("[v0] View profile:", technician.id)}
+              onContact={() => handleContact(technician.id)}
+              onViewProfile={() => handleViewProfile(technician.id)}
             />
           ))}
         </div>

@@ -36,6 +36,18 @@ class Settings(BaseSettings):
     GOOGLE_MAPS_API_KEY: str = os.getenv("GOOGLE_MAPS_API_KEY", "")
     WOMPI_API_KEY: str = os.getenv("WOMPI_API_KEY", "")
     
+    # Twilio - SMS/OTP (NUEVO)
+    TWILIO_ACCOUNT_SID: str = os.getenv("TWILIO_ACCOUNT_SID", "")
+    TWILIO_AUTH_TOKEN: str = os.getenv("TWILIO_AUTH_TOKEN", "")
+    TWILIO_PHONE_NUMBER: str = os.getenv("TWILIO_PHONE_NUMBER", "")
+    
+    # OTP Settings (NUEVO)
+    OTP_LENGTH: int = int(os.getenv("OTP_LENGTH", "6"))
+    OTP_EXPIRY_MINUTES: int = int(os.getenv("OTP_EXPIRY_MINUTES", "5"))
+    OTP_MAX_ATTEMPTS: int = int(os.getenv("OTP_MAX_ATTEMPTS", "3"))
+    OTP_RATE_LIMIT_MINUTES: int = int(os.getenv("OTP_RATE_LIMIT_MINUTES", "15"))
+    OTP_RATE_LIMIT_MAX: int = int(os.getenv("OTP_RATE_LIMIT_MAX", "5"))
+    
     # CORS - Orígenes permitidos
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",  # Frontend local
@@ -61,23 +73,47 @@ def validate_settings():
     Se debe llamar al inicio de la aplicación
     """
     errors = []
+    warnings = []
     
+    # Validaciones críticas (bloquean en producción)
     if not settings.SUPABASE_URL:
         errors.append("❌ SUPABASE_URL no está configurada")
     
     if not settings.SUPABASE_KEY:
         errors.append("❌ SUPABASE_KEY no está configurada")
     
+    if not settings.SUPABASE_SERVICE_KEY:
+        errors.append("❌ SUPABASE_SERVICE_KEY no está configurada (necesaria para auth con OTP)")
+    
     if not settings.SECRET_KEY or settings.SECRET_KEY == "cambiar-en-produccion-super-secreto-123":
         if settings.ENVIRONMENT == "production":
             errors.append("⚠️ SECRET_KEY debe cambiarse en producción")
     
+    # Validaciones de Twilio (críticas si se usa autenticación por teléfono)
+    if not settings.TWILIO_ACCOUNT_SID:
+        warnings.append("⚠️ TWILIO_ACCOUNT_SID no configurada - SMS deshabilitado")
+    
+    if not settings.TWILIO_AUTH_TOKEN:
+        warnings.append("⚠️ TWILIO_AUTH_TOKEN no configurado - SMS deshabilitado")
+    
+    if not settings.TWILIO_PHONE_NUMBER:
+        warnings.append("⚠️ TWILIO_PHONE_NUMBER no configurado - SMS deshabilitado")
+    
+    # Mostrar errores y warnings
     if errors:
+        print("\n🚨 ERRORES DE CONFIGURACIÓN:")
         print("\n".join(errors))
         if settings.ENVIRONMENT == "production":
             raise ValueError("Configuración incompleta para producción")
-    else:
+    
+    if warnings:
+        print("\n⚠️ ADVERTENCIAS:")
+        print("\n".join(warnings))
+    
+    if not errors and not warnings:
         print("✅ Configuración validada correctamente")
+    elif not errors:
+        print("✅ Configuración básica OK (con advertencias)")
 
 # Validar al importar este módulo
 if os.getenv("SKIP_CONFIG_VALIDATION") != "true":

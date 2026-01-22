@@ -9,11 +9,15 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import Link from "next/link"
-import { ArrowLeft, Mail, Lock, User, Phone } from "lucide-react"
+import { ArrowLeft, Mail, Lock, User, Phone, Loader2 } from "lucide-react"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 
 export default function RegisterPage() {
+  const router = useRouter()
   const [userType, setUserType] = useState<"client" | "technician">("client")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -23,10 +27,58 @@ export default function RegisterPage() {
     acceptTerms: false,
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("[v0] Registration attempt:", { ...formData, userType })
-    // Registration logic will be implemented later
+    setError("")
+
+    // Validación de contraseñas
+    if (formData.password !== formData.confirmPassword) {
+      setError("Las contraseñas no coinciden")
+      return
+    }
+
+    // Validación de términos
+    if (!formData.acceptTerms) {
+      setError("Debes aceptar los términos y condiciones")
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      // TODO: Integrar con Supabase Auth
+      // const { data, error } = await supabase.auth.signUp({
+      //   email: formData.email,
+      //   password: formData.password,
+      //   options: {
+      //     data: {
+      //       full_name: formData.name,
+      //       phone: formData.phone,
+      //       role: userType,
+      //     }
+      //   }
+      // })
+
+      // Simulación temporal
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
+      // Redirigir al login después de registro exitoso
+      router.push("/login?registered=true")
+    } catch (err) {
+      setError("Error al crear la cuenta. Por favor, intenta de nuevo.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleTermsClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setError("Términos y condiciones próximamente disponibles")
+  }
+
+  const handlePrivacyClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setError("Política de privacidad próximamente disponible")
   }
 
   return (
@@ -49,10 +101,20 @@ export default function RegisterPage() {
             <p className="mt-2 text-sm text-muted-foreground">Únete a la comunidad Tec360</p>
           </div>
 
+          {error && (
+            <div className="mb-6 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-3">
               <Label>Tipo de Usuario</Label>
-              <RadioGroup value={userType} onValueChange={(value) => setUserType(value as "client" | "technician")}>
+              <RadioGroup 
+                value={userType} 
+                onValueChange={(value) => setUserType(value as "client" | "technician")}
+                disabled={isLoading}
+              >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="client" id="client" />
                   <Label htmlFor="client" className="font-normal cursor-pointer">
@@ -80,6 +142,7 @@ export default function RegisterPage() {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="pl-10"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -96,6 +159,7 @@ export default function RegisterPage() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="pl-10"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -112,6 +176,7 @@ export default function RegisterPage() {
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className="pl-10"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -128,8 +193,11 @@ export default function RegisterPage() {
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   className="pl-10"
                   required
+                  minLength={8}
+                  disabled={isLoading}
                 />
               </div>
+              <p className="text-xs text-muted-foreground">Mínimo 8 caracteres</p>
             </div>
 
             <div className="space-y-2">
@@ -144,6 +212,7 @@ export default function RegisterPage() {
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                   className="pl-10"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -154,21 +223,41 @@ export default function RegisterPage() {
                 checked={formData.acceptTerms}
                 onCheckedChange={(checked) => setFormData({ ...formData, acceptTerms: checked as boolean })}
                 required
+                disabled={isLoading}
               />
               <Label htmlFor="terms" className="text-sm font-normal leading-relaxed cursor-pointer">
                 Acepto los{" "}
-                <Link href="/terms" className="text-blue-600 hover:text-blue-700">
+                <button
+                  type="button"
+                  onClick={handleTermsClick}
+                  className="text-blue-600 hover:text-blue-700 transition-colors"
+                >
                   términos y condiciones
-                </Link>{" "}
+                </button>{" "}
                 y la{" "}
-                <Link href="/privacy" className="text-blue-600 hover:text-blue-700">
+                <button
+                  type="button"
+                  onClick={handlePrivacyClick}
+                  className="text-blue-600 hover:text-blue-700 transition-colors"
+                >
                   política de privacidad
-                </Link>
+                </button>
               </Label>
             </div>
 
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-              Crear Cuenta
+            <Button 
+              type="submit" 
+              className="w-full bg-blue-600 hover:bg-blue-700"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creando cuenta...
+                </>
+              ) : (
+                "Crear Cuenta"
+              )}
             </Button>
           </form>
 
