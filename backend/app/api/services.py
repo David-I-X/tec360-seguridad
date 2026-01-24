@@ -171,6 +171,45 @@ async def list_services(
     )
 
 
+@router.get("/available", response_model=ServiceListPaginated)
+async def list_available_services(
+    current_user: dict = Depends(require_roles("technician", "admin")),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100)
+):
+    """
+    Lista servicios pendientes disponibles para tomar (Marketplace).
+    
+    **Requiere rol: technician o admin**
+    
+    Muestra servicios con status='pending' y sin técnico asignado.
+    """
+    return await service_service.list_available_services(
+        user_id=current_user["id"],
+        page=page,
+        page_size=page_size
+    )
+
+
+@router.post("/{service_id}/accept", response_model=ServiceResponse)
+async def accept_service(
+    service_id: str = Path(..., description="UUID del servicio"),
+    current_user: dict = Depends(require_roles("technician"))
+):
+    """
+    Permite a un técnico aceptar (tomar) un servicio disponible.
+    
+    **Requiere rol: technician**
+    
+    El servicio debe estar 'pending' y sin asignación.
+    Cambia el estado a 'assigned' y asigna al usuario actual.
+    """
+    return await service_service.accept_service(
+        service_id=service_id,
+        technician_id=current_user["id"]
+    )
+
+
 @router.get("/{service_id}", response_model=ServiceResponse)
 async def get_service(
     service_id: str = Path(..., description="UUID del servicio"),

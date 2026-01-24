@@ -52,6 +52,7 @@ temp/
 .env
 .env.local
 .env.*.local
+context_continuation.txt
 
 # Database
 *.db

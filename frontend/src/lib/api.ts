@@ -304,14 +304,15 @@ export function logout(): void {
  */
 export async function createServiceRequest(data: {
   service_type: string
+  title: string
   description: string
-  address: string
-  city: string
-  latitude?: number
-  longitude?: number
-  preferred_date: string
-  preferred_time?: string
-  notes?: string
+  service_address: string
+  service_city: string
+  service_lat: number
+  service_lon: number
+  scheduled_date: string
+  client_notes?: string
+  estimated_price?: number
 }): Promise<any> {
   const token = getAuthToken()
 
@@ -332,6 +333,39 @@ export async function createServiceRequest(data: {
     await handleAPIError(response)
   }
 
+  return response.json()
+}
+
+/**
+ * Obtiene los servicios disponibles (Marketplace)
+ * Solo para técnicos
+ */
+export async function getAvailableServices(): Promise<any> {
+  const token = getAuthToken()
+  if (!token) throw new Error("No autenticado")
+
+  const response = await fetch(`${API_URL}/services/available`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+
+  if (!response.ok) await handleAPIError(response)
+  return response.json()
+}
+
+/**
+ * Acepta un servicio (Self-Assignment)
+ * Solo para técnicos
+ */
+export async function acceptService(serviceId: string): Promise<any> {
+  const token = getAuthToken()
+  if (!token) throw new Error("No autenticado")
+
+  const response = await fetch(`${API_URL}/services/${serviceId}/accept`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` }
+  })
+
+  if (!response.ok) await handleAPIError(response)
   return response.json()
 }
 

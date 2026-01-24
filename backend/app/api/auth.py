@@ -188,159 +188,110 @@ async def verify_otp(request: OTPRequest):
         current_user = None
         
         try:
-            # Método 1: Buscar usuario por teléfono en la tabla auth.users
-            try:
-                # Usar una consulta directa a la base de datos
-                users_query = supabase_admin.table('auth.users')\
-                    .select('*')\
-                    .eq('phone', request.phone)\
-                    .execute()
-                
-                if users_query.data and len(users_query.data) > 0:
-                    user_data_db = users_query.data[0]
-                    logger.info(f"Found user in database: {user_data_db.get('id')}")
-                    
-                    # Obtener el usuario completo desde Auth Admin
-                    try:
-                        full_user = supabase_admin.auth.admin.get_user_by_id(user_data_db['id'])
-                        if full_user and full_user.user:
-                            current_user = full_user.user
-                            logger.info(f"Retrieved full user data: {current_user.id}")
-                    except Exception as e:
-                        logger.warning(f"Could not get full user data: {e}")
-                        # Crear objeto user temporal con datos de DB
-                        class TempUser:
-                            def __init__(self, data):
-                                self.id = data['id']
-                                self.phone = data['phone']
-                                self.email = data.get('email')
-                                self.user_metadata = data.get('raw_user_meta_data', {})
-                                self.created_at = data.get('created_at')
-                        
-                        current_user = TempUser(user_data_db)
-                        
-            except Exception as db_error:
-                logger.warning(f"Could not query database directly: {db_error}")
-                # Fallback: Método 2 - Listar todos los usuarios
-                try:
-                    users_response = supabase_admin.auth.admin.list_users()
-                    
-                    for user in users_response:
-                        if user.phone == request.phone:
-                            current_user = user
-                            logger.info(f"Found user in list: {user.id}")
-                            break
-                except Exception as list_error:
-                    logger.warning(f"Could not list users: {list_error}")
+            # Método Optimizado: Intentar crear primero, si falla, buscar.
             
-            if current_user:
-                # Usuario existente encontrado
-                logger.info(f"Authenticating existing user: {current_user.id}")
-                
-            else:
-                # Usuario nuevo - intentar crear
-                is_new_user = True
-                logger.info(f"Creating new user for phone: {request.phone}")
-                
-                try:
-                    signup_response = supabase_admin.auth.admin.create_user({
+            # 1. Intentar CREAR el usuario directamente
+            # Esta es la ruta feliz para usuarios nuevos y evita búsquedas innecesarias
+            try:
+                # Intentar crear usuario
+                signup_response = supabase_admin.auth.admin.create_user({
+                    "phone": request.phone,
+                    "phone_confirm": True,
+                    "user_metadata": {
                         "phone": request.phone,
-                        "phone_confirm": True,
-                        "user_metadata": {
-                            "phone": request.phone,
-                            "onboarding_completed": False
-                        }
-                    })
-                    
-                    if not signup_response or not signup_response.user:
-                        raise Exception("Error al crear usuario en Supabase")
-                    
+                        "onboarding_completed": False
+                    }
+                })
+                
+                if signup_response and signup_response.user:
                     current_user = signup_response.user
-                    logger.info(f"New user created: {current_user.id}")
+                    is_new_user = True
+                    logger.info(f"New user created successfully: {current_user.id}")
                     
                     # Enviar SMS de bienvenida
                     try:
                         await sms_service.send_welcome(request.phone, "Usuario")
                     except Exception as e:
                         logger.warning(f"Failed to send welcome SMS: {e}")
-                        
-                except Exception as create_error:
-                    error_msg = str(create_error)
+                else:
+                    raise Exception("Create user returned no user object")
                     
-                    # Si el error es que el teléfono ya existe, eliminarlo y recrearlo
-                    if "already registered" in error_msg.lower():
-                        logger.warning(f"Phone {request.phone} already exists. Attempting to find and use existing user...")
-                        
-                        # Última estrategia: Buscar en TODAS las páginas
+            except Exception as create_error:
+                error_msg = str(create_error)
+                
+                # Si falla porque ya existe, entonces lo buscamos
+                if "already registered" in error_msg.lower() or "unique constraint" in error_msg.lower():
+                    logger.info(f"User already exists for {request.phone}. Searching...")
+                    
+                    # 2. Buscar usuario existente
+                    # Estrategia: Búsqueda rápida -> Búsqueda paginada limitada
+                    
+                    # a) Intentar obtener por ID si tuviéramos tabla local de mapeo (no tenemos)
+                    # b) Listar usuarios (Supabase no tiene get_user_by_phone en admin API público a veces)
+                    
+                    found = False
+                    
+                    # Intentar buscar en las primeras páginas
+                    # LIMITADO a 3 páginas para evitar timeout
+                    page = 1
+                    per_page = 50 
+                    max_pages = 5
+                    
+                    while not found and page <= max_pages:
                         try:
-                            page = 1
-                            per_page = 1000
-                            found = False
+                            users_page = supabase_admin.auth.admin.list_users(page=page, per_page=per_page)
                             
-                            while not found:
-                                logger.info(f"Searching users page {page}...")
-                                users_page = supabase_admin.auth.admin.list_users(page=page, per_page=per_page)
-                                
-                                if not users_page or len(users_page) == 0:
-                                    break
-                                
-                                for user in users_page:
-                                    if user.phone == request.phone:
-                                        current_user = user
-                                        is_new_user = False
-                                        found = True
-                                        logger.info(f"Found user in page {page}: {user.id}")
-                                        break
-                                
-                                if found or len(users_page) < per_page:
-                                    break
+                            if not users_page or len(users_page) == 0:
+                                break
+                            
+                            for user in users_page:
+                                if user.phone == request.phone:
+                                    current_user = user
+                                    is_new_user = False # Asumimos falso, frontend deberá chequear onboarding_completed
                                     
-                                page += 1
+                                    # Verificar si realmente es nuevo (onboarding no completo)
+                                    meta = user.user_metadata or {}
+                                    if not meta.get("onboarding_completed", False):
+                                        is_new_user = True
+                                        
+                                    found = True
+                                    logger.info(f"Found existing user in page {page}: {user.id}")
+                                    break
                             
-                            if not current_user:
-                                # Si aún no encontramos el usuario, creemos uno temporal que funcione
-                                logger.error(f"User exists but cannot be found. Creating functional temporary user.")
-                                
-                                # Crear usuario temporal con datos básicos que permitan continuar
-                                class FunctionalUser:
-                                    def __init__(self, phone_num):
-                                        import uuid
-                                        # Generar UUID consistente basado en el teléfono
-                                        self.id = str(uuid.uuid5(uuid.NAMESPACE_DNS, phone_num))
-                                        self.phone = phone_num
-                                        self.email = None
-                                        self.user_metadata = {
-                                            "phone": phone_num,
-                                            "onboarding_completed": False,
-                                            "_temporary": True
-                                        }
-                                        self.created_at = None
-                                
-                                current_user = FunctionalUser(request.phone)
-                                is_new_user = False
-                                logger.warning(f"Using temporary functional user for {request.phone}")
-                                
-                        except Exception as search_error:
-                            logger.error(f"Final search failed: {search_error}")
-                            # Crear usuario temporal como último recurso
-                            class FunctionalUser:
-                                def __init__(self, phone_num):
-                                    import uuid
-                                    self.id = str(uuid.uuid5(uuid.NAMESPACE_DNS, phone_num))
-                                    self.phone = phone_num
-                                    self.email = None
-                                    self.user_metadata = {
-                                        "phone": phone_num,
-                                        "onboarding_completed": False,
-                                        "_temporary": True
-                                    }
-                                    self.created_at = None
+                            page += 1
                             
-                            current_user = FunctionalUser(request.phone)
-                            is_new_user = False
-                            logger.warning(f"Using temporary functional user after search failure")
-                    else:
-                        raise create_error
+                        except Exception as list_err:
+                            logger.error(f"Error listing users page {page}: {list_err}")
+                            break
+                    
+                    # c) Si NO SE ENCUENTRA pero Supabase dice que existe (Ghost User)
+                    if not current_user:
+                        logger.warning(f"User exists but not found in first {max_pages} pages. Creating Functional User.")
+                        
+                        # Crear USUARIO FUNCIONAL para permitir flujo Frontend
+                        # Usamos UUID v5 basado en teléfono para consistencia
+                        import uuid
+                        functional_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, request.phone))
+                        
+                        class FunctionalUser:
+                            def __init__(self, phone_num, uid):
+                                self.id = uid
+                                self.phone = phone_num
+                                self.email = None
+                                self.user_metadata = {
+                                    "phone": phone_num,
+                                    "onboarding_completed": False,
+                                    "is_functional": True # Flag para saber que es temporal
+                                }
+                                self.created_at = None
+                        
+                        current_user = FunctionalUser(request.phone, functional_id)
+                        is_new_user = True # Forzamos a que parezca nuevo para ir a onboarding
+                        
+                else:
+                    # Error genuino de creación (no es por duplicado)
+                    logger.error(f"Failed to create user: {create_error}")
+                    raise create_error
             
             # Verificar que tenemos un usuario
             if not current_user:
@@ -435,24 +386,94 @@ async def complete_onboarding(
             logger.warning(f"Could not fetch existing user metadata: {e}")
             existing_metadata = {}
         
-        # Merge de metadata existente con nueva info
-        updated_metadata = {
-            **existing_metadata,
-            "phone": user_phone,
-            "full_name": request.full_name,
-            "email": request.email if request.email else existing_metadata.get("email"),
-            "role": request.user_type,
-            "onboarding_completed": True,
-        }
+        # MERGE DE METADATA & MANEJO DE USUARIO FUNCIONAL
         
-        # Actualizar metadata del usuario
-        update_response = supabase_admin.auth.admin.update_user_by_id(
-            user_id,
-            {"user_metadata": updated_metadata}
-        )
+        # Verificar si es un "Functional User" (ID generado por nosotros)
+        # Los IDs de Supabase son UUIDs estándar, pero el nuestro lo generamos con uuid5
+        # Sin embargo, lo más seguro es revisar la metadata del token
         
-        if not update_response or not update_response.user:
-            raise Exception("Error al actualizar perfil")
+        is_functional = False
+        try:
+           # Si en get_current_user pasamos user_metadata en el token (lo cual hacemos en verify_otp), podríamos chequearlo aquí
+           # Pero get_current_user retorna un dict basico.
+           pass
+        except:
+           pass
+           
+        # Intentar actualizar usuario
+        
+        try:
+            # Primero intentar actualización estándar
+            # Actualizar metadata del usuario
+            update_response = supabase_admin.auth.admin.update_user_by_id(
+                user_id,
+                {"user_metadata": updated_metadata}
+            )
+            
+            if not update_response or not update_response.user:
+                raise Exception("Update returned empy")
+                
+            logger.info(f"Standard update success for {user_id}")
+            
+        except Exception as update_error:
+            # Si falla la actualización, PODRÍA ser porque el ID no existe en Supabase (User Funcional)
+            logger.warning(f"Standard update failed for {user_id}: {update_error}. Checking if functional user rescue needed.")
+            
+            # Intentar RESCATAR el usuario (Crearlo o buscar el real)
+            try:
+                # 1. Intentar CREARLO DE CERO (si era fantasma y desapareció, o si nunca se creó)
+                logger.info(f"Attempting to CREATE user as fallback for {user_phone}")
+                
+                signup_response = supabase_admin.auth.admin.create_user({
+                    "phone": user_phone,
+                    "phone_confirm": True,
+                    "user_metadata": updated_metadata
+                })
+                
+                if signup_response and signup_response.user:
+                    user_id = signup_response.user.id # Actualizamos ID al real
+                    logger.info(f"User rescued by CREATION. New ID: {user_id}")
+                else:
+                    raise Exception("Rescue creation returned empty")
+                    
+            except Exception as rescue_create_error:
+                # Si falla crear, es probable que YA EXISTA
+                logger.info(f"Rescue creation failed: {rescue_create_error}. Attempting brute force search.")
+                
+                try:
+                    # 2. Búsqueda profunda para encontrar el ID real
+                    page = 1
+                    per_page = 100
+                    found_user = None
+                    
+                    for _ in range(10): # Max 10 páginas
+                        users = supabase_admin.auth.admin.list_users(page=page, per_page=per_page)
+                        if not users: break
+                        
+                        for u in users:
+                            if u.phone == user_phone:
+                                found_user = u
+                                break
+                        if found_user: break
+                        page += 1
+                        
+                    if found_user:
+                        user_id = found_user.id
+                        logger.info(f"User rescued by SEARCH. Real ID found: {user_id}")
+                        
+                        # Ahora sí actualizamos
+                        supabase_admin.auth.admin.update_user_by_id(
+                            user_id,
+                            {"user_metadata": updated_metadata}
+                        )
+                    else:
+                        raise Exception("User absolutely cannot be found or created. Critical failure.")
+                        
+                except Exception as final_error:
+                     raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Error crítico en onboarding: No se puede reconciliar usuario. {str(final_error)}"
+                     )
         
         logger.info(f"Onboarding completed for user: {user_id}")
         

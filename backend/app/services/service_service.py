@@ -435,6 +435,137 @@ class ServiceService:
             )
     
     
+    async def list_available_services(
+        self,
+        user_id: str,
+        page: int = 1,
+        page_size: int = 10
+    ) -> Dict[str, Any]:
+        """
+        Lista servicios disponibles para que los técnicos los tomen (Marketplace).
+        Estado = 'pending' y sin técnico asignado.
+        
+        Args:
+            user_id: ID del técnico (para logs o filtrado futuro)
+            page: Página actual
+            page_size: Tamaño de página
+            
+        Returns:
+            Dict con servicios paginados
+        """
+        try:
+            # Query: status = pending, technician_id is null
+            query = self.supabase.table("services")\
+                .select("*, client:users!client_id(full_name)", count="exact")\
+                .eq("status", "pending")\
+                .is_("technician_id", "null")
+            
+            # Paginación
+            start = (page - 1) * page_size
+            end = start + page_size - 1
+            
+            query = query.range(start, end).order("created_at", desc=True)
+            
+            response = query.execute()
+            
+            services = response.data or []
+            total = response.count or 0
+            total_pages = math.ceil(total / page_size) if total > 0 else 0
+            
+            # Parsear
+            services_parsed = [
+                {
+                    "id": s["id"],
+                    "service_type": s["service_type"],
+                    "status": s["status"],
+                    "title": s["title"],
+                    "service_city": s["service_city"],
+                    "scheduled_date": s.get("scheduled_date"),
+                    "estimated_price": s.get("estimated_price"),
+                    "created_at": s["created_at"],
+                    "client_name": s.get("client", {}).get("full_name") if s.get("client") else "Cliente",
+                    "technician_name": None, # Obviamente null
+                }
+                for s in services
+            ]
+            
+            return {
+                "services": services_parsed,
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": total_pages
+            }
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al listar servicios disponibles: {str(e)}"
+            )
+
+    async def accept_service(
+        self,
+        service_id: str,
+        technician_id: str
+    ) -> ServiceResponse:
+        """
+        Permite a un técnico aceptar un servicio pendiente (Self-Assignment).
+        
+        Args:
+            service_id: UUID del servicio
+            technician_id: UUID del técnico que acepta
+            
+        Returns:
+            ServiceResponse con el servicio actualizado
+        """
+        try:
+            # 1. Verificar servicio (debe estar pending)
+            service_resp = self.supabase.table("services")\
+                .select("status, technician_id")\
+                .eq("id", service_id)\
+                .single()\
+                .execute()
+            
+            if not service_resp.data:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
+            
+            service = service_resp.data
+            
+            if service["status"] != "pending":
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT, 
+                    f"El servicio ya no está disponible (Estado: {service['status']})"
+                )
+            
+            if service.get("technician_id"):
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    "El servicio ya fue asignado a otro técnico"
+                )
+                
+            # 2. Asignar técnico
+            update_resp = self.supabase.table("services")\
+                .update({
+                    "technician_id": technician_id,
+                    "status": "assigned"
+                })\
+                .eq("id", service_id)\
+                .execute()
+                
+            if not update_resp.data:
+                raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Error al aceptar servicio")
+                
+            # 3. Retornar servicio actualizado
+            return await self.get_service_by_id(service_id, technician_id, "technician")
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al aceptar servicio: {str(e)}"
+            )
+
     # ============================================
     # MÉTODOS PRIVADOS (HELPERS)
     # ============================================
