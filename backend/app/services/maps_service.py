@@ -28,14 +28,15 @@ class MapsService:
         """
         Inicializa el cliente de Google Maps
         
-        Requiere variable de entorno GOOGLE_API_KEY
+        Requiere variable de entorno GOOGLE_MAPS_API_KEY
         """
-        self.api_key = os.getenv("GOOGLE_API_KEY")
+        from app.core.config import settings
+        self.api_key = settings.GOOGLE_MAPS_API_KEY
         
         if not self.api_key:
             # En desarrollo, permitir continuar sin API key
             # En producción, esto debería ser un error crítico
-            print("⚠️ WARNING: GOOGLE_API_KEY no está configurada")
+            print("⚠️ WARNING: GOOGLE_MAPS_API_KEY no está configurada")
             self.gmaps = None
         else:
             try:

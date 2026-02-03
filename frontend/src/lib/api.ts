@@ -379,7 +379,31 @@ export async function getUserServices(): Promise<any[]> {
     throw new Error("No estás autenticado")
   }
 
-  const response = await fetch(`${API_URL}/services/my-services`, {
+  const response = await fetch(`${API_URL}/services`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+
+  if (!response.ok) {
+    await handleAPIError(response)
+  }
+
+  return response.json()
+}
+
+/**
+ * Obtiene un servicio por ID
+ */
+export async function getServiceById(serviceId: string): Promise<any> {
+  const token = getAuthToken()
+
+  if (!token) {
+    throw new Error("No estás autenticado")
+  }
+
+  const response = await fetch(`${API_URL}/services/${serviceId}`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,

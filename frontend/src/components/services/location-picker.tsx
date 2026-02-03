@@ -1,14 +1,11 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet"
+import { useState, useMemo, useRef, useCallback } from "react"
+import { GoogleMap, useLoadScript, Marker, StandaloneSearchBox } from "@react-google-maps/api"
 import { Button } from "@/components/ui/button"
-import { Locate, MapPin } from "lucide-react"
-
-// Importar CSS de Leaflet (requerido)
-import "leaflet/dist/leaflet.css"
-import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css"
-import "leaflet-defaulticon-compatibility"
+import { Locate, MapPin, Search } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Loader2 } from "lucide-react"
 
 interface LocationPickerProps {
     onLocationSelect: (lat: number, lng: number) => void
@@ -16,20 +13,7 @@ interface LocationPickerProps {
     initialLng?: number
 }
 
-// Componente auxiliar para detectar movimiento del mapa y actualizar centro
-function MapController({ onCenterChange }: { onCenterChange: (lat: number, lng: number) => void }) {
-    const map = useMap()
-
-    // Evento al terminar de arrastrar el mapa
-    useMapEvents({
-        moveend: () => {
-            const center = map.getCenter()
-            onCenterChange(center.lat, center.lng)
-        }
-    })
-
-    return null
-}
+const libraries: ("places")[] = ["places"]
 
 export default function LocationPicker({
     onLocationSelect,
@@ -37,68 +21,140 @@ export default function LocationPicker({
     initialLng = -75.5636
 }: LocationPickerProps) {
 
-    const [position, setPosition] = useState({ lat: initialLat, lng: initialLng })
+    const { isLoaded, loadError } = useLoadScript({
+        googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "",
+        libraries: libraries,
+    })
+
+    const mapRef = useRef<google.maps.Map | null>(null)
+    const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null)
+
+    // We keep track of the center manually to report it on drag end
+    const centerRef = useRef({ lat: initialLat, lng: initialLng })
+
+    // UI state should only effect the "Locate Me" or initial load
+    // We don't want to re-render map on every drag
+    const [mapCenter, setMapCenter] = useState({ lat: initialLat, lng: initialLng })
     const [isLocating, setIsLocating] = useState(false)
 
-    // Función para obtener ubicación actual
+    const onLoad = useCallback((map: google.maps.Map) => {
+        mapRef.current = map
+    }, [])
+
+    const onUnmount = useCallback(() => {
+        mapRef.current = null
+    }, [])
+
+    const handleCenterChanged = () => {
+        if (!mapRef.current) return
+        const newCenter = mapRef.current.getCenter()
+        if (newCenter) {
+            const lat = newCenter.lat()
+            const lng = newCenter.lng()
+            centerRef.current = { lat, lng }
+            // Desacoplamos la actualización del padre para performance
+            // Solo actualizamos al terminar arrastre (onDragEnd) o usamos debounce 
+            // pero para UX instantánea, actualizamos aquí si no es costoso
+            onLocationSelect(lat, lng)
+        }
+    }
+
+    const onPlacesChanged = () => {
+        const places = searchBoxRef.current?.getPlaces()
+        if (places && places.length > 0) {
+            const place = places[0]
+            if (place.geometry && place.geometry.location) {
+                const lat = place.geometry.location.lat()
+                const lng = place.geometry.location.lng()
+                setMapCenter({ lat, lng })
+                onLocationSelect(lat, lng)
+            }
+        }
+    }
+
+    const onSearchLoad = (ref: google.maps.places.SearchBox) => {
+        searchBoxRef.current = ref
+    }
+
     const handleLocateMe = () => {
         setIsLocating(true)
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                const { latitude, longitude } = pos.coords
-                setPosition({ lat: latitude, lng: longitude })
-                onLocationSelect(latitude, longitude)
-                setIsLocating(false)
-                // Nota: En una implementación real, necesitaríamos acceso a la instancia del mapa para hacer flyTo
-                // o pasar la prop 'center' al MapContainer de forma reactiva (key change)
-            },
-            (err) => {
-                console.error("Error obteniendo ubicación:", err)
-                setIsLocating(false)
-            }
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const pos = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                    }
+                    setMapCenter(pos)
+                    onLocationSelect(pos.lat, pos.lng)
+                    setIsLocating(false)
+                },
+                (e) => {
+                    console.error("Error: The Geolocation service failed.", e)
+                    setIsLocating(false)
+                }
+            )
+        } else {
+            console.error("Error: Your browser doesn't support geolocation.")
+            setIsLocating(false)
+        }
+    }
+
+    if (loadError) return <div className="p-4 text-red-500 bg-red-50 rounded-lg">Error cargando Google Maps</div>
+    if (!isLoaded) {
+        return (
+            <div className="h-[300px] w-full flex items-center justify-center bg-muted/20 rounded-xl animate-pulse">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Cargando Mapa...</span>
+            </div>
         )
     }
 
-    // Notificar al padre cuando cambia el centro (el usuario arrastró el mapa)
-    const handleCenterChange = (lat: number, lng: number) => {
-        // Solo actualizamos el padre, no el estado local 'position' visual 
-        // porque el marcador central es fijo visualmente (falso pin)
-        onLocationSelect(lat, lng)
-    }
-
     return (
-        <div className="relative h-[300px] w-full overflow-hidden rounded-xl border z-0">
-            {/* Mapa */}
-            {/* Usamos 'key' para forzar re-render si cambia position bruscamente (ej. Locate Me) */}
-            <MapContainer
-                key={`${position.lat}-${position.lng}`}
-                center={[position.lat, position.lng]}
-                zoom={15}
-                scrollWheelZoom={true}
-                className="h-full w-full"
-            >
-                <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                <MapController onCenterChange={handleCenterChange} />
-            </MapContainer>
+        <div className="relative h-[350px] w-full overflow-hidden rounded-xl border">
+            {/* Search Box Overlay */}
+            <div className="absolute top-4 left-4 right-16 z-10">
+                <StandaloneSearchBox onLoad={onSearchLoad} onPlacesChanged={onPlacesChanged}>
+                    <div className="relative shadow-md">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar dirección..."
+                            className="bg-white pl-9 border-0 focus-visible:ring-1"
+                        />
+                    </div>
+                </StandaloneSearchBox>
+            </div>
 
-            {/* Pin Central Fijo (UI Overlay) */}
-            <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[400] text-primary pb-8">
-                <MapPin className="h-10 w-10 fill-current drop-shadow-xl animate-bounce" />
+            <GoogleMap
+                mapContainerClassName="w-full h-full"
+                center={mapCenter}
+                zoom={15}
+                onLoad={onLoad}
+                onUnmount={onUnmount}
+                onCenterChanged={handleCenterChanged}
+                options={{
+                    disableDefaultUI: true,
+                    zoomControl: true,
+                    // styles: silverMapStyle // Optional: Custom style
+                }}
+            >
+                {/* No Marker here because we use the fixed center pin overlay */}
+            </GoogleMap>
+
+            {/* Fixed Center Pin */}
+            <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[0] text-primary pb-8">
+                <MapPin className="h-10 w-10 fill-red-500 text-red-600 drop-shadow-xl animate-bounce" />
                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3 h-1 bg-black/50 rounded-full blur-[2px]"></div>
             </div>
 
-            {/* Botón Localizame */}
             <Button
                 variant="secondary"
                 size="icon"
-                className="absolute bottom-4 right-4 z-[400] shadow-md"
+                className="absolute bottom-4 right-4 z-10 shadow-md bg-white hover:bg-gray-100"
                 onClick={handleLocateMe}
             >
                 {isLocating ? (
-                    <span className="animate-spin">⌛</span>
+                    <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                     <Locate className="h-5 w-5" />
                 )}

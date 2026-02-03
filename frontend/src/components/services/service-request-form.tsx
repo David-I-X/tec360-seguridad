@@ -66,6 +66,7 @@ export function ServiceRequestForm() {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [success, setSuccess] = useState(false)
     const [error, setError] = useState("")
+    const [createdServiceId, setCreatedServiceId] = useState<string | null>(null)
 
     const form = useForm<ServiceValues>({
         resolver: zodResolver(serviceSchema),
@@ -99,19 +100,32 @@ export function ServiceRequestForm() {
         setError("")
 
         try {
+            const serviceSchema = z.object({
+                service_type: z.string().min(1, "Selecciona un tipo de servicio"),
+                description: z.string().min(10, "Describe brevemente qué necesitas (mínimo 10 caracteres)"),
+                address: z.string().min(10, "Ingresa una referencia de dirección completa (min 10 letras)"), // MATCH BACKEND
+                scheduled_date: z.date({
+                    required_error: "Selecciona una fecha preferida",
+                }),
+                lat: z.number().optional(),
+                lng: z.number().optional()
+            })
+
+            // ... (omit lines for brevity)
+
             const typeLabel = {
-                "installation_cctv": "Instalación de Cámaras",
-                "installation_alarm": "Instalación de Alarma",
-                "installation_gps": "Instalación de GPS",
-                "maintenance_cctv": "Mantenimiento CCTV",
-                "maintenance_alarm": "Mantenimiento Alarma",
-                "maintenance_gps": "Mantenimiento GPS",
+                "camera_installation": "Instalación de Cámaras",
+                "alarm_installation": "Instalación de Alarma",
+                "gps_installation": "Instalación de GPS",
+                "camera_maintenance": "Mantenimiento CCTV",
+                "alarm_maintenance": "Mantenimiento Alarma",
+                "gps_maintenance": "Mantenimiento GPS",
                 "other": "Servicio Técnico"
             }[data.service_type] || "Servicio"
 
             const title = `${typeLabel} - ${format(data.scheduled_date, "dd/MM/yyyy")}`
 
-            await createServiceRequest({
+            const result = await createServiceRequest({
                 service_type: data.service_type,
                 title: title,
                 description: data.description,
@@ -123,6 +137,7 @@ export function ServiceRequestForm() {
                 client_notes: data.description
             })
 
+            setCreatedServiceId(result.id)
             setSuccess(true)
         } catch (err: any) {
             setError(err.message || "Error al crear solicitud")
@@ -145,9 +160,16 @@ export function ServiceRequestForm() {
                 <p className="text-muted-foreground mb-8">
                     Un técnico revisará tu solicitud y la aceptará pronto.
                 </p>
-                <Button onClick={() => window.location.reload()} className="w-full">
-                    Solicitar otro servicio
-                </Button>
+                <div className="space-y-3">
+                    {createdServiceId && (
+                        <Button onClick={() => window.location.href = `/servicios/${createdServiceId}`} className="w-full">
+                            Ver mi Solicitud
+                        </Button>
+                    )}
+                    <Button variant="outline" onClick={() => window.location.reload()} className="w-full">
+                        Solicitar otro servicio
+                    </Button>
+                </div>
             </GlassCard>
         )
     }

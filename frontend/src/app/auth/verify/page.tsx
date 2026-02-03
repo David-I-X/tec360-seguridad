@@ -103,13 +103,16 @@ function VerifyOTPContent() {
       // Limpiar sessionStorage
       sessionStorage.removeItem("pending_phone")
 
-      // Redirigir según si es nuevo usuario o no
-      if (response.isNewUser) {
-        // Usuario nuevo - explorar libremente
-        router.push("/servicios")
+      // Redirigir según el rol del usuario
+      // Cast explícito o acceso seguro, ya que TS se queja de que isNewUser no tiene user
+      const userData = (response as any).user || {}
+      const userRole = userData.role || "client"
+
+      if (userRole === "technician") {
+        router.push("/tecnicos/dashboard")
       } else {
-        // Usuario existente - ir a servicios
-        router.push("/servicios")
+        // Clientes o nuevos usuarios van a servicios (donde harán onboarding si es necesario)
+        router.push("/servicios/nuevo")
       }
     } catch (err: any) {
       setError(err.message || "Código incorrecto. Intenta de nuevo.")
@@ -130,7 +133,7 @@ function VerifyOTPContent() {
       // Reiniciar timer
       setTimeLeft(300)
       setCanResend(false)
-      
+
       // Mostrar mensaje de éxito
       setError("") // Limpiar errores previos
     } catch (err: any) {

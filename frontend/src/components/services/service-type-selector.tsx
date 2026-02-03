@@ -12,12 +12,12 @@ interface ServiceType {
 }
 
 const services: ServiceType[] = [
-    { id: "installation_cctv", label: "Cámaras (CCTV)", icon: Video, color: "bg-blue-500" },
-    { id: "installation_alarm", label: "Alarmas", icon: AlertTriangle, color: "bg-red-500" },
-    { id: "installation_gps", label: "GPS Vehicular", icon: MapPin, color: "bg-green-500" },
-    { id: "maintenance_cctv", label: "Mant. Cámaras", icon: Shield, color: "bg-blue-400" },
-    { id: "maintenance_alarm", label: "Mant. Alarmas", icon: Shield, color: "bg-red-400" },
-    { id: "maintenance_gps", label: "Mant. GPS", icon: Shield, color: "bg-green-400" },
+    { id: "camera_installation", label: "Cámaras (CCTV)", icon: Video, color: "bg-blue-500" },
+    { id: "alarm_installation", label: "Alarmas", icon: AlertTriangle, color: "bg-red-500" },
+    { id: "gps_installation", label: "GPS Vehicular", icon: MapPin, color: "bg-green-500" },
+    { id: "camera_maintenance", label: "Mant. Cámaras", icon: Shield, color: "bg-blue-400" },
+    { id: "alarm_maintenance", label: "Mant. Alarmas", icon: Shield, color: "bg-red-400" },
+    { id: "gps_maintenance", label: "Mant. GPS", icon: Shield, color: "bg-green-400" },
 ]
 
 interface ServiceTypeSelectorProps {

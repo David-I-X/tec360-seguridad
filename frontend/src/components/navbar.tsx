@@ -101,19 +101,11 @@ export function Navbar() {
             </DropdownMenu>
           ) : (
             // Usuario no autenticado
-            <>
-              <Link href="/auth/phone">
-                <Button variant="ghost" className="hidden sm:inline-flex">
-                  Iniciar Sesión
-                </Button>
-              </Link>
-
-              <Link href="/auth/phone">
-                <Button className="bg-blue-600 hover:bg-blue-700">
-                  Registrarse
-                </Button>
-              </Link>
-            </>
+            <Link href="/auth/phone">
+              <Button className="bg-blue-600 hover:bg-blue-700 font-semibold px-6">
+                Comienza ya
+              </Button>
+            </Link>
           )}
         </div>
       </div>

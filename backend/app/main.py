@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from app.core.config import settings
 from app.api import example, services, technicians, ratings, maps, images, auth
+from app.api import ws as websocket_router
 import logging
 
 # Configurar logging
@@ -34,6 +35,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Servir archivos estáticos (imágenes)
+from fastapi.staticfiles import StaticFiles
+import os
+static_dir = os.path.join(os.getcwd(), "static")
+if not os.path.exists(static_dir):
+    os.makedirs(static_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Exception Handlers
 @app.exception_handler(RequestValidationError)
@@ -83,6 +92,11 @@ app.include_router(technicians.router)
 app.include_router(ratings.router)
 app.include_router(maps.router)
 app.include_router(images.router)
+app.include_router(websocket_router.router)  # 🔌 WebSocket para tracking en tiempo real
+
+# Location tracking
+from app.api import location as location_router
+app.include_router(location_router.router)  # 📍 Location tracking
 
 
 # Ruta de health check

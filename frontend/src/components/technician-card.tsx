@@ -33,7 +33,7 @@ export function TechnicianCard({
   onContact,
   onViewProfile,
 }: TechnicianCardProps) {
-  const initials = name
+  const initials = (name || "Técnico")
     .split(" ")
     .map((n) => n[0])
     .join("")
@@ -63,7 +63,7 @@ export function TechnicianCard({
             <div className="flex items-center gap-2 mt-1.5">
               <div className="flex items-center gap-1">
                 <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
-                <span className="font-medium text-sm text-foreground">{rating.toFixed(1)}</span>
+                <span className="font-medium text-sm text-foreground">{(rating || 0).toFixed(1)}</span>
               </div>
               <span className="text-xs text-muted-foreground">
                 ({reviewCount} {reviewCount === 1 ? "reseña" : "reseñas"})

@@ -1,191 +1,95 @@
 """
-Módulo de seguridad - Validación de tokens Supabase y dependencias FastAPI
+Módulo de seguridad - Validación de tokens JWT Locales
 """
 from typing import Optional, List
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from supabase import create_client, Client # type: ignore
+from fastapi.security import OAuth2PasswordBearer
+from jose import jwt, JWTError
 from app.core.config import settings
 
-# Esquema de seguridad Bearer token
-security = HTTPBearer()
+# OAuth2 scheme points to the login endpoint
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login", auto_error=False)
 
-# Cliente Supabase global (usa SERVICE_KEY para operaciones de backend)
-supabase_client: Client = create_client(
-    settings.SUPABASE_URL,
-    settings.SUPABASE_SERVICE_KEY  # Service key, NO anon key
-)
-
-
-async def verify_supabase_token(token: str) -> dict:
+async def get_optional_user(token: Optional[str] = Depends(oauth2_scheme_optional)) -> Optional[dict]:
     """
-    Verifica un token JWT de Supabase y retorna la info del usuario.
-    
-    Args:
-        token: JWT token de Supabase (sin el prefijo "Bearer")
-    
-    Returns:
-        dict: Información del usuario validado desde Supabase
-        Ejemplo: {
-            "id": "uuid-del-usuario",
-            "email": "usuario@example.com",
-            "role": "client",
-            "user_metadata": {...}
-        }
-    
-    Raises:
-        HTTPException: Si el token es inválido, expirado o el usuario no existe
+    Returns user dict if token is valid, else None.
+    Does NOT raise HTTPException.
     """
+    if not token:
+        return None
     try:
-        # Usar el método get_user de Supabase para verificar el token
-        # Este método valida el JWT automáticamente
-        response = supabase_client.auth.get_user(token)
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        return {"id": payload.get("sub"), "role": payload.get("role", "client")}
+    except JWTError:
+        return None
+
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
+    """
+    Validate JWT token and return user data (id, role, email).
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        # Decode token locally
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id: str = payload.get("sub")
         
-        # Verificar que obtuvimos un usuario válido
-        if not response or not response.user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token inválido o expirado",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        user = response.user
-        
-        # Extraer rol del user_metadata (o asignar "client" por defecto)
-        # En el MVP, configuramos esto manualmente en Supabase
-        user_metadata = user.user_metadata or {}
-        role = user_metadata.get("role", "client")  # Default: client
-        
-        # Construir objeto de usuario limpio
-        user_data = {
-            "id": user.id,
-            "email": user.email,
-            "role": role,
-            "user_metadata": user_metadata,
-            "created_at": user.created_at,
+        if user_id is None:
+            raise credentials_exception
+            
+        # For now, we return basic data from token/validation
+        # In a real scenario, you might fetch fresh data from DB here
+        # But for performance we trust the token's claims if valid
+        return {
+            "id": user_id,
+            "role": payload.get("role", "client") # Defaults to client if not present
         }
         
-        return user_data
-        
-    except HTTPException:
-        # Re-lanzar excepciones HTTP que ya creamos
-        raise
-        
-    except Exception as e:
-        # Capturar cualquier otro error (problemas de red, Supabase down, etc.)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Error al verificar token: {str(e)}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-) -> dict:
-    """
-    Dependencia de FastAPI que extrae y valida el token del header Authorization.
-    
-    Uso en endpoints:
-        @app.get("/protected")
-        async def protected_route(user: dict = Depends(get_current_user)):
-            return {"message": f"Hola {user['email']}"}
-    
-    Args:
-        credentials: Credenciales extraídas del header Authorization por HTTPBearer
-    
-    Returns:
-        dict: Usuario validado con id, email, role, etc.
-    
-    Raises:
-        HTTPException 401: Si no hay token o es inválido
-    """
-    # HTTPBearer ya extrajo el token del header "Authorization: Bearer <token>"
-    token = credentials.credentials
-    
-    # Validar el token con Supabase
-    user = await verify_supabase_token(token)
-    
-    return user
-
+    except JWTError:
+        raise credentials_exception
 
 def require_roles(*allowed_roles: str):
     """
-    Factory de dependencia que verifica que el usuario tenga uno de los roles permitidos.
-    
-    Uso:
-        @app.get("/admin")
-        async def admin_only(user: dict = Depends(require_roles("admin"))):
-            return {"message": "Área de administrador"}
-        
-        @app.get("/technician-dashboard")
-        async def tech_dashboard(user: dict = Depends(require_roles("technician", "admin"))):
-            return {"message": "Dashboard de técnico"}
-    
-    Args:
-        *allowed_roles: Roles permitidos (ej: "admin", "technician", "client")
-    
-    Returns:
-        Callable: Dependencia de FastAPI que valida roles
+    Factory validation for roles.
+    Assumes role is embedded in token or fetched from DB.
+    For this MVP migration, we will fetch the user from DB in the next step
+    or embed verify calls.
     """
-    async def role_checker(current_user: dict = Depends(get_current_user)) -> dict:
-        """
-        Verifica que el usuario actual tenga uno de los roles permitidos.
-        """
-        user_role = current_user.get("role")
-        
-        if user_role not in allowed_roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Acceso denegado. Se requiere rol: {', '.join(allowed_roles)}",
+    async def role_checker(token: str = Depends(oauth2_scheme)) -> dict:
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            # We need to make sure 'role' is in the payload during Login
+            user_role = payload.get("role", "client") 
+            
+            if user_role not in allowed_roles and "admin" not in user_role:
+                 raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Acceso denegado. Se requiere rol: {', '.join(allowed_roles)}",
+                )
+            
+            return {"id": payload.get("sub"), "role": user_role}
+            
+        except JWTError:
+             raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token",
             )
-        
-        return current_user
-    
+            
     return role_checker
 
-
-# Utilidades adicionales
-
+# Utilities
 def get_user_id(current_user: dict = Depends(get_current_user)) -> str:
-    """
-    Dependencia simplificada que solo retorna el ID del usuario.
-    Útil cuando solo necesitas el user_id en un endpoint.
-    
-    Uso:
-        @app.get("/my-services")
-        async def get_my_services(user_id: str = Depends(get_user_id)):
-            # user_id es un string UUID
-            return {"user_id": user_id, "services": [...]}
-    """
     return current_user["id"]
 
-
-async def get_optional_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
-) -> Optional[dict]:
-    """
-    Dependencia que intenta obtener el usuario, pero NO falla si no hay token.
-    Útil para rutas públicas que muestran contenido diferente si el usuario está logueado.
-    
-    Uso:
-        @app.get("/feed")
-        async def get_feed(user: Optional[dict] = Depends(get_optional_user)):
-            if user:
-                return {"feed": "personalizado", "user": user["email"]}
-            else:
-                return {"feed": "público"}
-    
-    Returns:
-        dict | None: Usuario si hay token válido, None si no hay token
-    """
-    if not credentials:
-        return None
-    
+def decode_token(token: str) -> dict:
+    """Decode a JWT token and return payload. Used for WebSocket auth."""
     try:
-        token = credentials.credentials
-        user = await verify_supabase_token(token)
-        return user
-    except HTTPException:
-        # Si el token es inválido, retornamos None en lugar de lanzar error
-        return None
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        return payload
+    except JWTError:
+        raise ValueError("Invalid token")

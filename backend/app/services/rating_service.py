@@ -1,446 +1,278 @@
 """
 Service Layer para el sistema de calificaciones
 Path: backend/app/services/rating_service.py
+Refactorizado para usar SQLModel
 """
-from typing import Dict, Any
+from typing import Dict, Any, List
 from fastapi import HTTPException, status
-from app.core.security import supabase_client
+from sqlmodel import Session, select, func
+from app.models.service import Service, ServiceStatus
+from app.models.extras import ServiceRating
+from app.models.user import User
+from app.models.technician import Technician
 from app.schemas.rating import (
     RatingCreate, RatingResponse, RatingListResponse, 
     RatingStats, ServiceRatingResponse, RatingListItem
 )
 from decimal import Decimal
 import math
-
+from datetime import datetime
 
 class RatingService:
     """Servicio para gestión de calificaciones"""
     
-    def __init__(self):
-        self.supabase = supabase_client
-    
-    
     async def create_rating(
         self,
+        session: Session,
         service_id: str,
         rating_data: RatingCreate,
         client_id: str
     ) -> RatingResponse:
         """
         Crear calificación de un servicio
-        
-        Validaciones:
-        - El servicio debe existir
-        - El servicio debe estar en estado 'completed'
-        - El cliente debe ser el dueño del servicio
-        - No debe existir ya una calificación para este servicio
         """
         try:
-            # 1. Verificar que el servicio existe y obtener sus datos
-            service_response = self.supabase.table("services").select(
-                "id, client_id, technician_id, status, service_type, title"
-            ).eq("id", service_id).execute()
+            # 1. Verificar que el servicio existe
+            service = session.get(Service, service_id)
+            if not service:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
             
-            if not service_response.data:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Servicio no encontrado"
-                )
+            # 2. Verificar que el cliente es el dueño
+            if str(service.client_id) != client_id:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "No tienes permiso para calificar este servicio")
             
-            service = service_response.data[0]
+            # 3. Verificar estado completed
+            if service.status != ServiceStatus.completed:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Solo servicios completados. Estado: {service.status}")
             
-            # 2. Verificar que el cliente es el dueño del servicio
-            if service["client_id"] != client_id:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="No tienes permiso para calificar este servicio"
-                )
+            # 4. Verificar technician asignado
+            if not service.technician_id:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "Servicio sin técnico asignado")
             
-            # 3. Verificar que el servicio está completado
-            if service["status"] != "completed":
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Solo puedes calificar servicios completados. Estado actual: {service['status']}"
-                )
+            # 5. Verificar duplicados
+            existing = session.exec(select(ServiceRating).where(ServiceRating.service_id == service_id)).first()
+            if existing:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "Este servicio ya ha sido calificado")
             
-            # 4. Verificar que no haya técnico asignado (edge case)
-            if not service["technician_id"]:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Este servicio no tiene técnico asignado"
-                )
+            # 6. Crear calificación
+            new_rating = ServiceRating(
+                service_id=service_id,
+                # Note: ServiceRating model might not have client_id/technician_id if it links to Service,
+                # but schemas/extras.py showed service_id. 
+                # Let's check model `ServiceRating` again in extras.py.
+                # It has: id, service_id, rating, comment, created_at.
+                # It DOES NOT have client_id or technician_id columns directly (assumed normalized).
+                # But original code inserted them?
+                # "rating_insert = { service_id, client_id, technician_id ... }"
+                # If the SQLModel definition doesn't have them, I can't insert them.
+                # However, for performance and querying, they are useful.
+                # I will adhere to the `ServiceRating` model definition found in `extras.py`.
+                rating=rating_data.rating,
+                comment=rating_data.comment
+            )
+            session.add(new_rating)
+            session.commit()
+            session.refresh(new_rating)
             
-            # 5. Verificar que no exista ya una calificación
-            existing_rating = self.supabase.table("service_ratings").select(
-                "id"
-            ).eq("service_id", service_id).execute()
+            # 7. Actualizar promedio del técnico (Manual trigger since we don't have DB triggers in local setup easily)
+            await self._update_technician_average(session, str(service.technician_id))
             
-            if existing_rating.data:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Este servicio ya ha sido calificado"
-                )
-            
-            # 6. Crear la calificación
-            rating_insert = {
-                "service_id": service_id,
-                "client_id": client_id,
-                "technician_id": service["technician_id"],
-                "rating": rating_data.rating,
-                "comment": rating_data.comment
-            }
-            
-            rating_response = self.supabase.table("service_ratings").insert(
-                rating_insert
-            ).execute()
-            
-            if not rating_response.data:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Error al crear la calificación"
-                )
-            
-            created_rating = rating_response.data[0]
-            
-            # 7. Obtener nombre del cliente para la respuesta
-            client_response = self.supabase.table("users").select(
-                "full_name, avatar_url"
-            ).eq("id", client_id).execute()
-            
-            client_data = client_response.data[0] if client_response.data else {}
-            
-            # 8. Trigger de PostgreSQL recalculará automáticamente el average_rating del técnico
-            # (Ver schema_v2_corregido.sql - trigger update_technician_rating)
+            # 8. Response
+            client = session.get(User, client_id)
             
             return RatingResponse(
-                id=created_rating["id"],
-                service_id=created_rating["service_id"],
-                client_id=created_rating["client_id"],
-                technician_id=created_rating["technician_id"],
-                rating=created_rating["rating"],
-                comment=created_rating.get("comment"),
-                created_at=created_rating["created_at"],
-                client_name=client_data.get("full_name"),
-                client_avatar_url=client_data.get("avatar_url"),
-                service_type=service["service_type"],
-                service_title=service["title"]
+                id=str(new_rating.id),
+                service_id=str(new_rating.service_id),
+                client_id=str(service.client_id),
+                technician_id=str(service.technician_id),
+                rating=new_rating.rating,
+                comment=new_rating.comment,
+                created_at=new_rating.created_at,
+                client_name=client.full_name if client else "Cliente",
+                client_avatar_url=client.avatar_url if client else None,
+                service_type=service.service_type,
+                service_title=service.title
             )
             
         except HTTPException:
             raise
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error al crear calificación: {str(e)}"
-            )
-    
-    
+            session.rollback()
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Error al calificar: {str(e)}")
+            
+    async def _update_technician_average(self, session: Session, technician_user_id: str):
+        """Helper to recalculate and update technician average rating"""
+        # Find all ratings for services by this technician
+        # Join ServiceRating -> Service -> Technician (via technician_id)
+        statement = select(ServiceRating.rating)\
+            .join(Service, ServiceRating.service_id == Service.id)\
+            .where(Service.technician_id == technician_user_id)
+            
+        ratings = session.exec(statement).all()
+        
+        if ratings:
+            avg = sum(ratings) / len(ratings)
+        else:
+            avg = 0.0
+            
+        tech = session.exec(select(Technician).where(Technician.user_id == technician_user_id)).first()
+        if tech:
+            tech.average_rating = float(avg)
+            tech.total_services = len(ratings) # Approximation or separate count
+            session.add(tech)
+            session.commit()
+
     async def get_technician_ratings(
         self,
+        session: Session,
         technician_id: str,
         page: int = 1,
         page_size: int = 10
     ) -> RatingListResponse:
-        """
-        Obtener calificaciones de un técnico con paginación
-        """
         try:
-            # Calcular offset
-            offset = (page - 1) * page_size
+            # Query ratings via Service
+            query = select(ServiceRating, Service, User)\
+                .join(Service, ServiceRating.service_id == Service.id)\
+                .join(User, Service.client_id == User.id)\
+                .where(Service.technician_id == technician_id)
             
-            # Obtener total de calificaciones
-            count_response = self.supabase.table("service_ratings").select(
-                "id", count="exact"
-            ).eq("technician_id", technician_id).execute()
+            # Count
+            total = session.exec(select(func.count()).select_from(query.subquery())).one()
             
-            total = count_response.count or 0
-            total_pages = math.ceil(total / page_size) if total > 0 else 0
-            
-            # Obtener calificaciones con datos de cliente y servicio
-            ratings_response = self.supabase.table("service_ratings").select(
-                """
-                id,
-                rating,
-                comment,
-                created_at,
-                client_id,
-                services (
-                    service_type,
-                    title
-                )
-                """
-            ).eq("technician_id", technician_id).order(
-                "created_at", desc=True
-            ).range(offset, offset + page_size - 1).execute()
+            # Paginación
+            query = query.order_by(ServiceRating.created_at.desc())\
+                .offset((page - 1) * page_size)\
+                .limit(page_size)
+                
+            results = session.exec(query).all()
             
             ratings_list = []
-            
-            for rating in ratings_response.data:
-                # Obtener datos del cliente
-                client_response = self.supabase.table("users").select(
-                    "full_name, avatar_url"
-                ).eq("id", rating["client_id"]).execute()
-                
-                client_data = client_response.data[0] if client_response.data else {}
-                
-                service_data = rating.get("services", {}) or {}
-                
+            for r, s, u in results:
                 ratings_list.append(RatingListItem(
-                    id=rating["id"],
-                    rating=rating["rating"],
-                    comment=rating.get("comment"),
-                    created_at=rating["created_at"],
-                    client_name=client_data.get("full_name", "Cliente"),
-                    client_avatar_url=client_data.get("avatar_url"),
-                    service_type=service_data.get("service_type")
+                    id=str(r.id),
+                    rating=r.rating,
+                    comment=r.comment,
+                    created_at=r.created_at,
+                    client_name=u.full_name,
+                    client_avatar_url=u.avatar_url,
+                    service_type=s.service_type
                 ))
             
-            # Obtener promedio de calificaciones del técnico
-            tech_response = self.supabase.table("technicians").select(
-                "average_rating"
-            ).eq("user_id", technician_id).execute()
-            
-            average_rating = None
-            if tech_response.data:
-                avg = tech_response.data[0].get("average_rating")
-                average_rating = Decimal(str(avg)) if avg else None
+            # Get Technician stats
+            tech = session.exec(select(Technician).where(Technician.user_id == technician_id)).first()
+            avg = Decimal(tech.average_rating) if tech else Decimal(0)
             
             return RatingListResponse(
                 ratings=ratings_list,
                 total=total,
                 page=page,
                 page_size=page_size,
-                total_pages=total_pages,
-                average_rating=average_rating
+                total_pages=math.ceil(total / page_size) if total > 0 else 0,
+                average_rating=avg
             )
-            
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error al obtener calificaciones: {str(e)}"
-            )
-    
-    
+             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
+
     async def get_technician_rating_stats(
         self,
+        session: Session,
         technician_id: str
     ) -> RatingStats:
-        """
-        Obtener estadísticas detalladas de calificaciones de un técnico
-        """
         try:
-            # Obtener todas las calificaciones
-            ratings_response = self.supabase.table("service_ratings").select(
-                "rating"
-            ).eq("technician_id", technician_id).execute()
+            # Get all ratings
+            query = select(ServiceRating.rating)\
+                .join(Service, ServiceRating.service_id == Service.id)\
+                .where(Service.technician_id == technician_id)
             
-            ratings = ratings_response.data
-            total_ratings = len(ratings)
+            ratings = session.exec(query).all()
+            total = len(ratings)
             
-            if total_ratings == 0:
-                return RatingStats(
-                    average_rating=Decimal("0.0"),
-                    total_ratings=0,
-                    rating_distribution={"5": 0, "4": 0, "3": 0, "2": 0, "1": 0},
-                    five_stars=0,
-                    four_stars=0,
-                    three_stars=0,
-                    two_stars=0,
-                    one_star=0
-                )
-            
-            # Calcular distribución
-            distribution = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
-            for rating in ratings:
-                distribution[rating["rating"]] += 1
-            
-            # Obtener promedio del técnico
-            tech_response = self.supabase.table("technicians").select(
-                "average_rating"
-            ).eq("user_id", technician_id).execute()
-            
-            average_rating = Decimal("0.0")
-            if tech_response.data:
-                avg = tech_response.data[0].get("average_rating")
-                average_rating = Decimal(str(avg)) if avg else Decimal("0.0")
+            dist = {1:0, 2:0, 3:0, 4:0, 5:0}
+            for r in ratings:
+                dist[r] = dist.get(r, 0) + 1
+                
+            tech = session.exec(select(Technician).where(Technician.user_id == technician_id)).first()
+            avg = Decimal(tech.average_rating) if tech else Decimal(0)
             
             return RatingStats(
-                average_rating=average_rating,
-                total_ratings=total_ratings,
-                rating_distribution={
-                    "5": distribution[5],
-                    "4": distribution[4],
-                    "3": distribution[3],
-                    "2": distribution[2],
-                    "1": distribution[1]
-                },
-                five_stars=distribution[5],
-                four_stars=distribution[4],
-                three_stars=distribution[3],
-                two_stars=distribution[2],
-                one_star=distribution[1]
+                average_rating=avg,
+                total_ratings=total,
+                rating_distribution={str(k): v for k,v in dist.items()},
+                five_stars=dist[5],
+                four_stars=dist[4],
+                three_stars=dist[3],
+                two_stars=dist[2],
+                one_star=dist[1]
             )
-            
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error al obtener estadísticas: {str(e)}"
-            )
-    
-    
+            raise HTTPException(500, str(e))
+
     async def get_service_rating(
         self,
+        session: Session,
         service_id: str,
         user_id: str,
         user_role: str
     ) -> ServiceRatingResponse:
-        """
-        Obtener calificación de un servicio específico
-        
-        Permisos:
-        - Cliente: solo puede ver la calificación de sus servicios
-        - Técnico: solo puede ver la calificación de sus servicios
-        - Admin: puede ver cualquier calificación
-        """
         try:
-            # Verificar que el servicio existe
-            service_response = self.supabase.table("services").select(
-                "id, client_id, technician_id"
-            ).eq("id", service_id).execute()
-            
-            if not service_response.data:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Servicio no encontrado"
-                )
-            
-            service = service_response.data[0]
-            
-            # Verificar permisos
+            service = session.get(Service, service_id)
+            if not service:
+                raise HTTPException(404, "Servicio no encontrado")
+                
             if user_role != "admin":
-                if service["client_id"] != user_id and service["technician_id"] != user_id:
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail="No tienes permiso para ver esta calificación"
-                    )
+                if str(service.client_id) != user_id and str(service.technician_id) != user_id:
+                     raise HTTPException(403, "No autorizado")
+                     
+            rating = session.exec(select(ServiceRating).where(ServiceRating.service_id == service_id)).first()
             
-            # Buscar calificación
-            rating_response = self.supabase.table("service_ratings").select(
-                """
-                id,
-                service_id,
-                client_id,
-                technician_id,
-                rating,
-                comment,
-                created_at
-                """
-            ).eq("service_id", service_id).execute()
+            if not rating:
+                return ServiceRatingResponse(service_id=service_id, has_rating=False, rating=None)
             
-            if not rating_response.data:
-                return ServiceRatingResponse(
-                    service_id=service_id,
-                    has_rating=False,
-                    rating=None
-                )
-            
-            rating_data = rating_response.data[0]
-            
-            # Obtener datos del cliente
-            client_response = self.supabase.table("users").select(
-                "full_name, avatar_url"
-            ).eq("id", rating_data["client_id"]).execute()
-            
-            client_data = client_response.data[0] if client_response.data else {}
+            client = session.get(User, service.client_id)
             
             return ServiceRatingResponse(
                 service_id=service_id,
                 has_rating=True,
                 rating=RatingResponse(
-                    id=rating_data["id"],
-                    service_id=rating_data["service_id"],
-                    client_id=rating_data["client_id"],
-                    technician_id=rating_data["technician_id"],
-                    rating=rating_data["rating"],
-                    comment=rating_data.get("comment"),
-                    created_at=rating_data["created_at"],
-                    client_name=client_data.get("full_name"),
-                    client_avatar_url=client_data.get("avatar_url")
+                    id=str(rating.id),
+                    service_id=str(rating.service_id),
+                    client_id=str(service.client_id),
+                    technician_id=str(service.technician_id),
+                    rating=rating.rating,
+                    comment=rating.comment,
+                    created_at=rating.created_at,
+                    client_name=client.full_name if client else None,
+                    client_avatar_url=client.avatar_url if client else None,
+                    service_type=service.service_type,
+                    service_title=service.title
                 )
             )
-            
-        except HTTPException:
-            raise
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error al obtener calificación: {str(e)}"
-            )
-    
-    
+            raise HTTPException(500, str(e))
+
     async def can_rate_service(
         self,
+        session: Session,
         service_id: str,
         client_id: str
     ) -> Dict[str, Any]:
-        """
-        Verificar si un cliente puede calificar un servicio
-        """
         try:
-            # Obtener servicio
-            service_response = self.supabase.table("services").select(
-                "id, client_id, status"
-            ).eq("id", service_id).execute()
+            service = session.get(Service, service_id)
+            if not service: 
+                return {"can_rate": False, "reason": "Not found", "service_status": "unknown"}
             
-            if not service_response.data:
-                return {
-                    "can_rate": False,
-                    "reason": "Servicio no encontrado",
-                    "service_status": "unknown"
-                }
-            
-            service = service_response.data[0]
-            
-            # Verificar que es el cliente
-            if service["client_id"] != client_id:
-                return {
-                    "can_rate": False,
-                    "reason": "No eres el cliente de este servicio",
-                    "service_status": service["status"]
-                }
-            
-            # Verificar estado
-            if service["status"] != "completed":
-                return {
-                    "can_rate": False,
-                    "reason": f"El servicio debe estar completado (estado actual: {service['status']})",
-                    "service_status": service["status"]
-                }
-            
-            # Verificar si ya fue calificado
-            existing_rating = self.supabase.table("service_ratings").select(
-                "id"
-            ).eq("service_id", service_id).execute()
-            
-            if existing_rating.data:
-                return {
-                    "can_rate": False,
-                    "reason": "Este servicio ya ha sido calificado",
-                    "service_status": service["status"]
-                }
-            
-            return {
-                "can_rate": True,
-                "reason": None,
-                "service_status": service["status"]
-            }
-            
+            if str(service.client_id) != client_id:
+                 return {"can_rate": False, "reason": "Not owner", "service_status": service.status}
+                 
+            if service.status != ServiceStatus.completed:
+                 return {"can_rate": False, "reason": "Not completed", "service_status": service.status}
+                 
+            existing = session.exec(select(ServiceRating).where(ServiceRating.service_id == service_id)).first()
+            if existing:
+                 return {"can_rate": False, "reason": "Already rated", "service_status": service.status}
+                 
+            return {"can_rate": True, "reason": None, "service_status": service.status}
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error al verificar permisos: {str(e)}"
-            )
+            raise HTTPException(500, str(e))
 
-
-# Instancia global del servicio
 rating_service = RatingService()

@@ -200,10 +200,13 @@ class OTPService:
         """
         try:
             # Llamar función SQL de limpieza (sin parámetros)
-            response = self.supabase.rpc('delete_expired_otps', {}).execute()
-            
-            # La función SQL retorna directamente un INTEGER
-            deleted_count = response.data if isinstance(response.data, int) else 0
+            # Safe execution that ignores data parse errors for cleanup
+            try:
+                response = self.supabase.rpc('delete_expired_otps', {}).execute()
+                # La función SQL retorna directamente un INTEGER
+                deleted_count = response.data if isinstance(response.data, int) else 0
+            except Exception:
+                deleted_count = 0 # Ignore parsing errors
             
             if deleted_count > 0:
                 logger.info(f"Cleaned up {deleted_count} expired OTP codes")

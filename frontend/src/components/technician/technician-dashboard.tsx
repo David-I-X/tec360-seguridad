@@ -52,9 +52,14 @@ export function TechnicianDashboard() {
 
             toast({
                 title: "¡Servicio Aceptado!",
-                description: "El servicio ha sido asignado a tu lista de trabajos.",
+                description: "Redirigiendo al servicio para iniciar tracking...",
                 variant: "default",
             })
+
+            // Navegar al servicio para iniciar tracking de ubicación
+            setTimeout(() => {
+                window.location.href = `/tecnicos/servicio/${serviceId}`
+            }, 1000)
 
         } catch (error: any) {
             toast({

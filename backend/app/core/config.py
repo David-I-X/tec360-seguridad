@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
     
     # APIs externas
-    GOOGLE_MAPS_API_KEY: str = os.getenv("GOOGLE_MAPS_API_KEY", "")
+    GOOGLE_MAPS_API_KEY: str = os.getenv("GOOGLE_MAPS_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
     WOMPI_API_KEY: str = os.getenv("WOMPI_API_KEY", "")
     
     # Twilio - SMS/OTP (NUEVO)
@@ -59,9 +59,28 @@ class Settings(BaseSettings):
     HOST: str = os.getenv("HOST", "0.0.0.0")
     PORT: int = int(os.getenv("PORT", "8000"))
     
+    # Database
+    DATABASE_URL: str = "postgresql://admin:password123@127.0.0.1:5432/tec360"
+    
+    # Auth
+    SECRET_KEY: str = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 # 7 days
+    API_V1_STR: str = "/api/v1"
+    
+    # Old Supabase (Deprecating)
+    SUPABASE_URL: str = "https://deprecated.supabase.co"
+    SUPABASE_KEY: str = "deprecated"
+    SUPABASE_SERVICE_KEY: str = "deprecated"
+    
     class Config:
         env_file = ".env"
         case_sensitive = True
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        # FORCE LOCAL DATABASE URL - Override any env var
+        self.DATABASE_URL = "postgresql://admin:password123@127.0.0.1:5432/tec360"
 
 # Instancia global de configuración
 settings = Settings()
