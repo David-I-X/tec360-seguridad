@@ -31,14 +31,22 @@ class RatingService:
         """
         Crear calificación de un servicio
         """
+        from uuid import UUID as UUIDType
         try:
+            # Convert string IDs to UUID
+            try:
+                service_uuid = UUIDType(service_id)
+                client_uuid = UUIDType(client_id)
+            except ValueError:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "ID de servicio o cliente inválido")
+            
             # 1. Verificar que el servicio existe
-            service = session.get(Service, service_id)
+            service = session.get(Service, service_uuid)
             if not service:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
             
             # 2. Verificar que el cliente es el dueño
-            if str(service.client_id) != client_id:
+            if service.client_id != client_uuid:
                 raise HTTPException(status.HTTP_403_FORBIDDEN, "No tienes permiso para calificar este servicio")
             
             # 3. Verificar estado completed
@@ -50,23 +58,18 @@ class RatingService:
                 raise HTTPException(status.HTTP_400_BAD_REQUEST, "Servicio sin técnico asignado")
             
             # 5. Verificar duplicados
-            existing = session.exec(select(ServiceRating).where(ServiceRating.service_id == service_id)).first()
+            existing = session.exec(select(ServiceRating).where(ServiceRating.service_id == service_uuid)).first()
             if existing:
                 raise HTTPException(status.HTTP_400_BAD_REQUEST, "Este servicio ya ha sido calificado")
             
-            # 6. Crear calificación
+            # 6. Get client info BEFORE any commits (avoid transaction issues)
+            client = session.get(User, client_uuid)
+            client_name = client.full_name if client else "Cliente"
+            client_avatar = client.avatar_url if client else None
+            
+            # 7. Crear calificación
             new_rating = ServiceRating(
-                service_id=service_id,
-                # Note: ServiceRating model might not have client_id/technician_id if it links to Service,
-                # but schemas/extras.py showed service_id. 
-                # Let's check model `ServiceRating` again in extras.py.
-                # It has: id, service_id, rating, comment, created_at.
-                # It DOES NOT have client_id or technician_id columns directly (assumed normalized).
-                # But original code inserted them?
-                # "rating_insert = { service_id, client_id, technician_id ... }"
-                # If the SQLModel definition doesn't have them, I can't insert them.
-                # However, for performance and querying, they are useful.
-                # I will adhere to the `ServiceRating` model definition found in `extras.py`.
+                service_id=service_uuid,
                 rating=rating_data.rating,
                 comment=rating_data.comment
             )
@@ -74,12 +77,14 @@ class RatingService:
             session.commit()
             session.refresh(new_rating)
             
-            # 7. Actualizar promedio del técnico (Manual trigger since we don't have DB triggers in local setup easily)
-            await self._update_technician_average(session, str(service.technician_id))
+            # 8. Actualizar promedio del técnico (non-blocking - failures are logged but don't break response)
+            try:
+                await self._update_technician_average(session, str(service.technician_id))
+            except Exception as avg_error:
+                import logging
+                logging.warning(f"Failed to update technician average: {avg_error}")
             
-            # 8. Response
-            client = session.get(User, client_id)
-            
+            # 9. Response
             return RatingResponse(
                 id=str(new_rating.id),
                 service_id=str(new_rating.service_id),
@@ -88,8 +93,8 @@ class RatingService:
                 rating=new_rating.rating,
                 comment=new_rating.comment,
                 created_at=new_rating.created_at,
-                client_name=client.full_name if client else "Cliente",
-                client_avatar_url=client.avatar_url if client else None,
+                client_name=client_name,
+                client_avatar_url=client_avatar,
                 service_type=service.service_type,
                 service_title=service.title
             )
@@ -97,30 +102,43 @@ class RatingService:
         except HTTPException:
             raise
         except Exception as e:
+            import traceback
+            import logging
+            logging.error(f"create_rating failed: {type(e).__name__}: {e}")
+            logging.error(traceback.format_exc())
             session.rollback()
-            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Error al calificar: {str(e)}")
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Error al calificar: {type(e).__name__}: {str(e)}")
             
     async def _update_technician_average(self, session: Session, technician_user_id: str):
         """Helper to recalculate and update technician average rating"""
-        # Find all ratings for services by this technician
-        # Join ServiceRating -> Service -> Technician (via technician_id)
-        statement = select(ServiceRating.rating)\
-            .join(Service, ServiceRating.service_id == Service.id)\
-            .where(Service.technician_id == technician_user_id)
-            
-        ratings = session.exec(statement).all()
+        from uuid import UUID as UUIDType
+        import logging
         
-        if ratings:
-            avg = sum(ratings) / len(ratings)
-        else:
-            avg = 0.0
+        try:
+            tech_uuid = UUIDType(technician_user_id)
             
-        tech = session.exec(select(Technician).where(Technician.user_id == technician_user_id)).first()
-        if tech:
-            tech.average_rating = float(avg)
-            tech.total_services = len(ratings) # Approximation or separate count
-            session.add(tech)
-            session.commit()
+            # Find all ratings for services by this technician
+            # Join ServiceRating -> Service -> Technician (via technician_id)
+            statement = select(ServiceRating.rating)\
+                .join(Service, ServiceRating.service_id == Service.id)\
+                .where(Service.technician_id == tech_uuid)
+                
+            ratings = session.exec(statement).all()
+            
+            if ratings:
+                avg = sum(ratings) / len(ratings)
+            else:
+                avg = 0.0
+                
+            tech = session.exec(select(Technician).where(Technician.user_id == tech_uuid)).first()
+            if tech:
+                tech.average_rating = float(avg)
+                tech.total_services = len(ratings)
+                session.add(tech)
+                session.commit()
+        except Exception as e:
+            # Don't fail rating creation if average update fails
+            logging.warning(f"Failed to update technician average: {e}")
 
     async def get_technician_ratings(
         self,

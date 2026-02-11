@@ -24,7 +24,7 @@ export function useLocationTracking({ serviceId, enabled, intervalMs = 5000 }: U
 
         try {
             // Via REST API
-            await fetch(`${API_URL}/location/update`, {
+            const response = await fetch(`${API_URL}/location/update`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -37,22 +37,31 @@ export function useLocationTracking({ serviceId, enabled, intervalMs = 5000 }: U
                 }),
             })
 
+            if (response.ok) {
+                console.log("[Location] Sent successfully:", { lat, lng })
+            } else {
+                console.warn("[Location] Send failed:", response.status)
+            }
+
             // Also via WebSocket for redundancy
             serviceWebSocket.sendLocationUpdate(lat, lng)
         } catch (error) {
-            console.error("Failed to send location:", error)
+            console.error("[Location] Failed to send location:", error)
         }
     }, [serviceId])
 
     useEffect(() => {
         if (!enabled || !serviceId) {
+            console.log("[Location] Tracking disabled. enabled:", enabled, "serviceId:", serviceId)
             return
         }
 
         if (!navigator.geolocation) {
-            console.error("Geolocation not supported")
+            console.error("[Location] Geolocation API not supported")
             return
         }
+
+        console.log("[Location] Starting location tracking for service:", serviceId)
 
         // Watch position changes
         watchIdRef.current = navigator.geolocation.watchPosition(
@@ -63,7 +72,14 @@ export function useLocationTracking({ serviceId, enabled, intervalMs = 5000 }: U
                 }
             },
             (error) => {
-                console.error("Geolocation error:", error)
+                // Provide specific error messages based on error code
+                const errorMessages: Record<number, string> = {
+                    1: "Permiso de ubicación denegado. Por favor habilita el acceso a ubicación en tu navegador.",
+                    2: "No se pudo obtener la ubicación. Verifica que el GPS esté activo.",
+                    3: "Tiempo de espera agotado al obtener ubicación.",
+                }
+                const message = errorMessages[error.code] || `Error de geolocalización: ${error.message}`
+                console.warn("[Location]", message)
             },
             {
                 enableHighAccuracy: true,

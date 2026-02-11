@@ -8,7 +8,10 @@ from enum import Enum
 
 class ServiceStatus(str, Enum):
     pending = "pending"
+    quoted = "quoted"          # Tiene cotizaciones pendientes
     assigned = "assigned"
+    en_route = "en_route"      # Técnico en camino
+    arrived = "arrived"        # Técnico llegó al lugar
     in_progress = "in_progress"
     completed = "completed"
     cancelled = "cancelled"

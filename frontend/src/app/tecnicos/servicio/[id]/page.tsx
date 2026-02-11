@@ -31,13 +31,18 @@ function TechnicianServiceContent() {
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState("")
     const [isTracking, setIsTracking] = useState(false)
+    const [isUpdating, setIsUpdating] = useState(false)
+
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
 
-    // Location tracking hook
+    // Location tracking hook - active for all in-progress states
+    const isActiveService = service && ["assigned", "en_route", "arrived", "in_progress"].includes(service.status)
+
     useLocationTracking({
         serviceId: params.id as string,
-        enabled: isTracking && !!service && service.status === "assigned",
+        enabled: isTracking && isActiveService,
         intervalMs: 5000,
     })
 
@@ -47,8 +52,8 @@ function TechnicianServiceContent() {
                 const data = await getServiceById(params.id as string)
                 setService(data)
 
-                // Auto-enable tracking if service is assigned
-                if (data.status === "assigned") {
+                // Auto-enable tracking if service is in active state
+                if (["assigned", "en_route", "arrived", "in_progress"].includes(data.status)) {
                     setIsTracking(true)
                 }
             } catch (err: any) {
@@ -84,22 +89,63 @@ function TechnicianServiceContent() {
         })
     }
 
-    const handleMarkArrived = async () => {
-        // TODO: API call to update status to in_progress
-        toast({
-            title: "Marcado como llegado",
-            description: "El cliente ha sido notificado",
-        })
+    const updateStatus = async (newStatus: string) => {
+        const token = localStorage.getItem("access_token")
+        if (!token) return
+
+        setIsUpdating(true)
+        try {
+            const response = await fetch(
+                `${API_URL}/services/${params.id}/status?new_status=${newStatus}`,
+                {
+                    method: "PATCH",
+                    headers: { Authorization: `Bearer ${token}` },
+                }
+            )
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}))
+                throw new Error(errorData.detail || "Error al actualizar estado")
+            }
+
+            const result = await response.json()
+            console.log("[Status Update] Changed to:", newStatus, "Response:", result)
+
+            // Update local state
+            setService((prev: any) => {
+                console.log("[State] Previous status:", prev?.status, "New status:", newStatus)
+                return { ...prev, status: newStatus }
+            })
+
+            const statusMessages: Record<string, string> = {
+                en_route: "En camino - El cliente ha sido notificado",
+                arrived: "Has llegado al lugar - Cliente notificado",
+                in_progress: "Servicio en progreso",
+                completed: "¡Servicio completado exitosamente!",
+            }
+
+            toast({
+                title: statusMessages[newStatus] || "Estado actualizado",
+            })
+
+            if (newStatus === "completed") {
+                setTimeout(() => router.push("/tecnicos/dashboard"), 1500)
+            }
+        } catch (err: any) {
+            toast({
+                title: "Error",
+                description: err.message,
+                variant: "destructive",
+            })
+        } finally {
+            setIsUpdating(false)
+        }
     }
 
-    const handleCompleteService = async () => {
-        // TODO: API call to complete service
-        toast({
-            title: "Servicio completado",
-            description: "¡Buen trabajo!",
-        })
-        router.push("/tecnicos/dashboard")
-    }
+    const handleEnRoute = () => updateStatus("en_route")
+    const handleArrived = () => updateStatus("arrived")
+    const handleInProgress = () => updateStatus("in_progress")
+    const handleCompleteService = () => updateStatus("completed")
 
     if (isLoading) {
         return (
@@ -204,29 +250,82 @@ function TechnicianServiceContent() {
                 <p className="text-sm text-muted-foreground">{service.description || "Sin descripción adicional"}</p>
             </GlassCard>
 
-            {/* Action buttons */}
-            <div className="grid gap-3 md:grid-cols-2">
-                {!isTracking ? (
-                    <Button onClick={handleStartTracking} size="lg" className="w-full">
-                        <Navigation className="mr-2 h-5 w-5" />
-                        Iniciar Tracking
+            {/* Action buttons - Status-aware */}
+            <div className="space-y-3">
+                {/* Tracking controls */}
+                <div className="grid gap-3 md:grid-cols-2">
+                    {!isTracking ? (
+                        <Button onClick={handleStartTracking} size="lg" className="w-full" disabled={isUpdating}>
+                            <Navigation className="mr-2 h-5 w-5" />
+                            Iniciar Tracking
+                        </Button>
+                    ) : (
+                        <Button onClick={handleStopTracking} variant="outline" size="lg" className="w-full" disabled={isUpdating}>
+                            Pausar Tracking
+                        </Button>
+                    )}
+
+                    {/* Navigate button */}
+                    <Button asChild size="lg" variant="outline" className="w-full">
+                        <a
+                            href={`https://www.google.com/maps/dir/?api=1&destination=${service.service_lat},${service.service_lon}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <Navigation className="mr-2 h-5 w-5" />
+                            Abrir en Maps
+                        </a>
                     </Button>
-                ) : (
-                    <Button onClick={handleStopTracking} variant="outline" size="lg" className="w-full">
-                        Pausar Tracking
+                </div>
+
+                {/* Status action buttons - show based on current status */}
+                {service.status === "assigned" && (
+                    <Button
+                        onClick={handleEnRoute}
+                        size="lg"
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        disabled={isUpdating}
+                    >
+                        <Navigation className="mr-2 h-5 w-5" />
+                        {isUpdating ? "Actualizando..." : "🚗 Estoy en camino"}
                     </Button>
                 )}
 
-                <Button onClick={handleMarkArrived} variant="secondary" size="lg" className="w-full">
-                    <MapPin className="mr-2 h-5 w-5" />
-                    He llegado al lugar
-                </Button>
-            </div>
+                {service.status === "en_route" && (
+                    <Button
+                        onClick={handleArrived}
+                        size="lg"
+                        className="w-full bg-orange-600 hover:bg-orange-700"
+                        disabled={isUpdating}
+                    >
+                        <MapPin className="mr-2 h-5 w-5" />
+                        {isUpdating ? "Actualizando..." : "📍 He llegado al lugar"}
+                    </Button>
+                )}
 
-            <Button onClick={handleCompleteService} size="lg" className="w-full bg-green-600 hover:bg-green-700">
-                <CheckCircle className="mr-2 h-5 w-5" />
-                Marcar Servicio como Completado
-            </Button>
+                {service.status === "arrived" && (
+                    <Button
+                        onClick={handleInProgress}
+                        size="lg"
+                        className="w-full bg-purple-600 hover:bg-purple-700"
+                        disabled={isUpdating}
+                    >
+                        🔧 {isUpdating ? "Actualizando..." : "Iniciar trabajo"}
+                    </Button>
+                )}
+
+                {(service.status === "in_progress" || service.status === "arrived") && (
+                    <Button
+                        onClick={handleCompleteService}
+                        size="lg"
+                        className="w-full bg-green-600 hover:bg-green-700"
+                        disabled={isUpdating}
+                    >
+                        <CheckCircle className="mr-2 h-5 w-5" />
+                        {isUpdating ? "Completando..." : "✅ Marcar como Completado"}
+                    </Button>
+                )}
+            </div>
 
             {/* Connection status */}
             <div className="flex justify-center">

@@ -158,6 +158,26 @@ async def accept_service(
     )
 
 
+@router.patch("/{service_id}/status")
+async def update_service_status(
+    service_id: str = Path(..., description="UUID del servicio"),
+    new_status: str = Query(..., description="Nuevo estado: en_route, arrived, in_progress, completed"),
+    current_user: dict = Depends(require_roles("technician")),
+    session: Session = Depends(get_session)
+):
+    """
+    Permite al técnico asignado actualizar el estado del servicio.
+    Estados válidos: en_route (en camino), arrived (llegué), in_progress (en progreso), completed (completado).
+    """
+    return await service_service.update_service_status(
+        session=session,
+        service_id=service_id,
+        technician_id=current_user["id"],
+        new_status=new_status,
+        technician_name=current_user.get("full_name")
+    )
+
+
 @router.get("/{service_id}", response_model=ServiceResponse)
 async def get_service(
     service_id: str = Path(..., description="UUID del servicio"),

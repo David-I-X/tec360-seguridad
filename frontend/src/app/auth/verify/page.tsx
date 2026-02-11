@@ -144,8 +144,11 @@ function VerifyOTPContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600/5 via-background to-background p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden p-4">
+      <div className="absolute inset-0 mesh-gradient" />
+      <div className="absolute top-20 left-[15%] w-72 h-72 bg-blue-500/8 rounded-full blur-3xl animate-float" />
+      <div className="absolute bottom-20 right-[15%] w-80 h-80 bg-purple-500/6 rounded-full blur-3xl animate-float delay-500" />
+      <div className="w-full max-w-md relative z-10">
         {/* Botón volver */}
         <Link
           href="/auth/phone"
@@ -156,13 +159,13 @@ function VerifyOTPContent() {
         </Link>
 
         {/* Card principal */}
-        <Card className="p-8 border-border bg-card/50 backdrop-blur-sm">
+        <Card className="p-8 border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-2xl">
           {/* Header */}
           <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-600">
-              <ShieldCheck className="h-6 w-6 text-white" />
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl gradient-brand shadow-lg shadow-blue-500/30">
+              <ShieldCheck className="h-8 w-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold">Verifica tu número</h1>
+            <h1 className="text-2xl font-extrabold">Verifica tu <span className="gradient-text">número</span></h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Ingresa el código que enviamos a
             </p>
@@ -214,7 +217,7 @@ function VerifyOTPContent() {
             {/* Botón verificar */}
             <Button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full gradient-brand text-white hover:opacity-90 shadow-lg shadow-blue-500/25"
               disabled={isLoading || !codeValue || codeValue.length < 6}
             >
               {isLoading ? (

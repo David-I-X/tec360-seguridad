@@ -194,6 +194,7 @@ interface ProtectedRouteProps {
   children: React.ReactNode
   requireOnboarding?: boolean
   redirectTo?: string
+  allowedRoles?: string[]
 }
 
 /**
@@ -203,8 +204,9 @@ export function ProtectedRoute({
   children,
   requireOnboarding = false,
   redirectTo = "/auth/phone",
+  allowedRoles,
 }: ProtectedRouteProps) {
-  const { isAuthenticated, hasCompletedOnboarding, isLoading } = useAuth()
+  const { isAuthenticated, hasCompletedOnboarding, isLoading, user } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -222,6 +224,14 @@ export function ProtectedRoute({
       // El componente hijo manejará esto
       return
     }
+
+    // Verificar roles permitidos
+    if (allowedRoles && allowedRoles.length > 0 && user?.role) {
+      if (!allowedRoles.includes(user.role)) {
+        router.push("/") // Redirigir a home si no tiene el rol permitido
+        return
+      }
+    }
   }, [
     isAuthenticated,
     hasCompletedOnboarding,
@@ -229,6 +239,8 @@ export function ProtectedRoute({
     requireOnboarding,
     redirectTo,
     router,
+    allowedRoles,
+    user?.role,
   ])
 
   // Mostrar loading mientras carga
@@ -242,6 +254,11 @@ export function ProtectedRoute({
 
   // Si no está autenticado, no mostrar nada (ya redirigió)
   if (!isAuthenticated) {
+    return null
+  }
+
+  // Si no tiene el rol permitido, no mostrar nada
+  if (allowedRoles && allowedRoles.length > 0 && user?.role && !allowedRoles.includes(user.role)) {
     return null
   }
 

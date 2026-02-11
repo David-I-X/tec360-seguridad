@@ -372,7 +372,7 @@ export async function acceptService(serviceId: string): Promise<any> {
 /**
  * Obtiene los servicios del usuario actual
  */
-export async function getUserServices(): Promise<any[]> {
+export async function getUserServices(): Promise<any> {
   const token = getAuthToken()
 
   if (!token) {

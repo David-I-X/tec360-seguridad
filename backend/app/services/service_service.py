@@ -71,6 +71,19 @@ class ServiceService:
             session.commit()
             session.refresh(db_service)
             
+            # 🔔 Notificar a técnicos sobre nuevo servicio
+            try:
+                from app.services.notification_service import NotificationService
+                await NotificationService.notify_technicians_new_service(
+                    session=session,
+                    service_id=db_service.id,
+                    service_title=db_service.title,
+                    service_city=service_data.service_address.split(",")[-1].strip() if service_data.service_address else "Colombia"
+                )
+            except Exception as notif_error:
+                import logging
+                logging.warning(f"Failed to send notifications: {notif_error}")
+            
             return self._to_response(db_service, client_name=user.get("full_name"))
         
         except Exception as e:
@@ -259,11 +272,106 @@ class ServiceService:
                 import logging
                 logging.warning(f"WebSocket notification failed: {ws_error}")
             
+            # 🔔 Notificación persistente al cliente
+            try:
+                from app.services.notification_service import NotificationService
+                await NotificationService.notify_client_service_update(
+                    session=session,
+                    client_id=service.client_id,
+                    service_id=service.id,
+                    status="assigned",
+                    technician_name=technician.full_name if technician else None
+                )
+            except Exception as notif_error:
+                import logging
+                logging.warning(f"Persistent notification failed: {notif_error}")
+            
             return self._to_response(service)
         except HTTPException:
             raise
         except Exception as e:
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    
+    async def update_service_status(
+        self, 
+        session: Session, 
+        service_id: str, 
+        technician_id: str, 
+        new_status: str,
+        technician_name: str = None
+    ) -> dict:
+        """Actualiza el estado del servicio por el técnico asignado."""
+        from uuid import UUID as UUIDType
+        try:
+            # Validar estado
+            valid_statuses = ["en_route", "arrived", "in_progress", "completed"]
+            if new_status not in valid_statuses:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST, 
+                    f"Estado inválido. Usa: {', '.join(valid_statuses)}"
+                )
+            
+            # Convert to UUID
+            try:
+                service_uuid = UUIDType(service_id)
+            except ValueError:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "ID de servicio inválido")
+            
+            service = session.exec(select(Service).where(Service.id == service_uuid)).first()
+            if not service:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
+            
+            # Validar que el técnico está asignado a este servicio
+            if str(service.technician_id) != technician_id:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "No estás asignado a este servicio")
+            
+            # Actualizar estado
+            service.status = ServiceStatus(new_status)
+            service.updated_at = datetime.utcnow()
+            session.add(service)
+            session.commit()
+            session.refresh(service)
+            
+            # 🔌 Broadcast por WebSocket
+            try:
+                from app.core.websocket_manager import ws_manager
+                await ws_manager.broadcast_service_status(
+                    service_id=str(service_id),
+                    status=new_status,
+                    extra_data={"technician_name": technician_name}
+                )
+            except Exception as ws_error:
+                import logging
+                logging.warning(f"WebSocket broadcast failed: {ws_error}")
+            
+            # 🔔 Notificación persistente al cliente
+            try:
+                from app.services.notification_service import NotificationService
+                await NotificationService.notify_client_service_update(
+                    session=session,
+                    client_id=service.client_id,
+                    service_id=service.id,
+                    status=new_status,
+                    technician_name=technician_name
+                )
+            except Exception as notif_error:
+                import logging
+                logging.warning(f"Notification failed: {notif_error}")
+            
+            return {
+                "success": True,
+                "service_id": str(service.id),
+                "new_status": new_status,
+                "message": f"Estado actualizado a: {new_status}"
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            import logging
+            import traceback
+            logging.error(f"update_service_status failed: {type(e).__name__}: {e}")
+            logging.error(traceback.format_exc())
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{type(e).__name__}: {str(e)}")
             
     async def update_service(
         self, session: Session, service_id: str, service_data: ServiceUpdate, user_id: str, user_role: str

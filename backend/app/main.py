@@ -98,6 +98,14 @@ app.include_router(websocket_router.router)  # 🔌 WebSocket para tracking en t
 from app.api import location as location_router
 app.include_router(location_router.router)  # 📍 Location tracking
 
+# Notifications
+from app.api import notifications as notifications_router
+app.include_router(notifications_router.router)  # 🔔 Notificaciones
+
+# Quotations
+from app.api import quotations as quotations_router
+app.include_router(quotations_router.router)  # 💰 Cotizaciones
+
 
 # Ruta de health check
 @app.get("/")

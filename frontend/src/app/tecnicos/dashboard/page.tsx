@@ -32,7 +32,7 @@ function DashboardContent() {
 export default function TechDashboardPage() {
     return (
         <ProtectedRoute requireOnboarding={true}>
-            <div className="container py-10 px-4">
+            <div className="container pt-24 pb-10 px-4">
                 <DashboardContent />
             </div>
         </ProtectedRoute>
