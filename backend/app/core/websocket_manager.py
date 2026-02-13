@@ -2,10 +2,12 @@
 WebSocket Connection Manager
 Gestiona conexiones WebSocket para comunicación en tiempo real
 """
-from typing import Dict, List, Set
+from typing import Dict, Set
 from fastapi import WebSocket
-import json
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:
@@ -43,22 +45,31 @@ class ConnectionManager:
                 self.service_rooms[service_id] = set()
             self.service_rooms[service_id].add(websocket)
             self.websocket_to_service[websocket] = service_id
+            room_size = len(self.service_rooms[service_id])
+            logger.info(f"[WS] User {user_id[:8]}... joined room {service_id[:8]}... (room size: {room_size})")
+        else:
+            logger.info(f"[WS] User {user_id[:8]}... connected (no service room)")
     
     def disconnect(self, websocket: WebSocket):
         """Limpia una conexión cerrada"""
-        # Remover de conexiones de usuario
         user_id = self.websocket_to_user.get(websocket)
+        service_id = self.websocket_to_service.get(websocket)
+        
+        # Remover de conexiones de usuario
         if user_id and user_id in self.user_connections:
             self.user_connections[user_id].discard(websocket)
             if not self.user_connections[user_id]:
                 del self.user_connections[user_id]
         
         # Remover de sala de servicio
-        service_id = self.websocket_to_service.get(websocket)
         if service_id and service_id in self.service_rooms:
             self.service_rooms[service_id].discard(websocket)
+            room_size = len(self.service_rooms[service_id])
             if not self.service_rooms[service_id]:
                 del self.service_rooms[service_id]
+                logger.info(f"[WS] Room {service_id[:8]}... closed (empty)")
+            else:
+                logger.info(f"[WS] User {(user_id or '?')[:8]}... left room {service_id[:8]}... (room size: {room_size})")
         
         # Limpiar mapeos
         self.websocket_to_user.pop(websocket, None)
@@ -82,13 +93,23 @@ class ConnectionManager:
     async def broadcast_to_service(self, service_id: str, message: dict):
         """Envía mensaje a todos los conectados a una sala de servicio"""
         connections = self.service_rooms.get(service_id, set())
+        
+        if not connections:
+            logger.warning(f"[WS] broadcast_to_service: no connections in room {service_id[:8]}...")
+            return
+        
         disconnected = []
+        sent_count = 0
         
         for websocket in connections:
             try:
                 await websocket.send_json(message)
+                sent_count += 1
             except Exception:
                 disconnected.append(websocket)
+        
+        msg_type = message.get("type", "unknown")
+        logger.debug(f"[WS] Broadcast '{msg_type}' to room {service_id[:8]}... → {sent_count} recipients")
         
         # Limpiar conexiones muertas
         for ws in disconnected:

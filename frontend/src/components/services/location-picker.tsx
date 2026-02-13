@@ -1,11 +1,10 @@
 "use client"
 
-import { useState, useMemo, useRef, useCallback } from "react"
-import { GoogleMap, useLoadScript, Marker, StandaloneSearchBox } from "@react-google-maps/api"
+import { useState, useRef, useCallback } from "react"
+import { GoogleMap, useLoadScript, StandaloneSearchBox } from "@react-google-maps/api"
 import { Button } from "@/components/ui/button"
-import { Locate, MapPin, Search } from "lucide-react"
+import { Locate, MapPin, Search, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { Loader2 } from "lucide-react"
 
 interface LocationPickerProps {
     onLocationSelect: (lat: number, lng: number) => void
@@ -14,6 +13,27 @@ interface LocationPickerProps {
 }
 
 const libraries: ("places")[] = ["places"]
+
+// Clean, modern map styles
+const mapStyleLight: google.maps.MapTypeStyle[] = [
+    { featureType: "poi", stylers: [{ visibility: "off" }] },
+    { featureType: "transit", stylers: [{ visibility: "off" }] },
+    { featureType: "water", stylers: [{ color: "#c9e8fc" }] },
+    { featureType: "road", elementType: "geometry", stylers: [{ color: "#e8e8e8" }] },
+    { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
+    { featureType: "landscape", stylers: [{ color: "#f3f4f6" }] },
+]
+
+const mapStyleDark: google.maps.MapTypeStyle[] = [
+    { elementType: "geometry", stylers: [{ color: "#1a1a2e" }] },
+    { elementType: "labels.text.stroke", stylers: [{ color: "#1a1a2e" }] },
+    { elementType: "labels.text.fill", stylers: [{ color: "#8b92a5" }] },
+    { featureType: "road", elementType: "geometry", stylers: [{ color: "#2a2a4a" }] },
+    { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#1e1e3a" }] },
+    { featureType: "water", stylers: [{ color: "#0e1a2b" }] },
+    { featureType: "poi", stylers: [{ visibility: "off" }] },
+    { featureType: "transit", stylers: [{ visibility: "off" }] },
+]
 
 export default function LocationPicker({
     onLocationSelect,
@@ -32,10 +52,11 @@ export default function LocationPicker({
     // We keep track of the center manually to report it on drag end
     const centerRef = useRef({ lat: initialLat, lng: initialLng })
 
-    // UI state should only effect the "Locate Me" or initial load
-    // We don't want to re-render map on every drag
     const [mapCenter, setMapCenter] = useState({ lat: initialLat, lng: initialLng })
     const [isLocating, setIsLocating] = useState(false)
+
+    const isDark = typeof document !== "undefined" &&
+        document.documentElement.classList.contains("dark")
 
     const onLoad = useCallback((map: google.maps.Map) => {
         mapRef.current = map
@@ -52,9 +73,6 @@ export default function LocationPicker({
             const lat = newCenter.lat()
             const lng = newCenter.lng()
             centerRef.current = { lat, lng }
-            // Desacoplamos la actualización del padre para performance
-            // Solo actualizamos al terminar arrastre (onDragEnd) o usamos debounce 
-            // pero para UX instantánea, actualizamos aquí si no es costoso
             onLocationSelect(lat, lng)
         }
     }
@@ -100,26 +118,36 @@ export default function LocationPicker({
         }
     }
 
-    if (loadError) return <div className="p-4 text-red-500 bg-red-50 rounded-lg">Error cargando Google Maps</div>
+    if (loadError) {
+        return (
+            <div className="h-[350px] w-full flex flex-col items-center justify-center bg-destructive/5 rounded-xl gap-2">
+                <MapPin className="h-8 w-8 text-destructive" />
+                <p className="text-destructive text-sm font-medium">Error cargando Google Maps</p>
+            </div>
+        )
+    }
+
     if (!isLoaded) {
         return (
-            <div className="h-[300px] w-full flex items-center justify-center bg-muted/20 rounded-xl animate-pulse">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                <span className="ml-2 text-muted-foreground">Cargando Mapa...</span>
+            <div className="h-[350px] w-full flex flex-col items-center justify-center bg-muted/10 rounded-xl gap-3">
+                <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                </div>
+                <span className="text-sm text-muted-foreground font-medium">Cargando mapa...</span>
             </div>
         )
     }
 
     return (
-        <div className="relative h-[350px] w-full overflow-hidden rounded-xl border">
+        <div className="relative h-[350px] w-full overflow-hidden rounded-xl border border-border/50 shadow-sm">
             {/* Search Box Overlay */}
-            <div className="absolute top-4 left-4 right-16 z-10">
+            <div className="absolute top-3 left-3 right-14 z-10">
                 <StandaloneSearchBox onLoad={onSearchLoad} onPlacesChanged={onPlacesChanged}>
-                    <div className="relative shadow-md">
+                    <div className="relative">
                         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Buscar dirección..."
-                            className="bg-white pl-9 border-0 focus-visible:ring-1"
+                            className="bg-card/95 backdrop-blur-md pl-9 border-border/30 shadow-lg focus-visible:ring-1 focus-visible:ring-blue-500 rounded-lg"
                         />
                     </div>
                 </StandaloneSearchBox>
@@ -135,28 +163,41 @@ export default function LocationPicker({
                 options={{
                     disableDefaultUI: true,
                     zoomControl: true,
-                    // styles: silverMapStyle // Optional: Custom style
+                    zoomControlOptions: {
+                        position: typeof google !== "undefined" ? google.maps.ControlPosition.RIGHT_CENTER : undefined,
+                    },
+                    styles: isDark ? mapStyleDark : mapStyleLight,
+                    gestureHandling: "greedy",
                 }}
             >
                 {/* No Marker here because we use the fixed center pin overlay */}
             </GoogleMap>
 
-            {/* Fixed Center Pin */}
-            <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[0] text-primary pb-8">
-                <MapPin className="h-10 w-10 fill-red-500 text-red-600 drop-shadow-xl animate-bounce" />
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3 h-1 bg-black/50 rounded-full blur-[2px]"></div>
+            {/* Fixed Center Pin — premium animated pin */}
+            <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[1] pb-10">
+                <div className="relative">
+                    <MapPin className="h-10 w-10 text-red-500 drop-shadow-xl" style={{ fill: "#ef4444", stroke: "#ffffff", strokeWidth: 1 }} />
+                    {/* Shadow dot beneath pin */}
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1.5 bg-black/30 rounded-full blur-[2px]" />
+                </div>
             </div>
 
+            {/* Instructions overlay */}
+            <div className="absolute bottom-3 left-3 bg-card/90 backdrop-blur-md rounded-lg px-3 py-2 shadow-lg border border-border/50 text-xs text-muted-foreground">
+                📍 Arrastra el mapa para seleccionar la ubicación
+            </div>
+
+            {/* Locate me button */}
             <Button
                 variant="secondary"
                 size="icon"
-                className="absolute bottom-4 right-4 z-10 shadow-md bg-white hover:bg-gray-100"
+                className="absolute top-3 right-3 z-10 shadow-lg bg-card/95 backdrop-blur-md hover:bg-card border-border/30 rounded-lg"
                 onClick={handleLocateMe}
             >
                 {isLocating ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                    <Locate className="h-5 w-5" />
+                    <Locate className="h-5 w-5 text-blue-500" />
                 )}
             </Button>
         </div>

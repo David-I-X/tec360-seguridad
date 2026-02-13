@@ -1,19 +1,25 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import dynamic from "next/dynamic"
 import { motion, AnimatePresence } from "framer-motion"
-import { Loader2, MapPin, Phone, User, Navigation, CheckCircle2 } from "lucide-react"
+import {
+    Loader2, MapPin, Phone, User, Navigation, CheckCircle2,
+    AlertTriangle, Wifi, WifiOff, Clock
+} from "lucide-react"
 import { serviceWebSocket, type WebSocketMessage } from "@/lib/websocket"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { TrackingSimulator } from "@/components/services/tracking-simulator"
 
 // Lazy load map
 const ServiceMap = dynamic(
     () => import("@/components/services/service-map"),
-    { ssr: false, loading: () => <div className="h-[300px] bg-muted/20 animate-pulse rounded-xl" /> }
+    { ssr: false, loading: () => <div className="h-[350px] bg-muted/20 animate-pulse rounded-xl" /> }
 )
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 interface LiveTrackingViewProps {
     service: any
@@ -26,33 +32,74 @@ export function LiveTrackingView({ service, token }: LiveTrackingViewProps) {
     const [status, setStatus] = useState<TrackingStatus>(
         service.status === "pending" ? "searching" :
             service.status === "assigned" ? "en_route" :
-                service.status === "in_progress" ? "arrived" :
-                    service.status === "completed" ? "completed" : "en_route"
+                service.status === "en_route" ? "en_route" :
+                    service.status === "arrived" ? "arrived" :
+                        service.status === "in_progress" ? "arrived" :
+                            service.status === "completed" ? "completed" : "en_route"
     )
     const [technician, setTechnician] = useState(service.technician || null)
     const [technicianLocation, setTechnicianLocation] = useState<{ lat: number; lng: number } | null>(null)
     const [isConnected, setIsConnected] = useState(false)
+    const [locationError, setLocationError] = useState<string | null>(null)
+    const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+    const [updateCount, setUpdateCount] = useState(0)
+    const wsLocationReceived = useRef(false)
+    const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
-    // Connect to WebSocket
+    // ============================================================
+    // REST polling fallback — fetches location if WS is not providing it
+    // ============================================================
+    const fetchLocationViaREST = useCallback(async () => {
+        if (!service.id || !token) return
+
+        try {
+            const response = await fetch(`${API_URL}/location/${service.id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                if (data.technician_location) {
+                    const loc = {
+                        lat: data.technician_location.lat,
+                        lng: data.technician_location.lng,
+                    }
+                    setTechnicianLocation(loc)
+                    setLastUpdate(new Date())
+                    console.log("[LiveTracking] REST position:", loc)
+                }
+            }
+        } catch (err) {
+            console.warn("[LiveTracking] REST location fetch failed:", err)
+        }
+    }, [service.id, token])
+
+    // ============================================================
+    // WebSocket connection
+    // ============================================================
     useEffect(() => {
         if (!service.id || !token) return
 
+        console.log("[LiveTracking] Connecting WebSocket for service:", service.id)
         serviceWebSocket.connect(service.id, token)
 
         const unsubscribe = serviceWebSocket.onMessage((message: WebSocketMessage) => {
-            console.log("[LiveTracking] Message:", message)
+            console.log("[LiveTracking] WS Message:", message.type, message.type === "location_update" ? message.data : "")
 
             if (message.type === "connected") {
                 setIsConnected(true)
+                console.log("[LiveTracking] ✅ WS connected to room")
             } else if (message.type === "status_update") {
                 const { status: newStatus, technician: techData } = message.data
 
                 if (newStatus === "assigned") {
                     setStatus("found")
                     if (techData) setTechnician(techData)
-
-                    // After 2 seconds, change to en_route
                     setTimeout(() => setStatus("en_route"), 2000)
+                } else if (newStatus === "en_route") {
+                    setStatus("en_route")
+                } else if (newStatus === "arrived") {
+                    setStatus("arrived")
                 } else if (newStatus === "in_progress") {
                     setStatus("arrived")
                 } else if (newStatus === "completed") {
@@ -61,6 +108,10 @@ export function LiveTrackingView({ service, token }: LiveTrackingViewProps) {
             } else if (message.type === "location_update") {
                 const { lat, lng } = message.data
                 setTechnicianLocation({ lat, lng })
+                setLastUpdate(new Date())
+                setUpdateCount(prev => prev + 1)
+                wsLocationReceived.current = true
+                setLocationError(null)
             }
         })
 
@@ -69,6 +120,30 @@ export function LiveTrackingView({ service, token }: LiveTrackingViewProps) {
             serviceWebSocket.disconnect()
         }
     }, [service.id, token])
+
+    // ============================================================
+    // REST polling: fetch initial + periodic fallback every 8s
+    // ============================================================
+    useEffect(() => {
+        if (!service.id || !token) return
+
+        // Fetch initial position immediately
+        fetchLocationViaREST()
+
+        // Poll as fallback
+        pollingRef.current = setInterval(() => {
+            if (!wsLocationReceived.current) {
+                fetchLocationViaREST()
+            }
+        }, 8000)
+
+        return () => {
+            if (pollingRef.current) {
+                clearInterval(pollingRef.current)
+                pollingRef.current = null
+            }
+        }
+    }, [service.id, token, fetchLocationViaREST])
 
     return (
         <div className="space-y-4">
@@ -81,8 +156,18 @@ export function LiveTrackingView({ service, token }: LiveTrackingViewProps) {
                 {status === "completed" && <CompletedBanner key="completed" />}
             </AnimatePresence>
 
+            {/* Location error banner */}
+            {locationError && (
+                <GlassCard className="p-3 bg-amber-500/10 border-amber-500/20">
+                    <div className="flex items-center gap-2 text-sm text-amber-600">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        <span>{locationError}</span>
+                    </div>
+                </GlassCard>
+            )}
+
             {/* Map with live tracking */}
-            <GlassCard className="p-0 overflow-hidden">
+            <GlassCard className="p-0 overflow-hidden rounded-xl">
                 <ServiceMap
                     lat={service.service_lat}
                     lng={service.service_lon}
@@ -97,17 +182,37 @@ export function LiveTrackingView({ service, token }: LiveTrackingViewProps) {
                 <TechnicianCard technician={technician} />
             )}
 
-            {/* Connection indicator */}
-            <div className="flex justify-center">
-                <Badge variant={isConnected ? "default" : "secondary"} className="text-xs">
-                    {isConnected ? "🟢 Conectado en vivo" : "🔴 Reconectando..."}
+            {/* Connection status bar */}
+            <div className="flex items-center justify-center gap-3">
+                <Badge variant={isConnected ? "default" : "secondary"} className="text-xs gap-1">
+                    {isConnected ? (
+                        <><Wifi className="h-3 w-3" /> Conectado en vivo</>
+                    ) : (
+                        <><WifiOff className="h-3 w-3" /> Reconectando...</>
+                    )}
                 </Badge>
+
+                {lastUpdate && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {updateCount} updates
+                    </span>
+                )}
             </div>
+
+            {/* Dev: Tracking Simulator */}
+            <TrackingSimulator
+                serviceId={service.id}
+                destLat={service.service_lat}
+                destLng={service.service_lon}
+            />
         </div>
     )
 }
 
-// Sub-components for different states
+// ============================================================
+// Sub-components for different tracking states
+// ============================================================
 
 function SearchingBanner() {
     return (
@@ -122,9 +227,7 @@ function SearchingBanner() {
                         <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
                             <User className="h-8 w-8 text-primary" />
                         </div>
-                        {/* Pulsing rings */}
                         <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
-                        <div className="absolute inset-0 rounded-full bg-primary/10 animate-ping animation-delay-200" style={{ animationDelay: "0.2s" }} />
                     </div>
                     <div>
                         <h3 className="text-lg font-semibold">Buscando técnico disponible...</h3>

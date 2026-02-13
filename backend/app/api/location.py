@@ -4,12 +4,20 @@ Location API - Endpoints para tracking de ubicación de técnicos
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlmodel import Session
+from datetime import datetime, timezone
 
 from app.core.database import get_session
 from app.core.security import require_roles
 from app.core.websocket_manager import ws_manager
 
 router = APIRouter(prefix="/location", tags=["location"])
+
+
+# ============================================================
+# In-memory cache for last-known technician positions
+# In production, use Redis for persistence across restarts
+# ============================================================
+_location_cache: dict[str, dict] = {}
 
 
 class LocationUpdate(BaseModel):
@@ -27,9 +35,17 @@ async def update_technician_location(
 ):
     """
     Endpoint para que el técnico envíe su ubicación actual.
-    Se broadcasting a todos los conectados a la sala del servicio.
+    Se guarda en cache y se broadcast a todos los conectados a la sala del servicio.
     """
     technician_id = current_user["id"]
+    
+    # Save to in-memory cache
+    _location_cache[data.service_id] = {
+        "technician_id": technician_id,
+        "lat": data.lat,
+        "lng": data.lng,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
     
     # Broadcast de ubicación via WebSocket
     await ws_manager.broadcast_location_update(
@@ -50,12 +66,22 @@ async def get_technician_location(
 ):
     """
     Obtiene la última ubicación conocida del técnico asignado a un servicio.
-    Para MVP, esto retorna data dummy. La ubicación real viene via WebSocket.
+    Returns cached position from POST /location/update calls.
     """
-    # En producción, esto buscaría en Redis/DB la última ubicación guardada
-    # Por ahora retornamos null - el cliente debe usar WebSocket para tiempo real
+    cached = _location_cache.get(service_id)
+    
+    if cached:
+        return {
+            "service_id": service_id,
+            "technician_location": {
+                "lat": cached["lat"],
+                "lng": cached["lng"],
+                "technician_id": cached["technician_id"],
+                "timestamp": cached["timestamp"],
+            }
+        }
+    
     return {
         "service_id": service_id,
         "technician_location": None,
-        "message": "Usa WebSocket para tracking en tiempo real"
     }

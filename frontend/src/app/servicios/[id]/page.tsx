@@ -86,7 +86,7 @@ function ServiceDetailContent() {
 
     // Show live tracking for client when service is active (not completed/cancelled)
     const showLiveTracking = user?.role === "client" &&
-        ["assigned", "in_progress"].includes(service.status)
+        ["assigned", "en_route", "arrived", "in_progress"].includes(service.status)
 
     // Show quotations card for clients when service is pending or quoted
     const showQuotationsCard = user?.role === "client" &&
@@ -272,7 +272,7 @@ const ServiceMapStatic = dynamic(
 export default function ServiceDetailPage() {
     return (
         <ProtectedRoute>
-            <div className="container py-8 px-4 max-w-4xl">
+            <div className="container pt-24 pb-8 px-4 max-w-4xl">
                 <ServiceDetailContent />
             </div>
         </ProtectedRoute>

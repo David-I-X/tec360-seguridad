@@ -42,7 +42,7 @@ function ServiceRequestContent() {
 export default function NewServicePage() {
   return (
     <ProtectedRoute>
-      <div className="container py-10 px-4 md:px-6">
+      <div className="container pt-24 pb-10 px-4 md:px-6">
         <ServiceRequestContent />
       </div>
     </ProtectedRoute>

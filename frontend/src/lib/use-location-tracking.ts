@@ -2,7 +2,7 @@
  * Hook for technician location tracking
  * Sends GPS location to backend periodically while service is active
  */
-import { useEffect, useRef, useCallback } from "react"
+import { useEffect, useRef, useCallback, useState } from "react"
 import { serviceWebSocket } from "@/lib/websocket"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
@@ -13,16 +13,26 @@ interface UseLocationTrackingOptions {
     intervalMs?: number
 }
 
-export function useLocationTracking({ serviceId, enabled, intervalMs = 5000 }: UseLocationTrackingOptions) {
+interface LocationTrackingState {
+    lastPosition: { lat: number; lng: number } | null
+    error: string | null
+    isSending: boolean
+}
+
+export function useLocationTracking({ serviceId, enabled, intervalMs = 5000 }: UseLocationTrackingOptions): LocationTrackingState {
     const watchIdRef = useRef<number | null>(null)
     const intervalRef = useRef<NodeJS.Timeout | null>(null)
     const lastPositionRef = useRef<{ lat: number; lng: number } | null>(null)
+    const [error, setError] = useState<string | null>(null)
+    const [isSending, setIsSending] = useState(false)
+    const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null)
 
     const sendLocation = useCallback(async (lat: number, lng: number) => {
         const token = localStorage.getItem("access_token")
         if (!token) return
 
         try {
+            setIsSending(true)
             // Via REST API
             const response = await fetch(`${API_URL}/location/update`, {
                 method: "POST",
@@ -39,6 +49,7 @@ export function useLocationTracking({ serviceId, enabled, intervalMs = 5000 }: U
 
             if (response.ok) {
                 console.log("[Location] Sent successfully:", { lat, lng })
+                setError(null) // Clear error on success
             } else {
                 console.warn("[Location] Send failed:", response.status)
             }
@@ -47,6 +58,8 @@ export function useLocationTracking({ serviceId, enabled, intervalMs = 5000 }: U
             serviceWebSocket.sendLocationUpdate(lat, lng)
         } catch (error) {
             console.error("[Location] Failed to send location:", error)
+        } finally {
+            setIsSending(false)
         }
     }, [serviceId])
 
@@ -57,28 +70,34 @@ export function useLocationTracking({ serviceId, enabled, intervalMs = 5000 }: U
         }
 
         if (!navigator.geolocation) {
+            setError("Tu navegador no soporta geolocalización. Usa un navegador moderno.")
             console.error("[Location] Geolocation API not supported")
             return
         }
 
         console.log("[Location] Starting location tracking for service:", serviceId)
+        setError(null)
 
         // Watch position changes
         watchIdRef.current = navigator.geolocation.watchPosition(
-            (position) => {
-                lastPositionRef.current = {
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude,
+            (pos) => {
+                const newPos = {
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude,
                 }
+                lastPositionRef.current = newPos
+                setPosition(newPos)
+                setError(null) // Clear any previous error
             },
-            (error) => {
+            (geoError) => {
                 // Provide specific error messages based on error code
                 const errorMessages: Record<number, string> = {
-                    1: "Permiso de ubicación denegado. Por favor habilita el acceso a ubicación en tu navegador.",
+                    1: "Permiso de ubicación denegado. Habilita el acceso a ubicación en tu navegador.",
                     2: "No se pudo obtener la ubicación. Verifica que el GPS esté activo.",
                     3: "Tiempo de espera agotado al obtener ubicación.",
                 }
-                const message = errorMessages[error.code] || `Error de geolocalización: ${error.message}`
+                const message = errorMessages[geoError.code] || `Error de geolocalización: ${geoError.message}`
+                setError(message)
                 console.warn("[Location]", message)
             },
             {
@@ -97,8 +116,8 @@ export function useLocationTracking({ serviceId, enabled, intervalMs = 5000 }: U
 
         // Send initial location
         navigator.geolocation.getCurrentPosition(
-            (position) => {
-                sendLocation(position.coords.latitude, position.coords.longitude)
+            (pos) => {
+                sendLocation(pos.coords.latitude, pos.coords.longitude)
             },
             () => { },
             { enableHighAccuracy: true }
@@ -117,6 +136,8 @@ export function useLocationTracking({ serviceId, enabled, intervalMs = 5000 }: U
     }, [enabled, serviceId, intervalMs, sendLocation])
 
     return {
-        lastPosition: lastPositionRef.current,
+        lastPosition: position,
+        error,
+        isSending,
     }
 }

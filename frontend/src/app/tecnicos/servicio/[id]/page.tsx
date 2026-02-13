@@ -40,11 +40,22 @@ function TechnicianServiceContent() {
     // Location tracking hook - active for all in-progress states
     const isActiveService = service && ["assigned", "en_route", "arrived", "in_progress"].includes(service.status)
 
-    useLocationTracking({
+    const { error: trackingError } = useLocationTracking({
         serviceId: params.id as string,
         enabled: isTracking && isActiveService,
         intervalMs: 5000,
     })
+
+    // Show GPS error to technician
+    useEffect(() => {
+        if (trackingError) {
+            toast({
+                title: "Error de ubicación",
+                description: trackingError,
+                variant: "destructive",
+            })
+        }
+    }, [trackingError, toast])
 
     useEffect(() => {
         async function fetchService() {
@@ -339,8 +350,8 @@ function TechnicianServiceContent() {
 
 export default function TechnicianServicePage() {
     return (
-        <ProtectedRoute requiredRole="technician">
-            <div className="container py-8 px-4 max-w-4xl">
+        <ProtectedRoute allowedRoles={["technician"]}>
+            <div className="container pt-24 pb-8 px-4 max-w-4xl">
                 <TechnicianServiceContent />
             </div>
         </ProtectedRoute>

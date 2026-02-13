@@ -243,7 +243,7 @@ function TechnicianJobsContent() {
 export default function TechnicianJobsPage() {
     return (
         <ProtectedRoute>
-            <div className="container py-8 px-4 max-w-4xl">
+            <div className="container pt-24 pb-8 px-4 max-w-4xl">
                 <TechnicianJobsContent />
             </div>
         </ProtectedRoute>

@@ -106,6 +106,10 @@ app.include_router(notifications_router.router)  # 🔔 Notificaciones
 from app.api import quotations as quotations_router
 app.include_router(quotations_router.router)  # 💰 Cotizaciones
 
+# Simulation (development only)
+from app.api import simulate as simulate_router
+app.include_router(simulate_router.router)  # 🧪 Simulación de movimiento
+
 
 # Ruta de health check
 @app.get("/")
