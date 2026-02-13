@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { otpSchema } from "@/lib/validations"
 import type { OTPFormData } from "@/lib/validations"
 import { useAuth, PublicOnlyRoute } from "@/lib/auth-context"
+import { useToast } from "@/components/ui/use-toast"
 import { maskPhoneNumber } from "@/lib/validations"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,7 +26,8 @@ export default function VerifyOTPPage() {
 
 function VerifyOTPContent() {
   const router = useRouter()
-  const { verifyOTP, requestOTP } = useAuth()
+  const { verifyOTP, requestOTP, user } = useAuth()
+  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [phone, setPhone] = useState("")
@@ -103,17 +105,10 @@ function VerifyOTPContent() {
       // Limpiar sessionStorage
       sessionStorage.removeItem("pending_phone")
 
-      // Redirigir según el rol del usuario
-      // Cast explícito o acceso seguro, ya que TS se queja de que isNewUser no tiene user
-      const userData = (response as any).user || {}
-      const userRole = userData.role || "client"
-
-      if (userRole === "technician") {
-        router.push("/tecnicos/dashboard")
-      } else {
-        // Clientes o nuevos usuarios van a servicios (donde harán onboarding si es necesario)
-        router.push("/servicios/nuevo")
-      }
+      toast({
+        title: "✅ Verificación exitosa",
+        description: response.isNewUser ? "¡Bienvenido! Completa tu perfil para continuar." : "¡Bienvenido de vuelta!",
+      })
     } catch (err: any) {
       setError(err.message || "Código incorrecto. Intenta de nuevo.")
     } finally {

@@ -49,7 +49,7 @@ export function Navbar() {
 
     if (user.role === "technician") {
       return [
-        { href: "/tecnicos", label: "Dashboard", icon: Wrench },
+        { href: "/tecnicos/dashboard", label: "Dashboard", icon: Wrench },
         { href: "/tecnicos/mis-cotizaciones", label: "Cotizaciones", icon: FileText },
         { href: "/mapa", label: "Mapa", icon: MapPin },
       ]
@@ -187,7 +187,7 @@ export function Navbar() {
                   {user?.role === "technician" && (
                     <>
                       <DropdownMenuItem asChild>
-                        <Link href="/tecnicos" className="cursor-pointer">
+                        <Link href="/tecnicos/dashboard" className="cursor-pointer">
                           <Wrench className="mr-2 h-4 w-4" />
                           Dashboard
                         </Link>

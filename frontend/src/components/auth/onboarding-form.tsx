@@ -61,10 +61,7 @@ export function OnboardingForm() {
             if (data.user_type === "technician") {
                 router.push("/tecnicos/dashboard")
             } else {
-                // Si está en el wizard de servicios, el cambio de estado 'hasCompletedOnboarding'
-                // hará que se muestre el formulario de servicios automáticamente.
-                // Pero si estamos en otra página, forzamos la recarga o navegación.
-                router.refresh()
+                router.push("/servicios")
             }
         } catch (err: any) {
             console.error(err)

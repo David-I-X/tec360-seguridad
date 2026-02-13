@@ -79,7 +79,7 @@ export function Hero() {
             variants={fadeUp}
             className="flex flex-col items-center justify-center gap-4 sm:flex-row"
           >
-            <Link href="/register">
+            <Link href="/login">
               <Button
                 size="lg"
                 className="w-full sm:w-auto gradient-brand text-white hover:opacity-90 font-semibold px-8 h-12 text-base shadow-xl shadow-blue-500/25 hover:shadow-blue-500/40 transition-all"

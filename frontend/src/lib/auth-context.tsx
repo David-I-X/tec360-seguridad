@@ -228,7 +228,9 @@ export function ProtectedRoute({
     // Verificar roles permitidos
     if (allowedRoles && allowedRoles.length > 0 && user?.role) {
       if (!allowedRoles.includes(user.role)) {
-        router.push("/") // Redirigir a home si no tiene el rol permitido
+        // Role-aware redirect when user doesn't have the required role
+        const fallback = user.role === "technician" ? "/tecnicos/dashboard" : "/servicios"
+        router.push(fallback)
         return
       }
     }
@@ -280,19 +282,25 @@ interface PublicOnlyRouteProps {
  */
 export function PublicOnlyRoute({
   children,
-  redirectTo = "/servicios",
+  redirectTo,
 }: PublicOnlyRouteProps) {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, user } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
     if (isLoading) return
 
-    // Si está autenticado, redirigir
+    // Si está autenticado, redirigir según rol
     if (isAuthenticated) {
-      router.push(redirectTo)
+      if (redirectTo) {
+        router.push(redirectTo)
+      } else {
+        // Role-aware redirect
+        const destination = user?.role === "technician" ? "/tecnicos/dashboard" : "/servicios"
+        router.push(destination)
+      }
     }
-  }, [isAuthenticated, isLoading, redirectTo, router])
+  }, [isAuthenticated, isLoading, redirectTo, router, user?.role])
 
   // Mostrar loading mientras carga
   if (isLoading) {

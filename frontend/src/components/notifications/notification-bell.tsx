@@ -15,9 +15,11 @@ import {
     markAllAsRead,
     type Notification
 } from "@/lib/notifications"
+import { useAuth } from "@/lib/auth-context"
 
 export function NotificationBell() {
     const router = useRouter()
+    const { user } = useAuth()
     const [isOpen, setIsOpen] = useState(false)
     const [notifications, setNotifications] = useState<Notification[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
@@ -70,9 +72,12 @@ export function NotificationBell() {
             setUnreadCount(prev => Math.max(0, prev - 1))
         }
 
-        // Navigate to service if it's a service notification
+        // Navigate to service — role-aware routing
         if (notification.service_id) {
-            router.push(`/servicios/${notification.service_id}`)
+            const path = user?.role === "technician"
+                ? `/tecnicos/servicio/${notification.service_id}`
+                : `/servicios/${notification.service_id}`
+            router.push(path)
             setIsOpen(false)
         }
     }

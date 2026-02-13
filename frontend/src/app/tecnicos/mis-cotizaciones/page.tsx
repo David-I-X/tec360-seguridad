@@ -149,7 +149,7 @@ function TechnicianQuotationsContent() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => router.push("/tecnicos")}>
+                    <Button variant="ghost" size="icon" onClick={() => router.push("/tecnicos/dashboard")}>
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div>
@@ -215,7 +215,7 @@ function TechnicianQuotationsContent() {
                                 Ve a servicios disponibles para enviar cotizaciones.
                             </p>
                             <Button
-                                onClick={() => router.push("/tecnicos")}
+                                onClick={() => router.push("/tecnicos/dashboard")}
                                 className="mt-4"
                             >
                                 Ver Servicios

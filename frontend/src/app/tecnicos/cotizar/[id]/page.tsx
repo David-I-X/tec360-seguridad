@@ -99,7 +99,7 @@ function QuotationFormContent() {
                 description: "El cliente recibirá tu propuesta",
             })
 
-            router.push("/tecnicos")
+            router.push("/tecnicos/dashboard")
         } catch (err: any) {
             toast({
                 title: "Error",
