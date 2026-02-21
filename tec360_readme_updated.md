@@ -1,79 +1,66 @@
-# 🚀 Tec360 Seguridad
+# 🛡️ Tec360 Seguridad
 
-**Tec360 Seguridad** es una plataforma web que conecta usuarios con técnicos certificados del SENA para la instalación y mantenimiento de sistemas de seguridad (GPS, alarmas, cámaras, etc.) en toda Colombia.
+**Plataforma web que conecta usuarios con técnicos certificados del SENA para instalación y mantenimiento de sistemas de seguridad (GPS, alarmas, cámaras, cerraduras electrónicas) en toda Colombia.**
 
----
-
-## ⚠️ Advertencia — Funcionalidades Pendientes
-
-> [!CAUTION]
-> **Sistema de Pagos (C2) NO implementado.** La integración con Wompi/Stripe para procesamiento de pagos **no se ha desarrollado**. El flujo actual termina con la aprobación de cotización y asignación del técnico, sin incluir cobro ni facturación.
-
-> [!WARNING]
-> - No existe integración con pasarela de pagos
-> - No hay generación de facturas
-> - App móvil (React Native/Flutter) no iniciada
-> - No hay CI/CD configurado para producción
-> - Rate limiting no implementado
+> Proyecto operado en la **Ruta del Emprendimiento 2025** por **Créame Incubadora de Empresas**.
 
 ---
 
-## 📊 Estado del Proyecto (Febrero 2026)
+## 📊 Estado del Proyecto
 
-| Módulo | Estado | Descripción |
-|--------|--------|-------------|
-| **Autenticación y Roles** | ✅ Completo | JWT, login, registro, onboarding, roles (client/technician/admin) |
-| **Gestión de Servicios** | ✅ Completo | CRUD, asignación, tracking de estado, paginación, filtros |
-| **Sistema de Cotizaciones** | ✅ Completo | Envío, aprobación, rechazo, contraoferta, gestión bilateral |
-| **Sistema de Calificaciones** | ✅ Completo | Rating 1-5 estrellas con comentarios |
-| **Notificaciones** | ✅ Completo | Notificaciones en tiempo real, contador de no leídas |
-| **Geolocalización (Google Maps)** | ✅ Completo | Mapa interactivo, geocoding, autocomplete, tracking en vivo |
-| **Tracking en Vivo (WebSocket)** | ✅ Completo | Ubicación del técnico en tiempo real vía WebSocket |
-| **Frontend Web** | ✅ Completo | Next.js 15 + React 19, dashboards cliente y técnico |
-| **Subida de Imágenes** | ✅ Completo | Evidencias fotográficas con Supabase Storage |
-| **Sistema de Pagos** | ❌ No iniciado | Integración con Wompi/Stripe pendiente |
-| **App Móvil** | ❌ No iniciado | React Native / Flutter |
+| Módulo | Estado | Detalles |
+|--------|--------|----------|
+| Autenticación (JWT + OTP por SMS) | ✅ | Registro, login, verificación por teléfono via Twilio |
+| Gestión de Servicios | ✅ | CRUD completo, estados, asignación, paginación, filtros |
+| Sistema de Cotizaciones | ✅ | Envío, aprobación, rechazo, contraoferta bilateral |
+| Calificaciones | ✅ | Rating 1-5 estrellas + comentarios post-servicio |
+| Notificaciones en Tiempo Real | ✅ | Eventos de servicio, cotizaciones, asignaciones |
+| Geolocalización (Google Maps) | ✅ | Mapa interactivo, geocoding, autocomplete, tracking GPS |
+| Tracking en Vivo (WebSocket) | ✅ | Posición del técnico en tiempo real estilo Uber |
+| Subida de Imágenes | ✅ | Evidencias fotográficas del servicio |
+| Docker / Producción | ✅ | Dockerfiles, Compose, Nginx, CI/CD |
+| Sistema de Pagos | ❌ | No implementado (Wompi/Stripe pendiente) |
+| App Móvil | ❌ | No iniciado |
 
 ---
 
-## 🏗️ Arquitectura del Sistema
+## 🏗️ Arquitectura
 
 ```
-Usuario (Cliente / Técnico)
-        │
-        ▼
-[Frontend: Next.js 15 + React 19]  →  Desarrollo local (puerto 3000)
-        │
-        ▼
-[Backend: FastAPI + SQLModel]  →  Desarrollo local (puerto 8000)
-        │
-        ▼
-[PostgreSQL + PostGIS]  →  Docker / Supabase
-        │
-        ├── Autenticación JWT
-        ├── Geolocalización PostGIS
-        ├── Migraciones Alembic
-        └── WebSocket para tracking en vivo
-        │
-        ▼
-[APIs Externas: Google Maps Platform]
+             ┌──────────────────────────────────────────────┐
+             │           Nginx (Reverse Proxy)             │
+             │       :80/:443 — gzip, rate limiting        │
+             └──────────┬───────────────┬──────────────────┘
+                        │               │
+                   /api/* , /ws/*       /*
+                        │               │
+              ┌─────────▼───────┐  ┌────▼──────────────┐
+              │   FastAPI       │  │   Next.js 15       │
+              │   Backend       │  │   Frontend         │
+              │   :8000         │  │   :3000            │
+              └────────┬────────┘  └───────────────────┘
+                       │
+              ┌────────▼────────┐
+              │  PostgreSQL 15  │
+              │  + PostGIS      │
+              │  :5432          │
+              └─────────────────┘
 ```
 
 ---
 
 ## 🧩 Stack Tecnológico
 
-| Capa | Tecnología | Estado |
-|------|------------|--------|
-| **Frontend** | Next.js 15, React 19, TypeScript, Framer Motion, Lucide Icons | ✅ |
-| **Backend** | FastAPI, Python 3.11+, SQLModel, Pydantic v2 | ✅ |
-| **Base de datos** | PostgreSQL 15 + PostGIS (Docker) | ✅ |
-| **ORM** | SQLModel + SQLAlchemy | ✅ |
-| **Migraciones** | Alembic | ✅ |
-| **Auth** | JWT (propio), bcrypt | ✅ |
-| **Mapas** | Google Maps Platform (JavaScript API, Geocoding, Places) | ✅ |
-| **WebSocket** | FastAPI WebSocket para tracking en vivo | ✅ |
-| **Pagos** | Wompi / Stripe | ❌ Pendiente |
+| Capa | Tecnologías |
+|------|-------------|
+| **Frontend** | Next.js 15, React 19, TypeScript, Framer Motion, Lucide Icons, shadcn/ui |
+| **Backend** | FastAPI, Python 3.11, SQLModel, Pydantic v2, Gunicorn + Uvicorn |
+| **Base de Datos** | PostgreSQL 15 + PostGIS (geoespacial) |
+| **ORM / Migraciones** | SQLModel + SQLAlchemy + Alembic |
+| **Auth** | JWT propio, bcrypt, OTP vía Twilio SMS |
+| **Mapas** | Google Maps Platform (JavaScript API, Geocoding, Directions, Places) |
+| **WebSocket** | Socket.IO (python-socketio / @socket.io/client) |
+| **Infraestructura** | Docker, Docker Compose, Nginx, GitHub Actions CI/CD |
 
 ---
 
@@ -84,84 +71,93 @@ tec360-seguridad/
 │
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                        # Punto de entrada FastAPI
-│   │   ├── api/                           # Endpoints (routers)
-│   │   │   ├── auth.py                    # Login, registro, onboarding
-│   │   │   ├── services.py               # CRUD de servicios
-│   │   │   ├── quotations.py             # Sistema de cotizaciones
-│   │   │   ├── ratings.py                # Calificaciones
-│   │   │   ├── notifications.py          # Notificaciones
-│   │   │   ├── technicians.py            # Gestión de técnicos
-│   │   │   ├── location.py               # Tracking de ubicación
-│   │   │   ├── maps.py                   # Google Maps proxy
-│   │   │   ├── images.py                 # Subida de imágenes
-│   │   │   └── ws.py                     # WebSocket (tracking en vivo)
-│   │   ├── core/                          # Configuración
-│   │   │   ├── config.py                 # Settings con Pydantic
-│   │   │   ├── database.py               # Conexión SQLModel/PostgreSQL
-│   │   │   └── security.py               # Auth JWT, middleware de roles
-│   │   ├── models/                        # Modelos SQLModel
-│   │   │   ├── user.py                   # Usuario
-│   │   │   ├── service.py                # Servicio
-│   │   │   ├── technician.py             # Perfil técnico
-│   │   │   ├── quotation.py              # Cotización
-│   │   │   ├── notification.py           # Notificación
-│   │   │   └── extras.py                 # ServiceImage, ServiceRating
-│   │   ├── schemas/                       # Schemas Pydantic (validación)
-│   │   │   ├── service.py
-│   │   │   └── quotation.py
-│   │   └── services/                      # Capa de lógica de negocio
-│   │       ├── quotation_service.py
-│   │       ├── rating_service.py
-│   │       └── notification_service.py
-│   ├── migrations/                        # Alembic
-│   │   └── versions/                      # Scripts de migración
-│   │       ├── 4181c55ae5fe_initial_migration.py
-│   │       ├── 1bb3158b3c3f_add_notifications_table.py
-│   │       ├── 4b4e043f0a72_add_scheduled_date_to_services.py
-│   │       ├── add_new_service_statuses.py
-│   │       ├── create_quotations.py
-│   │       ├── create_service_ratings.py
-│   │       └── create_technicians.py
-│   ├── tests/                             # Tests con Pytest
-│   ├── requirements.txt                   # Dependencias Python
-│   ├── docker-compose.yml                 # PostgreSQL + PostGIS local
-│   └── alembic.ini                        # Config de migraciones
+│   │   ├── main.py                         # Entry point FastAPI
+│   │   ├── api/                            # Endpoints (routers)
+│   │   │   ├── auth.py                     #   Login, registro, OTP, onboarding
+│   │   │   ├── services.py                 #   CRUD de servicios
+│   │   │   ├── quotations.py               #   Cotizaciones (enviar, aprobar, rechazar, contraoferta)
+│   │   │   ├── ratings.py                  #   Calificaciones
+│   │   │   ├── notifications.py            #   Notificaciones
+│   │   │   ├── technicians.py              #   Gestión de técnicos
+│   │   │   ├── location.py                 #   Tracking GPS del técnico
+│   │   │   ├── maps.py                     #   Proxy Google Maps
+│   │   │   ├── images.py                   #   Subida de imágenes
+│   │   │   ├── ws.py                       #   WebSocket (tracking en vivo)
+│   │   │   └── simulate.py                 #   Simulación dev-only (excluido en producción)
+│   │   ├── core/
+│   │   │   ├── config.py                   #   Settings con Pydantic
+│   │   │   ├── database.py                 #   Conexión SQLModel/PostgreSQL
+│   │   │   ├── security.py                 #   JWT, middleware de roles
+│   │   │   └── websocket_manager.py        #   Gestor de rooms Socket.IO
+│   │   ├── models/                         # Modelos SQLModel (DB tables)
+│   │   │   ├── user.py                     #   Usuario
+│   │   │   ├── service.py                  #   Servicio
+│   │   │   ├── technician.py               #   Perfil de técnico (PostGIS location)
+│   │   │   ├── quotation.py                #   Cotización
+│   │   │   ├── notification.py             #   Notificación
+│   │   │   └── extras.py                   #   ServiceImage, ServiceRating
+│   │   ├── schemas/                        # Schemas Pydantic (validación I/O)
+│   │   └── services/                       # Capa de lógica de negocio
+│   │       ├── service_service.py          #   Servicios
+│   │       ├── quotation_service.py        #   Cotizaciones
+│   │       ├── rating_service.py           #   Calificaciones
+│   │       ├── notification_service.py     #   Notificaciones
+│   │       ├── technician_service.py       #   Técnicos + stats + WKT parsing
+│   │       ├── otp_service.py              #   Códigos OTP
+│   │       ├── sms_service.py              #   Envío SMS via Twilio
+│   │       ├── maps_service.py             #   Google Maps operations
+│   │       └── image_service.py            #   Procesamiento de imágenes
+│   ├── migrations/                         # Alembic
+│   ├── Dockerfile                          # Producción: gunicorn + uvicorn
+│   ├── requirements.txt
+│   └── docker-compose.yml                  # PostgreSQL local (dev)
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── app/                           # Páginas (App Router)
-│   │   │   ├── auth/                      # Flujo de autenticación
-│   │   │   ├── login/                     # Página de login
-│   │   │   ├── register/                  # Página de registro
-│   │   │   ├── servicios/                 # Servicios del cliente
-│   │   │   │   ├── page.tsx              # Lista de servicios
-│   │   │   │   ├── nuevo/                # Crear servicio (con mapa)
-│   │   │   │   └── [id]/                 # Detalle + cotizaciones
-│   │   │   │       └── cotizaciones/     # Ver/gestionar cotizaciones
-│   │   │   ├── tecnicos/                  # Páginas del técnico
-│   │   │   │   ├── cotizar/[id]/         # Enviar cotización
-│   │   │   │   ├── mis-cotizaciones/     # Gestión de cotizaciones
-│   │   │   │   └── servicio/[id]/        # Tracking de servicio
-│   │   │   ├── mapa/                      # Mapa interactivo
-│   │   │   ├── resenas/                   # Reseñas
-│   │   │   └── imagenes/                  # Gestión de imágenes
-│   │   ├── components/                    # Componentes reutilizables
-│   │   │   ├── ui/                        # shadcn/ui components
-│   │   │   ├── services/                  # Componentes de servicios
-│   │   │   ├── technician/                # Dashboard técnico
-│   │   │   ├── quotations/                # Cards de cotización
-│   │   │   └── ratings/                   # Modal de calificación
-│   │   └── lib/                           # Utilidades
-│   │       ├── api.ts                     # API client principal
-│   │       ├── auth-context.tsx           # Context de autenticación
-│   │       └── quotations.ts             # API client de cotizaciones
-│   ├── package.json
-│   └── README.md
+│   │   ├── app/                            # Páginas (Next.js App Router)
+│   │   │   ├── auth/phone/                 #   Solicitar OTP por teléfono
+│   │   │   ├── auth/verify/                #   Verificar código OTP
+│   │   │   ├── login/                      #   Login
+│   │   │   ├── register/                   #   Registro
+│   │   │   ├── servicios/                  #   Lista de servicios del cliente
+│   │   │   ├── servicios/nuevo/            #   Crear servicio (con mapa)
+│   │   │   ├── servicios/[id]/             #   Detalle de servicio
+│   │   │   ├── servicios/[id]/cotizaciones #   Ver/gestionar cotizaciones recibidas
+│   │   │   ├── tecnicos/dashboard/         #   Dashboard del técnico
+│   │   │   ├── tecnicos/cotizar/[id]/      #   Enviar cotización a un servicio
+│   │   │   ├── tecnicos/mis-cotizaciones/  #   Mis cotizaciones enviadas
+│   │   │   ├── tecnicos/servicio/[id]/     #   Gestionar servicio activo + tracking
+│   │   │   ├── tecnicos/trabajos/          #   Historial de trabajos
+│   │   │   ├── error.tsx                   #   Error boundary global
+│   │   │   └── not-found.tsx               #   404 personalizado
+│   │   ├── components/
+│   │   │   ├── ui/                         #   shadcn/ui primitivos
+│   │   │   ├── auth/                       #   Onboarding form
+│   │   │   ├── services/                   #   ServiceMap, LocationPicker, LiveTrackingView
+│   │   │   ├── technician/                 #   TechnicianDashboard, ServiceCard
+│   │   │   ├── quotations/                 #   QuotationCard
+│   │   │   ├── ratings/                    #   RatingModal
+│   │   │   ├── notifications/              #   NotificationBell (role-aware)
+│   │   │   ├── navbar.tsx                  #   Navbar con nav por rol
+│   │   │   ├── hero.tsx                    #   Landing hero
+│   │   │   └── features.tsx                #   Landing features + footer
+│   │   └── lib/
+│   │       ├── api.ts                      #   HTTP client principal
+│   │       ├── auth-context.tsx            #   AuthProvider, ProtectedRoute, PublicOnlyRoute
+│   │       ├── quotations.ts               #   API client cotizaciones
+│   │       ├── notifications.ts            #   API client notificaciones
+│   │       ├── use-location-tracking.ts    #   Hook GPS tracking
+│   │       └── validations.ts              #   Schemas Zod
+│   ├── Dockerfile                          # Multi-stage standalone build
+│   └── next.config.ts                      # output: 'standalone'
 │
-├── .env                                   # Variables de entorno (NO subir)
-├── .gitignore
-└── tec360_readme_updated.md               # Este archivo
+├── nginx/nginx.conf                        # Reverse proxy producción
+├── docker-compose.prod.yml                 # Stack completo (DB + API + Web + Nginx)
+├── .env.production.example                 # Template de variables
+├── .github/workflows/
+│   ├── ci.yml                              # Lint → Test → Build
+│   └── deploy.yml                          # Tag → GHCR → SSH deploy
+└── .gitignore
 ```
 
 ---
@@ -169,14 +165,18 @@ tec360-seguridad/
 ## 📡 API Endpoints
 
 ### Autenticación (`/auth`)
+
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
-| POST | `/auth/register` | Registro de usuario |
-| POST | `/auth/login` | Inicio de sesión |
-| POST | `/auth/onboarding` | Completar perfil (rol, ubicación) |
-| GET | `/auth/me` | Info del usuario actual |
+| POST | `/auth/register` | Registro (email + password) |
+| POST | `/auth/login` | Login |
+| POST | `/auth/request-otp` | Solicitar código OTP por SMS |
+| POST | `/auth/verify-otp` | Verificar código OTP |
+| POST | `/auth/onboarding` | Completar perfil (rol, nombre, ubicación) |
+| GET | `/auth/me` | Info del usuario autenticado |
 
 ### Servicios (`/services`)
+
 | Método | Endpoint | Rol | Descripción |
 |--------|----------|-----|-------------|
 | POST | `/services` | client | Crear solicitud de servicio |
@@ -184,149 +184,223 @@ tec360-seguridad/
 | GET | `/services/{id}` | dueño/admin | Detalle de servicio |
 | PATCH | `/services/{id}` | dueño/admin | Actualizar servicio |
 | POST | `/services/{id}/accept` | technician | Aceptar servicio |
-| PATCH | `/services/{id}/status` | technician | Cambiar estado del servicio |
+| PATCH | `/services/{id}/status` | technician | Cambiar estado |
 
 ### Cotizaciones (`/quotations`)
+
 | Método | Endpoint | Rol | Descripción |
 |--------|----------|-----|-------------|
 | POST | `/quotations/service/{id}` | technician | Enviar cotización |
 | GET | `/quotations/me` | technician | Mis cotizaciones enviadas |
 | GET | `/quotations/service/{id}` | todos | Cotizaciones de un servicio |
 | PATCH | `/quotations/{id}/approve` | client | Aprobar cotización |
-| PATCH | `/quotations/{id}/reject` | client | Rechazar cotización |
-| PATCH | `/quotations/{id}/counter` | client | Hacer contraoferta |
+| PATCH | `/quotations/{id}/reject` | client | Rechazar |
+| PATCH | `/quotations/{id}/counter` | client | Contraoferta |
 | PATCH | `/quotations/{id}/accept-counter` | technician | Aceptar contraoferta |
 | PATCH | `/quotations/{id}/reject-counter` | technician | Rechazar contraoferta |
 
 ### Calificaciones (`/ratings`)
-| Método | Endpoint | Rol | Descripción |
-|--------|----------|-----|-------------|
-| POST | `/ratings/service/{id}` | client | Calificar servicio |
-| GET | `/ratings/service/{id}` | todos | Ver calificaciones |
+
+| Método | Endpoint | Rol |
+|--------|----------|-----|
+| POST | `/ratings/service/{id}` | client |
+| GET | `/ratings/service/{id}` | todos |
 
 ### Notificaciones (`/notifications`)
+
+| Método | Endpoint |
+|--------|----------|
+| GET | `/notifications` |
+| GET | `/notifications/unread-count` |
+| PATCH | `/notifications/{id}/read` |
+
+### Location & Maps
+
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
-| GET | `/notifications` | Listar notificaciones |
-| GET | `/notifications/unread-count` | Contador no leídas |
-| PATCH | `/notifications/{id}/read` | Marcar como leída |
+| POST | `/location/{service_id}` | Enviar ubicación del técnico |
+| GET | `/location/{service_id}` | Obtener última ubicación |
+| POST | `/maps/geocode` | Dirección → coordenadas |
+| POST | `/maps/reverse-geocode` | Coordenadas → dirección |
 
-### WebSocket
+### WebSocket / Socket.IO
+
 | Endpoint | Descripción |
 |----------|-------------|
-| `ws://host/ws/tracking/{service_id}` | Tracking en vivo del técnico |
+| `/ws/tracking/{service_id}` | Tracking en vivo del técnico |
+
+### Health
+
+| Endpoint | Descripción |
+|----------|-------------|
+| GET `/` | Status básico |
+| GET `/health` | Health check con DB ping, uptime, features |
+
+---
+
+## 🔄 Flujos de Negocio
+
+### Flujo de Cotización
+
+```
+Cliente crea servicio ──→ Estado: pending
+     │
+Técnico ve servicio disponible ──→ Envía cotización ──→ Estado: quoted
+     │
+Cliente recibe notificación ──→ Ve cotizaciones
+     │
+     ├── Aprobar ──→ Técnico asignado ──→ Estado: assigned
+     ├── Rechazar ──→ Cotización rechazada
+     └── Contraoferta ──→ Técnico evalúa
+                              ├── Acepta ──→ Cliente ve nuevo precio
+                              └── Rechaza ──→ Cotización cerrada
+```
+
+### Flujo de Servicio (post-asignación)
+
+```
+assigned ──→ en_route (técnico en camino, GPS en vivo)
+         ──→ arrived (técnico llegó)
+         ──→ in_progress (trabajo en curso)
+         ──→ completed (servicio terminado)
+         ──→ Cliente califica ⭐⭐⭐⭐⭐
+```
+
+### Tracking en Vivo (estilo Uber)
+
+- **Marcador animado** con interpolación suave (`requestAnimationFrame`)
+- **Ruta real por calles** via Google Directions API
+- **ETA y distancia** calculados en tiempo real
+- **Auto-seguimiento** del mapa al técnico
+- **Fallback REST** si WebSocket falla (polling cada 8s)
+
+---
+
+## 🔐 Seguridad
+
+| Medida | Implementación |
+|--------|---------------|
+| Autenticación | JWT + bcrypt, tokens de 7 días |
+| OTP | SMS vía Twilio, expiración 5 min, máx 3 intentos |
+| Roles | `client`, `technician`, `admin` — middleware por endpoint |
+| CORS | Orígenes específicos (no `*` en producción) |
+| Rate Limiting | Nginx: 30r/s general, 5r/min auth |
+| Headers | X-Frame-Options, HSTS, X-Content-Type-Options |
+| Docs | `/docs` y `/redoc` deshabilitados en producción |
+| Rutas | `ProtectedRoute` y `PublicOnlyRoute` role-aware |
+| Secrets | Validación que bloquea en producción si SECRET_KEY es default |
 
 ---
 
 ## ⚙️ Instalación Local
 
 ### Prerequisitos
+
 - Python 3.11+
-- Node.js 18+ (o Docker para frontend)
+- Node.js 18+
 - Docker (para PostgreSQL)
 - Google Maps API Key
+- Twilio Account (para SMS)
 
-### 1. Clonar repositorio
+### 1. Clonar
+
 ```bash
 git clone https://github.com/David-I-X/tec360-seguridad.git
 cd tec360-seguridad
 ```
 
-### 2. Base de datos (Docker)
+### 2. Base de datos
+
 ```bash
 cd backend
-docker-compose up -d
+docker compose up -d    # Levanta PostgreSQL + PostGIS en :5432
 ```
 
 ### 3. Backend
+
 ```bash
 cd backend
 python -m venv venv
-venv\Scripts\activate            # Windows
-# source venv/bin/activate       # Linux/Mac
+venv\Scripts\activate          # Windows
+# source venv/bin/activate     # Linux/Mac
+
 pip install -r requirements.txt
 
-# Aplicar migraciones
+# Migraciones
 alembic upgrade head
 
-# Ejecutar servidor
+# Servidor
 uvicorn app.main:app --reload
 ```
+
 - API: http://localhost:8000
 - Docs: http://localhost:8000/docs
 
 ### 4. Variables de entorno
+
 Crear `.env` en la raíz:
+
 ```env
 ENVIRONMENT=development
 DEBUG=True
-SECRET_KEY=tu-secret-key-seguro
+DATABASE_URL=postgresql://admin:password123@127.0.0.1:5432/tec360
+SECRET_KEY=dev-secret-key
 
-# Base de datos
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/tec360
-
-# Google Maps
 GOOGLE_MAPS_API_KEY=tu-api-key
+TWILIO_ACCOUNT_SID=tu-sid
+TWILIO_AUTH_TOKEN=tu-token
+TWILIO_PHONE_NUMBER=+1234567890
 ```
 
 Frontend `.env.local`:
+
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=tu-api-key
 ```
 
 ### 5. Frontend
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+
 - App: http://localhost:3000
 
 ---
 
-## 🔄 Flujos Principales
+## 🐳 Docker (Producción)
 
-### Flujo de Cotización
-```
-1. Cliente crea servicio (estado: pending)
-2. Técnico ve servicio disponible → envía cotización (estado: quoted)
-3. Cliente recibe notificación → ve cotizaciones
-4. Cliente puede:
-   a) Aprobar → técnico asignado (estado: assigned)
-   b) Rechazar → cotización rechazada
-   c) Contraoferta → técnico recibe nueva propuesta
-5. Técnico acepta/rechaza contraoferta
-6. Si acepta → vuelve a paso 3 con nuevo precio
-```
+```bash
+# Copiar y llenar variables
+cp .env.production.example .env.production
 
-### Flujo de Servicio (post-asignación)
-```
-1. Técnico asignado (assigned)
-2. Técnico en camino (en_route) → tracking GPS en vivo
-3. Técnico llegó (arrived)
-4. Servicio en progreso (in_progress)
-5. Servicio completado (completed)
-6. Cliente califica con estrellas
+# Build y levantar
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+
+# Migraciones
+docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
+
+# Verificar
+curl http://localhost/health
 ```
 
 ---
 
-## 🔒 Seguridad
+## 🔄 CI/CD
 
-### Implementado
-- ✅ JWT con bcrypt para autenticación
-- ✅ Roles diferenciados (client, technician, admin)
-- ✅ Middleware de autorización por rol en endpoints
-- ✅ Validación de datos con Pydantic v2
-- ✅ CORS configurado
-- ✅ `.gitignore` configurado
+| Pipeline | Trigger | Qué hace |
+|----------|---------|----------|
+| `ci.yml` | Push main / PRs | Ruff lint, pytest, Docker build |
+| `deploy.yml` | Push tag `v*` | Build → GitHub Container Registry → SSH deploy |
 
-### Pendiente
-- ❌ Rate limiting
-- ❌ HTTPS en producción
-- ❌ Logging centralizado / Sentry
-- ❌ Backups automáticos de BD
+```bash
+# Deploy automático
+git tag v1.0.0
+git push origin v1.0.0
+```
 
 ---
 
@@ -335,7 +409,7 @@ npm run dev
 **Oscar Nelson Vásquez Mieles**
 Líder del emprendimiento **Tec360 Seguridad**
 📧 oscarvasquezbroker@gmail.com
-🏢 Operado en la **Ruta del Emprendimiento 2025** por **Créame Incubadora de Empresas**
+🏢 Ruta del Emprendimiento 2025 — Créame Incubadora de Empresas
 
 ---
 
@@ -343,7 +417,5 @@ Líder del emprendimiento **Tec360 Seguridad**
 
 Proyecto bajo licencia **MIT**.
 
----
-
+**Versión**: 1.0.0
 **Última actualización**: Febrero 2026
-**Versión**: 0.5.0 (MVP funcional — sin pagos)

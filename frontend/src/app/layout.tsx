@@ -1,9 +1,10 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/lib/auth-context"
+import { ServiceWorkerRegistration } from "@/components/pwa/sw-register"
 import "./globals.css"
 
 // ✅ Configurar fuentes (se mantienen)
@@ -17,28 +18,38 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
 })
 
-// ✅ Metadata completa (se mantiene)
+// ✅ Viewport (Next.js 16 — export separado)
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#0f172a",
+}
+
+// ✅ Metadata completa + PWA
 export const metadata: Metadata = {
   title: "Tec360 Seguridad - Técnicos Certificados SENA",
   description:
     "Conectamos clientes con técnicos certificados por el SENA para instalación y mantenimiento de sistemas de seguridad electrónica",
-  generator: "v0.app",
+  generator: "Tec360",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Tec360",
+  },
+  formatDetection: {
+    telephone: true,
+  },
   icons: {
     icon: [
       {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
+        url: "/icons/icon.svg",
         type: "image/svg+xml",
       },
     ],
-    apple: "/apple-icon.png",
+    apple: "/icons/icon.svg",
   },
 }
 
@@ -65,6 +76,8 @@ export default function RootLayout({
 
           {/* ✅ Analytics se mantiene */}
           <Analytics />
+          {/* ✅ PWA Service Worker */}
+          <ServiceWorkerRegistration />
         </ThemeProvider>
       </body>
     </html>

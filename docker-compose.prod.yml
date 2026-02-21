@@ -1,0 +1,97 @@
+# ============================================
+# Tec360 Seguridad — Production Docker Compose
+# ============================================
+# Usage:
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#
+# Prerequisites:
+#   - Copy .env.production.example to .env.production and fill in real values
+# ============================================
+
+services:
+  # --- PostgreSQL + PostGIS ---
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: tec360_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-tec360}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Database password required}
+      POSTGRES_DB: ${DB_NAME:-tec360}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-tec360} -d ${DB_NAME:-tec360}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tec360_net
+
+  # --- Backend API (FastAPI) ---
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tec360_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=False
+      - DATABASE_URL=postgresql://${DB_USER:-tec360}:${DB_PASSWORD}@db:5432/${DB_NAME:-tec360}
+      - SECRET_KEY=${SECRET_KEY:?Secret key required}
+      - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
+      - SKIP_CONFIG_VALIDATION=false
+    networks:
+      - tec360_net
+    # Port exposed only internally to nginx
+    expose:
+      - "8000"
+
+  # --- Frontend (Next.js) ---
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-/api}
+        - NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+    container_name: tec360_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - tec360_net
+    expose:
+      - "3000"
+
+  # --- Nginx Reverse Proxy ---
+  nginx:
+    image: nginx:alpine
+    container_name: tec360_nginx
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "${APP_PORT:-80}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - tec360_net
+
+volumes:
+  postgres_data:
+
+
+networks:
+  tec360_net:
+    driver: bridge

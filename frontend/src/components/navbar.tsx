@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Moon, Sun, LogOut, User, Menu, X, Shield, Wrench, FileText, Bell, Home, MapPin, ClipboardList } from "lucide-react"
+import { Moon, Sun, LogOut, User, Menu, X, Shield, Wrench, FileText, Bell, Home, ClipboardList } from "lucide-react"
 import { useTheme } from "next-themes"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
@@ -43,7 +43,6 @@ export function Navbar() {
     if (!isAuthenticated || !user) {
       return [
         { href: "/", label: "Inicio", icon: Home },
-        { href: "/mapa", label: "Mapa", icon: MapPin },
       ]
     }
 
@@ -51,7 +50,6 @@ export function Navbar() {
       return [
         { href: "/tecnicos/dashboard", label: "Dashboard", icon: Wrench },
         { href: "/tecnicos/mis-cotizaciones", label: "Cotizaciones", icon: FileText },
-        { href: "/mapa", label: "Mapa", icon: MapPin },
       ]
     }
 
@@ -59,7 +57,6 @@ export function Navbar() {
     return [
       { href: "/servicios", label: "Mis Servicios", icon: ClipboardList },
       { href: "/servicios/nuevo", label: "Nuevo Servicio", icon: Shield },
-      { href: "/mapa", label: "Mapa", icon: MapPin },
     ]
   }
 

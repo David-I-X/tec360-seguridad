@@ -6,7 +6,8 @@ refactorizado para usar SQLModel + GeoAlchemy2
 from typing import List, Optional, Dict, Any
 from decimal import Decimal
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
+import re
 
 from fastapi import HTTPException, status
 from sqlmodel import Session, select, func, or_
@@ -273,6 +274,26 @@ class TechnicianService:
             # COALESCE to avoid None
             total_earned = session.exec(select(func.sum(Service.final_price)).where(Service.technician_id == user_id, Service.status == "completed")).one() or 0
             
+            # Date-based counts
+            now = datetime.utcnow()
+            month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            week_start = now - timedelta(days=now.weekday())  # Monday
+            week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+
+            services_this_month = session.exec(
+                select(func.count()).where(
+                    Service.technician_id == user_id,
+                    Service.created_at >= month_start
+                )
+            ).one()
+
+            services_this_week = session.exec(
+                select(func.count()).where(
+                    Service.technician_id == user_id,
+                    Service.created_at >= week_start
+                )
+            ).one()
+
             return TechnicianStatsResponse(
                 total_services=tech.total_services,
                 completed_services=completed,
@@ -280,13 +301,28 @@ class TechnicianService:
                 cancelled_services=cancelled,
                 average_rating=tech.average_rating,
                 total_earned=Decimal(total_earned),
-                services_this_month=0, # TODO date filters
-                services_this_week=0
+                services_this_month=services_this_month,
+                services_this_week=services_this_week
             )
         except Exception as e:
             raise HTTPException(500, str(e))
 
+    def _parse_wkt_point(self, wkt_value) -> tuple[float, float]:
+        """Extract lat, lon from WKT POINT geometry. Returns (0.0, 0.0) if unparseable."""
+        if not wkt_value:
+            return 0.0, 0.0
+        try:
+            wkt_str = str(wkt_value)
+            match = re.search(r'POINT\s*\(([\d.\-]+)\s+([\d.\-]+)\)', wkt_str)
+            if match:
+                lon, lat = float(match.group(1)), float(match.group(2))
+                return lat, lon
+        except (ValueError, AttributeError):
+            pass
+        return 0.0, 0.0
+
     def _to_response(self, tech: Technician, user: User = None) -> TechnicianResponse:
+        lat, lon = self._parse_wkt_point(tech.current_location)
         return TechnicianResponse(
             id=str(tech.id),
             user_id=str(tech.user_id),
@@ -294,8 +330,8 @@ class TechnicianService:
             specializations=tech.specializations,
             experience_years=tech.experience_years,
             bio=tech.bio,
-            current_lat=0.0, # TODO WKT parsing 
-            current_lon=0.0,
+            current_lat=lat,
+            current_lon=lon,
             service_radius_km=tech.service_radius_km,
             is_available=tech.is_available,
             is_verified=tech.is_verified,
@@ -303,10 +339,6 @@ class TechnicianService:
             average_rating=tech.average_rating,
             created_at=tech.created_at,
             updated_at=tech.updated_at,
-            # Extra fields from user if needed, but TechnicianResponse schema defines specific structure?
-            # Checking schema: TechnicianResponse inherits TechnicianBase. does not have full_name etc directly only via join in list.
-            # Actually TechnicianResponse might differ.
-            # Verified view_file output: TechnicianResponse includes id, user_id, created_at, updated_at.
         )
 
 technician_service = TechnicianService()

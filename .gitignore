@@ -52,9 +52,16 @@ temp/
 .env
 .env.local
 .env.*.local
+.env.production
 context_continuation.txt
 
 # Database
 *.db
 *.sqlite
 *.sqlite3
+
+# Test output
+backend/test_output.txt
+
+# PWA (cache artifacts)
+frontend/public/sw.js.map

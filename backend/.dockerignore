@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+*.egg-info/
+dist/
+build/
+.env
+.env.production
+tests/
+test_output.txt
+static/
+README.md
+readme_tec_360_seguridad.md
