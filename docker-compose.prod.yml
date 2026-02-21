@@ -4,8 +4,11 @@
 # Usage:
 #   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 #
-# Prerequisites:
-#   - Copy .env.production.example to .env.production and fill in real values
+# First-time SSL setup:
+#   1. Set DOMAIN in .env.production
+#   2. Run with nginx listening on port 80 first (for ACME challenge)
+#   3. docker compose run --rm certbot certonly --webroot -w /var/www/certbot -d $DOMAIN --email $EMAIL --agree-tos
+#   4. Restart: docker compose -f docker-compose.prod.yml restart nginx
 # ============================================
 
 services:
@@ -18,8 +21,6 @@ services:
       POSTGRES_USER: ${DB_USER:-tec360}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?Database password required}
       POSTGRES_DB: ${DB_NAME:-tec360}
-    ports:
-      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -52,7 +53,6 @@ services:
       - SKIP_CONFIG_VALIDATION=false
     networks:
       - tec360_net
-    # Port exposed only internally to nginx
     expose:
       - "8000"
 
@@ -73,7 +73,7 @@ services:
     expose:
       - "3000"
 
-  # --- Nginx Reverse Proxy ---
+  # --- Nginx Reverse Proxy + SSL ---
   nginx:
     image: nginx:alpine
     container_name: tec360_nginx
@@ -82,14 +82,29 @@ services:
       - frontend
       - backend
     ports:
-      - "${APP_PORT:-80}:80"
+      - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - certbot_www:/var/www/certbot:ro
+      - certbot_certs:/etc/letsencrypt:ro
     networks:
       - tec360_net
 
+  # --- Certbot (SSL certificate management) ---
+  certbot:
+    image: certbot/certbot
+    container_name: tec360_certbot
+    volumes:
+      - certbot_www:/var/www/certbot
+      - certbot_certs:/etc/letsencrypt
+    # Auto-renew: run every 12 hours
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done;'"
+
 volumes:
   postgres_data:
+  certbot_www:
+  certbot_certs:
 
 
 networks:
