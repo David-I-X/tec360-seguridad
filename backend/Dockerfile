@@ -34,9 +34,9 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 # Run with gunicorn + uvicorn workers
 CMD ["gunicorn", "app.main:app", \
-     "--worker-class", "uvicorn.workers.UvicornWorker", \
-     "--workers", "2", \
-     "--bind", "0.0.0.0:8000", \
-     "--timeout", "120", \
-     "--graceful-timeout", "30", \
-     "--access-logfile", "-"]
+    "--worker-class", "uvicorn.workers.UvicornWorker", \
+    "--workers", "1", \
+    "--bind", "0.0.0.0:8000", \
+    "--timeout", "120", \
+    "--graceful-timeout", "30", \
+    "--access-logfile", "-"]
