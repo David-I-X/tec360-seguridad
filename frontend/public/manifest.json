@@ -46,7 +46,14 @@
             "sizes": "512x512",
             "type": "image/png",
             "form_factor": "narrow",
-            "label": "Tec360 Seguridad"
+            "label": "Tec360 Seguridad - Móvil"
+        },
+        {
+            "src": "/icons/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "form_factor": "wide",
+            "label": "Tec360 Seguridad - Escritorio"
         }
     ]
 }

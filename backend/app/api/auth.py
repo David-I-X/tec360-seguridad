@@ -4,10 +4,19 @@ from sqlmodel import Session, select
 from app.core.database import get_session
 from app.models.user import User
 from app.core.auth_utils import create_access_token
-from datetime import timedelta
+from app.services.sms_service import sms_service
+from datetime import timedelta, datetime
 import random
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+# In-memory OTP storage {phone: {"code": "123456", "expires": datetime}}
+_otp_store: dict[str, dict] = {}
+
+OTP_EXPIRY_MINUTES = 5
 
 # --- SCHEMAS ---
 class OTPRequest(BaseModel):
@@ -29,20 +38,48 @@ class RefreshTokenRequest(BaseModel):
 
 @router.post("/request-otp")
 async def request_otp(data: OTPRequest):
-    # SIMULATION: In a real app, send SMS via Twilio using sms_service
-    # For now, we accept any phone and log the code "123456"
+    # Generate random 6-digit code
+    code = str(random.randint(100000, 999999))
+    expires = datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MINUTES)
+    
+    # Store OTP
+    _otp_store[data.phone] = {"code": code, "expires": expires}
+    
+    # Send via Twilio
+    sent = await sms_service.send_otp(data.phone, code)
+    
+    if not sent:
+        logger.error(f"Failed to send OTP to {data.phone}")
+        raise HTTPException(
+            status_code=500, 
+            detail="Error al enviar el código SMS. Intenta de nuevo."
+        )
+    
+    logger.info(f"OTP sent to {data.phone}")
     return {
         "success": True, 
-        "message": "Código enviado (Simulación: usa 123456)",
+        "message": "Código de verificación enviado por SMS",
         "phone": data.phone, 
-        "expires_in_minutes": 5
+        "expires_in_minutes": OTP_EXPIRY_MINUTES
     }
 
 @router.post("/verify-otp")
 async def verify_otp(data: OTPVerify, session: Session = Depends(get_session)):
-    # SIMULATION: Check code
-    if data.code != "123456":
+    # Check OTP from store
+    stored = _otp_store.get(data.phone)
+    
+    if not stored:
+        raise HTTPException(status_code=400, detail="No se ha solicitado un código para este número")
+    
+    if datetime.utcnow() > stored["expires"]:
+        del _otp_store[data.phone]
+        raise HTTPException(status_code=400, detail="El código ha expirado. Solicita uno nuevo.")
+    
+    if data.code != stored["code"]:
         raise HTTPException(status_code=400, detail="Código inválido")
+    
+    # OTP verified — remove from store
+    del _otp_store[data.phone]
 
     # Find or Create User
     statement = select(User).where(User.phone == data.phone)

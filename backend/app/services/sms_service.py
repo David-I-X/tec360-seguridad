@@ -39,7 +39,7 @@ class SMSService:
         try:
             message_body = (
                 f"Tu código de verificación para Tec360 es: {code}\n\n"
-                f"Este código expira en {settings.OTP_EXPIRY_MINUTES} minutos.\n"
+                f"Este código expira en 5 minutos.\n"
                 f"Si no solicitaste este código, ignora este mensaje."
             )
             
