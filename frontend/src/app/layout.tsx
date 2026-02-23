@@ -1,7 +1,6 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/lib/auth-context"
 import { ServiceWorkerRegistration } from "@/components/pwa/sw-register"
@@ -74,8 +73,7 @@ export default function RootLayout({
             {children}
           </AuthProvider>
 
-          {/* ✅ Analytics se mantiene */}
-          <Analytics />
+
           {/* ✅ PWA Service Worker */}
           <ServiceWorkerRegistration />
         </ThemeProvider>
