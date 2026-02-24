@@ -313,6 +313,8 @@ export async function createServiceRequest(data: {
   scheduled_date: string
   client_notes?: string
   estimated_price?: number
+  vehicle_type?: string
+  vehicle_model?: string
 }): Promise<any> {
   const token = getAuthToken()
 

@@ -7,7 +7,7 @@ import * as z from "zod"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { motion, AnimatePresence } from "framer-motion"
-import { Loader2, ArrowRight, ArrowLeft, Calendar as CalendarIcon, MapPin, Check } from "lucide-react"
+import { Loader2, ArrowRight, ArrowLeft, Calendar as CalendarIcon, MapPin, Check, Car, Clock } from "lucide-react"
 import dynamic from "next/dynamic"
 
 import { cn } from "@/lib/utils"
@@ -17,7 +17,6 @@ import { Calendar } from "@/components/ui/calendar"
 import {
     Form,
     FormControl,
-    FormDescription,
     FormField,
     FormItem,
     FormLabel,
@@ -42,6 +41,13 @@ const LocationPicker = dynamic(
     }
 )
 
+// Tipos de vehículo
+const vehicleTypes = [
+    { value: "car", label: "Carro", icon: "🚗" },
+    { value: "motorcycle", label: "Moto", icon: "🏍️" },
+    { value: "heavy_cargo", label: "Carga Pesada", icon: "🚛" },
+]
+
 const serviceSchema = z.object({
     service_type: z.string().min(1, "Selecciona un tipo de servicio"),
     description: z.string().min(10, "Describe brevemente qué necesitas (mínimo 10 caracteres)"),
@@ -49,6 +55,9 @@ const serviceSchema = z.object({
     scheduled_date: z.date({
         required_error: "Selecciona una fecha preferida",
     }),
+    scheduled_time: z.string().min(1, "Selecciona una hora"),
+    vehicle_type: z.string().min(1, "Selecciona un tipo de vehículo"),
+    vehicle_model: z.string().min(1, "Ingresa el modelo del vehículo"),
     lat: z.number().optional(),
     lng: z.number().optional()
 })
@@ -56,9 +65,10 @@ const serviceSchema = z.object({
 type ServiceValues = z.infer<typeof serviceSchema>
 
 const steps = [
-    { id: 0, title: "Elige tu Servicio" },
-    { id: 1, title: "Ubicación" },
-    { id: 2, title: "Detalles" }
+    { id: 0, title: "Servicio" },
+    { id: 1, title: "Vehículo" },
+    { id: 2, title: "Ubicación" },
+    { id: 3, title: "Detalles" }
 ]
 
 export function ServiceRequestForm() {
@@ -74,7 +84,10 @@ export function ServiceRequestForm() {
             address: "",
             lat: 6.2442,
             lng: -75.5636,
-            description: ""
+            description: "",
+            scheduled_time: "",
+            vehicle_type: "",
+            vehicle_model: ""
         }
     })
 
@@ -84,7 +97,8 @@ export function ServiceRequestForm() {
         if (step === 0) {
             isValid = await form.trigger("service_type")
         } else if (step === 1) {
-            // En paso 2 validamos que haya coords (opcional estricto si se desea)
+            isValid = await form.trigger(["vehicle_type", "vehicle_model"])
+        } else if (step === 2) {
             isValid = true
         } else {
             isValid = await form.trigger()
@@ -100,19 +114,6 @@ export function ServiceRequestForm() {
         setError("")
 
         try {
-            const serviceSchema = z.object({
-                service_type: z.string().min(1, "Selecciona un tipo de servicio"),
-                description: z.string().min(10, "Describe brevemente qué necesitas (mínimo 10 caracteres)"),
-                address: z.string().min(10, "Ingresa una referencia de dirección completa (min 10 letras)"), // MATCH BACKEND
-                scheduled_date: z.date({
-                    required_error: "Selecciona una fecha preferida",
-                }),
-                lat: z.number().optional(),
-                lng: z.number().optional()
-            })
-
-            // ... (omit lines for brevity)
-
             const typeLabel = {
                 "camera_installation": "Instalación de Cámaras",
                 "alarm_installation": "Instalación de Alarma",
@@ -123,18 +124,27 @@ export function ServiceRequestForm() {
                 "other": "Servicio Técnico"
             }[data.service_type] || "Servicio"
 
-            const title = `${typeLabel} - ${format(data.scheduled_date, "dd/MM/yyyy")}`
+            const vehicleLabel = vehicleTypes.find(v => v.value === data.vehicle_type)?.label || ""
+
+            // Combine date + time
+            const [hours, minutes] = data.scheduled_time.split(":").map(Number)
+            const scheduledDateTime = new Date(data.scheduled_date)
+            scheduledDateTime.setHours(hours, minutes, 0, 0)
+
+            const title = `${typeLabel} - ${vehicleLabel} ${data.vehicle_model} - ${format(data.scheduled_date, "dd/MM/yyyy")}`
 
             const result = await createServiceRequest({
                 service_type: data.service_type,
                 title: title,
                 description: data.description,
-                service_address: data.address, // Referencia escrita
+                service_address: data.address,
                 service_city: "Medellín",
                 service_lat: data.lat || 6.2442,
                 service_lon: data.lng || -75.5636,
-                scheduled_date: data.scheduled_date.toISOString(),
-                client_notes: data.description
+                scheduled_date: scheduledDateTime.toISOString(),
+                client_notes: data.description,
+                vehicle_type: data.vehicle_type,
+                vehicle_model: data.vehicle_model
             })
 
             setCreatedServiceId(result.id)
@@ -203,6 +213,7 @@ export function ServiceRequestForm() {
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)}>
                         <AnimatePresence mode="wait">
+                            {/* Step 0: Service Type */}
                             {step === 0 && (
                                 <motion.div
                                     key="step0"
@@ -234,9 +245,82 @@ export function ServiceRequestForm() {
                                 </motion.div>
                             )}
 
+                            {/* Step 1: Vehicle Type + Model */}
                             {step === 1 && (
                                 <motion.div
                                     key="step1"
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -20 }}
+                                    className="space-y-6"
+                                >
+                                    <div className="text-center mb-6">
+                                        <h2 className="text-2xl font-bold">Tipo de Vehículo</h2>
+                                        <p className="text-muted-foreground">¿En qué vehículo se realizará el trabajo?</p>
+                                    </div>
+
+                                    <FormField
+                                        control={form.control}
+                                        name="vehicle_type"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormControl>
+                                                    <div className="grid grid-cols-3 gap-3">
+                                                        {vehicleTypes.map((vt) => (
+                                                            <button
+                                                                key={vt.value}
+                                                                type="button"
+                                                                onClick={() => field.onChange(vt.value)}
+                                                                className={cn(
+                                                                    "flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all duration-200 hover:scale-105",
+                                                                    field.value === vt.value
+                                                                        ? "border-primary bg-primary/10 shadow-lg shadow-primary/20"
+                                                                        : "border-muted hover:border-primary/50 bg-muted/20"
+                                                                )}
+                                                            >
+                                                                <span className="text-4xl">{vt.icon}</span>
+                                                                <span className={cn(
+                                                                    "text-sm font-semibold",
+                                                                    field.value === vt.value ? "text-primary" : "text-muted-foreground"
+                                                                )}>
+                                                                    {vt.label}
+                                                                </span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    <FormField
+                                        control={form.control}
+                                        name="vehicle_model"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Modelo del Vehículo</FormLabel>
+                                                <FormControl>
+                                                    <div className="relative">
+                                                        <Car className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                                        <Input
+                                                            className="pl-9"
+                                                            placeholder="Ej: Mazda 3 2020, Honda CB190R, Kenworth T800..."
+                                                            {...field}
+                                                        />
+                                                    </div>
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </motion.div>
+                            )}
+
+                            {/* Step 2: Location */}
+                            {step === 2 && (
+                                <motion.div
+                                    key="step2"
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -20 }}
@@ -275,9 +359,10 @@ export function ServiceRequestForm() {
                                 </motion.div>
                             )}
 
-                            {step === 2 && (
+                            {/* Step 3: Details + Date + Time */}
+                            {step === 3 && (
                                 <motion.div
-                                    key="step2"
+                                    key="step3"
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -20 }}
@@ -331,11 +416,38 @@ export function ServiceRequestForm() {
                                             )}
                                         />
 
-                                        <div className="space-y-2">
-                                            <FormLabel>Tipo de Servicio</FormLabel>
-                                            <div className="p-2 border rounded-md bg-muted/50 text-sm">
-                                                {form.getValues("service_type") || "No seleccionado"}
-                                            </div>
+                                        <FormField
+                                            control={form.control}
+                                            name="scheduled_time"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-col">
+                                                    <FormLabel>Hora Preferida</FormLabel>
+                                                    <FormControl>
+                                                        <div className="relative">
+                                                            <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                                            <Input
+                                                                type="time"
+                                                                className="pl-9"
+                                                                {...field}
+                                                            />
+                                                        </div>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
+
+                                    {/* Summary */}
+                                    <div className="grid gap-2 md:grid-cols-2 text-sm">
+                                        <div className="p-2 border rounded-md bg-muted/50">
+                                            <span className="text-muted-foreground">Servicio: </span>
+                                            {form.getValues("service_type") || "—"}
+                                        </div>
+                                        <div className="p-2 border rounded-md bg-muted/50">
+                                            <span className="text-muted-foreground">Vehículo: </span>
+                                            {vehicleTypes.find(v => v.value === form.getValues("vehicle_type"))?.icon}{" "}
+                                            {form.getValues("vehicle_model") || "—"}
                                         </div>
                                     </div>
 

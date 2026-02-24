@@ -101,6 +101,17 @@ class ServiceCreate(BaseModel):
         description="Notas adicionales del cliente",
         example="Disponible en horario de mañana, preferiblemente antes de las 12pm"
     )
+    vehicle_type: Optional[str] = Field(
+        None,
+        description="Tipo de vehículo: car, motorcycle, heavy_cargo",
+        example="car"
+    )
+    vehicle_model: Optional[str] = Field(
+        None,
+        max_length=200,
+        description="Modelo del vehículo (texto libre)",
+        example="Mazda 3 2020"
+    )
 
     @validator('service_type')
     def validate_service_type(cls, v):
@@ -233,6 +244,8 @@ class ServiceResponse(BaseModel):
     final_price: Optional[Decimal] = None
     client_notes: Optional[str] = None
     technician_notes: Optional[str] = None
+    vehicle_type: Optional[str] = None
+    vehicle_model: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     
@@ -276,6 +289,8 @@ class ServiceListResponse(BaseModel):
     service_city: str
     scheduled_date: Optional[datetime] = None
     estimated_price: Optional[Decimal] = None
+    vehicle_type: Optional[str] = None
+    vehicle_model: Optional[str] = None
     created_at: datetime
     
     # Info mínima del cliente/técnico

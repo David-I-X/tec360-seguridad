@@ -25,6 +25,11 @@ class ServiceType(str, Enum):
     camera_maintenance = "camera_maintenance"
     other = "other"
 
+class VehicleType(str, Enum):
+    car = "car"
+    motorcycle = "motorcycle"
+    heavy_cargo = "heavy_cargo"
+
 class ServiceBase(SQLModel):
     title: str
     description: Optional[str] = None
@@ -34,6 +39,8 @@ class ServiceBase(SQLModel):
     estimated_price: Optional[float] = None
     requested_date: datetime = Field(default_factory=datetime.utcnow)
     scheduled_date: Optional[datetime] = None
+    vehicle_type: Optional[str] = None
+    vehicle_model: Optional[str] = None
 
 class Service(ServiceBase, table=True):
     __tablename__ = "services"

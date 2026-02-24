@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     TWILIO_ACCOUNT_SID: str = os.getenv("TWILIO_ACCOUNT_SID", "")
     TWILIO_AUTH_TOKEN: str = os.getenv("TWILIO_AUTH_TOKEN", "")
     TWILIO_PHONE_NUMBER: str = os.getenv("TWILIO_PHONE_NUMBER", "")
+    SMS_ENABLED: bool = os.getenv("SMS_ENABLED", "false").lower() == "true"
 
     # OTP Settings
     OTP_LENGTH: int = int(os.getenv("OTP_LENGTH", "6"))

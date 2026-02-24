@@ -4,7 +4,7 @@ from sqlmodel import Session, select
 from app.core.database import get_session
 from app.models.user import User
 from app.core.auth_utils import create_access_token
-from app.services.sms_service import sms_service
+from app.core.config import settings
 from datetime import timedelta, datetime
 import random
 import logging
@@ -17,6 +17,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 _otp_store: dict[str, dict] = {}
 
 OTP_EXPIRY_MINUTES = 5
+FIXED_OTP_CODE = "123456"
 
 # --- SCHEMAS ---
 class OTPRequest(BaseModel):
@@ -38,30 +39,41 @@ class RefreshTokenRequest(BaseModel):
 
 @router.post("/request-otp")
 async def request_otp(data: OTPRequest):
-    # Generate random 6-digit code
-    code = str(random.randint(100000, 999999))
-    expires = datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MINUTES)
-    
-    # Store OTP
-    _otp_store[data.phone] = {"code": code, "expires": expires}
-    
-    # Send via Twilio
-    sent = await sms_service.send_otp(data.phone, code)
-    
-    if not sent:
-        logger.error(f"Failed to send OTP to {data.phone}")
-        raise HTTPException(
-            status_code=500, 
-            detail="Error al enviar el código SMS. Intenta de nuevo."
-        )
-    
-    logger.info(f"OTP sent to {data.phone}")
-    return {
-        "success": True, 
-        "message": "Código de verificación enviado por SMS",
-        "phone": data.phone, 
-        "expires_in_minutes": OTP_EXPIRY_MINUTES
-    }
+    if settings.SMS_ENABLED:
+        # Real SMS mode: generate random code and send via Twilio
+        from app.services.sms_service import sms_service
+        code = str(random.randint(100000, 999999))
+        expires = datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MINUTES)
+        _otp_store[data.phone] = {"code": code, "expires": expires}
+        
+        sent = await sms_service.send_otp(data.phone, code)
+        if not sent:
+            logger.error(f"Failed to send OTP to {data.phone}")
+            raise HTTPException(
+                status_code=500, 
+                detail="Error al enviar el código SMS. Intenta de nuevo."
+            )
+        
+        logger.info(f"OTP sent via SMS to {data.phone}")
+        return {
+            "success": True, 
+            "message": "Código de verificación enviado por SMS",
+            "phone": data.phone, 
+            "expires_in_minutes": OTP_EXPIRY_MINUTES
+        }
+    else:
+        # Dev/free mode: fixed code, no SMS sent
+        expires = datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MINUTES)
+        _otp_store[data.phone] = {"code": FIXED_OTP_CODE, "expires": expires}
+        
+        logger.info(f"OTP (dev mode, fixed code) for {data.phone}")
+        return {
+            "success": True, 
+            "message": f"Código de verificación: {FIXED_OTP_CODE}",
+            "phone": data.phone, 
+            "expires_in_minutes": OTP_EXPIRY_MINUTES
+        }
+
 
 @router.post("/verify-otp")
 async def verify_otp(data: OTPVerify, session: Session = Depends(get_session)):
