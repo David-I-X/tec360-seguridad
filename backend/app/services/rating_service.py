@@ -57,10 +57,15 @@ class RatingService:
             if not service.technician_id:
                 raise HTTPException(status.HTTP_400_BAD_REQUEST, "Servicio sin técnico asignado")
             
-            # 5. Verificar duplicados
-            existing = session.exec(select(ServiceRating).where(ServiceRating.service_id == service_uuid)).first()
+            # 5. Verificar duplicados (ahora por rated_by para permitir bidireccional)
+            existing = session.exec(
+                select(ServiceRating).where(
+                    ServiceRating.service_id == service_uuid,
+                    ServiceRating.rated_by == "client"
+                )
+            ).first()
             if existing:
-                raise HTTPException(status.HTTP_400_BAD_REQUEST, "Este servicio ya ha sido calificado")
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ya calificaste este servicio")
             
             # 6. Get client info BEFORE any commits (avoid transaction issues)
             client = session.get(User, client_uuid)
@@ -71,7 +76,9 @@ class RatingService:
             new_rating = ServiceRating(
                 service_id=service_uuid,
                 rating=rating_data.rating,
-                comment=rating_data.comment
+                comment=rating_data.comment,
+                rated_by="client",
+                rater_id=str(client_uuid)
             )
             session.add(new_rating)
             session.commit()
@@ -110,35 +117,115 @@ class RatingService:
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Error al calificar: {type(e).__name__}: {str(e)}")
             
     async def _update_technician_average(self, session: Session, technician_user_id: str):
-        """Helper to recalculate and update technician average rating"""
+        """Recalculate technician average rating AND rank points"""
         from uuid import UUID as UUIDType
+        from app.models.technician import calculate_rank_points
         import logging
         
         try:
             tech_uuid = UUIDType(technician_user_id)
             
-            # Find all ratings for services by this technician
-            # Join ServiceRating -> Service -> Technician (via technician_id)
+            # Find all CLIENT ratings for services by this technician
             statement = select(ServiceRating.rating)\
                 .join(Service, ServiceRating.service_id == Service.id)\
-                .where(Service.technician_id == tech_uuid)
+                .where(Service.technician_id == tech_uuid)\
+                .where(ServiceRating.rated_by == "client")
                 
             ratings = session.exec(statement).all()
             
-            if ratings:
-                avg = sum(ratings) / len(ratings)
-            else:
-                avg = 0.0
+            avg = sum(ratings) / len(ratings) if ratings else 0.0
                 
             tech = session.exec(select(Technician).where(Technician.user_id == tech_uuid)).first()
             if tech:
                 tech.average_rating = float(avg)
                 tech.total_services = len(ratings)
+                
+                # Recalculate rank
+                points, rank = calculate_rank_points(
+                    total_services=tech.total_services,
+                    experience_years=tech.experience_years,
+                    certifications_count=tech.certifications_count,
+                    average_rating=tech.average_rating,
+                    is_verified=tech.is_verified
+                )
+                tech.rank_points = points
+                tech.rank = rank
+                
                 session.add(tech)
                 session.commit()
         except Exception as e:
-            # Don't fail rating creation if average update fails
-            logging.warning(f"Failed to update technician average: {e}")
+            logging.warning(f"Failed to update technician average/rank: {e}")
+
+    async def create_technician_rating(
+        self,
+        session: Session,
+        service_id: str,
+        rating_data: RatingCreate,
+        technician_user_id: str
+    ) -> RatingResponse:
+        """
+        Técnico califica a un cliente después de completar servicio
+        """
+        from uuid import UUID as UUIDType
+        try:
+            service_uuid = UUIDType(service_id)
+            tech_uuid = UUIDType(technician_user_id)
+            
+            service = session.get(Service, service_uuid)
+            if not service:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
+            
+            if service.technician_id != tech_uuid:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "No tienes permiso")
+            
+            if service.status not in ["completed", "confirmed"]:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "Servicio no completado aún")
+            
+            # Check duplicate
+            existing = session.exec(
+                select(ServiceRating).where(
+                    ServiceRating.service_id == service_uuid,
+                    ServiceRating.rated_by == "technician"
+                )
+            ).first()
+            if existing:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ya calificaste a este cliente")
+            
+            new_rating = ServiceRating(
+                service_id=service_uuid,
+                rating=rating_data.rating,
+                comment=rating_data.comment,
+                rated_by="technician",
+                rater_id=str(tech_uuid)
+            )
+            session.add(new_rating)
+            session.commit()
+            session.refresh(new_rating)
+            
+            # Get tech info
+            tech_user = session.get(User, tech_uuid)
+            tech_name = tech_user.full_name if tech_user else "Técnico"
+            
+            return RatingResponse(
+                id=str(new_rating.id),
+                service_id=str(new_rating.service_id),
+                client_id=str(service.client_id),
+                technician_id=str(service.technician_id),
+                rating=new_rating.rating,
+                comment=new_rating.comment,
+                created_at=new_rating.created_at,
+                client_name=tech_name,
+                service_type=service.service_type,
+                service_title=service.title
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            import traceback, logging
+            logging.error(f"create_technician_rating failed: {e}")
+            logging.error(traceback.format_exc())
+            session.rollback()
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Error: {str(e)}")
 
     async def get_technician_ratings(
         self,

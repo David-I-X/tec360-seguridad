@@ -14,6 +14,7 @@ class ServiceStatus(str, Enum):
     arrived = "arrived"        # Técnico llegó al lugar
     in_progress = "in_progress"
     completed = "completed"
+    confirmed = "confirmed"    # Cliente confirmó que vehículo funciona
     cancelled = "cancelled"
 
 class ServiceType(str, Enum):
@@ -42,6 +43,7 @@ class ServiceBase(SQLModel):
     vehicle_type: Optional[str] = None
     vehicle_model: Optional[str] = None
     vehicle_plate: Optional[str] = None
+    client_confirmed_at: Optional[datetime] = None
 
 class Service(ServiceBase, table=True):
     __tablename__ = "services"

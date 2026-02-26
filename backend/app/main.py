@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
-from app.api import example, services, technicians, ratings, maps, images, auth
+from app.api import example, services, technicians, ratings, maps, images, auth, uploads
 from app.api import ws as websocket_router
 import logging
 import time
@@ -108,6 +108,7 @@ app.include_router(technicians.router)
 app.include_router(ratings.router)
 app.include_router(maps.router)
 app.include_router(images.router)
+app.include_router(uploads.router)
 app.include_router(websocket_router.router)
 
 # Location tracking

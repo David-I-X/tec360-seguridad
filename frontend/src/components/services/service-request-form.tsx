@@ -117,10 +117,10 @@ export function ServiceRequestForm() {
 
         try {
             const typeLabel = {
-                "camera_installation": "Instalación de Cámaras",
+                "camera_installation": "Instalación Dashcam",
                 "alarm_installation": "Instalación de Alarma",
                 "gps_installation": "Instalación de GPS",
-                "camera_maintenance": "Mantenimiento CCTV",
+                "camera_maintenance": "Mantenimiento Dashcam",
                 "alarm_maintenance": "Mantenimiento Alarma",
                 "gps_maintenance": "Mantenimiento GPS",
                 "other": "Servicio Técnico"

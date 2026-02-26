@@ -23,10 +23,10 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 }
 
 const typeLabels: Record<string, string> = {
-    camera_installation: "📹 Cámaras",
+    camera_installation: "📹 Dashcam",
     alarm_installation: "🔔 Alarma",
     gps_installation: "📍 GPS",
-    camera_maintenance: "📹 Mtto. Cámaras",
+    camera_maintenance: "📹 Mtto. Dashcam",
     alarm_maintenance: "🔔 Mtto. Alarma",
     gps_maintenance: "📍 Mtto. GPS",
     other: "🔧 Otro",

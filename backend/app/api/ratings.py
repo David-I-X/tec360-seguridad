@@ -43,6 +43,29 @@ async def create_service_rating(
     )
 
 
+@router.post(
+    "/services/{service_id}/technician",
+    response_model=RatingResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Técnico califica al cliente"
+)
+async def create_technician_rating(
+    service_id: str,
+    rating_data: RatingCreate,
+    current_user: dict = Depends(require_roles("technician")),
+    session: Session = Depends(get_session)
+):
+    """
+    Técnico califica a un cliente después de completar un servicio
+    """
+    return await rating_service.create_technician_rating(
+        session=session,
+        service_id=service_id,
+        rating_data=rating_data,
+        technician_user_id=current_user["id"]
+    )
+
+
 @router.get(
     "/services/{service_id}/can-rate",
     response_model=CanRateServiceResponse,

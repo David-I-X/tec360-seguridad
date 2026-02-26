@@ -4,13 +4,19 @@ from uuid import UUID, uuid4
 from sqlmodel import Field, SQLModel
 from enum import Enum
 
+class RatedBy(str, Enum):
+    client = "client"
+    technician = "technician"
+
 class ServiceRating(SQLModel, table=True):
     __tablename__ = "service_ratings"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    service_id: UUID = Field(foreign_key="services.id", unique=True)
+    service_id: UUID = Field(foreign_key="services.id")
     rating: int = Field(ge=1, le=5)
     comment: Optional[str] = None
+    rated_by: str = Field(default="client")  # "client" or "technician"
+    rater_id: Optional[str] = None  # user_id of who rated
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class ImageType(str, Enum):

@@ -39,7 +39,7 @@ function SectionLabel({ label, title, highlight }: { label: string; title: strin
    BENTO GRID SERVICES
    ════════════════════════════════════════════════════ */
 const services = [
-  { icon: Camera, title: "CCTV", sub: "Videovigilancia HD", desc: "Monitoreo 24/7 en calidad 4K con almacenamiento cloud", color: "blue", span: "md:col-span-2 md:row-span-2", large: true },
+  { icon: Camera, title: "Dashcam", sub: "Cámara Vehicular HD", desc: "Monitoreo y grabación continua en calidad 4K con almacenamiento cloud", color: "blue", span: "md:col-span-2 md:row-span-2", large: true },
   { icon: Radio, title: "Rastreo GPS", sub: "Seguimiento de flota en tiempo real", color: "purple", span: "md:col-span-1", large: false },
   { icon: Lock, title: "Alarmas", sub: "Respuesta inmediata anti-intrusión", color: "emerald", span: "md:col-span-1", large: false },
   { icon: Wifi, title: "IoT Domótica", sub: "Control total desde tu smartphone", color: "cyan", span: "md:col-span-1", large: false },

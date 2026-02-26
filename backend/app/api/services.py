@@ -56,13 +56,13 @@ async def get_service_types():
             },
             {
                 "value": "camera_installation",
-                "label": "Instalación de Cámaras",
+                "label": "Instalación Dashcam",
                 "description": "Instalación de sistemas de videovigilancia"
             },
             {
                 "value": "camera_maintenance",
-                "label": "Mantenimiento de Cámaras",
-                "description": "Mantenimiento de cámaras de seguridad"
+                "label": "Mantenimiento Dashcam",
+                "description": "Mantenimiento de dashcam vehicular"
             },
             {
                 "value": "other",

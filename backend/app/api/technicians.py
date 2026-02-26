@@ -338,8 +338,8 @@ async def get_available_specializations():
             {"value": "gps_maintenance", "label": "Mantenimiento de GPS", "icon": "🔧"},
             {"value": "alarm_installation", "label": "Instalación de Alarmas", "icon": "🚨"},
             {"value": "alarm_maintenance", "label": "Mantenimiento de Alarmas", "icon": "🔧"},
-            {"value": "camera_installation", "label": "Instalación de Cámaras", "icon": "📹"},
-            {"value": "camera_maintenance", "label": "Mantenimiento de Cámaras", "icon": "🔧"},
+            {"value": "camera_installation", "label": "Instalación Dashcam", "icon": "📹"},
+            {"value": "camera_maintenance", "label": "Mantenimiento Dashcam", "icon": "🔧"},
             {"value": "other", "label": "Otros", "icon": "🛠️"}
         ]
     }
