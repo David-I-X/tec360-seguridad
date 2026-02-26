@@ -315,6 +315,7 @@ export async function createServiceRequest(data: {
   estimated_price?: number
   vehicle_type?: string
   vehicle_model?: string
+  vehicle_plate?: string
 }): Promise<any> {
   const token = getAuthToken()
 

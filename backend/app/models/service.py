@@ -41,6 +41,7 @@ class ServiceBase(SQLModel):
     scheduled_date: Optional[datetime] = None
     vehicle_type: Optional[str] = None
     vehicle_model: Optional[str] = None
+    vehicle_plate: Optional[str] = None
 
 class Service(ServiceBase, table=True):
     __tablename__ = "services"

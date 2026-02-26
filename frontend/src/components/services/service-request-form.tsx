@@ -58,6 +58,7 @@ const serviceSchema = z.object({
     scheduled_time: z.string().min(1, "Selecciona una hora"),
     vehicle_type: z.string().min(1, "Selecciona un tipo de vehículo"),
     vehicle_model: z.string().min(1, "Ingresa el modelo del vehículo"),
+    vehicle_plate: z.string().min(1, "Ingresa la placa del vehículo"),
     lat: z.number().optional(),
     lng: z.number().optional()
 })
@@ -87,7 +88,8 @@ export function ServiceRequestForm() {
             description: "",
             scheduled_time: "",
             vehicle_type: "",
-            vehicle_model: ""
+            vehicle_model: "",
+            vehicle_plate: ""
         }
     })
 
@@ -97,7 +99,7 @@ export function ServiceRequestForm() {
         if (step === 0) {
             isValid = await form.trigger("service_type")
         } else if (step === 1) {
-            isValid = await form.trigger(["vehicle_type", "vehicle_model"])
+            isValid = await form.trigger(["vehicle_type", "vehicle_model", "vehicle_plate"])
         } else if (step === 2) {
             isValid = true
         } else {
@@ -126,10 +128,12 @@ export function ServiceRequestForm() {
 
             const vehicleLabel = vehicleTypes.find(v => v.value === data.vehicle_type)?.label || ""
 
-            // Combine date + time
+            // Combine date + time — preserve local time (avoid UTC conversion from toISOString)
             const [hours, minutes] = data.scheduled_time.split(":").map(Number)
-            const scheduledDateTime = new Date(data.scheduled_date)
-            scheduledDateTime.setHours(hours, minutes, 0, 0)
+            const d = new Date(data.scheduled_date)
+            d.setHours(hours, minutes, 0, 0)
+            const pad = (n: number) => n.toString().padStart(2, "0")
+            const localISO = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(hours)}:${pad(minutes)}:00`
 
             const title = `${typeLabel} - ${vehicleLabel} ${data.vehicle_model} - ${format(data.scheduled_date, "dd/MM/yyyy")}`
 
@@ -141,10 +145,11 @@ export function ServiceRequestForm() {
                 service_city: "Medellín",
                 service_lat: data.lat || 6.2442,
                 service_lon: data.lng || -75.5636,
-                scheduled_date: scheduledDateTime.toISOString(),
+                scheduled_date: localISO,
                 client_notes: data.description,
                 vehicle_type: data.vehicle_type,
-                vehicle_model: data.vehicle_model
+                vehicle_model: data.vehicle_model,
+                vehicle_plate: data.vehicle_plate
             })
 
             setCreatedServiceId(result.id)
@@ -307,6 +312,29 @@ export function ServiceRequestForm() {
                                                             className="pl-9"
                                                             placeholder="Ej: Mazda 3 2020, Honda CB190R, Kenworth T800..."
                                                             {...field}
+                                                        />
+                                                    </div>
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    <FormField
+                                        control={form.control}
+                                        name="vehicle_plate"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Placa del Vehículo</FormLabel>
+                                                <FormControl>
+                                                    <div className="relative">
+                                                        <span className="absolute left-3 top-2.5 text-sm text-muted-foreground font-mono">🔢</span>
+                                                        <Input
+                                                            className="pl-9 uppercase font-mono tracking-wider"
+                                                            placeholder="Ej: ABC123, XYZ 789..."
+                                                            maxLength={10}
+                                                            {...field}
+                                                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                                                         />
                                                     </div>
                                                 </FormControl>

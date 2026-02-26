@@ -112,6 +112,12 @@ class ServiceCreate(BaseModel):
         description="Modelo del vehículo (texto libre)",
         example="Mazda 3 2020"
     )
+    vehicle_plate: Optional[str] = Field(
+        None,
+        max_length=20,
+        description="Placa del vehículo",
+        example="ABC123"
+    )
 
     @validator('service_type')
     def validate_service_type(cls, v):
@@ -246,6 +252,7 @@ class ServiceResponse(BaseModel):
     technician_notes: Optional[str] = None
     vehicle_type: Optional[str] = None
     vehicle_model: Optional[str] = None
+    vehicle_plate: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     
@@ -291,6 +298,7 @@ class ServiceListResponse(BaseModel):
     estimated_price: Optional[Decimal] = None
     vehicle_type: Optional[str] = None
     vehicle_model: Optional[str] = None
+    vehicle_plate: Optional[str] = None
     created_at: datetime
     
     # Info mínima del cliente/técnico
