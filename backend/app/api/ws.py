@@ -1,7 +1,7 @@
 """
 WebSocket Endpoints para tracking en tiempo real
 """
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, HTTPException
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from app.core.websocket_manager import ws_manager
 from app.core.security import decode_token
 import json
@@ -28,7 +28,7 @@ async def websocket_service_room(
         if not user_id:
             await websocket.close(code=4001, reason="Token inválido")
             return
-    except Exception as e:
+    except Exception:
         await websocket.close(code=4001, reason="Token inválido")
         return
     
@@ -66,7 +66,7 @@ async def websocket_service_room(
     
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket)
-    except Exception as e:
+    except Exception:
         ws_manager.disconnect(websocket)
 
 

@@ -1,7 +1,7 @@
 """
 Location API - Endpoints para tracking de ubicación de técnicos
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlmodel import Session
 from datetime import datetime, timezone

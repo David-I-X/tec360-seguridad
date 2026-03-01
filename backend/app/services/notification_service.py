@@ -1,7 +1,7 @@
 """
 Notification Service - Lógica de negocio para notificaciones
 """
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 from sqlmodel import Session, select, desc
 from app.models.notification import Notification, NotificationCreate
@@ -62,7 +62,7 @@ class NotificationService:
         query = select(Notification).where(Notification.user_id == user_id)
         
         if unread_only:
-            query = query.where(Notification.is_read == False)
+            query = query.where(not Notification.is_read)
         
         query = query.order_by(desc(Notification.created_at)).limit(limit)
         return session.exec(query).all()
@@ -72,7 +72,7 @@ class NotificationService:
         """Get count of unread notifications"""
         query = select(Notification).where(
             Notification.user_id == user_id,
-            Notification.is_read == False
+            not Notification.is_read
         )
         return len(session.exec(query).all())
     
@@ -92,7 +92,7 @@ class NotificationService:
         """Mark all notifications as read for a user"""
         query = select(Notification).where(
             Notification.user_id == user_id,
-            Notification.is_read == False
+            not Notification.is_read
         )
         notifications = session.exec(query).all()
         count = 0
@@ -116,7 +116,7 @@ class NotificationService:
         # Get all technicians
         query = select(User).where(
             User.role == "technician",
-            User.is_active == True
+            User.is_active
         )
         technicians = session.exec(query).all()
         

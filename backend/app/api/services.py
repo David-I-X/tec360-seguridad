@@ -7,7 +7,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, Query, Path, HTTPException, status
 from sqlmodel import Session
 from app.core.database import get_session
-from app.core.security import get_current_user, require_roles, get_user_id
+from app.core.security import get_current_user, require_roles
 from app.schemas.service import (
     ServiceCreate,
     ServiceUpdate,

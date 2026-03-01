@@ -3,7 +3,7 @@ Service Layer para el sistema de calificaciones
 Path: backend/app/services/rating_service.py
 Refactorizado para usar SQLModel
 """
-from typing import Dict, Any, List
+from typing import Dict, Any
 from fastapi import HTTPException, status
 from sqlmodel import Session, select, func
 from app.models.service import Service, ServiceStatus
@@ -16,7 +16,6 @@ from app.schemas.rating import (
 )
 from decimal import Decimal
 import math
-from datetime import datetime
 
 class RatingService:
     """Servicio para gestión de calificaciones"""
@@ -221,7 +220,8 @@ class RatingService:
         except HTTPException:
             raise
         except Exception as e:
-            import traceback, logging
+            import traceback
+            import logging
             logging.error(f"create_technician_rating failed: {e}")
             logging.error(traceback.format_exc())
             session.rollback()

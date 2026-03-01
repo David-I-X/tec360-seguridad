@@ -5,11 +5,9 @@ Path: backend/app/services/maps_service.py
 Requiere:
 pip install googlemaps
 """
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any
 from fastapi import HTTPException, status
 import googlemaps
-import os
-from datetime import datetime
 import math
 
 
@@ -352,7 +350,7 @@ class MapsService:
                         city_location = city_geocode[0]["geometry"]["location"]
                         params["location"] = (city_location["lat"], city_location["lng"])
                         params["radius"] = radius
-                except:
+                except Exception:
                     pass  # Si falla, continuar sin location bias
             
             # Llamar Places Autocomplete API

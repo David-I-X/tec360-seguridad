@@ -3,14 +3,14 @@ Service Layer para manejo de técnicos
 Lógica de negocio separada de los endpoints
 refactorizado para usar SQLModel + GeoAlchemy2
 """
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, Any
 from decimal import Decimal
 import math
 from datetime import datetime, timedelta
 import re
 
 from fastapi import HTTPException, status
-from sqlmodel import Session, select, func, or_
+from sqlmodel import Session, select, func
 from app.models.technician import Technician
 from app.models.user import User
 from app.models.service import Service
@@ -207,7 +207,7 @@ class TechnicianService:
             query = select(Technician, User).join(User, Technician.user_id == User.id)
             
             if verified_only:
-                query = query.where(Technician.is_verified == True)
+                query = query.where(Technician.is_verified)
             if is_available is not None:
                  query = query.where(Technician.is_available == is_available)
             if min_rating:

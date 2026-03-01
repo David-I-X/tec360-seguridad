@@ -2,7 +2,7 @@
 Endpoints de FastAPI para el sistema de cotizaciones
 Path: backend/app/api/quotations.py
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, status, Query
 from sqlmodel import Session
 from typing import List, Optional
 

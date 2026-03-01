@@ -3,7 +3,7 @@ Endpoints de FastAPI para gestión de imágenes
 Path: backend/app/api/images.py
 Refactorizado para usar SQLModel Session y Local Storage
 """
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
+from fastapi import APIRouter, Depends, UploadFile, File, Form, status
 from sqlmodel import Session
 from app.core.database import get_session
 from app.core.security import get_current_user

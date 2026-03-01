@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from app.core.database import get_session
 from app.models.user import User
 from app.core.auth_utils import create_access_token
 from app.core.config import settings
+from app.core.security import get_current_user
 from datetime import timedelta, datetime
 import random
 import logging
@@ -135,7 +136,7 @@ async def verify_otp(data: OTPVerify, session: Session = Depends(get_session)):
         "is_new_user": is_new_user
     }
 
-from app.core.security import get_current_user
+
 
 @router.post("/onboarding")
 async def complete_onboarding(

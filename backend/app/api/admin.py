@@ -1,11 +1,11 @@
-from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select, func
 from pydantic import BaseModel
 from datetime import datetime
 
 from app.core.database import get_session
-from app.core.security import get_current_user, require_roles
+from app.core.security import require_roles
 from app.models.user import User
 from app.models.technician import Technician, calculate_rank_points
 from app.models.service import Service, ServiceStatus

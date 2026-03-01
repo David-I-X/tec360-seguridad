@@ -6,10 +6,15 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
 from app.api import example, services, technicians, ratings, maps, images, auth, uploads, users, admin
 from app.api import ws as websocket_router
+from app.api import location as location_router
+from app.api import notifications as notifications_router
+from app.api import quotations as quotations_router
+import os
 import logging
 import time
 
@@ -58,9 +63,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Servir archivos estáticos (imágenes)
-from fastapi.staticfiles import StaticFiles
-import os
 static_dir = os.path.join(os.getcwd(), "static")
 if not os.path.exists(static_dir):
     os.makedirs(static_dir, exist_ok=True)
@@ -113,16 +115,12 @@ app.include_router(uploads.router)
 app.include_router(users.router)
 app.include_router(websocket_router.router)
 
-# Location tracking
-from app.api import location as location_router
 app.include_router(location_router.router)
 
 # Notifications
-from app.api import notifications as notifications_router
 app.include_router(notifications_router.router)
 
 # Quotations
-from app.api import quotations as quotations_router
 app.include_router(quotations_router.router)
 
 # Simulation (development only — excluded in production)

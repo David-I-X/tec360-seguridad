@@ -3,11 +3,10 @@ Service Layer para gestión de imágenes con almacenamiento local
 Path: backend/app/services/image_service.py
 Refactorizado para eliminar Supabase y usar Local Storage y SQLModel
 """
-from typing import List, Optional, BinaryIO, Dict, Any
-from fastapi import HTTPException, status, UploadFile
-from sqlmodel import Session, select, func
-from app.models.service import Service, ServiceStatus
-from app.models.extras import ServiceImage, ImageType
+from fastapi import HTTPException, UploadFile
+from sqlmodel import Session, select
+from app.models.service import Service
+from app.models.extras import ServiceImage
 from app.models.user import User
 from app.schemas.image import (
     ImageUploadMetadata,
@@ -18,8 +17,7 @@ from app.schemas.image import (
     StorageStats,
     ALLOWED_MIME_TYPES,
     ALLOWED_EXTENSIONS,
-    MAX_FILE_SIZE,
-    MAX_TOTAL_SIZE_PER_SERVICE
+    MAX_FILE_SIZE
 )
 import os
 from datetime import datetime
@@ -87,7 +85,7 @@ class ImageService:
                 raise HTTPException(400, val.error_message)
                 
             # 4. Check total size
-            existing_imgs = session.exec(select(ServiceImage).where(ServiceImage.service_id == metadata.service_id)).all()
+            session.exec(select(ServiceImage).where(ServiceImage.service_id == metadata.service_id)).all()
             # Note: ServiceImage model doesn't explicitly store file_size in the previous `view_file`.
             # If `extras.py` definition I saw earlier didn't have `file_size`, I cannot sum it from DB.
             # I should check `extras.py` again or `ImageResponse` schema.
@@ -174,11 +172,14 @@ class ImageService:
     ) -> ImageListResponse:
         try:
              service = session.get(Service, service_id)
-             if not service: raise HTTPException(404, "Not found")
+             if not service:
+                 raise HTTPException(404, "Not found")
              
              if user_role != "admin":
-                 if user_role == "client" and str(service.client_id) != user_id: raise HTTPException(403, "Forbidden")
-                 if user_role == "technician" and str(service.technician_id) != user_id: raise HTTPException(403, "Forbidden")
+                 if user_role == "client" and str(service.client_id) != user_id:
+                     raise HTTPException(403, "Forbidden")
+                 if user_role == "technician" and str(service.technician_id) != user_id:
+                     raise HTTPException(403, "Forbidden")
                  
              images = session.exec(select(ServiceImage).where(ServiceImage.service_id == service_id).order_by(ServiceImage.created_at.desc())).all()
              
@@ -208,12 +209,15 @@ class ImageService:
     ) -> ImageResponse:
         try:
             img = session.get(ServiceImage, image_id)
-            if not img: raise HTTPException(404, "Image not found")
+            if not img:
+                raise HTTPException(404, "Image not found")
             
             service = session.get(Service, img.service_id)
             if user_role != "admin":
-                 if user_role == "client" and str(service.client_id) != user_id: raise HTTPException(403, "Forbidden")
-                 if user_role == "technician" and str(service.technician_id) != user_id: raise HTTPException(403, "Forbidden")
+                if user_role == "client" and str(service.client_id) != user_id:
+                    raise HTTPException(403, "Forbidden")
+                if user_role == "technician" and str(service.technician_id) != user_id:
+                    raise HTTPException(403, "Forbidden")
             
             user = session.get(User, img.uploaded_by)
             return ImageResponse(
@@ -241,7 +245,8 @@ class ImageService:
     ) -> dict:
         try:
             img = session.get(ServiceImage, image_id)
-            if not img: raise HTTPException(404, "Image not found")
+            if not img:
+                raise HTTPException(404, "Image not found")
             
             if user_role != "admin" and str(img.uploaded_by) != user_id:
                  raise HTTPException(403, "Permission denied")

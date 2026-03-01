@@ -2,11 +2,10 @@
 Service Layer para el sistema de cotizaciones
 Path: backend/app/services/quotation_service.py
 """
-from typing import Dict, Any, List, Optional
+from typing import List, Optional
 from fastapi import HTTPException, status
 from sqlmodel import Session, select, func
 from datetime import datetime, timedelta
-from decimal import Decimal
 from uuid import UUID
 import logging
 
@@ -16,8 +15,7 @@ from app.models.user import User
 from app.models.notification import NotificationCreate
 from app.schemas.quotation import (
     QuotationCreate, QuotationResponse, QuotationListResponse,
-    QuotationListItem, QuotationCounterOffer, QuotationReject,
-    ServiceQuotationsSummary
+    QuotationListItem, QuotationCounterOffer, QuotationReject
 )
 from app.services.notification_service import NotificationService
 
@@ -290,7 +288,7 @@ class QuotationService:
                         service_id=oq.service_id
                     )
                 )
-            except:
+            except Exception:
                 pass
         
         return QuotationResponse(
@@ -354,7 +352,7 @@ class QuotationService:
                     service_id=quotation.service_id
                 )
             )
-        except:
+        except Exception:
             pass
         
         tech = session.get(User, quotation.technician_id)
@@ -419,7 +417,7 @@ class QuotationService:
                     service_id=quotation.service_id
                 )
             )
-        except:
+        except Exception:
             pass
         
         tech = session.get(User, quotation.technician_id)
@@ -553,7 +551,7 @@ class QuotationService:
                     service_id=quotation.service_id
                 )
             )
-        except:
+        except Exception:
             pass
         
         tech = session.get(User, quotation.technician_id)
@@ -619,7 +617,7 @@ class QuotationService:
                     service_id=quotation.service_id
                 )
             )
-        except:
+        except Exception:
             pass
         
         tech = session.get(User, quotation.technician_id)

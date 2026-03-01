@@ -5,8 +5,8 @@ Refactorizado para usar SQLModel + GeoAlchemy2
 """
 from typing import List, Optional, Dict, Any
 from fastapi import HTTPException, status
-from sqlmodel import Session, select, func, col, or_
-from app.models.service import Service, ServiceStatus, ServiceType
+from sqlmodel import Session, select, func
+from app.models.service import Service, ServiceStatus
 from app.models.user import User
 from app.schemas.service import (
     ServiceCreate,
@@ -17,7 +17,6 @@ from app.schemas.service import (
 )
 import math
 from datetime import datetime
-from sqlalchemy.sql import text
 from geoalchemy2.shape import to_shape
 
 class ServiceService:
@@ -104,7 +103,7 @@ class ServiceService:
     ) -> ServiceResponse:
         try:
             # Query con Joins para traer cliente y técnico
-            statement = select(Service, User).outerjoin(User, Service.client_id == User.id).where(Service.id == service_id)
+            select(Service, User).outerjoin(User, Service.client_id == User.id).where(Service.id == service_id)
             # Esto solo trae el Cliente. Para Technician necesitamos alias o otro join.
             # Simplificación: SQLModel Relationship Loading es mejor.
             # Pero el modelo no tiene links explícitos definidos con Relationship todavía.
@@ -200,7 +199,7 @@ class ServiceService:
         try:
             query = select(Service).where(
                 Service.status == ServiceStatus.pending,
-                Service.technician_id == None
+                Service.technician_id is None
             )
             
             # Count
