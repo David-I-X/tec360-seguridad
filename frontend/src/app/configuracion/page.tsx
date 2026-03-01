@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
-import { useAuth } from "@/lib/auth"
+import { useAuth } from "@/lib/auth-context"
 import api from "@/lib/api"
 import { toast } from "react-hot-toast"
 import { Camera, User, Wrench, Shield, AlertTriangle, LogOut, ArrowLeft } from "lucide-react"
@@ -320,8 +320,8 @@ export default function ConfigPage() {
                                                     key={spec}
                                                     onClick={() => toggleSpecialization(spec)}
                                                     className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${isActive
-                                                            ? "bg-[#00f2ff]/10 text-[#00f2ff] border border-[#00f2ff]/30"
-                                                            : "border border-dashed border-white/20 text-slate-500 hover:border-[#00f2ff] hover:text-[#00f2ff]"
+                                                        ? "bg-[#00f2ff]/10 text-[#00f2ff] border border-[#00f2ff]/30"
+                                                        : "border border-dashed border-white/20 text-slate-500 hover:border-[#00f2ff] hover:text-[#00f2ff]"
                                                         }`}
                                                 >
                                                     {spec.toUpperCase()}
