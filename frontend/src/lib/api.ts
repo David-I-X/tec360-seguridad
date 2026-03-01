@@ -438,3 +438,84 @@ export function hasCompletedOnboarding(): boolean {
   const user = getUser()
   return user?.onboarding_completed === true || !!user?.full_name
 }
+
+// ============================================
+// GENERIC API CLIENT (USED BY ADMIN/SETTINGS)
+// ============================================
+
+export const api = {
+  async get(endpoint: string) {
+    const token = getAuthToken()
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (!res.ok) await handleAPIError(res)
+    return { data: await res.json() }
+  },
+  async post(endpoint: string, data: any, options: any = {}) {
+    const token = getAuthToken()
+    const headers: any = { Authorization: `Bearer ${token}` }
+
+    // Si no es FormData, enviamos como JSON
+    let body = data
+    if (!(data instanceof FormData)) {
+      headers["Content-Type"] = "application/json"
+      body = JSON.stringify(data)
+    }
+
+    // Merge options (para sobreescribir headers si envian form-data explicitamente)
+    if (options.headers) {
+      for (const key in options.headers) {
+        if (options.headers[key] === "multipart/form-data") {
+          // Let the browser set the boundary automatically 
+          delete headers["Content-Type"]
+        } else {
+          headers[key] = options.headers[key]
+        }
+      }
+    }
+
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      method: "POST",
+      headers,
+      body
+    })
+    if (!res.ok) await handleAPIError(res)
+    return { data: await res.json() }
+  },
+  async put(endpoint: string, data?: any) {
+    const token = getAuthToken()
+    const url = endpoint.includes('?') ? `${API_URL}${endpoint}` : `${API_URL}${endpoint}`
+
+    // Query params vs Body
+    const fetchOptions: RequestInit = {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` }
+    }
+
+    if (data) {
+      if (!(data instanceof FormData)) {
+        (fetchOptions.headers as Record<string, string>)["Content-Type"] = "application/json"
+        fetchOptions.body = JSON.stringify(data)
+      } else {
+        fetchOptions.body = data
+      }
+    }
+
+    const res = await fetch(url, fetchOptions)
+    if (!res.ok) await handleAPIError(res)
+    return { data: await res.json() }
+  },
+  async delete(endpoint: string) {
+    const token = getAuthToken()
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (!res.ok) await handleAPIError(res)
+    return { data: await res.json() }
+  }
+}
+
+export default api;

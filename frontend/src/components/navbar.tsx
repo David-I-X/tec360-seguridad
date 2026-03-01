@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Moon, Sun, LogOut, User, Menu, X, Shield, Wrench, FileText, Bell, Home, ClipboardList } from "lucide-react"
+import { Moon, Sun, LogOut, User, Menu, X, Shield, Wrench, FileText, Bell, Home, ClipboardList, Settings } from "lucide-react"
 import { useTheme } from "next-themes"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
@@ -46,10 +46,18 @@ export function Navbar() {
       ]
     }
 
+    if (user.role === "admin") {
+      return [
+        { href: "/admin", label: "Dashboard Admin.", icon: Shield },
+        { href: "/configuracion", label: "Configuración", icon: Settings },
+      ]
+    }
+
     if (user.role === "technician") {
       return [
         { href: "/tecnicos/dashboard", label: "Dashboard", icon: Wrench },
         { href: "/tecnicos/mis-cotizaciones", label: "Cotizaciones", icon: FileText },
+        { href: "/configuracion", label: "Configuración", icon: Settings },
       ]
     }
 
@@ -57,6 +65,7 @@ export function Navbar() {
     return [
       { href: "/servicios", label: "Mis Servicios", icon: ClipboardList },
       { href: "/servicios/nuevo", label: "Nuevo Servicio", icon: Shield },
+      { href: "/configuracion", label: "Configuración", icon: Settings },
     ]
   }
 
@@ -197,6 +206,23 @@ export function Navbar() {
                       </DropdownMenuItem>
                     </>
                   )}
+                  {user?.role === "admin" && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin" className="cursor-pointer">
+                          <Shield className="mr-2 h-4 w-4 outline-none" />
+                          Panel de Control
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/configuracion" className="cursor-pointer text-slate-600 dark:text-slate-300">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Configuración
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={logout}

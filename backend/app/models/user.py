@@ -2,7 +2,7 @@ from typing import Optional
 from datetime import datetime
 from uuid import UUID, uuid4
 from sqlmodel import Field, SQLModel
-from sqlalchemy import Column
+from sqlalchemy import Column, JSON
 from geoalchemy2 import Geometry
 
 class UserBase(SQLModel):
@@ -14,6 +14,7 @@ class UserBase(SQLModel):
     avatar_url: Optional[str] = None
     address: Optional[str] = None
     city: str = Field(default="Medellín")
+    notification_preferences: dict = Field(default={}, sa_column=Column(JSON))
 
 class User(UserBase, table=True):
     __tablename__ = "users"
