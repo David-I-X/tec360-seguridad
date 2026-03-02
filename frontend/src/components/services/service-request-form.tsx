@@ -4,10 +4,10 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { format } from "date-fns"
+import { format, addDays, startOfDay, isSameDay } from "date-fns"
 import { es } from "date-fns/locale"
 import { motion, AnimatePresence } from "framer-motion"
-import { Loader2, ArrowRight, ArrowLeft, Calendar as CalendarIcon, MapPin, Check, Car, Clock } from "lucide-react"
+import { Loader2, ArrowRight, ArrowLeft, Calendar as CalendarIcon, MapPin, Check, Car, Clock, Zap, DollarSign } from "lucide-react"
 import dynamic from "next/dynamic"
 
 import { cn } from "@/lib/utils"
@@ -48,13 +48,21 @@ const vehicleTypes = [
     { value: "heavy_cargo", label: "Carga Pesada", icon: "🚛" },
 ]
 
+const TODAY = startOfDay(new Date())
+const MAX_DATE = addDays(TODAY, 5)
+
 const serviceSchema = z.object({
     service_type: z.string().min(1, "Selecciona un tipo de servicio"),
     description: z.string().min(10, "Describe brevemente qué necesitas (mínimo 10 caracteres)"),
     address: z.string().min(5, "Ingresa una referencia de dirección"),
+    estimated_price: z.number({
+        required_error: "Ingresa el precio ofrecido",
+        invalid_type_error: "Ingresa un número válido",
+    }).min(30, "El precio mínimo es $30.000 COP"),
     scheduled_date: z.date({
         required_error: "Selecciona una fecha preferida",
-    }),
+    }).refine(d => startOfDay(d) >= TODAY, "No puedes seleccionar fechas pasadas")
+        .refine(d => startOfDay(d) <= MAX_DATE, "Máximo 5 días desde hoy"),
     scheduled_time: z.string().min(1, "Selecciona una hora"),
     vehicle_type: z.string().min(1, "Selecciona un tipo de vehículo"),
     vehicle_model: z.string().min(1, "Ingresa el modelo del vehículo"),
@@ -89,7 +97,8 @@ export function ServiceRequestForm() {
             scheduled_time: "",
             vehicle_type: "",
             vehicle_model: "",
-            vehicle_plate: ""
+            vehicle_plate: "",
+            estimated_price: undefined
         }
     })
 
@@ -149,7 +158,8 @@ export function ServiceRequestForm() {
                 client_notes: data.description,
                 vehicle_type: data.vehicle_type,
                 vehicle_model: data.vehicle_model,
-                vehicle_plate: data.vehicle_plate
+                vehicle_plate: data.vehicle_plate,
+                estimated_price: data.estimated_price
             })
 
             setCreatedServiceId(result.id)
@@ -387,7 +397,7 @@ export function ServiceRequestForm() {
                                 </motion.div>
                             )}
 
-                            {/* Step 3: Details + Date + Time */}
+                            {/* Step 3: Details + Date + Time + Price */}
                             {step === 3 && (
                                 <motion.div
                                     key="step3"
@@ -401,47 +411,67 @@ export function ServiceRequestForm() {
                                         <p className="text-muted-foreground">Cuéntanos un poco más</p>
                                     </div>
 
+                                    {/* Date + Time row */}
                                     <div className="grid gap-4 md:grid-cols-2">
                                         <FormField
                                             control={form.control}
                                             name="scheduled_date"
-                                            render={({ field }) => (
-                                                <FormItem className="flex flex-col">
-                                                    <FormLabel>Fecha Preferida</FormLabel>
-                                                    <Popover>
-                                                        <PopoverTrigger asChild>
-                                                            <FormControl>
-                                                                <Button
-                                                                    variant={"outline"}
-                                                                    className={cn(
-                                                                        "w-full pl-3 text-left font-normal",
-                                                                        !field.value && "text-muted-foreground"
-                                                                    )}
-                                                                >
-                                                                    {field.value ? (
-                                                                        format(field.value, "PPP", { locale: es })
-                                                                    ) : (
-                                                                        <span>Selecciona una fecha</span>
-                                                                    )}
-                                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                                </Button>
-                                                            </FormControl>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-0" align="start">
-                                                            <Calendar
-                                                                mode="single"
-                                                                selected={field.value}
-                                                                onSelect={field.onChange}
-                                                                disabled={(date) =>
-                                                                    date < new Date()
-                                                                }
-                                                                initialFocus
-                                                            />
-                                                        </PopoverContent>
-                                                    </Popover>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
+                                            render={({ field }) => {
+                                                const isExpress = field.value && isSameDay(field.value, TODAY)
+                                                return (
+                                                    <FormItem className="flex flex-col">
+                                                        <FormLabel className="flex items-center gap-2">
+                                                            Fecha Preferida
+                                                            {isExpress && (
+                                                                <span className="inline-flex items-center gap-1 text-xs font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                                                                    <Zap className="h-3 w-3" /> Express
+                                                                </span>
+                                                            )}
+                                                        </FormLabel>
+                                                        <Popover>
+                                                            <PopoverTrigger asChild>
+                                                                <FormControl>
+                                                                    <Button
+                                                                        variant={"outline"}
+                                                                        className={cn(
+                                                                            "w-full pl-3 text-left font-normal",
+                                                                            !field.value && "text-muted-foreground",
+                                                                            isExpress && "border-amber-500/50 bg-amber-500/5"
+                                                                        )}
+                                                                    >
+                                                                        {field.value ? (
+                                                                            format(field.value, "PPP", { locale: es })
+                                                                        ) : (
+                                                                            <span>Hoy o hasta 5 días</span>
+                                                                        )}
+                                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                    </Button>
+                                                                </FormControl>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent
+                                                                className="w-auto p-0 rounded-xl border border-border/60 bg-background/95 backdrop-blur-sm shadow-2xl"
+                                                                align="start"
+                                                            >
+                                                                <div className="px-4 pt-3 pb-1 text-xs text-muted-foreground flex items-center gap-1.5 border-b border-border/40">
+                                                                    <Zap className="h-3 w-3 text-amber-400" />
+                                                                    Disponible hoy o hasta 5 días
+                                                                </div>
+                                                                <Calendar
+                                                                    mode="single"
+                                                                    selected={field.value}
+                                                                    onSelect={field.onChange}
+                                                                    disabled={(date) =>
+                                                                        startOfDay(date) < TODAY ||
+                                                                        startOfDay(date) > MAX_DATE
+                                                                    }
+                                                                    initialFocus
+                                                                />
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )
+                                            }}
                                         />
 
                                         <FormField
@@ -465,6 +495,36 @@ export function ServiceRequestForm() {
                                             )}
                                         />
                                     </div>
+
+                                    {/* Price field */}
+                                    <FormField
+                                        control={form.control}
+                                        name="estimated_price"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="flex items-center gap-2">
+                                                    <DollarSign className="h-4 w-4" />
+                                                    Precio ofrecido (COP)
+                                                </FormLabel>
+                                                <FormControl>
+                                                    <div className="relative">
+                                                        <span className="absolute left-3 top-2.5 text-sm font-semibold text-muted-foreground">$</span>
+                                                        <Input
+                                                            type="number"
+                                                            min={30}
+                                                            step={10}
+                                                            className="pl-7"
+                                                            placeholder="Mín. 30.000"
+                                                            {...field}
+                                                            onChange={(e) => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))}
+                                                        />
+                                                    </div>
+                                                </FormControl>
+                                                <p className="text-xs text-muted-foreground">Precio mínimo $30.000 COP. El técnico verá este valor antes de aceptar.</p>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
 
                                     {/* Summary */}
                                     <div className="grid gap-2 md:grid-cols-2 text-sm">

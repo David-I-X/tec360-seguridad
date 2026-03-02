@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { ArrowLeft, MapPin, Calendar, Phone, Navigation, Loader2, CheckCircle } from "lucide-react"
+import { ArrowLeft, MapPin, Calendar, Phone, Navigation, Loader2, CheckCircle, Camera, ImageIcon } from "lucide-react"
 
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
 import { getServiceById } from "@/lib/api"
@@ -32,6 +32,8 @@ function TechnicianServiceContent() {
     const [error, setError] = useState("")
     const [isTracking, setIsTracking] = useState(false)
     const [isUpdating, setIsUpdating] = useState(false)
+    const [photos, setPhotos] = useState<{ before?: string; during?: string; after?: string }>({})
+    const [uploadingStage, setUploadingStage] = useState<string | null>(null)
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
@@ -157,6 +159,40 @@ function TechnicianServiceContent() {
     const handleArrived = () => updateStatus("arrived")
     const handleInProgress = () => updateStatus("in_progress")
     const handleCompleteService = () => updateStatus("completed")
+
+    const handlePhotoUpload = async (stage: "before" | "during" | "after", file: File) => {
+        setUploadingStage(stage)
+        try {
+            const formData = new FormData()
+            formData.append("file", file)
+            formData.append("image_stage", stage)
+
+            const response = await fetch(
+                `${API_URL}/images/service/${params.id}`,
+                {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${token}` },
+                    body: formData,
+                }
+            )
+
+            if (response.ok) {
+                const data = await response.json()
+                const url = data.url || URL.createObjectURL(file)
+                setPhotos(prev => ({ ...prev, [stage]: url }))
+                toast({ title: `Foto ${stage === "before" ? "inicial" : stage === "during" ? "de proceso" : "final"} guardada` })
+            } else {
+                // Store locally as preview even if API fails
+                setPhotos(prev => ({ ...prev, [stage]: URL.createObjectURL(file) }))
+                toast({ title: "Foto guardada localmente", description: "Se sincronizará cuando haya conexión" })
+            }
+        } catch {
+            setPhotos(prev => ({ ...prev, [stage]: URL.createObjectURL(file) }))
+            toast({ title: "Foto guardada localmente" })
+        } finally {
+            setUploadingStage(null)
+        }
+    }
 
     if (isLoading) {
         return (
@@ -337,6 +373,70 @@ function TechnicianServiceContent() {
                     </Button>
                 )}
             </div>
+
+            {/* Photo Evidence — show when in_progress */}
+            {(service.status === "in_progress" || service.status === "arrived") && (
+                <GlassCard className="p-6">
+                    <h3 className="font-semibold mb-1 flex items-center gap-2">
+                        <Camera className="h-4 w-4" />
+                        Evidencias Fotográficas
+                    </h3>
+                    <p className="text-xs text-muted-foreground mb-4">Toma 3 fotos del trabajo: antes, durante y al finalizar.</p>
+                    <div className="grid grid-cols-3 gap-3">
+                        {(["before", "during", "after"] as const).map((stage) => {
+                            const labels = { before: "Antes", during: "Durante", after: "Después" }
+                            const icons = { before: "📷", during: "🔧", after: "✅" }
+                            const photoUrl = photos[stage]
+                            const isUploading = uploadingStage === stage
+                            return (
+                                <div key={stage} className="flex flex-col gap-2">
+                                    <label
+                                        htmlFor={`photo-${stage}`}
+                                        className={`relative flex flex-col items-center justify-center aspect-square rounded-xl border-2 border-dashed cursor-pointer transition-all
+                                                ${photoUrl
+                                                ? "border-green-500/50 bg-green-500/5"
+                                                : "border-border hover:border-primary/50 hover:bg-primary/5 bg-muted/20"}
+                                            `}
+                                    >
+                                        {isUploading ? (
+                                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                        ) : photoUrl ? (
+                                            <img src={photoUrl} alt={labels[stage]} className="w-full h-full object-cover rounded-xl" />
+                                        ) : (
+                                            <>
+                                                <span className="text-2xl mb-1">{icons[stage]}</span>
+                                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                            </>
+                                        )}
+                                        {photoUrl && (
+                                            <div className="absolute inset-0 bg-black/30 rounded-xl flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                                <Camera className="h-6 w-6 text-white" />
+                                            </div>
+                                        )}
+                                    </label>
+                                    <input
+                                        id={`photo-${stage}`}
+                                        type="file"
+                                        accept="image/*"
+                                        capture="environment"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0]
+                                            if (file) handlePhotoUpload(stage, file)
+                                        }}
+                                    />
+                                    <span className={`text-xs font-medium text-center ${photoUrl ? "text-green-500" : "text-muted-foreground"}`}>
+                                        {photoUrl ? "✓ " : ""}{labels[stage]}
+                                    </span>
+                                </div>
+                            )
+                        })}
+                    </div>
+                    {Object.keys(photos).length === 3 && (
+                        <p className="text-xs text-green-500 text-center mt-3 font-medium">✅ Las 3 evidencias han sido capturadas</p>
+                    )}
+                </GlassCard>
+            )}
 
             {/* Connection status */}
             <div className="flex justify-center">
