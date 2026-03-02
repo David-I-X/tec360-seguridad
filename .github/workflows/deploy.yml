@@ -74,8 +74,17 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
+            # Login to GHCR to pull private/new images
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin || true
+
+            # Sync latest compose file from repo
             cd /opt/tec360-seguridad
-            docker compose -f docker-compose.prod.yml pull backend frontend
-            docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend
+            git pull origin master --ff-only || true
+
+            # Pull fresh images from GHCR and restart
+            docker compose -f docker-compose.prod.yml --env-file .env.production pull backend frontend
+            docker compose -f docker-compose.prod.yml --env-file .env.production up -d --no-deps backend frontend
+
+            # Cleanup dangling images
             docker image prune -f
             echo "✅ Deployed version ${{ github.ref_name }}"
