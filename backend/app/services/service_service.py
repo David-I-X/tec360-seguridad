@@ -199,7 +199,7 @@ class ServiceService:
         try:
             query = select(Service).where(
                 Service.status == ServiceStatus.pending,
-                Service.technician_id is None
+                Service.technician_id == None  # noqa: E711 — SQLAlchemy translates to IS NULL
             )
             
             # Count
