@@ -7,13 +7,12 @@ import * as z from "zod"
 import { format, addDays, startOfDay, isSameDay } from "date-fns"
 import { es } from "date-fns/locale"
 import { motion, AnimatePresence } from "framer-motion"
-import { Loader2, ArrowRight, ArrowLeft, Calendar as CalendarIcon, MapPin, Check, Car, Clock, Zap, DollarSign } from "lucide-react"
+import { Loader2, ArrowRight, ArrowLeft, MapPin, Check, Car, Clock, DollarSign } from "lucide-react"
 import dynamic from "next/dynamic"
 
 import { cn } from "@/lib/utils"
 import { createServiceRequest } from "@/lib/api"
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
 import {
     Form,
     FormControl,
@@ -22,11 +21,6 @@ import {
     FormLabel,
     FormMessage,
 } from "@/components/ui/form"
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { GlassCard } from "@/components/ui/glass-card"
@@ -88,6 +82,7 @@ export function ServiceRequestForm() {
     const [createdServiceId, setCreatedServiceId] = useState<string | null>(null)
     const [vehiclePhotoPreview, setVehiclePhotoPreview] = useState<string | null>(null)
     const [vehiclePhotoFile, setVehiclePhotoFile] = useState<File | null>(null)
+    const [showDayPicker, setShowDayPicker] = useState(false)
 
     const form = useForm<ServiceValues>({
         resolver: zodResolver(serviceSchema),
@@ -418,84 +413,122 @@ export function ServiceRequestForm() {
                                         <p className="text-sm text-muted-foreground mt-1">Fecha, precio y foto de tu vehículo</p>
                                     </div>
 
-                                    {/* Date + Time — compact row */}
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <FormField
-                                            control={form.control}
-                                            name="scheduled_date"
-                                            render={({ field }) => {
-                                                const isExpress = field.value && isSameDay(field.value, TODAY)
-                                                return (
-                                                    <FormItem className="flex flex-col">
-                                                        <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                                                            <CalendarIcon className="h-3 w-3" /> Fecha
-                                                            {isExpress && <span className="text-amber-400">⚡</span>}
-                                                        </FormLabel>
-                                                        <Popover>
-                                                            <PopoverTrigger asChild>
-                                                                <FormControl>
-                                                                    <Button
-                                                                        variant="outline"
-                                                                        size="sm"
+                                    {/* Date selector — 2 buttons + day pills */}
+                                    <FormField
+                                        control={form.control}
+                                        name="scheduled_date"
+                                        render={({ field }) => {
+                                            const isToday = field.value && isSameDay(field.value, TODAY)
+                                            const isScheduled = field.value && !isSameDay(field.value, TODAY)
+                                            return (
+                                                <FormItem className="space-y-3">
+                                                    <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                                        ¿Cuándo lo necesitas?
+                                                    </FormLabel>
+
+                                                    {/* Primary 2 choices */}
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                field.onChange(TODAY)
+                                                                setShowDayPicker(false)
+                                                            }}
+                                                            className={cn(
+                                                                "flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition-all duration-200",
+                                                                isToday
+                                                                    ? "border-amber-500 bg-amber-500/10 text-amber-400"
+                                                                    : "border-border hover:border-amber-500/50 hover:bg-amber-500/5"
+                                                            )}
+                                                        >
+                                                            <span className="text-2xl">⚡</span>
+                                                            <span className="text-sm font-semibold">Hoy mismo</span>
+                                                            <span className="text-xs text-muted-foreground">Servicio Express</span>
+                                                        </button>
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowDayPicker(true)}
+                                                            className={cn(
+                                                                "flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition-all duration-200",
+                                                                isScheduled || showDayPicker
+                                                                    ? "border-primary bg-primary/10 text-primary"
+                                                                    : "border-border hover:border-primary/50 hover:bg-primary/5"
+                                                            )}
+                                                        >
+                                                            <span className="text-2xl">📅</span>
+                                                            <span className="text-sm font-semibold">
+                                                                {isScheduled
+                                                                    ? format(field.value!, "dd MMM", { locale: es })
+                                                                    : "Programar"}
+                                                            </span>
+                                                            <span className="text-xs text-muted-foreground">Hasta 5 días</span>
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Day pills — shown when Programar is selected */}
+                                                    {showDayPicker && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, y: -8 }}
+                                                            animate={{ opacity: 1, y: 0 }}
+                                                            className="flex gap-2 flex-wrap"
+                                                        >
+                                                            {Array.from({ length: 5 }, (_, i) => {
+                                                                const day = addDays(TODAY, i + 1)
+                                                                const isSelected = field.value && isSameDay(field.value, day)
+                                                                return (
+                                                                    <button
+                                                                        key={i}
+                                                                        type="button"
+                                                                        onClick={() => field.onChange(day)}
                                                                         className={cn(
-                                                                            "w-full justify-start text-left font-normal text-sm h-10",
-                                                                            !field.value && "text-muted-foreground",
-                                                                            isExpress && "border-amber-500/50 bg-amber-500/5"
+                                                                            "flex-1 min-w-[72px] flex flex-col items-center py-2 px-1 rounded-lg border transition-all text-center",
+                                                                            isSelected
+                                                                                ? "border-primary bg-primary text-primary-foreground shadow-md"
+                                                                                : "border-border hover:border-primary/50 hover:bg-primary/5"
                                                                         )}
                                                                     >
-                                                                        {field.value
-                                                                            ? format(field.value, "dd MMM", { locale: es })
-                                                                            : "Elegir día"}
-                                                                        <CalendarIcon className="ml-auto h-3 w-3 opacity-40" />
-                                                                    </Button>
-                                                                </FormControl>
-                                                            </PopoverTrigger>
-                                                            <PopoverContent
-                                                                className="w-auto p-0 rounded-xl border border-border/60 bg-background/95 backdrop-blur-sm shadow-2xl"
-                                                                align="start"
-                                                            >
-                                                                <div className="px-4 pt-3 pb-2 text-xs text-amber-400 flex items-center gap-1.5 border-b border-border/40">
-                                                                    <Zap className="h-3 w-3" />
-                                                                    Hoy o hasta 5 días
-                                                                </div>
-                                                                <Calendar
-                                                                    mode="single"
-                                                                    selected={field.value}
-                                                                    onSelect={field.onChange}
-                                                                    disabled={(date) =>
-                                                                        startOfDay(date) < TODAY ||
-                                                                        startOfDay(date) > MAX_DATE
-                                                                    }
-                                                                    initialFocus
-                                                                />
-                                                            </PopoverContent>
-                                                        </Popover>
-                                                        <FormMessage className="text-xs" />
-                                                    </FormItem>
-                                                )
-                                            }}
-                                        />
+                                                                        <span className="text-xs font-medium uppercase opacity-60">
+                                                                            {format(day, "EEE", { locale: es })}
+                                                                        </span>
+                                                                        <span className="text-lg font-bold leading-tight">
+                                                                            {format(day, "d", { locale: es })}
+                                                                        </span>
+                                                                        <span className="text-xs opacity-60">
+                                                                            {format(day, "MMM", { locale: es })}
+                                                                        </span>
+                                                                    </button>
+                                                                )
+                                                            })}
+                                                        </motion.div>
+                                                    )}
 
-                                        <FormField
-                                            control={form.control}
-                                            name="scheduled_time"
-                                            render={({ field }) => (
-                                                <FormItem className="flex flex-col">
-                                                    <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                                                        <Clock className="h-3 w-3" /> Hora
-                                                    </FormLabel>
-                                                    <FormControl>
-                                                        <Input
-                                                            type="time"
-                                                            className="h-10 text-sm"
-                                                            {...field}
-                                                        />
-                                                    </FormControl>
                                                     <FormMessage className="text-xs" />
                                                 </FormItem>
-                                            )}
-                                        />
-                                    </div>
+                                            )
+                                        }}
+                                    />
+
+                                    {/* Time */}
+                                    <FormField
+                                        control={form.control}
+                                        name="scheduled_time"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-col">
+                                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                                                    <Clock className="h-3 w-3" /> Hora preferida
+                                                </FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        type="time"
+                                                        className="h-10 text-sm"
+                                                        {...field}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage className="text-xs" />
+                                            </FormItem>
+                                        )}
+                                    />
 
                                     {/* Price field — prominent */}
                                     <FormField
