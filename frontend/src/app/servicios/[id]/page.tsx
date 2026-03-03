@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge"
 import { GlassCard } from "@/components/ui/glass-card"
 import { LiveTrackingView } from "@/components/services/live-tracking-view"
 import { RatingModal } from "@/components/ratings/rating-modal"
+import { StarDisplay } from "@/components/ui/star-rating"
+import Link from "next/link"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -262,19 +264,30 @@ function ServiceDetailContent() {
                                 </h3>
                                 <div className="flex items-center gap-4">
                                     {service.technician.avatar_url ? (
-                                        <img src={service.technician.avatar_url} alt="" className="w-12 h-12 rounded-full" />
+                                        <img src={service.technician.avatar_url} alt="" className="w-14 h-14 rounded-2xl object-cover" />
                                     ) : (
-                                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                                            <User className="h-6 w-6 text-primary" />
+                                        <div className="w-14 h-14 rounded-2xl gradient-brand flex items-center justify-center text-xl font-bold text-white">
+                                            {(service.technician.full_name || "T").charAt(0)}
                                         </div>
                                     )}
-                                    <div>
-                                        <p className="font-medium">{service.technician.full_name || "Técnico"}</p>
-                                        <p className="text-sm text-muted-foreground">{service.technician.email}</p>
+                                    <div className="flex-1">
+                                        <p className="font-semibold">{service.technician.full_name || "Técnico"}</p>
+                                        {service.technician.average_rating > 0 && (
+                                            <StarDisplay rating={service.technician.average_rating} size="sm" className="mt-0.5" />
+                                        )}
+                                        <p className="text-xs text-muted-foreground mt-0.5">{service.technician.email}</p>
                                     </div>
+                                    {service.technician.user_id && (
+                                        <Link href={`/tecnicos/perfil/${service.technician.user_id}`}>
+                                            <Button variant="outline" size="sm" className="shrink-0">
+                                                Ver perfil
+                                            </Button>
+                                        </Link>
+                                    )}
                                 </div>
                             </GlassCard>
                         )}
+
                     </>
                 )}
 
