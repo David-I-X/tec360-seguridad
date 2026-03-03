@@ -135,6 +135,40 @@ async def change_user_status(
     
     return {"message": f"User {'activated' if is_active else 'suspended'}"}
 
+
+class RoleChangeRequest(BaseModel):
+    role: str  # "client" | "technician" | "admin"
+
+@router.put("/users/{user_id}/role", summary="Change user role")
+async def change_user_role(
+    user_id: str,
+    body: RoleChangeRequest,
+    current_user: dict = Depends(require_roles("admin")),
+    session: Session = Depends(get_session)
+):
+    from uuid import UUID
+    
+    allowed_roles = ["client", "technician", "admin"]
+    if body.role not in allowed_roles:
+        raise HTTPException(status_code=400, detail=f"Role must be one of: {allowed_roles}")
+    
+    user = session.get(User, UUID(user_id))
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    old_role = user.role
+    user.role = body.role
+    session.add(user)
+    session.commit()
+    
+    return {
+        "message": f"Role changed from '{old_role}' to '{body.role}'",
+        "user_id": user_id,
+        "phone": user.phone,
+        "full_name": user.full_name,
+        "role": user.role
+    }
+
 # --- Admin Services Management ---
 
 @router.get("/services", summary="List all services across platform")
