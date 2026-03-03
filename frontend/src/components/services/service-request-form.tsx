@@ -53,7 +53,7 @@ const MAX_DATE = addDays(TODAY, 5)
 
 const serviceSchema = z.object({
     service_type: z.string().min(1, "Selecciona un tipo de servicio"),
-    description: z.string().min(10, "Describe brevemente qué necesitas (mínimo 10 caracteres)"),
+    description: z.string().optional(),
     address: z.string().min(5, "Ingresa una referencia de dirección"),
     estimated_price: z.number({
         required_error: "Ingresa el precio ofrecido",
@@ -86,6 +86,8 @@ export function ServiceRequestForm() {
     const [success, setSuccess] = useState(false)
     const [error, setError] = useState("")
     const [createdServiceId, setCreatedServiceId] = useState<string | null>(null)
+    const [vehiclePhotoPreview, setVehiclePhotoPreview] = useState<string | null>(null)
+    const [vehiclePhotoFile, setVehiclePhotoFile] = useState<File | null>(null)
 
     const form = useForm<ServiceValues>({
         resolver: zodResolver(serviceSchema),
@@ -101,6 +103,11 @@ export function ServiceRequestForm() {
             estimated_price: undefined
         }
     })
+
+    const handleVehiclePhoto = (file: File) => {
+        setVehiclePhotoFile(file)
+        setVehiclePhotoPreview(URL.createObjectURL(file))
+    }
 
     // Validación por paso
     const nextStep = async () => {
@@ -149,13 +156,13 @@ export function ServiceRequestForm() {
             const result = await createServiceRequest({
                 service_type: data.service_type,
                 title: title,
-                description: data.description,
+                description: data.description ?? "",
                 service_address: data.address,
                 service_city: "Medellín",
                 service_lat: data.lat || 6.2442,
                 service_lon: data.lng || -75.5636,
                 scheduled_date: localISO,
-                client_notes: data.description,
+                client_notes: data.description ?? "",
                 vehicle_type: data.vehicle_type,
                 vehicle_model: data.vehicle_model,
                 vehicle_plate: data.vehicle_plate,
@@ -397,22 +404,22 @@ export function ServiceRequestForm() {
                                 </motion.div>
                             )}
 
-                            {/* Step 3: Details + Date + Time + Price */}
+                            {/* Step 3: Details — clean layout */}
                             {step === 3 && (
                                 <motion.div
                                     key="step3"
                                     initial={{ opacity: 0, x: 20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -20 }}
-                                    className="space-y-6"
+                                    className="space-y-5"
                                 >
-                                    <div className="text-center mb-6">
+                                    <div className="text-center mb-4">
                                         <h2 className="text-2xl font-bold">Últimos detalles</h2>
-                                        <p className="text-muted-foreground">Cuéntanos un poco más</p>
+                                        <p className="text-sm text-muted-foreground mt-1">Fecha, precio y foto de tu vehículo</p>
                                     </div>
 
-                                    {/* Date + Time row */}
-                                    <div className="grid gap-4 md:grid-cols-2">
+                                    {/* Date + Time — compact row */}
+                                    <div className="grid grid-cols-2 gap-3">
                                         <FormField
                                             control={form.control}
                                             name="scheduled_date"
@@ -420,31 +427,26 @@ export function ServiceRequestForm() {
                                                 const isExpress = field.value && isSameDay(field.value, TODAY)
                                                 return (
                                                     <FormItem className="flex flex-col">
-                                                        <FormLabel className="flex items-center gap-2">
-                                                            Fecha Preferida
-                                                            {isExpress && (
-                                                                <span className="inline-flex items-center gap-1 text-xs font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full">
-                                                                    <Zap className="h-3 w-3" /> Express
-                                                                </span>
-                                                            )}
+                                                        <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                                                            <CalendarIcon className="h-3 w-3" /> Fecha
+                                                            {isExpress && <span className="text-amber-400">⚡</span>}
                                                         </FormLabel>
                                                         <Popover>
                                                             <PopoverTrigger asChild>
                                                                 <FormControl>
                                                                     <Button
-                                                                        variant={"outline"}
+                                                                        variant="outline"
+                                                                        size="sm"
                                                                         className={cn(
-                                                                            "w-full pl-3 text-left font-normal",
+                                                                            "w-full justify-start text-left font-normal text-sm h-10",
                                                                             !field.value && "text-muted-foreground",
                                                                             isExpress && "border-amber-500/50 bg-amber-500/5"
                                                                         )}
                                                                     >
-                                                                        {field.value ? (
-                                                                            format(field.value, "PPP", { locale: es })
-                                                                        ) : (
-                                                                            <span>Hoy o hasta 5 días</span>
-                                                                        )}
-                                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                        {field.value
+                                                                            ? format(field.value, "dd MMM", { locale: es })
+                                                                            : "Elegir día"}
+                                                                        <CalendarIcon className="ml-auto h-3 w-3 opacity-40" />
                                                                     </Button>
                                                                 </FormControl>
                                                             </PopoverTrigger>
@@ -452,9 +454,9 @@ export function ServiceRequestForm() {
                                                                 className="w-auto p-0 rounded-xl border border-border/60 bg-background/95 backdrop-blur-sm shadow-2xl"
                                                                 align="start"
                                                             >
-                                                                <div className="px-4 pt-3 pb-1 text-xs text-muted-foreground flex items-center gap-1.5 border-b border-border/40">
-                                                                    <Zap className="h-3 w-3 text-amber-400" />
-                                                                    Disponible hoy o hasta 5 días
+                                                                <div className="px-4 pt-3 pb-2 text-xs text-amber-400 flex items-center gap-1.5 border-b border-border/40">
+                                                                    <Zap className="h-3 w-3" />
+                                                                    Hoy o hasta 5 días
                                                                 </div>
                                                                 <Calendar
                                                                     mode="single"
@@ -468,7 +470,7 @@ export function ServiceRequestForm() {
                                                                 />
                                                             </PopoverContent>
                                                         </Popover>
-                                                        <FormMessage />
+                                                        <FormMessage className="text-xs" />
                                                     </FormItem>
                                                 )
                                             }}
@@ -479,76 +481,114 @@ export function ServiceRequestForm() {
                                             name="scheduled_time"
                                             render={({ field }) => (
                                                 <FormItem className="flex flex-col">
-                                                    <FormLabel>Hora Preferida</FormLabel>
+                                                    <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                                                        <Clock className="h-3 w-3" /> Hora
+                                                    </FormLabel>
                                                     <FormControl>
-                                                        <div className="relative">
-                                                            <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                            <Input
-                                                                type="time"
-                                                                className="pl-9"
-                                                                {...field}
-                                                            />
-                                                        </div>
+                                                        <Input
+                                                            type="time"
+                                                            className="h-10 text-sm"
+                                                            {...field}
+                                                        />
                                                     </FormControl>
-                                                    <FormMessage />
+                                                    <FormMessage className="text-xs" />
                                                 </FormItem>
                                             )}
                                         />
                                     </div>
 
-                                    {/* Price field */}
+                                    {/* Price field — prominent */}
                                     <FormField
                                         control={form.control}
                                         name="estimated_price"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel className="flex items-center gap-2">
-                                                    <DollarSign className="h-4 w-4" />
-                                                    Precio ofrecido (COP)
+                                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                                    Precio ofrecido
                                                 </FormLabel>
                                                 <FormControl>
                                                     <div className="relative">
-                                                        <span className="absolute left-3 top-2.5 text-sm font-semibold text-muted-foreground">$</span>
+                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xl font-bold text-muted-foreground">$</span>
                                                         <Input
                                                             type="number"
                                                             min={30}
                                                             step={10}
-                                                            className="pl-7"
-                                                            placeholder="Mín. 30.000"
+                                                            className="pl-8 h-12 text-xl font-bold tracking-tight"
+                                                            placeholder="30.000"
                                                             {...field}
                                                             onChange={(e) => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))}
                                                         />
+                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">COP</span>
                                                     </div>
                                                 </FormControl>
-                                                <p className="text-xs text-muted-foreground">Precio mínimo $30.000 COP. El técnico verá este valor antes de aceptar.</p>
-                                                <FormMessage />
+                                                <p className="text-xs text-muted-foreground">Mín. $30.000 • El técnico verá esto antes de aceptar</p>
+                                                <FormMessage className="text-xs" />
                                             </FormItem>
                                         )}
                                     />
 
-                                    {/* Summary */}
-                                    <div className="grid gap-2 md:grid-cols-2 text-sm">
-                                        <div className="p-2 border rounded-md bg-muted/50">
-                                            <span className="text-muted-foreground">Servicio: </span>
-                                            {form.getValues("service_type") || "—"}
-                                        </div>
-                                        <div className="p-2 border rounded-md bg-muted/50">
-                                            <span className="text-muted-foreground">Vehículo: </span>
-                                            {vehicleTypes.find(v => v.value === form.getValues("vehicle_type"))?.icon}{" "}
-                                            {form.getValues("vehicle_model") || "—"}
-                                        </div>
+                                    {/* Vehicle photo */}
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Foto del vehículo</p>
+                                        <label
+                                            htmlFor="vehicle-photo"
+                                            className={cn(
+                                                "flex items-center gap-4 p-4 rounded-xl border-2 border-dashed cursor-pointer transition-all",
+                                                vehiclePhotoPreview
+                                                    ? "border-green-500/50 bg-green-500/5"
+                                                    : "border-border hover:border-primary/50 hover:bg-primary/5 bg-muted/10"
+                                            )}
+                                        >
+                                            {vehiclePhotoPreview ? (
+                                                <>
+                                                    <img
+                                                        src={vehiclePhotoPreview}
+                                                        alt="Foto del vehículo"
+                                                        className="h-16 w-16 object-cover rounded-lg shrink-0"
+                                                    />
+                                                    <div>
+                                                        <p className="text-sm font-medium text-green-500">✓ Foto cargada</p>
+                                                        <p className="text-xs text-muted-foreground">Toca para cambiarla</p>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="h-16 w-16 rounded-lg bg-muted/30 flex items-center justify-center shrink-0">
+                                                        <span className="text-3xl">🚗</span>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-medium">Sube una foto de tu vehículo</p>
+                                                        <p className="text-xs text-muted-foreground">Ayuda al técnico a identificarlo</p>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </label>
+                                        <input
+                                            id="vehicle-photo"
+                                            type="file"
+                                            accept="image/*"
+                                            capture="environment"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0]
+                                                if (file) handleVehiclePhoto(file)
+                                            }}
+                                        />
                                     </div>
 
+                                    {/* Description — optional, collapsed feel */}
                                     <FormField
                                         control={form.control}
                                         name="description"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Descripción del trabajo</FormLabel>
+                                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                                    Descripción <span className="normal-case font-normal">(opcional)</span>
+                                                </FormLabel>
                                                 <FormControl>
                                                     <Textarea
-                                                        placeholder="Detalla qué necesitas instalar o reparar..."
-                                                        className="resize-none min-h-[100px]"
+                                                        placeholder="Cuéntale algo más al técnico..."
+                                                        className="resize-none min-h-[80px] text-sm bg-muted/20"
                                                         {...field}
                                                     />
                                                 </FormControl>
