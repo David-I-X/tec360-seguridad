@@ -68,11 +68,8 @@ if not os.path.exists(static_dir):
     os.makedirs(static_dir, exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-# Serve uploaded files (avatars, service photos) directly from filesystem
-UPLOAD_DIR = "/opt/tec360-seguridad/uploads"
-if not os.path.exists(UPLOAD_DIR):
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+# NOTE: /uploads/ is served by nginx directly from the shared Docker volume.
+# Do NOT mount StaticFiles here — it would intercept POST /uploads/avatar with 405.
 
 
 
