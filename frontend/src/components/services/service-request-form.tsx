@@ -173,33 +173,11 @@ export function ServiceRequestForm() {
         }
     }
 
-    if (success) {
-        return (
-            <GlassCard className="max-w-md mx-auto p-12 text-center">
-                <motion.div
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="mx-auto w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6"
-                >
-                    <Check className="h-12 w-12 text-green-600" />
-                </motion.div>
-                <h2 className="text-2xl font-bold mb-2">¡Solicitud Enviada!</h2>
-                <p className="text-muted-foreground mb-8">
-                    Un técnico revisará tu solicitud y la aceptará pronto.
-                </p>
-                <div className="space-y-3">
-                    {createdServiceId && (
-                        <Button onClick={() => window.location.href = `/servicios/${createdServiceId}`} className="w-full">
-                            Ver mi Solicitud
-                        </Button>
-                    )}
-                    <Button variant="outline" onClick={() => window.location.reload()} className="w-full">
-                        Solicitar otro servicio
-                    </Button>
-                </div>
-            </GlassCard>
-        )
+    if (success && createdServiceId) {
+        window.location.href = `/servicios/${createdServiceId}/esperando`
+        return null
     }
+
 
     return (
         <div className="max-w-2xl mx-auto">

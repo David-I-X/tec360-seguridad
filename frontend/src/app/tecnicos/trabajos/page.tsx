@@ -33,6 +33,15 @@ const typeLabels: Record<string, string> = {
 }
 
 type StatusFilter = "all" | "active" | "completed"
+type Radius = 5 | 10 | 20 | 50
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371
+    const dLat = ((lat2 - lat1) * Math.PI) / 180
+    const dLon = ((lon2 - lon1) * Math.PI) / 180
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
 
 function TechnicianJobsContent() {
     const { user } = useAuth()
@@ -41,8 +50,20 @@ function TechnicianJobsContent() {
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState("")
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
+    const [radius, setRadius] = useState<Radius>(20)
+    const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+
+    // Request geolocation once
+    useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                () => { /* denied — geo filter will be hidden */ }
+            )
+        }
+    }, [])
 
     useEffect(() => {
         async function fetchData() {
@@ -89,11 +110,17 @@ function TechnicianJobsContent() {
 
     // Filter services
     const filteredServices = services.filter((service) => {
-        if (statusFilter === "all") return true
+        // Status filter
         if (statusFilter === "active") {
-            return ["assigned", "en_route", "arrived", "in_progress"].includes(service.status)
+            if (!["assigned", "en_route", "arrived", "in_progress"].includes(service.status)) return false
+        } else if (statusFilter === "completed") {
+            if (service.status !== "completed") return false
         }
-        if (statusFilter === "completed") return service.status === "completed"
+        // Geo filter — only if we have location and service has coords
+        if (userLocation && service.service_lat && service.service_lon) {
+            const dist = haversineKm(userLocation.lat, userLocation.lng, service.service_lat, service.service_lon)
+            if (dist > radius) return false
+        }
         return true
     })
 
@@ -159,7 +186,7 @@ function TechnicianJobsContent() {
             </div>
 
             {/* Filters */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2">
+            <div className="flex flex-wrap items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
                 {filterButtons.map((btn) => (
                     <Button
@@ -172,6 +199,26 @@ function TechnicianJobsContent() {
                         {btn.label}
                     </Button>
                 ))}
+
+                {/* Radius selector — only if geolocation was granted */}
+                {userLocation && (
+                    <div className="flex items-center gap-1.5 ml-auto bg-muted/20 border border-border/30 rounded-full px-3 py-1">
+                        <MapPin className="h-3.5 w-3.5 text-blue-400" />
+                        <span className="text-xs text-muted-foreground">Radio:</span>
+                        {([5, 10, 20, 50] as Radius[]).map((r) => (
+                            <button
+                                key={r}
+                                onClick={() => setRadius(r)}
+                                className={`text-xs px-2 py-0.5 rounded-full transition-all ${radius === r
+                                        ? "gradient-brand text-white font-semibold"
+                                        : "text-muted-foreground hover:text-foreground"
+                                    }`}
+                            >
+                                {r}km
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Service List */}

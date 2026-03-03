@@ -5,15 +5,26 @@ import { useParams, useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import dynamic from "next/dynamic"
-import { ArrowLeft, Calendar, MapPin, User, Wrench, Clock, Loader2, FileText } from "lucide-react"
+import { ArrowLeft, Calendar, MapPin, User, Wrench, Clock, Loader2, FileText, XCircle } from "lucide-react"
 
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
-import { getServiceById } from "@/lib/api"
+import { getServiceById, cancelService } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { GlassCard } from "@/components/ui/glass-card"
 import { LiveTrackingView } from "@/components/services/live-tracking-view"
 import { RatingModal } from "@/components/ratings/rating-modal"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
     pending: { label: "Pendiente", variant: "secondary" },
@@ -45,6 +56,19 @@ function ServiceDetailContent() {
     const [error, setError] = useState("")
     const [showRatingModal, setShowRatingModal] = useState(false)
     const [hasRated, setHasRated] = useState(false)
+    const [isCancelling, setIsCancelling] = useState(false)
+
+    const handleCancel = async () => {
+        setIsCancelling(true)
+        try {
+            await cancelService(params.id as string)
+            setService((prev: any) => ({ ...prev, status: "cancelled" }))
+        } catch (err: any) {
+            console.error("Cancel error:", err)
+        } finally {
+            setIsCancelling(false)
+        }
+    }
 
     // Get token for WebSocket
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
@@ -134,6 +158,40 @@ function ServiceDetailContent() {
                             </Button>
                         </div>
                     </GlassCard>
+                )}
+
+                {/* Cancel button — only for pending/quoted services */}
+                {user?.role === "client" && ["pending", "quoted"].includes(service.status) && (
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className="w-full border-red-500/30 text-red-400 hover:bg-red-500/5 hover:border-red-500/50"
+                                disabled={isCancelling}
+                            >
+                                <XCircle className="h-4 w-4 mr-2" />
+                                {isCancelling ? "Cancelando..." : "Cancelar servicio"}
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>¿Cancelar este servicio?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. El servicio pasará a estado cancelado
+                                    y los técnicos ya no podrán verlo ni aceptarlo.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>No, mantener</AlertDialogCancel>
+                                <AlertDialogAction
+                                    onClick={handleCancel}
+                                    className="bg-red-600 hover:bg-red-700 text-white"
+                                >
+                                    Sí, cancelar servicio
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                 )}
 
                 {/* Live Tracking View (for clients with active services) */}

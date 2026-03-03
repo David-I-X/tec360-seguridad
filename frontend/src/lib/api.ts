@@ -420,6 +420,39 @@ export async function getServiceById(serviceId: string): Promise<any> {
   return response.json()
 }
 
+/**
+ * Cancela un servicio (cliente o admin)
+ */
+export async function cancelService(serviceId: string): Promise<void> {
+  const token = getAuthToken()
+  if (!token) throw new Error("No autenticado")
+  const response = await fetch(`${API_URL}/services/${serviceId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!response.ok && response.status !== 204) {
+    await handleAPIError(response)
+  }
+}
+
+/**
+ * Obtiene servicios disponibles con filtro geográfico opcional
+ */
+export async function getAvailableServicesFiltered(params?: {
+  lat?: number; lng?: number; radius?: number
+}): Promise<any> {
+  const token = getAuthToken()
+  if (!token) throw new Error("No autenticado")
+  const qs = new URLSearchParams()
+  if (params?.lat) qs.set("lat", String(params.lat))
+  if (params?.lng) qs.set("lng", String(params.lng))
+  if (params?.radius) qs.set("radius", String(params.radius))
+  const url = `${API_URL}/services/available${qs.toString() ? "?" + qs.toString() : ""}`
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  if (!response.ok) await handleAPIError(response)
+  return response.json()
+}
+
 // ============================================
 // HELPER - Verificar autenticación
 // ============================================
