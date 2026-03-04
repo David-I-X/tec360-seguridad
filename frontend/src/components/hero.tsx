@@ -381,15 +381,18 @@ export function Hero() {
               <AppMockup />
             </div>
           </div>
-
-          {/* ── Stats row ── */}
-          <div className="mt-20 md:mt-24 border-t border-border/20 pt-10 grid grid-cols-2 sm:grid-cols-4 gap-10 max-w-2xl mx-auto">
-            {stats.map((stat, i) => (
-              <StatCard key={i} stat={stat} index={i} />
-            ))}
-          </div>
         </div>
+
       </motion.div>
+
+      {/* ── Stats row — outside parallax so scroll-opacity doesn't kill it ── */}
+      <div className="relative z-10 container mx-auto px-4 pb-14">
+        <div className="border-t border-border/20 pt-10 grid grid-cols-2 sm:grid-cols-4 gap-10 max-w-2xl mx-auto">
+          {stats.map((stat, i) => (
+            <StatCard key={i} stat={stat} index={i} />
+          ))}
+        </div>
+      </div>
 
       <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
     </section>
