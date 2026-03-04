@@ -3,13 +3,12 @@
 import { useEffect, useState, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Shield, MapPin, Phone, Star, CheckCircle, X } from "lucide-react"
+import { Shield, MapPin, Star, CheckCircle, X, Navigation, Phone, Clock } from "lucide-react"
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
 import { getServiceById } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import dynamic from "next/dynamic"
 
-// Lazy load map
 const WaitingMap = dynamic(() => import("@/components/services/service-map"), {
     ssr: false,
     loading: () => <div className="w-full h-full bg-muted/20 animate-pulse" />,
@@ -18,19 +17,14 @@ const WaitingMap = dynamic(() => import("@/components/services/service-map"), {
 /* ─── Radar animation ────────────────────────────────── */
 function RadarPulse() {
     return (
-        <div className="relative flex items-center justify-center w-32 h-32">
+        <div className="relative flex items-center justify-center w-28 h-28">
             {[1, 2, 3].map((i) => (
                 <motion.div
                     key={i}
                     className="absolute rounded-full border border-blue-500/40"
                     initial={{ width: 48, height: 48, opacity: 0.8 }}
-                    animate={{ width: 32 + i * 30, height: 32 + i * 30, opacity: 0 }}
-                    transition={{
-                        duration: 2,
-                        delay: i * 0.6,
-                        repeat: Infinity,
-                        ease: "easeOut",
-                    }}
+                    animate={{ width: 32 + i * 26, height: 32 + i * 26, opacity: 0 }}
+                    transition={{ duration: 2, delay: i * 0.6, repeat: Infinity, ease: "easeOut" }}
                 />
             ))}
             <motion.div
@@ -44,7 +38,6 @@ function RadarPulse() {
     )
 }
 
-/* ─── Dots loader ────────────────────────────────────── */
 function DotsLoader() {
     return (
         <div className="flex gap-1.5">
@@ -60,7 +53,115 @@ function DotsLoader() {
     )
 }
 
-/* ─── Status messages ────────────────────────────────── */
+/* ─── Live service status stepper ───────────────────────── */
+const SERVICE_STEPS = [
+    { key: "assigned", label: "Técnico asignado", icon: "🔔", detail: "Tu técnico aceptó el servicio" },
+    { key: "en_route", label: "En camino", icon: "🚗", detail: "El técnico está en ruta" },
+    { key: "arrived", label: "Llegó", icon: "📍", detail: "El técnico está en tu ubicación" },
+    { key: "in_progress", label: "Trabajando", icon: "🔧", detail: "El servicio está en progreso" },
+    { key: "completed", label: "Completado", icon: "✅", detail: "¡Servicio terminado!" },
+]
+
+function StatusStepper({ status }: { status: string }) {
+    const current = SERVICE_STEPS.findIndex(s => s.key === status)
+    const activeStep = SERVICE_STEPS[current]
+
+    return (
+        <div className="w-full">
+            {/* Current status */}
+            <div className="flex items-center gap-3 mb-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl p-3">
+                <span className="text-2xl">{activeStep?.icon || "🔍"}</span>
+                <div>
+                    <p className="font-semibold text-sm">{activeStep?.label || "Procesando"}</p>
+                    <p className="text-xs text-muted-foreground">{activeStep?.detail || ""}</p>
+                </div>
+            </div>
+
+            {/* Steps */}
+            <div className="space-y-2">
+                {SERVICE_STEPS.map((step, i) => {
+                    const done = i < current
+                    const active = i === current
+                    const upcoming = i > current
+                    return (
+                        <motion.div
+                            key={step.key}
+                            initial={false}
+                            animate={{ opacity: upcoming ? 0.4 : 1 }}
+                            className="flex items-center gap-3"
+                        >
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 shrink-0 transition-all ${done ? "bg-green-500 border-green-500" :
+                                    active ? "bg-blue-500/20 border-blue-500" :
+                                        "bg-muted/20 border-border/30"
+                                }`}>
+                                {done ? (
+                                    <CheckCircle className="w-4 h-4 text-white" />
+                                ) : (
+                                    <span className="text-xs">{step.icon}</span>
+                                )}
+                            </div>
+                            <div className="flex-1">
+                                <p className={`text-xs font-medium ${done ? "text-green-400" :
+                                        active ? "text-blue-400" :
+                                            "text-muted-foreground/50"
+                                    }`}>
+                                    {step.label}
+                                </p>
+                            </div>
+                            {active && <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />}
+                        </motion.div>
+                    )
+                })}
+            </div>
+        </div>
+    )
+}
+
+/* ─── Technician card ──────────────────────────────────── */
+function TechnicianCard({ technician, serviceId }: { technician: any; serviceId: string }) {
+    const router = useRouter()
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full bg-muted/20 border border-border/30 rounded-2xl p-4"
+        >
+            <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl gradient-brand flex items-center justify-center text-white font-bold shrink-0">
+                    {(technician.full_name || "T").charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm">{technician.full_name || "Técnico"}</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                        <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                        <span className="text-xs text-muted-foreground">
+                            {technician.average_rating?.toFixed(1) || "Nuevo"} · Técnico verificado
+                        </span>
+                    </div>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                    {technician.phone && (
+                        <Button size="icon" variant="outline" className="w-9 h-9 rounded-xl" asChild>
+                            <a href={`tel:${technician.phone}`}>
+                                <Phone className="w-4 h-4" />
+                            </a>
+                        </Button>
+                    )}
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-9 rounded-xl text-xs"
+                        onClick={() => router.push(`/tecnicos/perfil/${technician.user_id}`)}
+                    >
+                        Ver perfil
+                    </Button>
+                </div>
+            </div>
+        </motion.div>
+    )
+}
+
+/* ─── Search messages ─────────────────────────────────── */
 const searchMessages = [
     "Buscando técnicos en tu zona...",
     "Analizando disponibilidad...",
@@ -68,37 +169,44 @@ const searchMessages = [
     "Tu solicitud está siendo procesada...",
 ]
 
+/* ─── Main content ────────────────────────────────────── */
 function WaitingContent() {
     const params = useParams()
     const router = useRouter()
-    const { user } = useAuth()
     const [service, setService] = useState<any>(null)
     const [msgIndex, setMsgIndex] = useState(0)
     const [technicianFound, setTechnicianFound] = useState(false)
+    const [elapsedMinutes, setElapsedMinutes] = useState(0)
     const pollRef = useRef<NodeJS.Timeout | null>(null)
+    const startTime = useRef(Date.now())
 
-    // Cycle through search messages
+    // Cycle search messages
     useEffect(() => {
-        const t = setInterval(() => {
-            setMsgIndex((i) => (i + 1) % searchMessages.length)
-        }, 3000)
+        const t = setInterval(() => setMsgIndex(i => (i + 1) % searchMessages.length), 3000)
         return () => clearInterval(t)
     }, [])
 
-    // Poll service status every 5 seconds
+    // Track elapsed time
+    useEffect(() => {
+        const t = setInterval(() => {
+            setElapsedMinutes(Math.floor((Date.now() - startTime.current) / 60000))
+        }, 30000)
+        return () => clearInterval(t)
+    }, [])
+
+    // Poll service every 5 seconds
     useEffect(() => {
         const fetchAndCheck = async () => {
             try {
                 const data = await getServiceById(params.id as string)
                 setService(data)
-                // If technician was found (not pending anymore), show the found state
                 if (data.status !== "pending") {
                     setTechnicianFound(true)
                     if (pollRef.current) clearInterval(pollRef.current)
-                    // Auto redirect to service detail after 3s
-                    setTimeout(() => {
-                        router.push(`/servicios/${params.id}`)
-                    }, 3000)
+                    // If completed, redirect immediately
+                    if (data.status === "completed") {
+                        setTimeout(() => router.push(`/servicios/${params.id}`), 2000)
+                    }
                 }
             } catch { }
         }
@@ -108,11 +216,9 @@ function WaitingContent() {
         return () => { if (pollRef.current) clearInterval(pollRef.current) }
     }, [params.id])
 
-    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
-
     return (
         <div className="fixed inset-0 flex flex-col bg-background overflow-hidden">
-            {/* Map background — full screen */}
+            {/* Map background */}
             <div className="absolute inset-0 z-0">
                 {service && (
                     <WaitingMap
@@ -121,12 +227,11 @@ function WaitingContent() {
                         address={service.service_address}
                     />
                 )}
-                {/* Dark overlay so map doesn't overpower */}
                 <div className="absolute inset-0 bg-background/60" />
             </div>
 
             {/* Top bar */}
-            <div className="relative z-10 flex items-center justify-between px-5 pt-safe-top pt-6 pb-4">
+            <div className="relative z-10 flex items-center justify-between px-5 pt-6 pb-4">
                 <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -136,9 +241,15 @@ function WaitingContent() {
                     <span className="text-xs font-mono font-semibold text-green-400">SISTEMA ACTIVO</span>
                 </motion.div>
 
+                {elapsedMinutes > 0 && (
+                    <div className="flex items-center gap-1.5 bg-background/80 backdrop-blur-md border border-border/40 rounded-full px-3 py-1.5">
+                        <Clock className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">{elapsedMinutes} min</span>
+                    </div>
+                )}
+
                 <Button
-                    variant="ghost"
-                    size="icon"
+                    variant="ghost" size="icon"
                     className="bg-background/80 backdrop-blur-md rounded-full border border-border/30"
                     onClick={() => router.push(`/servicios/${params.id}`)}
                 >
@@ -146,31 +257,24 @@ function WaitingContent() {
                 </Button>
             </div>
 
-            {/* Bottom sheet — glass card Uber style */}
+            {/* Bottom sheet */}
             <div className="relative z-10 mt-auto">
                 <motion.div
                     initial={{ y: 100, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.2, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                    className="bg-background/95 backdrop-blur-2xl border-t border-border/40 rounded-t-3xl px-5 pb-safe-bottom pb-8 pt-6 shadow-2xl"
+                    className="bg-background/95 backdrop-blur-2xl border-t border-border/40 rounded-t-3xl px-5 pb-8 pt-5 shadow-2xl max-h-[70vh] overflow-y-auto"
                 >
+                    <div className="w-10 h-1 rounded-full bg-border/60 mx-auto mb-5" />
+
                     <AnimatePresence mode="wait">
                         {!technicianFound ? (
-                            /* ─── Searching state ─── */
-                            <motion.div
-                                key="searching"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="flex flex-col items-center text-center gap-5"
-                            >
-                                {/* Handle bar */}
-                                <div className="w-10 h-1 rounded-full bg-border/60 -mt-2 mb-1" />
-
+                            /* ─── Searching ─── */
+                            <motion.div key="searching" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                className="flex flex-col items-center text-center gap-5">
                                 <RadarPulse />
-
                                 <div>
-                                    <h2 className="text-xl font-bold mb-2">Buscando técnico</h2>
+                                    <h2 className="text-xl font-bold mb-1">Buscando técnico</h2>
                                     <AnimatePresence mode="wait">
                                         <motion.p
                                             key={msgIndex}
@@ -183,10 +287,8 @@ function WaitingContent() {
                                         </motion.p>
                                     </AnimatePresence>
                                 </div>
-
                                 <DotsLoader />
 
-                                {/* Service summary */}
                                 {service && (
                                     <div className="w-full bg-muted/20 rounded-2xl p-4 grid grid-cols-2 gap-3 text-sm">
                                         <div className="flex items-start gap-2">
@@ -199,68 +301,44 @@ function WaitingContent() {
                                         <div>
                                             <p className="text-xs text-muted-foreground">Precio ofrecido</p>
                                             <p className="font-bold text-base gradient-text">
-                                                {service.estimated_price
-                                                    ? `$${service.estimated_price.toLocaleString()}`
-                                                    : "Por cotizar"}
+                                                {service.estimated_price ? `$${service.estimated_price.toLocaleString()}` : "Por cotizar"}
                                             </p>
                                         </div>
                                     </div>
                                 )}
-
-                                <Button
-                                    variant="outline"
-                                    className="w-full border-red-500/30 text-red-400 hover:bg-red-500/5"
-                                    onClick={() => router.push(`/servicios/${params.id}`)}
-                                >
+                                <Button variant="outline" className="w-full border-muted/30 text-muted-foreground text-sm"
+                                    onClick={() => router.push(`/servicios/${params.id}`)}>
                                     Ver detalle del servicio
                                 </Button>
                             </motion.div>
                         ) : (
-                            /* ─── Technician found! ─── */
-                            <motion.div
-                                key="found"
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="flex flex-col items-center text-center gap-4"
-                            >
-                                <div className="w-10 h-1 rounded-full bg-border/60 -mt-2 mb-1" />
-
-                                <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ type: "spring", stiffness: 300 }}
-                                    className="w-16 h-16 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center"
-                                >
-                                    <CheckCircle className="w-8 h-8 text-green-400" />
-                                </motion.div>
-
-                                <div>
-                                    <h2 className="text-xl font-bold text-green-400">
-                                        {service?.status === "pending" ? "¡Solicitud enviada!" : "¡Técnico encontrado!"}
-                                    </h2>
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                        {service?.technician?.full_name
-                                            ? `${service.technician.full_name} está en camino`
-                                            : "Redirigiendo al detalle..."}
-                                    </p>
-                                </div>
-
+                            /* ─── Technician assigned — live progress ─── */
+                            <motion.div key="found" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                                className="flex flex-col gap-5">
+                                {/* Technician card */}
                                 {service?.technician && (
-                                    <div className="flex items-center gap-3 bg-muted/20 rounded-2xl px-4 py-3 w-full">
-                                        <div className="w-12 h-12 rounded-full gradient-brand flex items-center justify-center text-white font-bold">
-                                            {(service.technician.full_name || "T").charAt(0)}
-                                        </div>
-                                        <div className="flex-1 text-left">
-                                            <p className="font-semibold text-sm">{service.technician.full_name}</p>
-                                            <div className="flex items-center gap-1">
-                                                <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                                                <span className="text-xs text-muted-foreground">4.9 · Técnico verificado</span>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <TechnicianCard technician={service.technician} serviceId={params.id as string} />
                                 )}
 
-                                <p className="text-xs text-muted-foreground">Redirigiendo automáticamente...</p>
+                                {/* Status stepper */}
+                                {service?.status && service.status !== "pending" && (
+                                    <StatusStepper status={service.status} />
+                                )}
+
+                                {/* Navigate button if technician location available */}
+                                {service?.status === "completed" ? (
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="w-14 h-14 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center">
+                                            <CheckCircle className="w-7 h-7 text-green-400" />
+                                        </div>
+                                        <p className="text-sm font-semibold text-green-400">¡Servicio completado!</p>
+                                        <p className="text-xs text-muted-foreground">Redirigiendo al resumen...</p>
+                                    </div>
+                                ) : (
+                                    <Button onClick={() => router.push(`/servicios/${params.id}`)} className="w-full gradient-brand text-white">
+                                        Ver detalle completo
+                                    </Button>
+                                )}
                             </motion.div>
                         )}
                     </AnimatePresence>
