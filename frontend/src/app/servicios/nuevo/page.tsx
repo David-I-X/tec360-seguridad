@@ -1,14 +1,12 @@
 "use client"
 
+import Link from "next/link"
+import { ArrowLeft } from "lucide-react"
 import { ProtectedRoute } from "@/lib/auth-context"
 import { useAuth } from "@/lib/auth-context"
 import { OnboardingForm } from "@/components/auth/onboarding-form"
 import { ServiceRequestForm } from "@/components/services/service-request-form"
 
-/**
- * Componente interno que decide qué formulario mostrar
- * basado en si el usuario ya completó el onboarding
- */
 function ServiceRequestContent() {
   const { hasCompletedOnboarding, isLoading } = useAuth()
 
@@ -20,7 +18,6 @@ function ServiceRequestContent() {
     )
   }
 
-  // Si no ha completado onboarding, mostramos ese formulario primero
   if (!hasCompletedOnboarding) {
     return (
       <div className="space-y-6">
@@ -35,7 +32,6 @@ function ServiceRequestContent() {
     )
   }
 
-  // Si ya está listo, mostramos el formulario de servicio
   return <ServiceRequestForm />
 }
 
@@ -43,6 +39,14 @@ export default function NewServicePage() {
   return (
     <ProtectedRoute>
       <div className="container pt-24 pb-10 px-4 md:px-6">
+        {/* Back button */}
+        <Link
+          href="/servicios"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6 group"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+          Mis Servicios
+        </Link>
         <ServiceRequestContent />
       </div>
     </ProtectedRoute>

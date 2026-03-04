@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Loader2, Filter, MapPin, Calendar, ChevronRight, Star, Briefcase } from "lucide-react"
+import { Loader2, Filter, MapPin, Calendar, ChevronRight, Star, Briefcase, ArrowLeft } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
@@ -151,19 +151,21 @@ function TechnicianJobsContent() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold flex items-center gap-2">
-                        <Briefcase className="h-8 w-8" />
+            <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" asChild className="shrink-0">
+                    <Link href="/tecnicos/dashboard">
+                        <ArrowLeft className="h-5 w-5" />
+                    </Link>
+                </Button>
+                <div className="flex-1">
+                    <h1 className="text-2xl font-bold flex items-center gap-2">
+                        <Briefcase className="h-6 w-6" />
                         Mis Trabajos
                     </h1>
-                    <p className="text-muted-foreground">
+                    <p className="text-sm text-muted-foreground">
                         Historial de servicios que has realizado
                     </p>
                 </div>
-                <Button asChild variant="outline">
-                    <Link href="/tecnicos/dashboard">Ver Dashboard</Link>
-                </Button>
             </div>
 
             {/* Stats */}
@@ -210,8 +212,8 @@ function TechnicianJobsContent() {
                                 key={r}
                                 onClick={() => setRadius(r)}
                                 className={`text-xs px-2 py-0.5 rounded-full transition-all ${radius === r
-                                        ? "gradient-brand text-white font-semibold"
-                                        : "text-muted-foreground hover:text-foreground"
+                                    ? "gradient-brand text-white font-semibold"
+                                    : "text-muted-foreground hover:text-foreground"
                                     }`}
                             >
                                 {r}km
