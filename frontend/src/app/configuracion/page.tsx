@@ -57,15 +57,18 @@ export default function ConfigPage() {
 
         try {
             toast.loading("Subiendo foto...", { id: "avatar" })
-            const res = await api.post("/uploads/avatar", formData, {
-                headers: { "Content-Type": "multipart/form-data" }
-            })
-            setProfileData({ ...profileData, avatar_url: res.data.url })
-            toast.success("Foto actualizada", { id: "avatar" })
-        } catch (error) {
+            // ⚠️ Do NOT set Content-Type manually — Axios sets it with the correct
+            // multipart boundary automatically when the body is FormData
+            const res = await api.post("/uploads/avatar", formData)
+            const newUrl = res.data.avatar_url   // backend returns { avatar_url: "..." }
+            setProfileData((prev: any) => ({ ...prev, avatar_url: newUrl }))
+            toast.success("Foto actualizada ✓", { id: "avatar" })
+        } catch (error: any) {
+            console.error("Avatar upload error:", error?.response?.data || error)
             toast.error("Error al subir foto", { id: "avatar" })
         }
     }
+
 
     const savePersonalProfile = async () => {
         setSaving(true)

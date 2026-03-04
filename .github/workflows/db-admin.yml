@@ -1,0 +1,26 @@
+name: DB Admin (Manual)
+
+# Trigger this manually from GitHub Actions UI
+on:
+  workflow_dispatch:
+    inputs:
+      sql_command:
+        description: 'SQL command to run on production DB'
+        required: true
+        default: "SELECT phone, full_name, role FROM users WHERE phone LIKE '%3186264888%';"
+        type: string
+
+jobs:
+  run-sql:
+    name: Run SQL on Production DB
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Execute SQL via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            docker exec tec360_db psql -U tec360 -d tec360 -c "${{ github.event.inputs.sql_command }}"
