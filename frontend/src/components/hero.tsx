@@ -56,26 +56,27 @@ const stats = [
 ]
 
 function StatCard({ stat, index }: { stat: typeof stats[0]; index: number }) {
-  const counter = useCounter(stat.value)
+  const counter = useCounter(stat.value, 2200)
   const ref = useRef<HTMLDivElement>(null)
+  const inView = useInView(ref, { once: true, margin: "-80px" })
+
   useEffect(() => {
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) counter.start() }, { threshold: 0.5 })
-    if (ref.current) obs.observe(ref.current)
-    return () => obs.disconnect()
-  }, [])
+    if (inView) counter.start()
+  }, [inView])
 
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.6 + index * 0.1, duration: 0.5 }}
-      className="flex flex-col items-center"
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-80px" }}
+      transition={{ delay: index * 0.15, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      className="flex flex-col items-center gap-1"
     >
-      <p className="text-2xl md:text-3xl font-extrabold gradient-text font-mono tabular-nums">
+      <p className="text-3xl md:text-4xl font-extrabold gradient-text font-mono tabular-nums leading-none">
         {counter.count}{stat.suffix}
       </p>
-      <p className="text-[11px] text-muted-foreground uppercase tracking-wider mt-0.5">{stat.label}</p>
+      <p className="text-[11px] text-muted-foreground uppercase tracking-widest">{stat.label}</p>
     </motion.div>
   )
 }
@@ -84,22 +85,36 @@ function StatCard({ stat, index }: { stat: typeof stats[0]; index: number }) {
 function AppMockup() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30, scale: 0.95 }}
+      initial={{ opacity: 0, y: 40, scale: 0.92 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay: 0.3, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ delay: 0.4, duration: 1, ease: [0.22, 1, 0.36, 1] }}
       className="relative w-full max-w-xs mx-auto"
     >
-      {/* Phone glow */}
-      <div className="absolute inset-0 -m-4 bg-blue-500/10 rounded-3xl blur-2xl" />
+      {/* Animated glow blob behind phone */}
+      <motion.div
+        className="absolute inset-0 -m-6 rounded-3xl blur-3xl"
+        animate={{
+          background: [
+            "radial-gradient(ellipse at 40% 50%, rgba(99,102,241,0.18) 0%, transparent 70%)",
+            "radial-gradient(ellipse at 60% 50%, rgba(59,130,246,0.22) 0%, transparent 70%)",
+            "radial-gradient(ellipse at 40% 50%, rgba(99,102,241,0.18) 0%, transparent 70%)",
+          ]
+        }}
+        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+      />
 
-      {/* Phone frame */}
-      <div className="relative bg-white/[0.04] border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl">
+      {/* Phone frame — very gentle float */}
+      <motion.div
+        animate={{ y: [0, -6, 0] }}
+        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+        className="relative bg-white/[0.04] border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl"
+      >
         {/* Status bar */}
         <div className="flex items-center justify-between px-6 pt-4 pb-2">
           <span className="text-[10px] text-muted-foreground font-mono">9:41</span>
           <div className="flex gap-1">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className={`w-1 rounded-full bg-foreground/80`} style={{ height: `${6 + i * 2}px` }} />
+              <div key={i} className="w-1 rounded-full bg-foreground/80" style={{ height: `${6 + i * 2}px` }} />
             ))}
             <div className="w-4 h-3 border border-foreground/60 rounded-sm ml-1 relative">
               <div className="absolute inset-0.5 right-1 bg-foreground/70 rounded-sm" />
@@ -122,42 +137,64 @@ function AppMockup() {
 
         {/* Map area */}
         <div className="mx-3 rounded-2xl bg-blue-950/40 border border-blue-500/15 h-36 relative overflow-hidden">
-          {/* Fake map grid */}
+          {/* Grid */}
           <div className="absolute inset-0 opacity-20"
             style={{ backgroundImage: "linear-gradient(rgba(59,130,246,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.3) 1px, transparent 1px)", backgroundSize: "28px 28px" }}
           />
-          {/* Fake map roads */}
+          {/* Roads */}
           <div className="absolute top-1/2 left-0 right-0 h-px bg-blue-400/20" />
           <div className="absolute top-0 bottom-0 left-1/3 w-px bg-blue-400/15" />
           <div className="absolute top-0 bottom-0 left-2/3 w-px bg-blue-400/15" />
-          {/* Technician marker */}
+
+          {/* Technician marker with pulse rings */}
           <motion.div
             className="absolute top-1/4 left-1/4"
-            animate={{ y: [0, -4, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            animate={{ x: [0, 8, 16, 8, 0], y: [0, -3, 0] }}
+            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
           >
-            <div className="w-8 h-8 rounded-full gradient-brand shadow-lg shadow-blue-500/40 flex items-center justify-center border-2 border-white/20">
+            {/* Pulse ring 1 */}
+            <motion.div className="absolute inset-0 -m-3 rounded-full border border-blue-400/40"
+              animate={{ scale: [1, 1.8], opacity: [0.6, 0] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" }}
+            />
+            {/* Pulse ring 2 */}
+            <motion.div className="absolute inset-0 -m-3 rounded-full border border-blue-400/30"
+              animate={{ scale: [1, 2.2], opacity: [0.4, 0] }}
+              transition={{ duration: 1.8, delay: 0.4, repeat: Infinity, ease: "easeOut" }}
+            />
+            <div className="w-8 h-8 rounded-full gradient-brand shadow-lg shadow-blue-500/50 flex items-center justify-center border-2 border-white/30">
               <Shield className="w-4 h-4 text-white" />
             </div>
-            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-blue-500/60" />
           </motion.div>
+
           {/* Client marker */}
-          <div className="absolute bottom-4 right-6 flex flex-col items-center gap-0.5">
-            <MapPin className="w-5 h-5 text-red-400" />
+          <div className="absolute bottom-4 right-6">
+            <motion.div
+              animate={{ scale: [1, 1.18, 1] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <MapPin className="w-5 h-5 text-red-400" />
+            </motion.div>
           </div>
-          {/* Route line */}
-          <svg className="absolute inset-0 w-full h-full">
+
+          {/* Route — animated dash that travels */}
+          <svg className="absolute inset-0 w-full h-full" overflow="visible">
             <motion.line
               x1="36%" y1="33%" x2="78%" y2="80%"
-              stroke="rgba(59,130,246,0.5)" strokeWidth="1.5" strokeDasharray="5 3"
-              initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              stroke="rgba(99,102,241,0.6)" strokeWidth="1.5" strokeDasharray="5 4"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: [0, 1, 1], opacity: [0, 1, 0] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", times: [0, 0.6, 1] }}
             />
           </svg>
         </div>
 
         {/* Technician card */}
-        <div className="mx-3 mt-3 p-3 rounded-2xl bg-white/[0.04] border border-white/8">
+        <motion.div
+          className="mx-3 mt-3 p-3 rounded-2xl bg-white/[0.04] border border-white/8"
+          animate={{ borderColor: ["rgba(255,255,255,0.05)", "rgba(99,102,241,0.2)", "rgba(255,255,255,0.05)"] }}
+          transition={{ duration: 3, repeat: Infinity }}
+        >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full gradient-brand flex items-center justify-center text-sm font-bold text-white">JR</div>
             <div className="flex-1">
@@ -169,8 +206,8 @@ function AppMockup() {
             </div>
             <div className="text-right">
               <motion.div
-                animate={{ opacity: [1, 0.5, 1] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
+                animate={{ opacity: [1, 0.4, 1] }}
+                transition={{ duration: 1.2, repeat: Infinity }}
                 className="text-[9px] font-mono text-amber-400 font-bold"
               >
                 ⚡ EN CAMINO
@@ -178,27 +215,39 @@ function AppMockup() {
               <p className="text-[9px] text-muted-foreground">≈ 8 min</p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Bottom action */}
         <div className="mx-3 mt-3 mb-4">
-          <div className="w-full py-2.5 gradient-brand rounded-xl text-center text-xs font-bold text-white shadow-lg shadow-blue-500/30">
+          <motion.div
+            className="w-full py-2.5 gradient-brand rounded-xl text-center text-xs font-bold text-white shadow-lg shadow-blue-500/30"
+            animate={{ boxShadow: ["0 10px 30px rgba(99,102,241,0.25)", "0 10px 40px rgba(99,102,241,0.45)", "0 10px 30px rgba(99,102,241,0.25)"] }}
+            transition={{ duration: 2.5, repeat: Infinity }}
+          >
             Seguir en tiempo real →
-          </div>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Floating notification */}
+      {/* Floating notification — persistent gentle float */}
       <motion.div
         initial={{ opacity: 0, x: 30, y: -10 }}
-        animate={{ opacity: 1, x: 0, y: 0 }}
-        transition={{ delay: 1.2, duration: 0.6 }}
+        animate={{ opacity: 1, x: 0, y: [0, -5, 0] }}
+        transition={{
+          opacity: { delay: 1.2, duration: 0.6 },
+          x: { delay: 1.2, duration: 0.6 },
+          y: { delay: 1.8, duration: 4, repeat: Infinity, ease: "easeInOut" }
+        }}
         className="absolute -right-4 top-16 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl px-3 py-2 shadow-xl"
       >
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+          <motion.div
+            className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center"
+            animate={{ scale: [1, 1.15, 1], backgroundColor: ["rgba(34,197,94,0.15)", "rgba(34,197,94,0.3)", "rgba(34,197,94,0.15)"] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
             <CheckCircle className="w-3.5 h-3.5 text-green-400" />
-          </div>
+          </motion.div>
           <div>
             <p className="text-[10px] font-bold">Técnico asignado</p>
             <p className="text-[9px] text-muted-foreground">Llega en 8 min</p>
@@ -206,11 +255,15 @@ function AppMockup() {
         </div>
       </motion.div>
 
-      {/* Floating price badge */}
+      {/* Floating price badge — persistent float opposite phase */}
       <motion.div
         initial={{ opacity: 0, x: -30, y: 10 }}
-        animate={{ opacity: 1, x: 0, y: 0 }}
-        transition={{ delay: 1.5, duration: 0.6 }}
+        animate={{ opacity: 1, x: 0, y: [0, 5, 0] }}
+        transition={{
+          opacity: { delay: 1.5, duration: 0.6 },
+          x: { delay: 1.5, duration: 0.6 },
+          y: { delay: 2.1, duration: 4, repeat: Infinity, ease: "easeInOut" }
+        }}
         className="absolute -left-6 bottom-20 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl px-3 py-2 shadow-xl"
       >
         <p className="text-[9px] text-muted-foreground">Servicio Express</p>
@@ -330,16 +383,11 @@ export function Hero() {
           </div>
 
           {/* ── Stats row ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7, duration: 0.6 }}
-            className="mt-20 md:mt-24 border-t border-border/20 pt-10 grid grid-cols-2 sm:grid-cols-4 gap-8 max-w-2xl mx-auto"
-          >
+          <div className="mt-20 md:mt-24 border-t border-border/20 pt-10 grid grid-cols-2 sm:grid-cols-4 gap-10 max-w-2xl mx-auto">
             {stats.map((stat, i) => (
               <StatCard key={i} stat={stat} index={i} />
             ))}
-          </motion.div>
+          </div>
         </div>
       </motion.div>
 
