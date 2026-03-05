@@ -150,20 +150,3 @@ async def get_service_photos(
             for img in images
         ]
     }
-
-
-@router.get("/debug", summary="[TEMP] Check upload directory paths and files")
-async def debug_uploads():
-    """Temporary public diagnostic endpoint to verify upload paths in production."""
-    result = {}
-    for label, path in [("upload_dir", UPLOAD_DIR), ("avatar_dir", AVATAR_DIR), ("service_photo_dir", SERVICE_PHOTO_DIR)]:
-        exists = os.path.exists(path)
-        files = []
-        if exists:
-            try:
-                files = sorted(os.listdir(path))[:30]
-            except Exception as e:
-                files = [f"ERROR: {e}"]
-        result[label] = {"path": path, "exists": exists, "file_count": len(files), "files": files}
-    return result
-
