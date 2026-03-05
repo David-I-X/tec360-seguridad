@@ -202,6 +202,47 @@ async def list_global_services(
         "total": total
     }
 
+
+@router.get("/services/{service_id}", summary="Get single service detail with client and technician info")
+async def get_service_detail_admin(
+    service_id: str,
+    current_user: dict = Depends(require_roles("admin")),
+    session: Session = Depends(get_session)
+):
+    """Returns full service detail with embedded client and technician names for admin panel."""
+    from uuid import UUID
+    service = session.get(Service, UUID(service_id))
+    if not service:
+        raise HTTPException(status_code=404, detail="Service not found")
+
+    client = session.get(User, service.client_id) if service.client_id else None
+    technician = session.get(User, service.technician_id) if service.technician_id else None
+
+    return {
+        "id": str(service.id),
+        "title": service.title,
+        "service_type": service.service_type,
+        "status": service.status,
+        "service_address": service.service_address,
+        "service_city": service.service_city,
+        "description": service.description,
+        "estimated_price": service.estimated_price,
+        "scheduled_date": service.scheduled_date,
+        "created_at": service.created_at,
+        "client_id": str(service.client_id) if service.client_id else None,
+        "technician_id": str(service.technician_id) if service.technician_id else None,
+        "client": {
+            "full_name": client.full_name,
+            "phone": client.phone,
+            "email": client.email,
+        } if client else None,
+        "technician": {
+            "full_name": technician.full_name,
+            "phone": technician.phone,
+        } if technician else None,
+    }
+
+
 @router.get("/stats", summary="Platform wide statistics")
 async def platform_stats(
     current_user: dict = Depends(require_roles("admin")),

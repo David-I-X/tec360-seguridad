@@ -91,8 +91,8 @@ function StatusStepper({ status }: { status: string }) {
                             className="flex items-center gap-3"
                         >
                             <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 shrink-0 transition-all ${done ? "bg-green-500 border-green-500" :
-                                    active ? "bg-blue-500/20 border-blue-500" :
-                                        "bg-muted/20 border-border/30"
+                                active ? "bg-blue-500/20 border-blue-500" :
+                                    "bg-muted/20 border-border/30"
                                 }`}>
                                 {done ? (
                                     <CheckCircle className="w-4 h-4 text-white" />
@@ -102,8 +102,8 @@ function StatusStepper({ status }: { status: string }) {
                             </div>
                             <div className="flex-1">
                                 <p className={`text-xs font-medium ${done ? "text-green-400" :
-                                        active ? "text-blue-400" :
-                                            "text-muted-foreground/50"
+                                    active ? "text-blue-400" :
+                                        "text-muted-foreground/50"
                                     }`}>
                                     {step.label}
                                 </p>
@@ -176,9 +176,16 @@ function WaitingContent() {
     const [service, setService] = useState<any>(null)
     const [msgIndex, setMsgIndex] = useState(0)
     const [technicianFound, setTechnicianFound] = useState(false)
-    const [elapsedMinutes, setElapsedMinutes] = useState(0)
+    const [elapsedSeconds, setElapsedSeconds] = useState(0)
     const pollRef = useRef<NodeJS.Timeout | null>(null)
     const startTime = useRef(Date.now())
+    const isMounted = useRef(true)  // Bug #3: prevent state updates after unmount
+
+    // Bug #3: Cleanup isMounted on unmount
+    useEffect(() => {
+        isMounted.current = true
+        return () => { isMounted.current = false }
+    }, [])
 
     // Cycle search messages
     useEffect(() => {
@@ -186,11 +193,13 @@ function WaitingContent() {
         return () => clearInterval(t)
     }, [])
 
-    // Track elapsed time
+    // Bug #4: Track elapsed time every second, show 'Justo ahora' for first 60s
     useEffect(() => {
         const t = setInterval(() => {
-            setElapsedMinutes(Math.floor((Date.now() - startTime.current) / 60000))
-        }, 30000)
+            if (isMounted.current) {
+                setElapsedSeconds(Math.floor((Date.now() - startTime.current) / 1000))
+            }
+        }, 1000)
         return () => clearInterval(t)
     }, [])
 
@@ -199,11 +208,14 @@ function WaitingContent() {
         const fetchAndCheck = async () => {
             try {
                 const data = await getServiceById(params.id as string)
+                if (!isMounted.current) return  // Bug #3: don't update if unmounted
                 setService(data)
                 if (data.status !== "pending") {
                     setTechnicianFound(true)
-                    if (pollRef.current) clearInterval(pollRef.current)
-                    // If completed, redirect immediately
+                    if (pollRef.current) {
+                        clearInterval(pollRef.current)
+                        pollRef.current = null
+                    }
                     if (data.status === "completed") {
                         setTimeout(() => router.push(`/servicios/${params.id}`), 2000)
                     }
@@ -213,7 +225,10 @@ function WaitingContent() {
 
         fetchAndCheck()
         pollRef.current = setInterval(fetchAndCheck, 5000)
-        return () => { if (pollRef.current) clearInterval(pollRef.current) }
+        return () => {
+            isMounted.current = false
+            if (pollRef.current) clearInterval(pollRef.current)
+        }
     }, [params.id])
 
     return (
@@ -241,10 +256,12 @@ function WaitingContent() {
                     <span className="text-xs font-mono font-semibold text-green-400">SISTEMA ACTIVO</span>
                 </motion.div>
 
-                {elapsedMinutes > 0 && (
+                {elapsedSeconds > 0 && (
                     <div className="flex items-center gap-1.5 bg-background/80 backdrop-blur-md border border-border/40 rounded-full px-3 py-1.5">
                         <Clock className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">{elapsedMinutes} min</span>
+                        <span className="text-xs text-muted-foreground">
+                            {elapsedSeconds < 60 ? "Justo ahora" : `${Math.floor(elapsedSeconds / 60)} min`}
+                        </span>
                     </div>
                 )}
 

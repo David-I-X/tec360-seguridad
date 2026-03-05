@@ -89,7 +89,7 @@ function ServiceDetailDrawer({
             setLoading(true)
             try {
                 const [detailRes, photoRes] = await Promise.allSettled([
-                    api.get(`/services/${serviceId}`),
+                    api.get(`/admin/services/${serviceId}`),
                     api.get(`/uploads/service-photos/${serviceId}`),
                 ])
                 if (detailRes.status === "fulfilled") setDetail(detailRes.value.data)
@@ -258,8 +258,8 @@ function ServiceDetailDrawer({
                                         <div key={photoType} className="flex flex-col gap-1.5">
                                             <div
                                                 className={`relative aspect-square rounded-xl border-2 overflow-hidden cursor-pointer transition-all ${photo
-                                                        ? "border-green-500/50 hover:border-green-400"
-                                                        : "border-border/30 bg-muted/10"
+                                                    ? "border-green-500/50 hover:border-green-400"
+                                                    : "border-border/30 bg-muted/10"
                                                     }`}
                                                 onClick={() => photo && setSelectedPhoto(
                                                     photo.image_url.startsWith("/")

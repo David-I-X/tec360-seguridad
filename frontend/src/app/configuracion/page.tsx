@@ -8,7 +8,7 @@ import { Camera, User, Wrench, Shield, AlertTriangle, LogOut, ArrowLeft } from "
 import { useRouter } from "next/navigation"
 
 export default function ConfigPage() {
-    const { user, logout } = useAuth()
+    const { user, logout, refreshUser } = useAuth()
     const router = useRouter()
     const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -62,6 +62,7 @@ export default function ConfigPage() {
             const res = await api.post("/uploads/avatar", formData)
             const newUrl = res.data.avatar_url   // backend returns { avatar_url: "..." }
             setProfileData((prev: any) => ({ ...prev, avatar_url: newUrl }))
+            refreshUser()  // Bug #6: sync avatar_url to the global auth context
             toast.success("Foto actualizada ✓", { id: "avatar" })
         } catch (error: any) {
             console.error("Avatar upload error:", error?.response?.data || error)

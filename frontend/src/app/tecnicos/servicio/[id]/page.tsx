@@ -148,8 +148,8 @@ function ServiceStepper({ status }: { status: string }) {
                     <div key={step.key} className="flex items-center flex-1 min-w-0">
                         <div className="flex flex-col items-center flex-1 min-w-0">
                             <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${done ? "bg-blue-500 border-blue-500" :
-                                    active ? "bg-blue-500/20 border-blue-500" :
-                                        "bg-muted/20 border-border/40"
+                                active ? "bg-blue-500/20 border-blue-500" :
+                                    "bg-muted/20 border-border/40"
                                 }`}>
                                 {done ? (
                                     <CheckCircle className="w-4 h-4 text-white" />
@@ -214,15 +214,52 @@ function TechnicianServiceContent() {
             try {
                 const data = await getServiceById(params.id as string)
                 setService(data)
-                if (["assigned", "en_route", "arrived", "in_progress"].includes(data.status)) setIsTracking(true)
+                if (["assigned", "en_route", "arrived", "in_progress"].includes(data.status)) {
+                    setIsTracking(true)
+                }
             } catch (err: any) {
                 setError(err.message || "Error al cargar servicio")
             } finally {
                 setIsLoading(false)
             }
         }
+
+        // Bug #1: Load already-uploaded photos so the modal doesn't re-block
+        async function fetchExistingPhotos() {
+            if (!token) return
+            try {
+                const res = await fetch(`${API_URL}/uploads/service-photos/${params.id}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                })
+                if (res.ok) {
+                    const data = await res.json()
+                    const photoMap: Record<PhotoStage, string | null> = { before: null, during: null, after: null }
+                    for (const photo of (data.photos || [])) {
+                        if (photo.image_type in photoMap) {
+                            photoMap[photo.image_type as PhotoStage] = photo.image_url.startsWith("/")
+                                ? `${API_URL}${photo.image_url}`
+                                : photo.image_url
+                        }
+                    }
+                    setPhotos(photoMap)
+                }
+            } catch { /* non-critical */ }
+        }
+
         fetchService()
+        fetchExistingPhotos()
     }, [params.id])
+
+    // Bug #2: Auto-resume tracking when user returns to the tab/PWA
+    useEffect(() => {
+        const handleVisibility = () => {
+            if (document.visibilityState === "visible" && isActiveService) {
+                setIsTracking(true)
+            }
+        }
+        document.addEventListener("visibilitychange", handleVisibility)
+        return () => document.removeEventListener("visibilitychange", handleVisibility)
+    }, [isActiveService])
 
     useEffect(() => {
         if (service?.id && token) {
@@ -456,8 +493,8 @@ function TechnicianServiceContent() {
                             return (
                                 <div key={stage} className="flex flex-col gap-1.5">
                                     <div className={`relative aspect-square rounded-xl border-2 overflow-hidden transition-all ${url ? "border-green-500/50" :
-                                            isCurrentStage ? "border-blue-500/50 animate-pulse" :
-                                                "border-border/30"
+                                        isCurrentStage ? "border-blue-500/50 animate-pulse" :
+                                            "border-border/30"
                                         }`}>
                                         {url ? (
                                             <img src={url} alt={meta.label} className="w-full h-full object-cover" />
