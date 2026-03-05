@@ -51,7 +51,7 @@ interface AuthContextType {
     user_type: "client" | "technician"
   }) => Promise<void>
   logout: () => void
-  refreshUser: () => void
+  refreshUser: () => Promise<void>
 }
 
 // ============================================
@@ -89,10 +89,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Función para refrescar el usuario
-  const refreshUser = () => {
-    loadUser()
+  // Función para refrescar el usuario desde la API (no desde localStorage)
+  const refreshUser = async () => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
+    if (!token) {
+      loadUser()  // fallback to localStorage if no token
+      return
+    }
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+      const res = await fetch(`${API_URL}/users/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const freshUser = await res.json()
+        // Persist to localStorage so getUser() is always fresh for next page load
+        if (typeof window !== "undefined") {
+          const existing = JSON.parse(localStorage.getItem("user") || "{}")
+          localStorage.setItem("user", JSON.stringify({ ...existing, ...freshUser }))
+        }
+        setUser(prev => ({ ...prev, ...freshUser }))
+      }
+    } catch (e) {
+      console.error("refreshUser failed:", e)
+      loadUser() // graceful fallback
+    }
   }
+
 
   // Solicitar OTP
   const requestOTP = async (

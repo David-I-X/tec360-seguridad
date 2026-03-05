@@ -15,11 +15,20 @@ export default function ConfigPage() {
     const [activeTab, setActiveTab] = useState("personal")
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
+    const [avatarError, setAvatarError] = useState(false)  // track broken img
+
+    const STATIC_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/api\/?$/, "")
 
     // Form States
     const [profileData, setProfileData] = useState<any>(null)
     const [personalForm, setPersonalForm] = useState({ full_name: "", email: "", city: "" })
     const [techForm, setTechForm] = useState({ bio: "", experience_years: 0, service_radius_km: 50, specializations: [] as string[] })
+
+    // Reset avatar error when new photo is uploaded
+    const handleAvatarChange = (newUrl: string) => {
+        setAvatarError(false)
+        setProfileData((prev: any) => ({ ...prev, avatar_url: newUrl }))
+    }
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -57,12 +66,10 @@ export default function ConfigPage() {
 
         try {
             toast.loading("Subiendo foto...", { id: "avatar" })
-            // ⚠️ Do NOT set Content-Type manually — Axios sets it with the correct
-            // multipart boundary automatically when the body is FormData
             const res = await api.post("/uploads/avatar", formData)
-            const newUrl = res.data.avatar_url   // backend returns { avatar_url: "..." }
-            setProfileData((prev: any) => ({ ...prev, avatar_url: newUrl }))
-            refreshUser()  // Bug #6: sync avatar_url to the global auth context
+            const newUrl = res.data.avatar_url   // e.g. /uploads/avatars/filename.jpg
+            handleAvatarChange(newUrl)
+            await refreshUser()  // fetch fresh user from API, updates navbar too
             toast.success("Foto actualizada ✓", { id: "avatar" })
         } catch (error: any) {
             console.error("Avatar upload error:", error?.response?.data || error)
@@ -198,10 +205,17 @@ export default function ConfigPage() {
                                     <div className="flex flex-col items-center gap-5">
                                         <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
                                             <div className="h-36 w-36 rounded-full overflow-hidden ring-4 ring-[#00f2ff]/20 group-hover:ring-[#00f2ff]/40 transition-all duration-300 bg-slate-800 flex items-center justify-center">
-                                                {profileData?.avatar_url ? (
-                                                    <img src={`https://tec-360.tech${profileData.avatar_url}`} alt="Avatar" className="w-full h-full object-cover" />
+                                                {profileData?.avatar_url && !avatarError ? (
+                                                    <img
+                                                        src={profileData.avatar_url.startsWith("http")
+                                                            ? profileData.avatar_url
+                                                            : `${STATIC_URL}${profileData.avatar_url}`}
+                                                        alt="Avatar"
+                                                        className="w-full h-full object-cover"
+                                                        onError={() => setAvatarError(true)}
+                                                    />
                                                 ) : (
-                                                    <span className="text-4xl text-slate-500">{personalForm.full_name?.charAt(0) || "U"}</span>
+                                                    <span className="text-4xl text-slate-500">{personalForm.full_name?.charAt(0)?.toUpperCase() || "U"}</span>
                                                 )}
                                             </div>
                                             <div className="absolute inset-0 flex items-center justify-center bg-[#00f2ff]/20 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300">
