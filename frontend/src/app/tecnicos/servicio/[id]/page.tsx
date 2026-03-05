@@ -228,6 +228,9 @@ function TechnicianServiceContent() {
         // Bug #1: Load already-uploaded photos so the modal doesn't re-block
         async function fetchExistingPhotos() {
             if (!token) return
+            // STATIC_URL: strip trailing /api so img src goes to nginx static,
+            // not through the backend (which requires auth)
+            const STATIC_URL = API_URL.replace(/\/api\/?$/, "")
             try {
                 const res = await fetch(`${API_URL}/uploads/service-photos/${params.id}`, {
                     headers: { Authorization: `Bearer ${token}` },
@@ -237,15 +240,19 @@ function TechnicianServiceContent() {
                     const photoMap: Record<PhotoStage, string | null> = { before: null, during: null, after: null }
                     for (const photo of (data.photos || [])) {
                         if (photo.image_type in photoMap) {
-                            photoMap[photo.image_type as PhotoStage] = photo.image_url.startsWith("/")
-                                ? `${API_URL}${photo.image_url}`
-                                : photo.image_url
+                            // image_url is like /uploads/service-photos/file.jpg
+                            // Build full URL using STATIC_URL (no /api prefix)
+                            const fullUrl = photo.image_url.startsWith("http")
+                                ? photo.image_url
+                                : `${STATIC_URL}${photo.image_url}`
+                            photoMap[photo.image_type as PhotoStage] = fullUrl
                         }
                     }
                     setPhotos(photoMap)
                 }
             } catch { /* non-critical */ }
         }
+
 
         fetchService()
         fetchExistingPhotos()

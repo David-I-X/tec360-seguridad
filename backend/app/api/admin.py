@@ -210,8 +210,13 @@ async def get_service_detail_admin(
     session: Session = Depends(get_session)
 ):
     """Returns full service detail with embedded client and technician names for admin panel."""
-    from uuid import UUID
-    service = session.get(Service, UUID(service_id))
+    from uuid import UUID, ValueError as UUIDError
+    try:
+        svc_uuid = UUID(service_id)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid service ID format")
+
+    service = session.get(Service, svc_uuid)
     if not service:
         raise HTTPException(status_code=404, detail="Service not found")
 
@@ -227,8 +232,8 @@ async def get_service_detail_admin(
         "service_city": service.service_city,
         "description": service.description,
         "estimated_price": service.estimated_price,
-        "scheduled_date": service.scheduled_date,
-        "created_at": service.created_at,
+        "scheduled_date": service.scheduled_date.isoformat() if service.scheduled_date else None,
+        "created_at": service.created_at.isoformat() if service.created_at else None,
         "client_id": str(service.client_id) if service.client_id else None,
         "technician_id": str(service.technician_id) if service.technician_id else None,
         "client": {
@@ -241,6 +246,7 @@ async def get_service_detail_admin(
             "phone": technician.phone,
         } if technician else None,
     }
+
 
 
 @router.get("/stats", summary="Platform wide statistics")
