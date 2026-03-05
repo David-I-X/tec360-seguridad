@@ -57,6 +57,28 @@ export default function ConfigPage() {
         fetchProfile()
     }, [])
 
+    // Compress image before upload using canvas
+    const compressImage = (file: File, maxSizePx = 1200, quality = 0.82): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+            const img = new Image()
+            const objectUrl = URL.createObjectURL(file)
+            img.onload = () => {
+                URL.revokeObjectURL(objectUrl)
+                const canvas = document.createElement("canvas")
+                let w = img.width, h = img.height
+                if (w > maxSizePx || h > maxSizePx) {
+                    if (w > h) { h = Math.round(h * maxSizePx / w); w = maxSizePx }
+                    else { w = Math.round(w * maxSizePx / h); h = maxSizePx }
+                }
+                canvas.width = w; canvas.height = h
+                canvas.getContext("2d")!.drawImage(img, 0, 0, w, h)
+                canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Compression failed")), "image/jpeg", quality)
+            }
+            img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("Could not load image")) }
+            img.src = objectUrl
+        })
+    }
+
     const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) return
         const file = e.target.files[0]
@@ -66,10 +88,14 @@ export default function ConfigPage() {
 
         try {
             toast.loading("Subiendo foto...", { id: "avatar" })
+            // Compress image client-side before upload — phone photos can be 8-15MB
+            const compressed = await compressImage(file)
+            const formData = new FormData()
+            formData.append("file", compressed, file.name.replace(/\.[^.]+$/, ".jpg"))
             const res = await api.post("/uploads/avatar", formData)
-            const newUrl = res.data.avatar_url   // e.g. /uploads/avatars/filename.jpg
+            const newUrl = res.data.avatar_url
             handleAvatarChange(newUrl)
-            await refreshUser()  // fetch fresh user from API, updates navbar too
+            await refreshUser()
             toast.success("Foto actualizada ✓", { id: "avatar" })
         } catch (error: any) {
             console.error("Avatar upload error:", error?.response?.data || error)

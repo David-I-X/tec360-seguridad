@@ -38,6 +38,14 @@ app = FastAPI(
     redoc_url=redoc_url,
 )
 
+@app.on_event("startup")
+async def on_startup():
+    """Ensure upload directories exist after Docker volumes are mounted."""
+    from app.api.uploads import ensure_upload_dirs
+    ensure_upload_dirs()
+    logger.info("Upload directories verified/created")
+
+
 
 # --- Security Headers Middleware ---
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

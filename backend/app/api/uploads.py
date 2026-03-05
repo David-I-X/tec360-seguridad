@@ -18,12 +18,19 @@ UPLOAD_DIR = "/opt/tec360-seguridad/uploads"
 AVATAR_DIR = os.path.join(UPLOAD_DIR, "avatars")
 SERVICE_PHOTO_DIR = os.path.join(UPLOAD_DIR, "service-photos")
 
-# Ensure directories exist
-for d in [AVATAR_DIR, SERVICE_PHOTO_DIR]:
-    os.makedirs(d, exist_ok=True)
+def ensure_upload_dirs():
+    """Create upload directories. Call on app startup after volumes are mounted."""
+    for d in [AVATAR_DIR, SERVICE_PHOTO_DIR]:
+        os.makedirs(d, exist_ok=True)
+
+# Also call at import time as fallback (works in dev without Docker volumes)
+try:
+    ensure_upload_dirs()
+except Exception:
+    pass  # will retry on startup
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB (phone cameras can exceed 5MB)
 
 
 def _validate_image(file: UploadFile):
@@ -143,3 +150,25 @@ async def get_service_photos(
             for img in images
         ]
     }
+
+
+@router.get("/debug", summary="[ADMIN] Check upload directory paths and files")
+async def debug_uploads(
+    current_user: dict = Depends(get_current_user),
+):
+    """Temporary diagnostic endpoint to verify upload paths in production."""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    
+    result = {}
+    for label, path in [("upload_dir", UPLOAD_DIR), ("avatar_dir", AVATAR_DIR), ("service_photo_dir", SERVICE_PHOTO_DIR)]:
+        exists = os.path.exists(path)
+        files = []
+        if exists:
+            try:
+                files = os.listdir(path)[:20]  # max 20 files
+            except Exception as e:
+                files = [f"ERROR: {e}"]
+        result[label] = {"path": path, "exists": exists, "files_sample": files}
+    
+    return result
