@@ -184,6 +184,7 @@ function TechnicianServiceContent() {
     const [error, setError] = useState("")
     const [isTracking, setIsTracking] = useState(false)
     const [isUpdating, setIsUpdating] = useState(false)
+    const [confirmComplete, setConfirmComplete] = useState(false)  // UX #7: confirm before complete
 
     // Photo state — url once uploaded
     const [photos, setPhotos] = useState<Record<PhotoStage, string | null>>({
@@ -342,12 +343,15 @@ function TechnicianServiceContent() {
         }
     }
 
-    // "Complete" → require after photo then complete
+    // UX #7: "Complete" → require after photo, then show confirmation
     const handleComplete = () => {
         if (!photos.after) {
             pendingStatusRef.current = "completed"
             setPendingPhotoFor("after")
+        } else if (!confirmComplete) {
+            setConfirmComplete(true)  // first tap → show confirmation
         } else {
+            setConfirmComplete(false)
             updateStatus("completed")
         }
     }
@@ -551,22 +555,22 @@ function TechnicianServiceContent() {
                     )}
 
                     {service.status === "in_progress" && (
-                        <Button onClick={handleComplete} size="lg" className="w-full bg-green-600 hover:bg-green-700" disabled={isUpdating}>
-                            <CheckCircle className="mr-2 h-5 w-5" />
-                            {isUpdating ? "Completando..." : "✅ Marcar como Completado"}
-                            {!photos.after && <span className="ml-2 text-xs opacity-70">(requiere foto)</span>}
-                        </Button>
+                        <div className="space-y-2">
+                            {confirmComplete && (
+                                <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
+                                    <span className="text-amber-400 text-sm">⚠️</span>
+                                    <p className="text-sm text-amber-300 flex-1">¿Confirmas que el trabajo está terminado?</p>
+                                    <button onClick={() => setConfirmComplete(false)} className="text-xs text-muted-foreground underline">Cancelar</button>
+                                </div>
+                            )}
+                            <Button onClick={handleComplete} size="lg" className={`w-full ${confirmComplete ? "bg-green-600 hover:bg-green-700 animate-pulse" : "bg-green-600/80 hover:bg-green-600"}`} disabled={isUpdating}>
+                                <CheckCircle className="mr-2 h-5 w-5" />
+                                {isUpdating ? "Completando..." : confirmComplete ? "✅ Sí, marcar como completado" : "Marcar como Completado"}
+                                {!photos.after && <span className="ml-2 text-xs opacity-70">(requiere foto)</span>}
+                            </Button>
+                        </div>
                     )}
 
-                    {/* Tracking toggle */}
-                    <Button
-                        onClick={() => setIsTracking(t => !t)}
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-xs"
-                    >
-                        {isTracking ? "Pausar tracking GPS" : "Activar tracking GPS"}
-                    </Button>
                 </div>
             </div>
         </>

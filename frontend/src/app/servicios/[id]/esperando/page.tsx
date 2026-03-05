@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Shield, MapPin, Star, CheckCircle, X, Navigation, Phone, Clock } from "lucide-react"
+import { Shield, MapPin, Star, CheckCircle, X, Navigation, Phone, Clock, ChevronDown } from "lucide-react"
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
 import { getServiceById } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -265,12 +265,15 @@ function WaitingContent() {
                     </div>
                 )}
 
+                {/* UX #10: Smart close — minimize if active, close if done */}
                 <Button
                     variant="ghost" size="icon"
                     className="bg-background/80 backdrop-blur-md rounded-full border border-border/30"
                     onClick={() => router.push(`/servicios/${params.id}`)}
                 >
-                    <X className="w-4 h-4" />
+                    {service && !["completed", "cancelled"].includes(service.status)
+                        ? <ChevronDown className="w-4 h-4" />
+                        : <X className="w-4 h-4" />}
                 </Button>
             </div>
 

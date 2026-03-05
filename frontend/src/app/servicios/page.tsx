@@ -74,12 +74,14 @@ function MyServicesContent() {
     fetchServices()
   }, [API_URL])
 
-  // Filter services based on status
+  const ACTIVE_STATUSES = ["pending", "quoted", "assigned", "en_route", "arrived", "in_progress"]
+
+  const activeServices = services.filter(s => ACTIVE_STATUSES.includes(s.status))
+  const historicalServices = services.filter(s => !ACTIVE_STATUSES.includes(s.status))
+
   const filteredServices = services.filter((service) => {
     if (statusFilter === "all") return true
-    if (statusFilter === "active") {
-      return ["pending", "assigned", "en_route", "arrived", "in_progress"].includes(service.status)
-    }
+    if (statusFilter === "active") return ACTIVE_STATUSES.includes(service.status)
     if (statusFilter === "completed") return service.status === "completed"
     if (statusFilter === "cancelled") return service.status === "cancelled"
     return true
@@ -191,84 +193,122 @@ function MyServicesContent() {
       {/* Service List */}
       <div className="space-y-4">
         <AnimatePresence mode="popLayout">
-          {filteredServices.length === 0 ? (
-            <GlassCard className="p-12 text-center">
-              <div className="flex flex-col items-center gap-4">
-                <div className="h-20 w-20 rounded-3xl bg-muted/50 flex items-center justify-center">
-                  <ClipboardList className="h-10 w-10 text-muted-foreground/50" />
+          {statusFilter === "all" ? (
+            <>
+              {/* ── Active pinned ── */}
+              {activeServices.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                    <p className="text-xs font-bold uppercase tracking-wider text-green-400">Activos</p>
+                  </div>
+                  {activeServices.map((service, index) => (
+                    <ServiceCard key={service.id} service={service} index={index} />
+                  ))}
                 </div>
-                <div>
-                  <p className="font-semibold mb-1">
-                    {statusFilter === "all" ? "Sin servicios" : "Sin resultados"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {statusFilter === "all"
-                      ? "No tienes servicios aún. ¡Solicita uno nuevo!"
-                      : `No hay servicios ${filterButtons.find(b => b.key === statusFilter)?.label.toLowerCase()}.`
-                    }
-                  </p>
+              )}
+              {/* ── History ── */}
+              {historicalServices.length > 0 && (
+                <div className="space-y-3">
+                  {activeServices.length > 0 && (
+                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mt-4">Historial</p>
+                  )}
+                  {historicalServices.map((service, index) => (
+                    <ServiceCard key={service.id} service={service} index={index} />
+                  ))}
                 </div>
-                {statusFilter === "all" && (
-                  <Button asChild className="mt-2 gradient-brand text-white">
-                    <Link href="/servicios/nuevo">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Solicitar Servicio
-                    </Link>
-                  </Button>
-                )}
-              </div>
-            </GlassCard>
+              )}
+              {services.length === 0 && (
+                <EmptyState statusFilter={statusFilter} filterButtons={filterButtons} />
+              )}
+            </>
+          ) : filteredServices.length === 0 ? (
+            <EmptyState statusFilter={statusFilter} filterButtons={filterButtons} />
           ) : (
             filteredServices.map((service, index) => (
-              <motion.div
-                key={service.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Link href={`/servicios/${service.id}`}>
-                  <GlassCard className="p-5 hover:border-primary/30 transition-all group cursor-pointer">
-                    <div className="flex items-center gap-4">
-                      {/* Status indicator */}
-                      <div className={`w-3 h-3 rounded-full shrink-0 ${statusLabels[service.status]?.color || "bg-gray-400"}`} />
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold truncate">{service.title}</h3>
-                          <Badge variant="secondary" className="shrink-0">
-                            {typeLabels[service.service_type] || service.service_type}
-                          </Badge>
-                        </div>
-
-                        <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {service.service_city || "Sin ubicación"}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {format(new Date(service.created_at), "dd MMM yyyy", { locale: es })}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Status badge & arrow */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Badge className={statusLabels[service.status]?.color}>
-                          {statusLabels[service.status]?.label || service.status}
-                        </Badge>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                      </div>
-                    </div>
-                  </GlassCard>
-                </Link>
-              </motion.div>
+              <ServiceCard key={service.id} service={service} index={index} />
             ))
           )}
         </AnimatePresence>
       </div>
     </div>
+  )
+}
+
+function ServiceCard({ service, index }: { service: any; index: number }) {
+  const isLive = ["en_route", "arrived", "in_progress"].includes(service.status)
+  return (
+    <motion.div
+      key={service.id}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ delay: index * 0.04 }}
+    >
+      <Link href={isLive ? `/servicios/${service.id}/esperando` : `/servicios/${service.id}`}>
+        <GlassCard className={`p-5 hover:border-primary/30 transition-all group cursor-pointer ${isLive ? "border-green-500/30 bg-green-500/5" : ""}`}>
+          <div className="flex items-center gap-4">
+            <div className={`w-3 h-3 rounded-full shrink-0 ${isLive ? "bg-green-400 animate-pulse" : statusLabels[service.status]?.color || "bg-gray-400"}`} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-semibold truncate">{service.title}</h3>
+                {isLive && <span className="text-[9px] font-bold text-green-400 bg-green-400/10 border border-green-400/20 rounded-full px-2 py-0.5 shrink-0">EN VIVO</span>}
+                <Badge variant="secondary" className="shrink-0 text-[10px]">
+                  {typeLabels[service.service_type] || service.service_type}
+                </Badge>
+              </div>
+              <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3" />
+                  {service.service_city || "Sin ubicación"}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {format(new Date(service.created_at), "dd MMM yyyy", { locale: es })}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Badge className={statusLabels[service.status]?.color}>
+                {statusLabels[service.status]?.label || service.status}
+              </Badge>
+              <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+            </div>
+          </div>
+        </GlassCard>
+      </Link>
+    </motion.div>
+  )
+}
+
+function EmptyState({ statusFilter, filterButtons }: { statusFilter: StatusFilter; filterButtons: { key: StatusFilter; label: string }[] }) {
+  return (
+    <GlassCard className="p-12 text-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="h-20 w-20 rounded-3xl bg-muted/50 flex items-center justify-center">
+          <ClipboardList className="h-10 w-10 text-muted-foreground/50" />
+        </div>
+        <div>
+          <p className="font-semibold mb-1">
+            {statusFilter === "all" ? "Sin servicios" : "Sin resultados"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {statusFilter === "all"
+              ? "No tienes servicios aún. ¡Solicita uno nuevo!"
+              : `No hay servicios ${filterButtons.find(b => b.key === statusFilter)?.label.toLowerCase()}.`
+            }
+          </p>
+        </div>
+        {statusFilter === "all" && (
+          <Button asChild className="mt-2 gradient-brand text-white">
+            <Link href="/servicios/nuevo">
+              <Plus className="mr-2 h-4 w-4" />
+              Solicitar Servicio
+            </Link>
+          </Button>
+        )}
+      </div>
+    </GlassCard>
   )
 }
 

@@ -8,7 +8,9 @@ import {
     BadgeCheck, Clock, CheckCircle, Loader2
 } from "lucide-react"
 
-import { ProtectedRoute } from "@/lib/auth-context"
+import { ProtectedRoute, useAuth } from "@/lib/auth-context"
+import { Settings } from "lucide-react"
+import Link from "next/link"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { StarDisplay } from "@/components/ui/star-rating"
@@ -83,6 +85,8 @@ function TechnicianProfileContent() {
     const [error, setError] = useState("")
 
     const techId = params.id as string
+    const { user } = useAuth()  // UX #11: to know if the viewer is the owner
+    const isOwner = user?.id === techId || user?.id === profile?.user_id
 
     useEffect(() => {
         const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
@@ -140,10 +144,19 @@ function TechnicianProfileContent() {
 
     return (
         <div className="max-w-2xl mx-auto space-y-5">
-            {/* Back */}
-            <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2">
-                <ArrowLeft className="w-5 h-5" />
-            </Button>
+            <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2">
+                    <ArrowLeft className="w-5 h-5" />
+                </Button>
+                {isOwner && (
+                    <Button asChild size="sm" variant="outline" className="ml-auto">
+                        <Link href="/configuracion">
+                            <Settings className="w-4 h-4 mr-1.5" />
+                            Editar mi perfil
+                        </Link>
+                    </Button>
+                )}
+            </div>
 
             {/* Hero card */}
             <GlassCard className="p-7">

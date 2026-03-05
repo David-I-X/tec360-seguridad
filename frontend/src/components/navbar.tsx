@@ -8,6 +8,8 @@ import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { maskPhoneNumber } from "@/lib/validations"
 import { NotificationBell } from "@/components/notifications/notification-bell"
+import { usePathname } from "next/navigation"
+import { AnimatePresence, motion } from "framer-motion"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,20 +25,19 @@ export function Navbar() {
   const { user, isAuthenticated, logout } = useAuth()
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const pathname = usePathname()
 
-  // Scroll detection for navbar style change
+  // Scroll detection
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20)
-    }
+    const handleScroll = () => setIsScrolled(window.scrollY > 20)
     window.addEventListener("scroll", handleScroll, { passive: true })
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
-  // Close mobile menu on route change
+  // UX #12: Close mobile menu on route change
   useEffect(() => {
     setIsMobileMenuOpen(false)
-  }, [])
+  }, [pathname])
 
   // Role-based navigation links
   const getNavLinks = () => {
@@ -255,48 +256,53 @@ export function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile Menu Overlay */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Mobile Menu Panel */}
-      <div
-        className={cn(
-          "fixed top-16 right-0 z-40 w-64 h-[calc(100vh-4rem)] bg-background border-l border-border shadow-xl md:hidden transition-transform duration-300",
-          isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
-        )}
-      >
-        <div className="flex flex-col p-4 gap-1">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
+      {/* Mobile Overlay */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <>
+            <motion.div
+              key="overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/50 md:hidden"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg hover:bg-muted/50 transition-colors"
+            />
+            <motion.div
+              key="panel"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="fixed top-16 right-0 z-40 w-64 h-[calc(100vh-4rem)] bg-background border-l border-border shadow-xl md:hidden"
             >
-              <link.icon className="h-5 w-5 text-muted-foreground" />
-              {link.label}
-            </Link>
-          ))}
-
-          <div className="border-t border-border mt-3 pt-3">
-            {!isAuthenticated && (
-              <Link
-                href="/login"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 text-sm font-semibold text-blue-500"
-              >
-                <User className="h-5 w-5" />
-                Iniciar Sesión
-              </Link>
-            )}
-          </div>
-        </div>
-      </div>
+              <div className="flex flex-col p-4 gap-1">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <link.icon className="h-5 w-5 text-muted-foreground" />
+                    {link.label}
+                  </Link>
+                ))}
+                <div className="border-t border-border mt-3 pt-3">
+                  {!isAuthenticated && (
+                    <Link
+                      href="/login"
+                      className="flex items-center gap-3 px-4 py-3 text-sm font-semibold text-blue-500"
+                    >
+                      <User className="h-5 w-5" />
+                      Iniciar Sesión
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </>
   )
 }
