@@ -210,7 +210,7 @@ async def get_service_detail_admin(
     session: Session = Depends(get_session)
 ):
     """Returns full service detail with embedded client and technician names for admin panel."""
-    from uuid import UUID, ValueError as UUIDError
+    from uuid import UUID
     try:
         svc_uuid = UUID(service_id)
     except (ValueError, AttributeError):
