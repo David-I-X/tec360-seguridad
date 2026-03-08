@@ -305,28 +305,86 @@ function TechnicianServiceContent() {
         }
     }
 
-    /* ─── Photo upload ───────────────────────────── */
-    const uploadPhoto = async (stage: PhotoStage, file: File): Promise<void> => {
-        const formData = new FormData()
-        formData.append("file", file)
-        formData.append("service_id", params.id as string)
-        formData.append("image_type", stage)
+    /* ─── Photo upload & compression ─────────────── */
+    const compressImage = (file: File, maxSizePx = 1200, quality = 0.82): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            reader.readAsDataURL(file)
+            reader.onload = (event) => {
+                const img = new Image()
+                img.src = event.target?.result as string
+                img.onload = () => {
+                    const canvas = document.createElement("canvas")
+                    let { width, height } = img
 
-        const response = await fetch(`${API_URL}/uploads/service-photo`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-            body: formData,
+                    if (width > height) {
+                        if (width > maxSizePx) {
+                            height = Math.round((height * maxSizePx) / width)
+                            width = maxSizePx
+                        }
+                    } else {
+                        if (height > maxSizePx) {
+                            width = Math.round((width * maxSizePx) / height)
+                            height = maxSizePx
+                        }
+                    }
+
+                    canvas.width = width
+                    canvas.height = height
+                    const ctx = canvas.getContext("2d")
+                    ctx?.drawImage(img, 0, 0, width, height)
+
+                    canvas.toBlob(
+                        (blob) => {
+                            if (blob) resolve(blob)
+                            else reject(new Error("Canvas toBlob failed"))
+                        },
+                        "image/jpeg",
+                        quality
+                    )
+                }
+                img.onerror = (err) => reject(err)
+            }
+            reader.onerror = (err) => reject(err)
         })
-        const data = await response.json()
-        const url = data.image_url || URL.createObjectURL(file)
-        setPhotos(prev => ({ ...prev, [stage]: url }))
-        toast({ title: `Foto "${STAGE_META[stage].label}" guardada ✓` })
-        // After photo, proceed with the pending status change
-        if (pendingStatusRef.current) {
-            await updateStatus(pendingStatusRef.current)
-            pendingStatusRef.current = null
+    }
+
+    const uploadPhoto = async (stage: PhotoStage, file: File): Promise<void> => {
+        try {
+            const compressedBlob = await compressImage(file)
+            const compressedFile = new File([compressedBlob], file.name, {
+                type: "image/jpeg",
+                lastModified: Date.now(),
+            })
+
+            const formData = new FormData()
+            formData.append("file", compressedFile)
+            formData.append("service_id", params.id as string)
+            formData.append("image_type", stage)
+
+            const response = await fetch(`${API_URL}/uploads/service-photo`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData,
+            })
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}))
+                throw new Error(errData.detail || "Error al subir la foto")
+            }
+            const data = await response.json()
+            const url = data.image_url || URL.createObjectURL(file)
+            setPhotos(prev => ({ ...prev, [stage]: url }))
+            toast({ title: `Foto "${STAGE_META[stage].label}" guardada ✓` })
+            // After photo, proceed with the pending status change
+            if (pendingStatusRef.current) {
+                await updateStatus(pendingStatusRef.current)
+                pendingStatusRef.current = null
+            }
+            setPendingPhotoFor(null)
+        } catch (err: any) {
+            toast({ title: "Error al subir foto", description: err.message, variant: "destructive" })
         }
-        setPendingPhotoFor(null)
     }
 
     /* ─── Action handlers with photo gate ───────── */
@@ -438,24 +496,47 @@ function TechnicianServiceContent() {
 
                 {/* Client + details */}
                 <div className="grid gap-4 md:grid-cols-2">
-                    {service.client && (
-                        <GlassCard className="p-5">
-                            <h3 className="text-sm font-semibold mb-3">Cliente</h3>
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full gradient-brand flex items-center justify-center text-white font-bold text-sm">
-                                    {(service.client.full_name || "C").charAt(0)}
+                    <div className="flex flex-col gap-4">
+                        {service.client && (
+                            <GlassCard className="p-5">
+                                <h3 className="text-sm font-semibold mb-3">Cliente</h3>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full gradient-brand flex items-center justify-center text-white font-bold text-sm">
+                                        {(service.client.full_name || "C").charAt(0)}
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-semibold text-sm">{service.client.full_name || "Cliente"}</p>
+                                        {service.client.phone && (
+                                            <a href={`tel:${service.client.phone}`} className="text-xs text-blue-400 flex items-center gap-1 mt-0.5">
+                                                <Phone className="w-3 h-3" /> {service.client.phone}
+                                            </a>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="flex-1">
-                                    <p className="font-semibold text-sm">{service.client.full_name || "Cliente"}</p>
-                                    {service.client.phone && (
-                                        <a href={`tel:${service.client.phone}`} className="text-xs text-blue-400 flex items-center gap-1 mt-0.5">
-                                            <Phone className="w-3 h-3" /> {service.client.phone}
-                                        </a>
-                                    )}
+                            </GlassCard>
+                        )}
+                        {/* Vehicle photo reference */}
+                        {service.vehicle_photo_url && (
+                            <GlassCard className="p-5">
+                                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                    <Camera className="w-4 h-4" /> Foto del Vehículo (Referencia)
+                                </h3>
+                                <div className="rounded-xl overflow-hidden aspect-video border border-border/50">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                        src={
+                                            service.vehicle_photo_url.startsWith("http")
+                                                ? service.vehicle_photo_url
+                                                : `${API_URL.replace(/\/api\/?$/, "")}${service.vehicle_photo_url}`
+                                        }
+                                        alt="Vehículo del cliente"
+                                        className="w-full h-full object-cover"
+                                    />
                                 </div>
-                            </div>
-                        </GlassCard>
-                    )}
+                            </GlassCard>
+                        )}
+                    </div>
+
                     <GlassCard className="p-5">
                         <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                             <Calendar className="w-4 h-4" /> Fecha

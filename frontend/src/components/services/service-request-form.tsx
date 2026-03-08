@@ -65,7 +65,9 @@ const serviceSchema = z.object({
     lng: z.number().optional()
 })
 
-type ServiceValues = z.infer<typeof serviceSchema>
+export type ServiceValues = z.infer<typeof serviceSchema> & {
+    vehiclePhotoFile?: File
+}
 
 const steps = [
     { id: 0, title: "Servicio" },
@@ -85,17 +87,20 @@ export function ServiceRequestForm() {
     const [showDayPicker, setShowDayPicker] = useState(false)
 
     const form = useForm<ServiceValues>({
-        resolver: zodResolver(serviceSchema),
+        resolver: zodResolver(serviceSchema) as any,
         defaultValues: {
-            address: "",
-            lat: 6.2442,
-            lng: -75.5636,
+            service_type: "",
             description: "",
-            scheduled_time: "",
+            address: "",
+            estimated_price: 0,
+            scheduled_date: new Date(),
+            scheduled_time: "10:00",
             vehicle_type: "",
             vehicle_model: "",
             vehicle_plate: "",
-            estimated_price: undefined
+            lat: undefined,
+            lng: undefined,
+            vehiclePhotoFile: undefined
         }
     })
 
@@ -121,6 +126,52 @@ export function ServiceRequestForm() {
     }
 
     const prevStep = () => setStep(s => s - 1)
+
+    // ============================================
+    // PHOTO COMPRESSION
+    // ============================================
+    const compressImage = (file: File, maxSizePx = 1200, quality = 0.82): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            reader.readAsDataURL(file)
+            reader.onload = (event) => {
+                const img = new Image()
+                img.src = event.target?.result as string
+                img.onload = () => {
+                    const canvas = document.createElement("canvas")
+                    let { width, height } = img
+
+                    if (width > height) {
+                        if (width > maxSizePx) {
+                            height = Math.round((height * maxSizePx) / width)
+                            width = maxSizePx
+                        }
+                    } else {
+                        if (height > maxSizePx) {
+                            width = Math.round((width * maxSizePx) / height)
+                            height = maxSizePx
+                        }
+                    }
+
+                    canvas.width = width
+                    canvas.height = height
+                    const ctx = canvas.getContext("2d")
+                    ctx?.drawImage(img, 0, 0, width, height)
+
+                    canvas.toBlob(
+                        (blob) => {
+                            if (blob) resolve(blob)
+                            else reject(new Error("Canvas toBlob failed"))
+                        },
+                        "image/jpeg",
+                        quality
+                    )
+                }
+                img.onerror = (err) => reject(err)
+            }
+            reader.onerror = (err) => reject(err)
+        })
+    }
 
     async function onSubmit(data: ServiceValues) {
         setIsSubmitting(true)
@@ -163,6 +214,33 @@ export function ServiceRequestForm() {
                 vehicle_plate: data.vehicle_plate,
                 estimated_price: data.estimated_price
             })
+
+            // If there's a vehicle photo, compress and upload it
+            if (data.vehiclePhotoFile && result.id) {
+                try {
+                    const compressedBlob = await compressImage(data.vehiclePhotoFile)
+                    const compressedFile = new File([compressedBlob], data.vehiclePhotoFile.name, {
+                        type: "image/jpeg",
+                        lastModified: Date.now(),
+                    })
+
+                    const formData = new FormData()
+                    formData.append("file", compressedFile)
+                    formData.append("service_id", result.id)
+
+                    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
+                    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+
+                    await fetch(`${API_URL}/uploads/vehicle-photo`, {
+                        method: "POST",
+                        headers: { Authorization: `Bearer ${token}` },
+                        body: formData,
+                    })
+                } catch (photoErr) {
+                    console.error("Error al subir foto del vehículo:", photoErr)
+                    // We don't block the flow if photo fails, just log it
+                }
+            }
 
             setCreatedServiceId(result.id)
             setSuccess(true)

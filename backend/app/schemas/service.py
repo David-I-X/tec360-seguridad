@@ -253,6 +253,7 @@ class ServiceResponse(BaseModel):
     vehicle_type: Optional[str] = None
     vehicle_model: Optional[str] = None
     vehicle_plate: Optional[str] = None
+    vehicle_photo_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     
@@ -278,6 +279,7 @@ class ServiceResponse(BaseModel):
                 "requested_date": "2024-12-01T10:00:00",
                 "scheduled_date": "2024-12-10T10:00:00",
                 "estimated_price": 350000.00,
+                "vehicle_photo_url": "/uploads/vehicles/test.jpg",
                 "created_at": "2024-12-01T10:00:00",
                 "updated_at": "2024-12-01T10:00:00"
             }
@@ -299,6 +301,7 @@ class ServiceListResponse(BaseModel):
     vehicle_type: Optional[str] = None
     vehicle_model: Optional[str] = None
     vehicle_plate: Optional[str] = None
+    vehicle_photo_url: Optional[str] = None
     created_at: datetime
     
     # Info mínima del cliente/técnico

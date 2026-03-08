@@ -120,7 +120,13 @@ class ServiceService:
             if user_role == "technician" and service.technician_id and str(service.technician_id) != user_id:
                 raise HTTPException(status.HTTP_403_FORBIDDEN, detail="No tienes permiso")
                 
-            return self._to_response(service)
+            # Traer info de usuarios
+            client = session.exec(select(User).where(User.id == service.client_id)).first()
+            technician = None
+            if service.technician_id:
+                technician = session.exec(select(User).where(User.id == service.technician_id)).first()
+                
+            return self._to_response(service, client=client, technician=technician)
             
         except HTTPException:
             raise
@@ -417,25 +423,47 @@ class ServiceService:
         # Implementación Mock temporal hasta configurar PostGIS queries complejas en SQLModel
         return []
 
-    def _to_response(self, service: Service, client_name: str = None) -> ServiceResponse:
+    def _to_response(self, service: Service, client_name: str = None, client: User = None, technician: User = None) -> ServiceResponse:
         """Helper para convertir DB model a Response Schema"""
-        return ServiceResponse(
-            id=str(service.id),
-            client_id=str(service.client_id),
-            technician_id=str(service.technician_id) if service.technician_id else None,
-            service_type=service.service_type,
-            status=service.status,
-            title=service.title,
-            description=service.description,
-            service_address=service.service_address,
-            service_city="Medellín", # Default
-            service_lat=to_shape(service.service_location).y if service.service_location else 0.0,
-            service_lon=to_shape(service.service_location).x if service.service_location else 0.0,
-            requested_date=service.requested_date,
-            scheduled_date=service.scheduled_date,
-            estimated_price=service.estimated_price,
-            created_at=service.created_at,
-            updated_at=service.updated_at
-        )
+        response_kwargs = {
+            "id": str(service.id),
+            "client_id": str(service.client_id),
+            "technician_id": str(service.technician_id) if service.technician_id else None,
+            "service_type": service.service_type,
+            "status": service.status,
+            "title": service.title,
+            "description": service.description,
+            "service_address": service.service_address,
+            "service_city": "Medellín", # Default
+            "service_lat": to_shape(service.service_location).y if service.service_location else 0.0,
+            "service_lon": to_shape(service.service_location).x if service.service_location else 0.0,
+            "requested_date": service.requested_date,
+            "scheduled_date": service.scheduled_date,
+            "estimated_price": service.estimated_price,
+            "created_at": service.created_at,
+            "updated_at": service.updated_at
+        }
+        
+        # Opcionalmente hidratar relaciones si se pasaron
+        if client:
+            from app.schemas.service import ServiceClient
+            response_kwargs["client"] = ServiceClient(
+                id=str(client.id),
+                email=client.email,
+                full_name=client.full_name,
+                phone=client.phone
+            )
+            
+        if technician:
+            from app.schemas.service import ServiceTechnician
+            response_kwargs["technician"] = ServiceTechnician(
+                id=str(technician.id),
+                email=technician.email,
+                full_name=technician.full_name,
+                phone=technician.phone,
+                avatar_url=technician.avatar_url
+            )
+            
+        return ServiceResponse(**response_kwargs)
 
 service_service = ServiceService()

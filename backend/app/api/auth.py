@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 from app.core.database import get_session
 from app.models.user import User
-from app.core.auth_utils import create_access_token
+from app.core.auth_utils import create_access_token, create_refresh_token
 from app.core.config import settings
 from app.core.security import get_current_user
 from datetime import timedelta, datetime
@@ -114,10 +114,14 @@ async def verify_otp(data: OTPVerify, session: Session = Depends(get_session)):
         session.commit()
         session.refresh(user)
 
-    # Generate Token
+    # Generate Tokens
     access_token = create_access_token(
         subject=user.id,
         expires_delta=timedelta(days=7),
+        extra_claims={"role": user.role}
+    )
+    refresh_token = create_refresh_token(
+        subject=user.id,
         extra_claims={"role": user.role}
     )
     
@@ -125,13 +129,13 @@ async def verify_otp(data: OTPVerify, session: Session = Depends(get_session)):
         "success": True,
         "message": "Login exitoso",
         "access_token": access_token,
-        "refresh_token": "dummy_refresh_token",
+        "refresh_token": refresh_token,
         "user": {
             "id": str(user.id),
             "phone": user.phone,
             "email": user.email,
             "role": user.role,
-            "onboarding_completed": bool(user.full_name) # Simple check
+            "onboarding_completed": bool(user.full_name)
         },
         "is_new_user": is_new_user
     }
@@ -171,6 +175,45 @@ async def complete_onboarding(
             "onboarding_completed": True
         }
     }
+
+@router.post("/refresh")
+async def refresh_tokens(
+    data: RefreshTokenRequest,
+    session: Session = Depends(get_session)
+):
+    """Exchange a valid refresh token for a new access+refresh token pair."""
+    from jose import jwt, JWTError
+    from app.core.config import settings as cfg
+    
+    try:
+        payload = jwt.decode(data.refresh_token, cfg.SECRET_KEY, algorithms=[cfg.ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Refresh token inválido o expirado")
+    
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Token no es de tipo refresh")
+    
+    user_id = payload.get("sub")
+    user = session.get(User, user_id)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Usuario no encontrado o inactivo")
+    
+    new_access = create_access_token(
+        subject=user.id,
+        expires_delta=timedelta(days=7),
+        extra_claims={"role": user.role}
+    )
+    new_refresh = create_refresh_token(
+        subject=user.id,
+        extra_claims={"role": user.role}
+    )
+    
+    return {
+        "success": True,
+        "access_token": new_access,
+        "refresh_token": new_refresh
+    }
+
 
 @router.get("/me")
 async def get_me(

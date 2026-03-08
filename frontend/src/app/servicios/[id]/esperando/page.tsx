@@ -120,6 +120,10 @@ function StatusStepper({ status }: { status: string }) {
 /* ─── Technician card ──────────────────────────────────── */
 function TechnicianCard({ technician, serviceId }: { technician: any; serviceId: string }) {
     const router = useRouter()
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+    const STATIC_URL = API_URL.replace(/\/api\/?$/, "")
+    const [imgError, setImgError] = useState(false)
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -127,9 +131,22 @@ function TechnicianCard({ technician, serviceId }: { technician: any; serviceId:
             className="w-full bg-muted/20 border border-border/30 rounded-2xl p-4"
         >
             <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl gradient-brand flex items-center justify-center text-white font-bold shrink-0">
-                    {(technician.full_name || "T").charAt(0)}
-                </div>
+                {technician.avatar_url && !imgError ? (
+                    <div className="w-12 h-12 rounded-2xl overflow-hidden shrink-0 border border-border/50">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={`${STATIC_URL}${technician.avatar_url}`}
+                            alt={technician.full_name || "Técnico"}
+                            className="w-full h-full object-cover"
+                            onError={() => setImgError(true)}
+                        />
+                    </div>
+                ) : (
+                    <div className="w-12 h-12 rounded-2xl gradient-brand flex items-center justify-center text-white font-bold shrink-0 shadow-inner">
+                        {(technician.full_name || "T").charAt(0).toUpperCase()}
+                    </div>
+                )}
+
                 <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm">{technician.full_name || "Técnico"}</p>
                     <div className="flex items-center gap-1 mt-0.5">

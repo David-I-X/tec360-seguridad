@@ -142,6 +142,61 @@ export function getUser(): any | null {
 }
 
 // ============================================
+// HELPER - Request with Auto-Refresh
+// ============================================
+
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+function onRefreshed(token: string) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
+function addRefreshSubscriber(cb: (token: string) => void) {
+  refreshSubscribers.push(cb);
+}
+
+export async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+  const token = getAuthToken();
+  if (!token) throw new Error("No estás autenticado");
+
+  const headers = new Headers(options.headers || {});
+  if (!headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const endpointUrl = url.startsWith("http") ? url : `${API_URL}${url}`;
+  let response = await fetch(endpointUrl, { ...options, headers });
+
+  if (response.status === 401) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      try {
+        const { access_token } = await refreshToken();
+        isRefreshing = false;
+        onRefreshed(access_token);
+      } catch (err) {
+        isRefreshing = false;
+        logout();
+        throw err;
+      }
+    }
+
+    const retryOriginalRequest = new Promise<Response>((resolve) => {
+      addRefreshSubscriber(async (newToken) => {
+        headers.set("Authorization", `Bearer ${newToken}`);
+        const retryResponse = await fetch(endpointUrl, { ...options, headers });
+        resolve(retryResponse);
+      });
+    });
+    return retryOriginalRequest;
+  }
+
+  return response;
+}
+
+// ============================================
 // AUTH ENDPOINTS
 // ============================================
 
@@ -200,17 +255,10 @@ export async function completeOnboarding(data: {
   email?: string
   user_type: "client" | "technician"
 }): Promise<OnboardingResponse> {
-  const token = getAuthToken()
-
-  if (!token) {
-    throw new Error("No estás autenticado")
-  }
-
-  const response = await fetch(`${API_URL}/auth/onboarding`, {
+  const response = await fetchWithAuth("/auth/onboarding", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
   })
@@ -231,17 +279,8 @@ export async function completeOnboarding(data: {
  * Obtiene información del usuario actual
  */
 export async function getCurrentUser(): Promise<UserResponse> {
-  const token = getAuthToken()
-
-  if (!token) {
-    throw new Error("No estás autenticado")
-  }
-
-  const response = await fetch(`${API_URL}/auth/me`, {
+  const response = await fetchWithAuth("/auth/me", {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
   })
 
   if (!response.ok) {
@@ -317,17 +356,10 @@ export async function createServiceRequest(data: {
   vehicle_model?: string
   vehicle_plate?: string
 }): Promise<any> {
-  const token = getAuthToken()
-
-  if (!token) {
-    throw new Error("No estás autenticado")
-  }
-
-  const response = await fetch(`${API_URL}/services`, {
+  const response = await fetchWithAuth("/services", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
   })
@@ -344,11 +376,8 @@ export async function createServiceRequest(data: {
  * Solo para técnicos
  */
 export async function getAvailableServices(): Promise<any> {
-  const token = getAuthToken()
-  if (!token) throw new Error("No autenticado")
-
-  const response = await fetch(`${API_URL}/services/available`, {
-    headers: { Authorization: `Bearer ${token}` }
+  const response = await fetchWithAuth("/services/available", {
+    method: "GET",
   })
 
   if (!response.ok) await handleAPIError(response)
@@ -360,12 +389,8 @@ export async function getAvailableServices(): Promise<any> {
  * Solo para técnicos
  */
 export async function acceptService(serviceId: string): Promise<any> {
-  const token = getAuthToken()
-  if (!token) throw new Error("No autenticado")
-
-  const response = await fetch(`${API_URL}/services/${serviceId}/accept`, {
+  const response = await fetchWithAuth(`/services/${serviceId}/accept`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` }
   })
 
   if (!response.ok) await handleAPIError(response)
@@ -376,17 +401,8 @@ export async function acceptService(serviceId: string): Promise<any> {
  * Obtiene los servicios del usuario actual
  */
 export async function getUserServices(): Promise<any> {
-  const token = getAuthToken()
-
-  if (!token) {
-    throw new Error("No estás autenticado")
-  }
-
-  const response = await fetch(`${API_URL}/services`, {
+  const response = await fetchWithAuth("/services", {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
   })
 
   if (!response.ok) {
@@ -400,17 +416,8 @@ export async function getUserServices(): Promise<any> {
  * Obtiene un servicio por ID
  */
 export async function getServiceById(serviceId: string): Promise<any> {
-  const token = getAuthToken()
-
-  if (!token) {
-    throw new Error("No estás autenticado")
-  }
-
-  const response = await fetch(`${API_URL}/services/${serviceId}`, {
+  const response = await fetchWithAuth(`/services/${serviceId}`, {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
   })
 
   if (!response.ok) {
@@ -424,11 +431,8 @@ export async function getServiceById(serviceId: string): Promise<any> {
  * Cancela un servicio (cliente o admin)
  */
 export async function cancelService(serviceId: string): Promise<void> {
-  const token = getAuthToken()
-  if (!token) throw new Error("No autenticado")
-  const response = await fetch(`${API_URL}/services/${serviceId}`, {
+  const response = await fetchWithAuth(`/services/${serviceId}`, {
     method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
   })
   if (!response.ok && response.status !== 204) {
     await handleAPIError(response)
@@ -441,14 +445,12 @@ export async function cancelService(serviceId: string): Promise<void> {
 export async function getAvailableServicesFiltered(params?: {
   lat?: number; lng?: number; radius?: number
 }): Promise<any> {
-  const token = getAuthToken()
-  if (!token) throw new Error("No autenticado")
   const qs = new URLSearchParams()
   if (params?.lat) qs.set("lat", String(params.lat))
   if (params?.lng) qs.set("lng", String(params.lng))
   if (params?.radius) qs.set("radius", String(params.radius))
-  const url = `${API_URL}/services/available${qs.toString() ? "?" + qs.toString() : ""}`
-  const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  const url = `/services/available${qs.toString() ? "?" + qs.toString() : ""}`
+  const response = await fetchWithAuth(url, { method: "GET" })
   if (!response.ok) await handleAPIError(response)
   return response.json()
 }
@@ -478,17 +480,14 @@ export function hasCompletedOnboarding(): boolean {
 
 export const api = {
   async get(endpoint: string) {
-    const token = getAuthToken()
-    const res = await fetch(`${API_URL}${endpoint}`, {
+    const res = await fetchWithAuth(endpoint, {
       method: "GET",
-      headers: { Authorization: `Bearer ${token}` }
     })
     if (!res.ok) await handleAPIError(res)
     return { data: await res.json() }
   },
   async post(endpoint: string, data: any, options: any = {}) {
-    const token = getAuthToken()
-    const headers: any = { Authorization: `Bearer ${token}` }
+    const headers: any = {}
 
     // Si no es FormData, enviamos como JSON
     let body = data
@@ -509,7 +508,7 @@ export const api = {
       }
     }
 
-    const res = await fetch(`${API_URL}${endpoint}`, {
+    const res = await fetchWithAuth(endpoint, {
       method: "POST",
       headers,
       body
@@ -518,13 +517,10 @@ export const api = {
     return { data: await res.json() }
   },
   async put(endpoint: string, data?: any) {
-    const token = getAuthToken()
-    const url = endpoint.includes('?') ? `${API_URL}${endpoint}` : `${API_URL}${endpoint}`
-
     // Query params vs Body
     const fetchOptions: RequestInit = {
       method: "PUT",
-      headers: { Authorization: `Bearer ${token}` }
+      headers: {}
     }
 
     if (data) {
@@ -536,15 +532,13 @@ export const api = {
       }
     }
 
-    const res = await fetch(url, fetchOptions)
+    const res = await fetchWithAuth(endpoint, fetchOptions)
     if (!res.ok) await handleAPIError(res)
     return { data: await res.json() }
   },
   async delete(endpoint: string) {
-    const token = getAuthToken()
-    const res = await fetch(`${API_URL}${endpoint}`, {
+    const res = await fetchWithAuth(endpoint, {
       method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` }
     })
     if (!res.ok) await handleAPIError(res)
     return { data: await res.json() }

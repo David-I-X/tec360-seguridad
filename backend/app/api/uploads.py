@@ -17,10 +17,11 @@ router = APIRouter(prefix="/uploads", tags=["uploads"])
 UPLOAD_DIR = "/opt/tec360-seguridad/uploads"
 AVATAR_DIR = os.path.join(UPLOAD_DIR, "avatars")
 SERVICE_PHOTO_DIR = os.path.join(UPLOAD_DIR, "service-photos")
+VEHICLE_PHOTO_DIR = os.path.join(UPLOAD_DIR, "vehicle-photos")
 
 def ensure_upload_dirs():
     """Create upload directories. Call on app startup after volumes are mounted."""
-    for d in [AVATAR_DIR, SERVICE_PHOTO_DIR]:
+    for d in [AVATAR_DIR, SERVICE_PHOTO_DIR, VEHICLE_PHOTO_DIR]:
         os.makedirs(d, exist_ok=True)
 
 # Also call at import time as fallback (works in dev without Docker volumes)
@@ -149,4 +150,48 @@ async def get_service_photos(
             }
             for img in images
         ]
+    }
+
+
+@router.post("/vehicle-photo", summary="Upload vehicle photo from client")
+async def upload_vehicle_photo(
+    file: UploadFile = File(...),
+    service_id: str = Form(...),
+    current_user: dict = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """
+    Upload vehicle photo for a service.
+    Clients can upload this when requesting a service.
+    """
+    ext = _validate_image(file)
+    
+    # Verify service exists and belongs to client
+    service = session.get(Service, service_id)
+    if not service:
+        raise HTTPException(status_code=404, detail="Service not found")
+        
+    if str(service.client_id) != str(current_user["id"]) and current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="File too large (max 5MB)")
+    
+    filename = f"{service_id}_vehicle_{uuid.uuid4().hex[:8]}{ext}"
+    filepath = os.path.join(VEHICLE_PHOTO_DIR, filename)
+    
+    with open(filepath, "wb") as f:
+        f.write(content)
+    
+    image_url = f"/uploads/vehicle-photos/{filename}"
+    
+    # Update Service record
+    service.vehicle_photo_url = image_url
+    session.add(service)
+    session.commit()
+    
+    return {
+        "image_url": image_url,
+        "message": "Foto del vehículo subida exitosamente"
     }

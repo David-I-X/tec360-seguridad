@@ -83,7 +83,7 @@ jobs:
 
             # Pull fresh images from GHCR and restart
             docker compose -f docker-compose.prod.yml --env-file .env.production pull backend frontend
-            docker compose -f docker-compose.prod.yml --env-file .env.production up -d --no-deps backend frontend
+            docker compose -f docker-compose.prod.yml --env-file .env.production up -d --no-deps backend frontend nginx
 
             # Cleanup dangling images
             docker image prune -f

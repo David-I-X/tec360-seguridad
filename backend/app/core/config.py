@@ -55,7 +55,16 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",  # Frontend local
         "http://localhost:5173",  # Vite (alternativa)
+        "https://tec-360.tech",   # Web Production
     ]
+    EXTRA_CORS_ORIGINS: str = os.getenv("EXTRA_CORS_ORIGINS", "")
+
+    @property
+    def get_cors_origins(self) -> List[str]:
+        origins = list(self.ALLOWED_ORIGINS)
+        if self.EXTRA_CORS_ORIGINS:
+            origins.extend([o.strip() for o in self.EXTRA_CORS_ORIGINS.split(",") if o.strip()])
+        return origins
 
     # Configuración de servidor
     HOST: str = os.getenv("HOST", "0.0.0.0")

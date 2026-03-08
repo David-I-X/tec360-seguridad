@@ -43,6 +43,7 @@ class ServiceBase(SQLModel):
     vehicle_type: Optional[str] = None
     vehicle_model: Optional[str] = None
     vehicle_plate: Optional[str] = None
+    vehicle_photo_url: Optional[str] = None
     client_confirmed_at: Optional[datetime] = None
 
 class Service(ServiceBase, table=True):
