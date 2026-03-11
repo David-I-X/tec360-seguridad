@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Shield, MapPin, Star, CheckCircle, X, Navigation, Phone, Clock, ChevronDown } from "lucide-react"
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
 import { getServiceById } from "@/lib/api"
+import { serviceWebSocket, type WebSocketMessage } from "@/lib/websocket"
 import { Button } from "@/components/ui/button"
 import dynamic from "next/dynamic"
 
@@ -128,51 +129,62 @@ function TechnicianCard({ technician, serviceId }: { technician: any; serviceId:
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full bg-muted/20 border border-border/30 rounded-2xl p-4"
+            className="w-full bg-muted/10 border border-border/40 rounded-3xl p-5 shadow-lg relative overflow-hidden"
         >
-            <div className="flex items-center gap-3">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500" />
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">Técnico Asignado</h3>
+
+            <div className="flex items-center gap-4 mb-4">
                 {technician.avatar_url && !imgError ? (
-                    <div className="w-12 h-12 rounded-2xl overflow-hidden shrink-0 border border-border/50">
+                    <div className="w-16 h-16 rounded-full overflow-hidden shrink-0 border-2 border-background shadow-md">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                            src={`${STATIC_URL}${technician.avatar_url}`}
+                            src={technician.avatar_url.startsWith('http') ? technician.avatar_url : `${STATIC_URL}${technician.avatar_url}`}
                             alt={technician.full_name || "Técnico"}
                             className="w-full h-full object-cover"
                             onError={() => setImgError(true)}
                         />
                     </div>
                 ) : (
-                    <div className="w-12 h-12 rounded-2xl gradient-brand flex items-center justify-center text-white font-bold shrink-0 shadow-inner">
+                    <div className="w-16 h-16 rounded-full gradient-brand flex items-center justify-center text-white text-2xl font-bold shrink-0 shadow-md">
                         {(technician.full_name || "T").charAt(0).toUpperCase()}
                     </div>
                 )}
 
                 <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm">{technician.full_name || "Técnico"}</p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                        <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                        <span className="text-xs text-muted-foreground">
-                            {technician.average_rating?.toFixed(1) || "Nuevo"} · Técnico verificado
+                    <p className="font-bold text-lg leading-tight">{technician.full_name || "Técnico"}</p>
+                    <div className="flex items-center gap-1.5 mt-1 bg-amber-500/10 w-fit px-2 py-0.5 rounded-full border border-amber-500/20">
+                        <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                        <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+                            {technician.average_rating?.toFixed(1) || "Nuevo"}
                         </span>
+                        <span className="text-xs text-muted-foreground ml-1">· Verificado</span>
                     </div>
                 </div>
-                <div className="flex gap-2 shrink-0">
-                    {technician.phone && (
-                        <Button size="icon" variant="outline" className="w-9 h-9 rounded-xl" asChild>
-                            <a href={`tel:${technician.phone}`}>
-                                <Phone className="w-4 h-4" />
-                            </a>
-                        </Button>
-                    )}
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-9 rounded-xl text-xs"
-                        onClick={() => router.push(`/tecnicos/perfil/${technician.user_id}`)}
-                    >
-                        Ver perfil
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mt-2">
+                <Button
+                    variant="outline"
+                    className="w-full h-11 rounded-xl text-sm border-blue-500/30 hover:bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                    onClick={() => router.push(`/tecnicos/perfil/${technician.id || technician.user_id}`)}
+                >
+                    Ver perfil completo
+                </Button>
+
+                {technician.phone ? (
+                    <Button className="w-full h-11 rounded-xl text-sm bg-green-600 hover:bg-green-700 text-white" asChild>
+                        <a href={`tel:${technician.phone}`}>
+                            <Phone className="w-4 h-4 mr-2" />
+                            Llamar
+                        </a>
                     </Button>
-                </div>
+                ) : (
+                    <Button className="w-full h-11 rounded-xl text-sm" disabled>
+                        <Phone className="w-4 h-4 mr-2" />
+                        Llamar
+                    </Button>
+                )}
             </div>
         </motion.div>
     )
@@ -220,33 +232,92 @@ function WaitingContent() {
         return () => clearInterval(t)
     }, [])
 
-    // Poll service every 5 seconds
+    // Fetch initial state and connect WebSocket
     useEffect(() => {
-        const fetchAndCheck = async () => {
+        const fetchAndSubscribe = async () => {
             try {
                 const data = await getServiceById(params.id as string)
-                if (!isMounted.current) return  // Bug #3: don't update if unmounted
+                if (!isMounted.current) return
                 setService(data)
+
                 if (data.status !== "pending") {
                     setTechnicianFound(true)
-                    if (pollRef.current) {
-                        clearInterval(pollRef.current)
-                        pollRef.current = null
-                    }
                     if (data.status === "completed") {
                         setTimeout(() => router.push(`/servicios/${params.id}`), 2000)
                     }
                 }
-            } catch { }
+
+                // Connect WebSocket for real-time updates
+                const token = localStorage.getItem("access_token")
+                if (token && isMounted.current) {
+                    serviceWebSocket.connect(params.id as string, token)
+                }
+
+            } catch (err) {
+                console.error("Failed to load service", err)
+            }
         }
 
-        fetchAndCheck()
-        pollRef.current = setInterval(fetchAndCheck, 5000)
+        fetchAndSubscribe()
+
+        // Subscribe to real-time status updates
+        const unsubscribe = serviceWebSocket.onMessage((message: WebSocketMessage) => {
+            if (message.type === "status_update" && isMounted.current) {
+                console.log("[WaitingPage] WS status_update:", message.data)
+
+                setService((prev: any) => {
+                    const updated = { ...prev, status: message.data.status }
+                    // If technician data comes in the payload, merge it
+                    if (message.data.technician) {
+                        updated.technician = message.data.technician
+                    }
+                    return updated
+                })
+
+                if (message.data.status !== "pending") {
+                    setTechnicianFound(true)
+                }
+
+                // Session 4: Auto-redirect to live tracking map if technician is en_route or in_progress
+                if (message.data.status === "en_route" || message.data.status === "in_progress") {
+                    console.log("[WaitingPage] Redirecting to Live Tracking map")
+                    router.push(`/servicios/${params.id}`)
+                }
+
+                if (message.data.status === "completed") {
+                    setTimeout(() => router.push(`/servicios/${params.id}`), 2000)
+                }
+            }
+        })
+
+        // Fallback polling just in case WebSocket disconnects
+        pollRef.current = setInterval(async () => {
+            if (!serviceWebSocket.isConnected && isMounted.current) {
+                try {
+                    const data = await getServiceById(params.id as string)
+                    setService(data)
+                    if (data.status !== "pending") {
+                        setTechnicianFound(true)
+                    }
+                    if (data.status === "en_route" || data.status === "in_progress") {
+                        clearInterval(pollRef.current!)
+                        router.push(`/servicios/${params.id}`)
+                    }
+                    if (data.status === "completed") {
+                        clearInterval(pollRef.current!)
+                        setTimeout(() => router.push(`/servicios/${params.id}`), 2000)
+                    }
+                } catch { }
+            }
+        }, 8000)
+
         return () => {
             isMounted.current = false
+            unsubscribe()
+            serviceWebSocket.disconnect()
             if (pollRef.current) clearInterval(pollRef.current)
         }
-    }, [params.id])
+    }, [params.id, router])
 
     return (
         <div className="fixed inset-0 flex flex-col bg-background overflow-hidden">

@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/lib/auth-context"
 import { ServiceWorkerRegistration } from "@/components/pwa/sw-register"
+import { Navbar } from "@/components/navbar"
 import "./globals.css"
 
 // ✅ Configurar fuentes (se mantienen)
@@ -70,6 +71,7 @@ export default function RootLayout({
         >
           {/* ✅ AuthProvider registrado globalmente */}
           <AuthProvider>
+            <Navbar />
             {children}
           </AuthProvider>
 

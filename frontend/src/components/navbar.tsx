@@ -155,9 +155,20 @@ export function Navbar() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="gap-2 pl-2 pr-3 h-9">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full gradient-brand text-[11px] font-bold text-white">
-                      {getUserInitials()}
-                    </div>
+                    {user?.avatar_url ? (
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full overflow-hidden border border-border/50">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={user.avatar_url.startsWith('http') ? user.avatar_url : `${process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") || "http://localhost:8000"}${user.avatar_url}`}
+                          alt="Avatar"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full gradient-brand text-[11px] font-bold text-white">
+                        {getUserInitials()}
+                      </div>
+                    )}
                     <span className="hidden sm:inline text-sm font-medium">
                       {user?.full_name?.split(" ")[0] || maskPhoneNumber(user?.phone || "")}
                     </span>

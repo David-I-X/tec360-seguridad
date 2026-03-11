@@ -27,6 +27,7 @@ interface User {
   phone: string
   email?: string
   full_name?: string
+  avatar_url?: string
   role?: string
   onboarding_completed?: boolean
   user_metadata?: Record<string, any>
