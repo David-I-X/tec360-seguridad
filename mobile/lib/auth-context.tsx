@@ -4,14 +4,13 @@
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { useRouter, useSegments } from "expo-router";
+import { useRouter, useSegments, useRootNavigationState } from "expo-router";
 import {
   getCurrentUser,
   clearTokens,
   getUser,
   saveUser,
   isAuthenticated as checkIsAuthenticated,
-  hasCompletedOnboarding as checkHasCompletedOnboarding,
 } from "./api";
 
 // ============================================
@@ -27,6 +26,7 @@ export interface User {
   role?: string;
   onboarding_completed?: boolean;
   user_metadata?: Record<string, any>;
+  average_rating?: number;
 }
 
 interface AuthContextType {
@@ -62,6 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const segments = useSegments();
   const router = useRouter();
+  const navigationState = useRootNavigationState();
 
   // Load user from SecureStore on mount
   useEffect(() => {
@@ -70,15 +71,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Protect routes based on auth state
   useEffect(() => {
+    // Don't redirect until loading is done AND navigation is ready
     if (isLoading) return;
+    if (!navigationState?.key) return;
 
-    const inAuthGroup = segments[0] === "(auth)";
+    // Check if we're in the auth group — handle both formats
+    const firstSegment = segments[0] || "";
+    const inAuthGroup = firstSegment === "(auth)" || firstSegment === "auth";
 
     if (!user && !inAuthGroup) {
-      // Not authenticated, redirect to login
+      // Not authenticated AND not already in auth screens → go to login
       router.replace("/(auth)/login");
     } else if (user && inAuthGroup) {
-      // Authenticated, redirect to appropriate home
+      // Already authenticated but still on auth screens → redirect to app
+      // EXCEPT if they're on the onboarding screen and haven't completed it
+      const currentScreen = segments[1] || "";
+      if (currentScreen === "onboarding") {
+        // Let them stay on onboarding
+        return;
+      }
+
       if (!user.onboarding_completed && !user.full_name) {
         router.replace("/(auth)/onboarding");
       } else if (user.role === "technician") {
@@ -87,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.replace("/(client)/services");
       }
     }
-  }, [user, segments, isLoading]);
+  }, [user, segments, isLoading, navigationState?.key]);
 
   const loadUser = async () => {
     try {

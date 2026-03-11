@@ -52,10 +52,15 @@ class ServiceWebSocket {
     };
 
     this.ws.onclose = (event) => {
-      console.log("[WS] Disconnected:", event.code, event.reason);
+      console.log("[WS] Disconnected:", event.code);
+      // Don't reconnect on auth errors (403 = Forbidden)
+      const reason = event.reason || "";
+      if (reason.includes("403") || reason.includes("Forbidden") || event.code === 1008) {
+        console.log("[WS] Auth error — not reconnecting");
+        return;
+      }
       if (this.serviceId && this.reconnectAttempts < this.maxReconnectAttempts) {
         const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-        console.log(`[WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1})`);
         this.reconnectTimeout = setTimeout(() => {
           this.reconnectAttempts++;
           if (this.serviceId && this.token) {
@@ -65,8 +70,8 @@ class ServiceWebSocket {
       }
     };
 
-    this.ws.onerror = (error) => {
-      console.error("[WS] Error:", error);
+    this.ws.onerror = () => {
+      // Errors are handled in onclose
     };
   }
 

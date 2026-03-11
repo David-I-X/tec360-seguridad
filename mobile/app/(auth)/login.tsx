@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,9 +24,14 @@ export default function LoginScreen() {
 
     try {
       const fullPhone = phone.startsWith('+') ? phone : `+57${phone}`;
-      await requestOTP(fullPhone);
+      console.log('[LOGIN] Requesting OTP for:', fullPhone);
+      const result = await requestOTP(fullPhone);
+      console.log('[LOGIN] OTP result:', JSON.stringify(result));
+      Alert.alert('OTP Enviado', `Código enviado a ${fullPhone}${result.code ? `\nCódigo dev: ${result.code}` : ''}`);
       router.push({ pathname: '/(auth)/verify', params: { phone: fullPhone } });
     } catch (err: any) {
+      console.log('[LOGIN] Error:', err.message);
+      Alert.alert('Error', err.message || 'Error desconocido');
       setError(err.message || 'Error al enviar el código');
     } finally {
       setIsLoading(false);
