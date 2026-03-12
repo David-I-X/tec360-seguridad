@@ -6,10 +6,12 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { verifyOTP, saveTokens, saveUser, getCurrentUser } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
 import { COLORS, GRADIENTS, SHADOWS } from '@/constants/theme';
 
 export default function VerifyScreen() {
   const router = useRouter();
+  const { loginUser } = useAuth();
   const { phone } = useLocalSearchParams<{ phone: string }>();
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -27,14 +29,12 @@ export default function VerifyScreen() {
       if (result.access_token) {
         await saveTokens(result.access_token, result.refresh_token);
         const userRes = await getCurrentUser();
-        if (userRes.user) await saveUser(userRes.user);
-        if (!userRes.user?.full_name) {
-          router.replace('/(auth)/onboarding');
-        } else if (userRes.user?.role === 'technician') {
-          router.replace('/(tech)/dashboard');
-        } else {
-          router.replace('/(client)/services');
+        if (userRes.user) {
+          await saveUser(userRes.user);
+          // Update in-memory state BEFORE navigating so route guard doesn't redirect
+          loginUser(userRes.user);
         }
+        // Navigation is now handled by auth-context route guard automatically
       }
     } catch (err: any) {
       Alert.alert('Código incorrecto', err.message || 'Intenta de nuevo');

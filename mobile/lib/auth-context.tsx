@@ -34,6 +34,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   hasCompletedOnboarding: boolean;
+  loginUser: (user: User) => void;
   refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -47,6 +48,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   isAuthenticated: false,
   hasCompletedOnboarding: false,
+  loginUser: () => {},
   refreshUser: async () => {},
   logout: async () => {},
 });
@@ -133,6 +135,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loginUser = useCallback((u: User) => {
+    setUser(u);
+  }, []);
+
   const refreshUser = useCallback(async () => {
     try {
       const response = await getCurrentUser();
@@ -158,6 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         hasCompletedOnboarding: !!user?.onboarding_completed || !!user?.full_name,
+        loginUser,
         refreshUser,
         logout,
       }}
