@@ -32,7 +32,7 @@ class ServiceWebSocket {
     this.serviceId = serviceId;
     this.token = token;
 
-    const wsUrl = `${WS_BASE}/api/ws/${serviceId}?token=${token}`;
+    const wsUrl = `${WS_BASE}/api/ws/service/${serviceId}?token=${token}`;
     console.log("[WS] Connecting to:", wsUrl);
 
     this.ws = new WebSocket(wsUrl);
