@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Plus, Loader2, Filter, MapPin, Calendar, ChevronRight, Shield, ClipboardList, CheckCircle, XCircle } from "lucide-react"
+import { Plus, Loader2, Filter, MapPin, Calendar, ChevronRight, Shield, ClipboardList, CheckCircle, XCircle, ArrowLeft } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
@@ -124,6 +124,10 @@ function MyServicesContent() {
         className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
       >
         <div>
+          <Link href="/" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-3">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Volver al Inicio
+          </Link>
           <h1 className="text-3xl font-extrabold">
             Mis <span className="gradient-text">Servicios</span>
           </h1>

@@ -101,7 +101,7 @@ export function Navbar() {
     <>
       <nav
         className={cn(
-          "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+          "sticky top-0 left-0 right-0 z-50 transition-all duration-300",
           isScrolled
             ? "border-b border-border bg-background/90 backdrop-blur-xl shadow-sm"
             : "border-b border-transparent bg-background/50 backdrop-blur-md"
@@ -159,7 +159,9 @@ export function Navbar() {
                       <div className="flex h-7 w-7 items-center justify-center rounded-full overflow-hidden border border-border/50">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={user.avatar_url.startsWith('http') ? user.avatar_url : `${process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") || "http://localhost:8000"}${user.avatar_url}`}
+                          src={user.avatar_url.startsWith('http') 
+                            ? user.avatar_url 
+                            : `${process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") || "http://localhost:8000"}${user.avatar_url.startsWith('/') ? '' : '/'}${user.avatar_url}`}
                           alt="Avatar"
                           className="w-full h-full object-cover"
                         />

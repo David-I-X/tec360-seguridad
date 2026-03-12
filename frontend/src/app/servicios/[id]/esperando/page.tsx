@@ -15,6 +15,12 @@ const WaitingMap = dynamic(() => import("@/components/services/service-map"), {
     loading: () => <div className="w-full h-full bg-muted/20 animate-pulse" />,
 })
 
+const RANK_INFO: Record<string, { label: string; color: string; icon: string; border: string }> = {
+    bronze: { label: "Bronce", color: "text-amber-700 dark:text-amber-600 bg-amber-700/10", border: "border-amber-700/20", icon: "🥉" },
+    silver: { label: "Plata", color: "text-slate-500 dark:text-slate-400 bg-slate-500/10", border: "border-slate-500/20", icon: "🥈" },
+    gold: { label: "Oro", color: "text-yellow-600 dark:text-yellow-500 bg-yellow-500/10", border: "border-yellow-500/20", icon: "🥇" },
+}
+
 /* ─── Radar animation ────────────────────────────────── */
 function RadarPulse() {
     return (
@@ -153,12 +159,20 @@ function TechnicianCard({ technician, serviceId }: { technician: any; serviceId:
 
                 <div className="flex-1 min-w-0">
                     <p className="font-bold text-lg leading-tight">{technician.full_name || "Técnico"}</p>
-                    <div className="flex items-center gap-1.5 mt-1 bg-amber-500/10 w-fit px-2 py-0.5 rounded-full border border-amber-500/20">
-                        <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                        <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
-                            {technician.average_rating?.toFixed(1) || "Nuevo"}
-                        </span>
-                        <span className="text-xs text-muted-foreground ml-1">· Verificado</span>
+                    <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                        <div className="flex items-center gap-1.5 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                            <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+                                {technician.average_rating?.toFixed(1) || "Nuevo"}
+                            </span>
+                        </div>
+                        {technician.rank && RANK_INFO[technician.rank] && (
+                            <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border ${RANK_INFO[technician.rank].color} ${RANK_INFO[technician.rank].border}`}>
+                                <span className="text-[10px] leading-none">{RANK_INFO[technician.rank].icon}</span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider">{RANK_INFO[technician.rank].label}</span>
+                            </div>
+                        )}
+                        <span className="text-xs text-muted-foreground">· Verificado</span>
                     </div>
                 </div>
             </div>
