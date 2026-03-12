@@ -1,16 +1,17 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '@/constants/theme';
 
 export default function ClientLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#3b82f6',
-        tabBarInactiveTintColor: '#64748b',
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textMuted,
         tabBarStyle: {
-          backgroundColor: '#0f172a',
-          borderTopColor: 'rgba(71, 85, 105, 0.3)',
+          backgroundColor: COLORS.bg,
+          borderTopColor: COLORS.border,
           borderTopWidth: 1,
           height: 88,
           paddingBottom: 28,
@@ -49,7 +50,7 @@ export default function ClientLayout() {
           ),
         }}
       />
-      {/* Hidden routes (accessible via push, not shown in tabs) */}
+      {/* Hidden routes */}
       <Tabs.Screen name="service/[id]" options={{ href: null }} />
       <Tabs.Screen name="waiting/[id]" options={{ href: null }} />
       <Tabs.Screen name="quotations/[id]" options={{ href: null }} />

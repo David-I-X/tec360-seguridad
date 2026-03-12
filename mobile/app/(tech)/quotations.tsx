@@ -30,7 +30,7 @@ export default function TechQuotationsScreen() {
   };
 
   if (isLoading) {
-    return <View style={styles.centered}><ActivityIndicator size="large" color="#3b82f6" /></View>;
+    return <View style={styles.centered}><ActivityIndicator size="large" color="#8b5cf6" /></View>;
   }
 
   return (
@@ -43,9 +43,9 @@ export default function TechQuotationsScreen() {
         data={quotations}
         keyExtractor={item => item.id?.toString()}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#3b82f6" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#8b5cf6" />}
         renderItem={({ item }) => {
-          const statusColor = statusColors[item.status] || '#64748b';
+          const statusColor = statusColors[item.status] || '#555872';
           return (
             <View style={styles.quoteCard}>
               <View style={styles.quoteHeader}>
@@ -81,20 +81,20 @@ export default function TechQuotationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a', paddingTop: 60 },
-  centered: { flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1, backgroundColor: '#050810', paddingTop: 60 },
+  centered: { flex: 1, backgroundColor: '#050810', justifyContent: 'center', alignItems: 'center' },
   header: { paddingHorizontal: 20, marginBottom: 16 },
-  headerTitle: { color: '#f8fafc', fontSize: 24, fontWeight: '800' },
-  quoteCard: { backgroundColor: 'rgba(30,41,59,0.5)', borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(71,85,105,0.2)' },
+  headerTitle: { color: '#f0f0f5', fontSize: 24, fontWeight: '800' },
+  quoteCard: { backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
   quoteHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  quoteTitle: { color: '#f8fafc', fontSize: 15, fontWeight: '700' },
-  quoteCity: { color: '#64748b', fontSize: 12, marginTop: 4 },
+  quoteTitle: { color: '#f0f0f5', fontSize: 15, fontWeight: '700' },
+  quoteCity: { color: '#555872', fontSize: 12, marginTop: 4 },
   quotePrice: { color: '#22c55e', fontSize: 18, fontWeight: '800', textAlign: 'right' },
   quoteBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginTop: 4, alignSelf: 'flex-end' },
   quoteBadgeText: { fontSize: 10, fontWeight: '700' },
-  quoteMessage: { color: '#94a3b8', fontSize: 13, fontStyle: 'italic', marginTop: 10, lineHeight: 18 },
+  quoteMessage: { color: '#8b8fa3', fontSize: 13, fontStyle: 'italic', marginTop: 10, lineHeight: 18 },
   emptyContainer: { alignItems: 'center', paddingTop: 60 },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { color: '#f8fafc', fontSize: 16, fontWeight: '700' },
-  emptySubtitle: { color: '#64748b', fontSize: 13, marginTop: 4, textAlign: 'center' },
+  emptyTitle: { color: '#f0f0f5', fontSize: 16, fontWeight: '700' },
+  emptySubtitle: { color: '#555872', fontSize: 13, marginTop: 4, textAlign: 'center' },
 });

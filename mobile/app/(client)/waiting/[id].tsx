@@ -78,7 +78,7 @@ export default function WaitingScreen() {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <ActivityIndicator size="large" color="#8b5cf6" />
       </View>
     );
   }
@@ -92,7 +92,7 @@ export default function WaitingScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#f8fafc" />
+          <Ionicons name="arrow-back" size={24} color="#f0f0f5" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Estado del Servicio</Text>
         <View style={{ width: 24 }} />
@@ -101,7 +101,7 @@ export default function WaitingScreen() {
       {/* Radar animation */}
       <View style={styles.radarContainer}>
         <Animated.View style={[styles.radarOuter, pulseStyle]}>
-          <LinearGradient colors={['#3b82f6', '#6366f1']} style={styles.radarInner}>
+          <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.radarInner}>
             <Text style={styles.radarEmoji}>🛡️</Text>
           </LinearGradient>
         </Animated.View>
@@ -141,7 +141,7 @@ export default function WaitingScreen() {
                 style={styles.techAvatar}
               />
             ) : (
-              <LinearGradient colors={['#3b82f6', '#6366f1']} style={styles.techAvatar}>
+              <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.techAvatar}>
                 <Text style={styles.techInitial}>{tech.full_name?.[0] || 'T'}</Text>
               </LinearGradient>
             )}
@@ -166,7 +166,7 @@ export default function WaitingScreen() {
               style={styles.profileButton}
               onPress={() => {/* TODO: Navigate to tech profile */}}
             >
-              <Ionicons name="person" size={18} color="#3b82f6" />
+              <Ionicons name="person" size={18} color="#8b5cf6" />
               <Text style={styles.profileText}>Ver Perfil</Text>
             </TouchableOpacity>
           </View>
@@ -177,12 +177,12 @@ export default function WaitingScreen() {
       <View style={styles.infoCard}>
         <Text style={styles.infoTitle}>{service?.title}</Text>
         <View style={styles.infoRow}>
-          <Ionicons name="location" size={16} color="#64748b" />
+          <Ionicons name="location" size={16} color="#555872" />
           <Text style={styles.infoText}>{service?.service_address || service?.service_city}</Text>
         </View>
         {service?.vehicle_plate && (
           <View style={styles.infoRow}>
-            <Ionicons name="car" size={16} color="#64748b" />
+            <Ionicons name="car" size={16} color="#555872" />
             <Text style={styles.infoText}>{service.vehicle_type} {service.vehicle_model} — {service.vehicle_plate}</Text>
           </View>
         )}
@@ -192,41 +192,41 @@ export default function WaitingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  centered: { flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1, backgroundColor: '#050810' },
+  centered: { flex: 1, backgroundColor: '#050810', justifyContent: 'center', alignItems: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16 },
-  headerTitle: { color: '#f8fafc', fontSize: 18, fontWeight: '700' },
+  headerTitle: { color: '#f0f0f5', fontSize: 18, fontWeight: '700' },
   radarContainer: { alignItems: 'center', paddingVertical: 30 },
-  radarOuter: { width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderColor: 'rgba(59,130,246,0.3)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  radarInner: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', shadowColor: '#3b82f6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 10 },
+  radarOuter: { width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderColor: 'rgba(139,92,246,0.3)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  radarInner: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', shadowColor: '#8b5cf6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 10 },
   radarEmoji: { fontSize: 28 },
-  radarText: { color: '#94a3b8', fontSize: 15, fontWeight: '600' },
-  stepperCard: { marginHorizontal: 20, backgroundColor: 'rgba(30,41,59,0.5)', borderRadius: 20, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(71,85,105,0.2)' },
+  radarText: { color: '#8b8fa3', fontSize: 15, fontWeight: '600' },
+  stepperCard: { marginHorizontal: 20, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 20, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
-  stepCircle: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(71,85,105,0.3)', borderWidth: 2, borderColor: 'rgba(71,85,105,0.4)' },
+  stepCircle: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(80,60,160,0.3)', borderWidth: 2, borderColor: 'rgba(80,60,160,0.4)' },
   stepDone: { backgroundColor: '#22c55e', borderColor: '#22c55e' },
-  stepActive: { backgroundColor: 'rgba(59,130,246,0.2)', borderColor: '#3b82f6' },
+  stepActive: { backgroundColor: 'rgba(139,92,246,0.2)', borderColor: '#8b5cf6' },
   stepEmoji: { fontSize: 14 },
-  stepText: { color: '#94a3b8', fontSize: 14, fontWeight: '600', flex: 1 },
-  stepTextActive: { color: '#f8fafc' },
-  stepLine: { position: 'absolute', left: 15, top: 34, width: 2, height: 14, backgroundColor: 'rgba(71,85,105,0.3)' },
+  stepText: { color: '#8b8fa3', fontSize: 14, fontWeight: '600', flex: 1 },
+  stepTextActive: { color: '#f0f0f5' },
+  stepLine: { position: 'absolute', left: 15, top: 34, width: 2, height: 14, backgroundColor: 'rgba(80,60,160,0.3)' },
   stepLineDone: { backgroundColor: '#22c55e' },
-  techCard: { marginHorizontal: 20, backgroundColor: 'rgba(30,41,59,0.5)', borderRadius: 20, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(71,85,105,0.2)' },
-  techSectionTitle: { color: '#64748b', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 },
+  techCard: { marginHorizontal: 20, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 20, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
+  techSectionTitle: { color: '#555872', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 },
   techRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 },
   techAvatar: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   techInitial: { color: '#fff', fontSize: 20, fontWeight: '800' },
   techInfo: { flex: 1 },
-  techName: { color: '#f8fafc', fontSize: 17, fontWeight: '700' },
+  techName: { color: '#f0f0f5', fontSize: 17, fontWeight: '700' },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   ratingText: { color: '#eab308', fontSize: 14, fontWeight: '600' },
   techActions: { flexDirection: 'row', gap: 10 },
   callButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 14, backgroundColor: 'rgba(34,197,94,0.1)', borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' },
   callText: { color: '#22c55e', fontSize: 14, fontWeight: '700' },
-  profileButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 14, backgroundColor: 'rgba(59,130,246,0.1)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.2)' },
-  profileText: { color: '#3b82f6', fontSize: 14, fontWeight: '700' },
-  infoCard: { marginHorizontal: 20, backgroundColor: 'rgba(30,41,59,0.5)', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: 'rgba(71,85,105,0.2)' },
-  infoTitle: { color: '#f8fafc', fontSize: 17, fontWeight: '700', marginBottom: 12 },
+  profileButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 14, backgroundColor: 'rgba(139,92,246,0.1)', borderWidth: 1, borderColor: 'rgba(139,92,246,0.2)' },
+  profileText: { color: '#8b5cf6', fontSize: 14, fontWeight: '700' },
+  infoCard: { marginHorizontal: 20, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
+  infoTitle: { color: '#f0f0f5', fontSize: 17, fontWeight: '700', marginBottom: 12 },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  infoText: { color: '#94a3b8', fontSize: 14 },
+  infoText: { color: '#8b8fa3', fontSize: 14 },
 });

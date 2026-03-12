@@ -82,7 +82,7 @@ export default function TechProfileScreen() {
               style={styles.avatar}
             />
           ) : (
-            <LinearGradient colors={['#3b82f6', '#6366f1']} style={styles.avatar}>
+            <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.avatar}>
               <Text style={styles.avatarText}>{user?.full_name?.[0] || 'T'}</Text>
             </LinearGradient>
           )}
@@ -98,7 +98,7 @@ export default function TechProfileScreen() {
       {/* Stats */}
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
-          <Ionicons name="briefcase" size={22} color="#3b82f6" />
+          <Ionicons name="briefcase" size={22} color="#8b5cf6" />
           <Text style={styles.statNumber}>{stats.total}</Text>
           <Text style={styles.statLabel}>Servicios</Text>
         </View>
@@ -117,19 +117,19 @@ export default function TechProfileScreen() {
       {/* Menu Items */}
       <View style={styles.menuSection}>
         <TouchableOpacity style={styles.menuItem}>
-          <Ionicons name="person-outline" size={20} color="#94a3b8" />
+          <Ionicons name="person-outline" size={20} color="#8b8fa3" />
           <Text style={styles.menuText}>Editar Perfil</Text>
-          <Ionicons name="chevron-forward" size={18} color="#475569" />
+          <Ionicons name="chevron-forward" size={18} color="#555872" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.menuItem}>
-          <Ionicons name="pricetags-outline" size={20} color="#94a3b8" />
+          <Ionicons name="pricetags-outline" size={20} color="#8b8fa3" />
           <Text style={styles.menuText}>Mis Cotizaciones</Text>
-          <Ionicons name="chevron-forward" size={18} color="#475569" />
+          <Ionicons name="chevron-forward" size={18} color="#555872" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.menuItem}>
-          <Ionicons name="help-circle-outline" size={20} color="#94a3b8" />
+          <Ionicons name="help-circle-outline" size={20} color="#8b8fa3" />
           <Text style={styles.menuText}>Soporte</Text>
-          <Ionicons name="chevron-forward" size={18} color="#475569" />
+          <Ionicons name="chevron-forward" size={18} color="#555872" />
         </TouchableOpacity>
       </View>
 
@@ -143,23 +143,23 @@ export default function TechProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
+  container: { flex: 1, backgroundColor: '#050810' },
   header: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 10 },
-  headerTitle: { color: '#f8fafc', fontSize: 24, fontWeight: '800' },
+  headerTitle: { color: '#f0f0f5', fontSize: 24, fontWeight: '800' },
   avatarContainer: { alignItems: 'center', paddingVertical: 24 },
   avatar: { width: 96, height: 96, borderRadius: 48, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   avatarText: { color: '#fff', fontSize: 32, fontWeight: '800' },
-  cameraIcon: { position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: '#3b82f6', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#0f172a' },
-  name: { color: '#f8fafc', fontSize: 22, fontWeight: '800', marginTop: 12 },
-  phone: { color: '#94a3b8', fontSize: 14, marginTop: 4 },
-  email: { color: '#64748b', fontSize: 13, marginTop: 2 },
+  cameraIcon: { position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: '#8b5cf6', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#050810' },
+  name: { color: '#f0f0f5', fontSize: 22, fontWeight: '800', marginTop: 12 },
+  phone: { color: '#8b8fa3', fontSize: 14, marginTop: 4 },
+  email: { color: '#555872', fontSize: 13, marginTop: 2 },
   statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginBottom: 24 },
-  statCard: { flex: 1, backgroundColor: 'rgba(30,41,59,0.6)', borderRadius: 16, padding: 16, alignItems: 'center', gap: 6, borderWidth: 1, borderColor: 'rgba(71,85,105,0.2)' },
-  statNumber: { color: '#f8fafc', fontSize: 20, fontWeight: '800' },
-  statLabel: { color: '#64748b', fontSize: 11 },
-  menuSection: { marginHorizontal: 20, backgroundColor: 'rgba(30,41,59,0.5)', borderRadius: 18, overflow: 'hidden', marginBottom: 24, borderWidth: 1, borderColor: 'rgba(71,85,105,0.2)' },
-  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(71,85,105,0.15)' },
-  menuText: { flex: 1, color: '#f8fafc', fontSize: 15, fontWeight: '600' },
+  statCard: { flex: 1, backgroundColor: 'rgba(10,14,28,0.85)', borderRadius: 16, padding: 16, alignItems: 'center', gap: 6, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
+  statNumber: { color: '#f0f0f5', fontSize: 20, fontWeight: '800' },
+  statLabel: { color: '#555872', fontSize: 11 },
+  menuSection: { marginHorizontal: 20, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 18, overflow: 'hidden', marginBottom: 24, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(80,60,160,0.15)' },
+  menuText: { flex: 1, color: '#f0f0f5', fontSize: 15, fontWeight: '600' },
   logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 20, paddingVertical: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', backgroundColor: 'rgba(239,68,68,0.08)' },
   logoutText: { color: '#ef4444', fontSize: 15, fontWeight: '700' },
 });

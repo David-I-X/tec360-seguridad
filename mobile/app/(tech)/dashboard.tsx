@@ -61,7 +61,7 @@ export default function TechDashboardScreen() {
   const staticUrl = API_URL.replace(/\/api\/?$/, '');
 
   if (isLoading) {
-    return <View style={styles.centered}><ActivityIndicator size="large" color="#3b82f6" /></View>;
+    return <View style={styles.centered}><ActivityIndicator size="large" color="#8b5cf6" /></View>;
   }
 
   return (
@@ -72,7 +72,7 @@ export default function TechDashboardScreen() {
           {user?.avatar_url ? (
             <Image source={{ uri: user.avatar_url.startsWith('http') ? user.avatar_url : `${staticUrl}${user.avatar_url}` }} style={styles.avatar} />
           ) : (
-            <LinearGradient colors={['#3b82f6', '#6366f1']} style={styles.avatar}>
+            <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.avatar}>
               <Text style={styles.avatarText}>{user?.full_name?.[0] || 'T'}</Text>
             </LinearGradient>
           )}
@@ -86,14 +86,14 @@ export default function TechDashboardScreen() {
       {/* Online Toggle */}
       <View style={styles.toggleCard}>
         <View style={styles.toggleLeft}>
-          <View style={[styles.onlineDot, { backgroundColor: isOnline ? '#22c55e' : '#64748b' }]} />
+          <View style={[styles.onlineDot, { backgroundColor: isOnline ? '#22c55e' : '#555872' }]} />
           <Text style={styles.toggleText}>{isOnline ? 'En línea' : 'Fuera de línea'}</Text>
         </View>
         <Switch
           value={isOnline}
           onValueChange={setIsOnline}
           trackColor={{ false: '#334155', true: 'rgba(34,197,94,0.3)' }}
-          thumbColor={isOnline ? '#22c55e' : '#64748b'}
+          thumbColor={isOnline ? '#22c55e' : '#555872'}
         />
       </View>
 
@@ -118,17 +118,17 @@ export default function TechDashboardScreen() {
           onPress={() => router.push(`/(tech)/service/${myActiveService.id}` as any)}
           activeOpacity={0.8}
         >
-          <LinearGradient colors={['rgba(59,130,246,0.15)', 'rgba(99,102,241,0.1)']} style={styles.activeCardGradient}>
+          <LinearGradient colors={['rgba(139,92,246,0.15)', 'rgba(99,102,241,0.1)']} style={styles.activeCardGradient}>
             <View style={styles.activeCardHeader}>
               <View style={styles.liveBadge}>
                 <View style={styles.livePulse} />
                 <Text style={styles.liveText}>SERVICIO ACTIVO</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#3b82f6" />
+              <Ionicons name="chevron-forward" size={18} color="#8b5cf6" />
             </View>
             <Text style={styles.activeCardTitle}>{myActiveService.title}</Text>
             <View style={styles.activeCardMeta}>
-              <Ionicons name="location" size={14} color="#64748b" />
+              <Ionicons name="location" size={14} color="#555872" />
               <Text style={styles.activeCardLocation}>{myActiveService.service_city || myActiveService.service_address}</Text>
             </View>
           </LinearGradient>
@@ -144,7 +144,7 @@ export default function TechDashboardScreen() {
       <FlatList
         data={isOnline ? availableServices : []}
         keyExtractor={item => item.id?.toString()}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#3b82f6" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#8b5cf6" />}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}
         renderItem={({ item }) => (
           <View style={styles.serviceCard}>
@@ -153,7 +153,7 @@ export default function TechDashboardScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle}>{item.title}</Text>
                 <View style={styles.cardMeta}>
-                  <Ionicons name="location-outline" size={13} color="#64748b" />
+                  <Ionicons name="location-outline" size={13} color="#555872" />
                   <Text style={styles.cardMetaText}>{item.service_city || 'Sin ubicación'}</Text>
                 </View>
               </View>
@@ -182,46 +182,46 @@ export default function TechDashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a', paddingTop: 60 },
-  centered: { flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1, backgroundColor: '#050810', paddingTop: 60 },
+  centered: { flex: 1, backgroundColor: '#050810', justifyContent: 'center', alignItems: 'center' },
   header: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 16 },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   avatar: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   avatarText: { color: '#fff', fontSize: 18, fontWeight: '800' },
-  greeting: { color: '#f8fafc', fontSize: 18, fontWeight: '700' },
-  role: { color: '#64748b', fontSize: 12, marginTop: 2 },
-  toggleCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: 20, backgroundColor: 'rgba(30,41,59,0.6)', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(71,85,105,0.2)' },
+  greeting: { color: '#f0f0f5', fontSize: 18, fontWeight: '700' },
+  role: { color: '#555872', fontSize: 12, marginTop: 2 },
+  toggleCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: 20, backgroundColor: 'rgba(10,14,28,0.85)', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
   toggleLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   onlineDot: { width: 10, height: 10, borderRadius: 5 },
-  toggleText: { color: '#f8fafc', fontSize: 15, fontWeight: '600' },
+  toggleText: { color: '#f0f0f5', fontSize: 15, fontWeight: '600' },
   statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginBottom: 16 },
-  statCard: { flex: 1, backgroundColor: 'rgba(30,41,59,0.6)', borderRadius: 16, padding: 16, alignItems: 'center', gap: 6, borderWidth: 1, borderColor: 'rgba(71,85,105,0.2)' },
-  statNumber: { color: '#f8fafc', fontSize: 22, fontWeight: '800' },
-  statLabel: { color: '#64748b', fontSize: 11 },
-  activeCard: { marginHorizontal: 20, marginBottom: 16, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(59,130,246,0.3)' },
+  statCard: { flex: 1, backgroundColor: 'rgba(10,14,28,0.85)', borderRadius: 16, padding: 16, alignItems: 'center', gap: 6, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
+  statNumber: { color: '#f0f0f5', fontSize: 22, fontWeight: '800' },
+  statLabel: { color: '#555872', fontSize: 11 },
+  activeCard: { marginHorizontal: 20, marginBottom: 16, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(139,92,246,0.3)' },
   activeCardGradient: { padding: 18 },
   activeCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(59,130,246,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  livePulse: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#3b82f6' },
-  liveText: { color: '#3b82f6', fontSize: 10, fontWeight: '800' },
-  activeCardTitle: { color: '#f8fafc', fontSize: 17, fontWeight: '700' },
+  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(139,92,246,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  livePulse: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#8b5cf6' },
+  liveText: { color: '#8b5cf6', fontSize: 10, fontWeight: '800' },
+  activeCardTitle: { color: '#f0f0f5', fontSize: 17, fontWeight: '700' },
   activeCardMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  activeCardLocation: { color: '#64748b', fontSize: 13 },
+  activeCardLocation: { color: '#555872', fontSize: 13 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 12 },
-  sectionTitle: { color: '#f8fafc', fontSize: 16, fontWeight: '700' },
-  sectionCount: { color: '#3b82f6', fontSize: 14, fontWeight: '700' },
-  serviceCard: { backgroundColor: 'rgba(30,41,59,0.5)', borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(71,85,105,0.2)' },
+  sectionTitle: { color: '#f0f0f5', fontSize: 16, fontWeight: '700' },
+  sectionCount: { color: '#8b5cf6', fontSize: 14, fontWeight: '700' },
+  serviceCard: { backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   cardEmoji: { fontSize: 24 },
-  cardTitle: { color: '#f8fafc', fontSize: 15, fontWeight: '700' },
+  cardTitle: { color: '#f0f0f5', fontSize: 15, fontWeight: '700' },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  cardMetaText: { color: '#64748b', fontSize: 12 },
+  cardMetaText: { color: '#555872', fontSize: 12 },
   cardPrice: { color: '#22c55e', fontSize: 16, fontWeight: '800' },
   acceptBtn: { borderRadius: 12, overflow: 'hidden' },
   acceptGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 12 },
   acceptText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   emptyContainer: { alignItems: 'center', paddingTop: 40 },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { color: '#f8fafc', fontSize: 16, fontWeight: '700' },
-  emptySubtitle: { color: '#64748b', fontSize: 13, marginTop: 4, textAlign: 'center' },
+  emptyTitle: { color: '#f0f0f5', fontSize: 16, fontWeight: '700' },
+  emptySubtitle: { color: '#555872', fontSize: 13, marginTop: 4, textAlign: 'center' },
 });

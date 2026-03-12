@@ -53,7 +53,7 @@ export default function QuotationsScreen() {
   };
 
   if (isLoading) {
-    return <View style={styles.centered}><ActivityIndicator size="large" color="#3b82f6" /></View>;
+    return <View style={styles.centered}><ActivityIndicator size="large" color="#8b5cf6" /></View>;
   }
 
   return (
@@ -61,7 +61,7 @@ export default function QuotationsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#f8fafc" />
+          <Ionicons name="arrow-back" size={24} color="#f0f0f5" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Cotizaciones</Text>
         <View style={{ width: 24 }} />
@@ -85,7 +85,7 @@ export default function QuotationsScreen() {
           <View key={q.id} style={styles.quoteCard}>
             <View style={styles.quoteHeader}>
               <View style={styles.techRow}>
-                <LinearGradient colors={['#3b82f6', '#6366f1']} style={styles.techAvatar}>
+                <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.techAvatar}>
                   <Text style={styles.techInitial}>{q.technician?.full_name?.[0] || 'T'}</Text>
                 </LinearGradient>
                 <View>
@@ -106,7 +106,7 @@ export default function QuotationsScreen() {
 
             <View style={styles.quoteMetaRow}>
               <View style={styles.quoteMeta}>
-                <Ionicons name="time" size={14} color="#64748b" />
+                <Ionicons name="time" size={14} color="#555872" />
                 <Text style={styles.quoteMetaText}>{q.estimated_time || 'Sin estimar'}</Text>
               </View>
             </View>
@@ -134,31 +134,31 @@ export default function QuotationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  centered: { flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1, backgroundColor: '#050810' },
+  centered: { flex: 1, backgroundColor: '#050810', justifyContent: 'center', alignItems: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16 },
-  headerTitle: { color: '#f8fafc', fontSize: 18, fontWeight: '700' },
+  headerTitle: { color: '#f0f0f5', fontSize: 18, fontWeight: '700' },
   serviceInfo: { paddingHorizontal: 20, marginBottom: 20 },
-  serviceTitle: { color: '#f8fafc', fontSize: 22, fontWeight: '800' },
-  serviceSubtitle: { color: '#64748b', fontSize: 14, marginTop: 4 },
+  serviceTitle: { color: '#f0f0f5', fontSize: 22, fontWeight: '800' },
+  serviceSubtitle: { color: '#555872', fontSize: 14, marginTop: 4 },
   emptyContainer: { alignItems: 'center', paddingTop: 60 },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { color: '#f8fafc', fontSize: 18, fontWeight: '700' },
-  emptySubtitle: { color: '#64748b', fontSize: 14, marginTop: 4 },
-  quoteCard: { marginHorizontal: 20, backgroundColor: 'rgba(30,41,59,0.5)', borderRadius: 20, padding: 20, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(71,85,105,0.2)' },
+  emptyTitle: { color: '#f0f0f5', fontSize: 18, fontWeight: '700' },
+  emptySubtitle: { color: '#555872', fontSize: 14, marginTop: 4 },
+  quoteCard: { marginHorizontal: 20, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 20, padding: 20, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
   quoteHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
   techRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   techAvatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   techInitial: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  techName: { color: '#f8fafc', fontSize: 15, fontWeight: '700' },
+  techName: { color: '#f0f0f5', fontSize: 15, fontWeight: '700' },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   ratingText: { color: '#eab308', fontSize: 12, fontWeight: '600' },
-  priceLabel: { color: '#64748b', fontSize: 11, textAlign: 'right' },
+  priceLabel: { color: '#555872', fontSize: 11, textAlign: 'right' },
   price: { color: '#22c55e', fontSize: 20, fontWeight: '800' },
-  quoteMessage: { color: '#94a3b8', fontSize: 14, fontStyle: 'italic', marginBottom: 12, lineHeight: 20 },
+  quoteMessage: { color: '#8b8fa3', fontSize: 14, fontStyle: 'italic', marginBottom: 12, lineHeight: 20 },
   quoteMetaRow: { flexDirection: 'row', gap: 16, marginBottom: 14 },
   quoteMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  quoteMetaText: { color: '#64748b', fontSize: 13 },
+  quoteMetaText: { color: '#555872', fontSize: 13 },
   acceptButton: { borderRadius: 14, overflow: 'hidden' },
   acceptGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14 },
   acceptText: { color: '#fff', fontSize: 15, fontWeight: '700' },

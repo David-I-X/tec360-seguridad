@@ -133,7 +133,7 @@ export default function NewServiceScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#f8fafc" />
+          <Ionicons name="arrow-back" size={24} color="#f0f0f5" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Nuevo Servicio</Text>
         <View style={{ width: 24 }} />
@@ -169,10 +169,10 @@ export default function NewServiceScreen() {
             </View>
 
             <Text style={styles.inputLabel}>Título del servicio</Text>
-            <TextInput style={styles.input} placeholder="Ej: Instalar GPS en camioneta" placeholderTextColor="#475569" value={title} onChangeText={setTitle} />
+            <TextInput style={styles.input} placeholder="Ej: Instalar GPS en camioneta" placeholderTextColor="#555872" value={title} onChangeText={setTitle} />
 
             <Text style={styles.inputLabel}>Descripción (opcional)</Text>
-            <TextInput style={[styles.input, { height: 80, textAlignVertical: 'top' }]} placeholder="Describe lo que necesitas..." placeholderTextColor="#475569" value={description} onChangeText={setDescription} multiline />
+            <TextInput style={[styles.input, { height: 80, textAlignVertical: 'top' }]} placeholder="Describe lo que necesitas..." placeholderTextColor="#555872" value={description} onChangeText={setDescription} multiline />
           </View>
         )}
 
@@ -182,22 +182,22 @@ export default function NewServiceScreen() {
             <Text style={styles.sectionTitle}>Información del vehículo</Text>
 
             <Text style={styles.inputLabel}>Tipo de vehículo</Text>
-            <TextInput style={styles.input} placeholder="Ej: Camioneta, Sedan, Moto" placeholderTextColor="#475569" value={vehicleType} onChangeText={setVehicleType} />
+            <TextInput style={styles.input} placeholder="Ej: Camioneta, Sedan, Moto" placeholderTextColor="#555872" value={vehicleType} onChangeText={setVehicleType} />
 
             <Text style={styles.inputLabel}>Modelo</Text>
-            <TextInput style={styles.input} placeholder="Ej: Toyota Hilux 2023" placeholderTextColor="#475569" value={vehicleModel} onChangeText={setVehicleModel} />
+            <TextInput style={styles.input} placeholder="Ej: Toyota Hilux 2023" placeholderTextColor="#555872" value={vehicleModel} onChangeText={setVehicleModel} />
 
             <Text style={styles.inputLabel}>Placa</Text>
-            <TextInput style={styles.input} placeholder="Ej: ABC-123" placeholderTextColor="#475569" value={vehiclePlate} onChangeText={setVehiclePlate} autoCapitalize="characters" />
+            <TextInput style={styles.input} placeholder="Ej: ABC-123" placeholderTextColor="#555872" value={vehiclePlate} onChangeText={setVehiclePlate} autoCapitalize="characters" />
 
             <Text style={styles.inputLabel}>Foto del vehículo</Text>
             <View style={styles.photoRow}>
               <TouchableOpacity style={styles.photoButton} onPress={takeVehiclePhoto}>
-                <Ionicons name="camera" size={24} color="#3b82f6" />
+                <Ionicons name="camera" size={24} color="#8b5cf6" />
                 <Text style={styles.photoButtonText}>Cámara</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.photoButton} onPress={pickVehiclePhoto}>
-                <Ionicons name="image" size={24} color="#3b82f6" />
+                <Ionicons name="image" size={24} color="#8b5cf6" />
                 <Text style={styles.photoButtonText}>Galería</Text>
               </TouchableOpacity>
             </View>
@@ -216,10 +216,10 @@ export default function NewServiceScreen() {
             <Text style={styles.sectionTitle}>¿Dónde necesitas el servicio?</Text>
 
             <Text style={styles.inputLabel}>Dirección</Text>
-            <TextInput style={styles.input} placeholder="Calle, número, barrio" placeholderTextColor="#475569" value={address} onChangeText={setAddress} />
+            <TextInput style={styles.input} placeholder="Calle, número, barrio" placeholderTextColor="#555872" value={address} onChangeText={setAddress} />
 
             <Text style={styles.inputLabel}>Ciudad</Text>
-            <TextInput style={styles.input} placeholder="Ej: Bogotá" placeholderTextColor="#475569" value={city} onChangeText={setCity} />
+            <TextInput style={styles.input} placeholder="Ej: Bogotá" placeholderTextColor="#555872" value={city} onChangeText={setCity} />
           </View>
         )}
       </ScrollView>
@@ -237,7 +237,7 @@ export default function NewServiceScreen() {
           disabled={isLoading}
           activeOpacity={0.8}
         >
-          <LinearGradient colors={['#3b82f6', '#6366f1']} style={styles.nextBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+          <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.nextBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
             {isLoading ? <ActivityIndicator color="#fff" /> : (
               <Text style={styles.nextBtnText}>{step < 2 ? 'Siguiente' : 'Crear Servicio'}</Text>
             )}
@@ -249,34 +249,34 @@ export default function NewServiceScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
+  container: { flex: 1, backgroundColor: '#050810' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16 },
-  headerTitle: { color: '#f8fafc', fontSize: 18, fontWeight: '700' },
+  headerTitle: { color: '#f0f0f5', fontSize: 18, fontWeight: '700' },
   stepsRow: { flexDirection: 'row', justifyContent: 'center', gap: 32, paddingBottom: 20 },
   stepItem: { alignItems: 'center', gap: 6 },
-  stepDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(71,85,105,0.4)' },
-  stepDotActive: { backgroundColor: '#3b82f6' },
-  stepLabel: { color: '#475569', fontSize: 11, fontWeight: '600' },
-  stepLabelActive: { color: '#3b82f6' },
+  stepDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(80,60,160,0.4)' },
+  stepDotActive: { backgroundColor: '#8b5cf6' },
+  stepLabel: { color: '#555872', fontSize: 11, fontWeight: '600' },
+  stepLabelActive: { color: '#8b5cf6' },
   form: { flex: 1, paddingHorizontal: 20 },
   stepContent: {},
-  sectionTitle: { color: '#f8fafc', fontSize: 20, fontWeight: '800', marginBottom: 20 },
+  sectionTitle: { color: '#f0f0f5', fontSize: 20, fontWeight: '800', marginBottom: 20 },
   typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
-  typeCard: { width: '47%' as any, backgroundColor: 'rgba(30,41,59,0.6)', borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 2, borderColor: 'rgba(71,85,105,0.2)' },
-  typeCardActive: { borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)' },
+  typeCard: { width: '47%' as any, backgroundColor: 'rgba(10,14,28,0.85)', borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 2, borderColor: 'rgba(80,60,160,0.2)' },
+  typeCardActive: { borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.1)' },
   typeEmoji: { fontSize: 28, marginBottom: 8 },
-  typeLabel: { color: '#94a3b8', fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  typeLabelActive: { color: '#3b82f6' },
-  inputLabel: { color: '#94a3b8', fontSize: 13, fontWeight: '600', marginBottom: 8, marginLeft: 4 },
-  input: { backgroundColor: 'rgba(15,23,42,0.8)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(71,85,105,0.4)', paddingVertical: 14, paddingHorizontal: 16, color: '#f8fafc', fontSize: 15, marginBottom: 16 },
+  typeLabel: { color: '#8b8fa3', fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  typeLabelActive: { color: '#8b5cf6' },
+  inputLabel: { color: '#8b8fa3', fontSize: 13, fontWeight: '600', marginBottom: 8, marginLeft: 4 },
+  input: { backgroundColor: 'rgba(15,23,42,0.8)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(80,60,160,0.4)', paddingVertical: 14, paddingHorizontal: 16, color: '#f0f0f5', fontSize: 15, marginBottom: 16 },
   photoRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  photoButton: { flex: 1, backgroundColor: 'rgba(30,41,59,0.6)', borderRadius: 14, padding: 20, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(59,130,246,0.2)' },
-  photoButtonText: { color: '#3b82f6', fontSize: 13, fontWeight: '600' },
+  photoButton: { flex: 1, backgroundColor: 'rgba(10,14,28,0.85)', borderRadius: 14, padding: 20, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(139,92,246,0.2)' },
+  photoButtonText: { color: '#8b5cf6', fontSize: 13, fontWeight: '600' },
   photoPreview: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
   photoPreviewText: { color: '#22c55e', fontSize: 13 },
-  bottomActions: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, paddingBottom: 36, paddingTop: 12, backgroundColor: '#0f172a', borderTopWidth: 1, borderTopColor: 'rgba(71,85,105,0.2)' },
+  bottomActions: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, paddingBottom: 36, paddingTop: 12, backgroundColor: '#050810', borderTopWidth: 1, borderTopColor: 'rgba(80,60,160,0.2)' },
   backBtn: { justifyContent: 'center', paddingHorizontal: 20 },
-  backBtnText: { color: '#94a3b8', fontSize: 15, fontWeight: '600' },
+  backBtnText: { color: '#8b8fa3', fontSize: 15, fontWeight: '600' },
   nextBtn: { flex: 1, borderRadius: 16, overflow: 'hidden' },
   nextBtnGradient: { paddingVertical: 16, alignItems: 'center', borderRadius: 16 },
   nextBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
