@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { verifyCode, saveTokens, saveUser, getCurrentUser } from '@/lib/api';
+import { verifyOTP, saveTokens, saveUser, getCurrentUser } from '@/lib/api';
 import { COLORS, GRADIENTS, SHADOWS } from '@/constants/theme';
 
 export default function VerifyScreen() {
@@ -23,7 +23,7 @@ export default function VerifyScreen() {
     if (code.length < 6) return;
     setIsLoading(true);
     try {
-      const result = await verifyCode(phone!, code);
+      const result = await verifyOTP(phone!, code);
       if (result.access_token) {
         await saveTokens(result.access_token, result.refresh_token);
         const userRes = await getCurrentUser();
