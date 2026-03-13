@@ -1,9 +1,12 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
-import { useAuth } from "@/lib/auth-context"
 import api from "@/lib/api"
+import { ProtectedRoute, useAuth } from "@/lib/auth-context"
+import { GlassCard } from "@/components/ui/glass-card"
+import { Button } from "@/components/ui/button"
 import { toast } from "react-hot-toast"
+import { getAvatarUrl } from "@/lib/utils"
 import { Camera, User, Wrench, Shield, AlertTriangle, LogOut, ArrowLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -17,7 +20,8 @@ export default function ConfigPage() {
     const [saving, setSaving] = useState(false)
     const [avatarError, setAvatarError] = useState(false)  // track broken img
 
-    const STATIC_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/api\/?$/, "")
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+    const STATIC_URL = API_URL.replace(/\/api\/?$/, "")
 
     // Form States
     const [profileData, setProfileData] = useState<any>(null)
@@ -233,9 +237,7 @@ export default function ConfigPage() {
                                             <div className="h-36 w-36 rounded-full overflow-hidden ring-4 ring-[#00f2ff]/20 group-hover:ring-[#00f2ff]/40 transition-all duration-300 bg-slate-800 flex items-center justify-center">
                                                 {profileData?.avatar_url && !avatarError ? (
                                                     <img
-                                                        src={profileData.avatar_url.startsWith("http")
-                                                            ? profileData.avatar_url
-                                                            : `${STATIC_URL}${profileData.avatar_url}`}
+                                                        src={getAvatarUrl(profileData.avatar_url)}
                                                         alt="Avatar"
                                                         className="w-full h-full object-cover"
                                                         onError={() => setAvatarError(true)}

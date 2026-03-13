@@ -14,7 +14,9 @@ import { Badge } from "@/components/ui/badge"
 import { GlassCard } from "@/components/ui/glass-card"
 import { LiveTrackingView } from "@/components/services/live-tracking-view"
 import { RatingModal } from "@/components/ratings/rating-modal"
+import { TrackingSimulator } from "@/components/services/tracking-simulator"
 import { StarDisplay } from "@/components/ui/star-rating"
+import { getAvatarUrl } from "@/lib/utils"
 import Link from "next/link"
 import {
     AlertDialog,
@@ -264,7 +266,7 @@ function ServiceDetailContent() {
                                 </h3>
                                 <div className="flex items-center gap-4">
                                     {service.technician.avatar_url ? (
-                                        <img src={service.technician.avatar_url} alt="" className="w-14 h-14 rounded-2xl object-cover" />
+                                        <img src={getAvatarUrl(service.technician.avatar_url)} alt="" className="w-14 h-14 rounded-2xl object-cover" />
                                     ) : (
                                         <div className="w-14 h-14 rounded-2xl gradient-brand flex items-center justify-center text-xl font-bold text-white">
                                             {(service.technician.full_name || "T").charAt(0)}

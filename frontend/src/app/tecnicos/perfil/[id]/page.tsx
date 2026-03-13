@@ -14,6 +14,7 @@ import Link from "next/link"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { StarDisplay } from "@/components/ui/star-rating"
+import { getAvatarUrl } from "@/lib/utils"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
@@ -164,7 +165,7 @@ function TechnicianProfileContent() {
                     {/* Avatar */}
                     <div className="relative shrink-0">
                         {profile.avatar_url ? (
-                            <img src={profile.avatar_url} alt="" className="w-20 h-20 rounded-2xl object-cover" />
+                            <img src={getAvatarUrl(profile.avatar_url)} alt="" className="w-20 h-20 rounded-2xl object-cover" />
                         ) : (
                             <div className="w-20 h-20 rounded-2xl gradient-brand flex items-center justify-center text-2xl font-bold text-white shadow-lg shadow-blue-500/20">
                                 {(profile.full_name || "T").charAt(0)}

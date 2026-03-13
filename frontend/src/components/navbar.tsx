@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { cn } from "@/lib/utils"
+import { cn, getAvatarUrl } from "@/lib/utils"
 
 export function Navbar() {
   const { theme, setTheme } = useTheme()
@@ -157,14 +157,11 @@ export function Navbar() {
                   <Button variant="ghost" className="gap-2 pl-2 pr-3 h-9">
                     {user?.avatar_url ? (
                       <div className="flex h-7 w-7 items-center justify-center rounded-full overflow-hidden border border-border/50">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={user.avatar_url.startsWith('http') 
-                            ? user.avatar_url 
-                            : `${process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") || "http://localhost:8000"}${user.avatar_url.startsWith('/') ? '' : '/'}${user.avatar_url}`}
-                          alt="Avatar"
-                          className="w-full h-full object-cover"
-                        />
+                      <img
+                        src={getAvatarUrl(user.avatar_url)}
+                        alt={user.full_name || "Usuario"}
+                        className="w-full h-full object-cover"
+                      />
                       </div>
                     ) : (
                       <div className="flex h-7 w-7 items-center justify-center rounded-full gradient-brand text-[11px] font-bold text-white">

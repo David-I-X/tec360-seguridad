@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Shield, MapPin, Star, CheckCircle, X, Navigation, Phone, Clock, ChevronDown } from "lucide-react"
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
 import { getServiceById } from "@/lib/api"
+import { getAvatarUrl } from "@/lib/utils"
 import { serviceWebSocket, type WebSocketMessage } from "@/lib/websocket"
 import { Button } from "@/components/ui/button"
 import dynamic from "next/dynamic"
@@ -16,9 +17,24 @@ const WaitingMap = dynamic(() => import("@/components/services/service-map"), {
 })
 
 const RANK_INFO: Record<string, { label: string; color: string; icon: string; border: string }> = {
-    bronze: { label: "Bronce", color: "text-amber-700 dark:text-amber-600 bg-amber-700/10", border: "border-amber-700/20", icon: "🥉" },
-    silver: { label: "Plata", color: "text-slate-500 dark:text-slate-400 bg-slate-500/10", border: "border-slate-500/20", icon: "🥈" },
-    gold: { label: "Oro", color: "text-yellow-600 dark:text-yellow-500 bg-yellow-500/10", border: "border-yellow-500/20", icon: "🥇" },
+    bronze: { 
+        label: "Bronce", 
+        color: "text-amber-700 bg-gradient-to-r from-amber-700/10 to-amber-900/10 shadow-[0_0_10px_rgba(180,83,9,0.2)]", 
+        border: "border-amber-700/40", 
+        icon: "🥉" 
+    },
+    silver: { 
+        label: "Plata", 
+        color: "text-slate-200 bg-gradient-to-r from-slate-400/10 to-slate-600/10 shadow-[0_0_10px_rgba(148,163,184,0.2)]", 
+        border: "border-slate-400/40", 
+        icon: "🥈" 
+    },
+    gold: { 
+        label: "Oro", 
+        color: "text-yellow-400 bg-gradient-to-r from-yellow-400/10 to-transparent shadow-[0_0_15px_rgba(250,204,21,0.3)] font-bold", 
+        border: "border-yellow-400/50", 
+        icon: "🥇" 
+    },
 }
 
 /* ─── Radar animation ────────────────────────────────── */
@@ -145,7 +161,7 @@ function TechnicianCard({ technician, serviceId }: { technician: any; serviceId:
                     <div className="w-16 h-16 rounded-full overflow-hidden shrink-0 border-2 border-background shadow-md">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                            src={technician.avatar_url.startsWith('http') ? technician.avatar_url : `${STATIC_URL}${technician.avatar_url}`}
+                            src={getAvatarUrl(technician.avatar_url)}
                             alt={technician.full_name || "Técnico"}
                             className="w-full h-full object-cover"
                             onError={() => setImgError(true)}

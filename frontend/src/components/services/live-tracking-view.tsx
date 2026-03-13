@@ -11,7 +11,8 @@ import { serviceWebSocket, type WebSocketMessage } from "@/lib/websocket"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { TrackingSimulator } from "@/components/services/tracking-simulator"
+import { TrackingSimulator } from "./tracking-simulator"
+import { getAvatarUrl } from "@/lib/utils"
 
 // Lazy load map
 const ServiceMap = dynamic(
@@ -327,9 +328,24 @@ function CompletedBanner() {
 }
 
 const RANK_INFO: Record<string, { label: string; color: string; icon: string; border: string }> = {
-    bronze: { label: "Bronce", color: "text-orange-400 bg-orange-400/10", border: "border-orange-400/20", icon: "🥉" },
-    silver: { label: "Plata", color: "text-slate-300 bg-slate-400/10", border: "border-slate-400/20", icon: "🥈" },
-    gold: { label: "Oro", color: "text-yellow-400 bg-yellow-400/10", border: "border-yellow-400/20", icon: "🥇" }
+    bronze: { 
+        label: "Bronce", 
+        color: "text-amber-700 bg-gradient-to-r from-amber-700/10 to-amber-900/10 shadow-[0_0_10px_rgba(180,83,9,0.2)]", 
+        border: "border-amber-700/40", 
+        icon: "🥉" 
+    },
+    silver: { 
+        label: "Plata", 
+        color: "text-slate-200 bg-gradient-to-r from-slate-400/10 to-slate-600/10 shadow-[0_0_10px_rgba(148,163,184,0.2)]", 
+        border: "border-slate-400/40", 
+        icon: "🥈" 
+    },
+    gold: { 
+        label: "Oro", 
+        color: "text-yellow-400 bg-gradient-to-r from-yellow-400/10 to-transparent shadow-[0_0_15px_rgba(250,204,21,0.3)] font-bold", 
+        border: "border-yellow-400/50", 
+        icon: "🥇" 
+    },
 }
 
 function TechnicianCard({ technician }: { technician: any }) {
@@ -337,7 +353,7 @@ function TechnicianCard({ technician }: { technician: any }) {
         <GlassCard className="p-4">
             <div className="flex items-center gap-4">
                 {technician.avatar_url ? (
-                    <img src={technician.avatar_url} alt="" className="w-14 h-14 rounded-full object-cover" />
+                    <img src={getAvatarUrl(technician.avatar_url)} alt="" className="w-14 h-14 rounded-full object-cover" />
                 ) : (
                     <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
                         <User className="h-7 w-7 text-primary" />

@@ -5,6 +5,7 @@ import { Ban, CheckCircle, ChevronLeft, ChevronRight, UserCog } from "lucide-rea
 import { toast } from "react-hot-toast"
 import api from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
+import { getAvatarUrl } from "@/lib/utils"
 
 interface AdminUser {
     id: string
@@ -92,7 +93,7 @@ export default function AdminUsersPage() {
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 flex-shrink-0 overflow-hidden">
                                                 {user.avatar_url ? (
-                                                    <img src={`https://tec-360.tech${user.avatar_url}`} alt="avatar" className="w-full h-full object-cover" />
+                                                    <img src={getAvatarUrl(user.avatar_url)} alt="avatar" className="w-full h-full object-cover" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center font-bold text-slate-500 text-sm">
                                                         {user.full_name?.charAt(0) || user.email.charAt(0).toUpperCase()}
