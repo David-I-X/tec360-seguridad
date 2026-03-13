@@ -326,6 +326,12 @@ function CompletedBanner() {
     )
 }
 
+const RANK_INFO: Record<string, { label: string; color: string; icon: string; border: string }> = {
+    bronze: { label: "Bronce", color: "text-orange-400 bg-orange-400/10", border: "border-orange-400/20", icon: "🥉" },
+    silver: { label: "Plata", color: "text-slate-300 bg-slate-400/10", border: "border-slate-400/20", icon: "🥈" },
+    gold: { label: "Oro", color: "text-yellow-400 bg-yellow-400/10", border: "border-yellow-400/20", icon: "🥇" }
+}
+
 function TechnicianCard({ technician }: { technician: any }) {
     return (
         <GlassCard className="p-4">
@@ -339,7 +345,14 @@ function TechnicianCard({ technician }: { technician: any }) {
                 )}
                 <div className="flex-1">
                     <h4 className="font-semibold">{technician.full_name || "Técnico Tec360"}</h4>
-                    <p className="text-sm text-muted-foreground">Técnico certificado</p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <p className="text-sm text-muted-foreground">Técnico certificado</p>
+                        {technician.rank && RANK_INFO[technician.rank] && (
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border flex items-center gap-1 ${RANK_INFO[technician.rank].color} ${RANK_INFO[technician.rank].border}`}>
+                                {RANK_INFO[technician.rank].icon} {RANK_INFO[technician.rank].label}
+                            </span>
+                        )}
+                    </div>
                 </div>
                 {technician.phone && (
                     <Button variant="outline" size="icon" asChild>
