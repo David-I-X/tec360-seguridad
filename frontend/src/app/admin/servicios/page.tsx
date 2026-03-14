@@ -263,14 +263,14 @@ function ServiceDetailDrawer({
                                                     }`}
                                                 onClick={() => photo && setSelectedPhoto(
                                                     photo.image_url.startsWith("/")
-                                                        ? `${API_URL}${photo.image_url}`
+                                                        ? `${API_URL.replace(/\/api\/?$/, "")}${photo.image_url}`
                                                         : photo.image_url
                                                 )}
                                             >
                                                 {photo ? (
                                                     <>
                                                         <img
-                                                            src={photo.image_url.startsWith("/") ? `${API_URL}${photo.image_url}` : photo.image_url}
+                                                            src={photo.image_url.startsWith("/") ? `${API_URL.replace(/\/api\/?$/, "")}${photo.image_url}` : photo.image_url}
                                                             alt={meta.label}
                                                             className="w-full h-full object-cover"
                                                         />
