@@ -310,22 +310,22 @@ export function Hero() {
                 <span className="flex h-2 w-2 rounded-full bg-green-400 animate-pulse" />
               </motion.div>
 
-              {/* H1 — cleaner and more focused */}
+              {/* H1 — SEO Optimized */}
               <motion.h1
                 initial="hidden" animate="visible" custom={1} variants={fadeUp}
                 className="mb-5 text-4xl font-extrabold leading-[1.1] tracking-tight md:text-5xl lg:text-6xl"
               >
-                Tu seguridad vehicular,{" "}
-                <span className="gradient-text">a un toque</span>
+                Instalación de GPS y Cámaras por{" "}
+                <span className="gradient-text">Técnicos SENA</span>
               </motion.h1>
 
-              {/* Subheadline — clear value prop */}
+              {/* Subheadline — SEO Optimized */}
               <motion.p
                 initial="hidden" animate="visible" custom={2} variants={fadeUp}
                 className="mb-8 text-base md:text-lg text-muted-foreground max-w-lg mx-auto lg:mx-0 leading-relaxed"
               >
-                Conecta con técnicos certificados para instalar cámaras, GPS, alarmas y más.
-                Llegan hasta tu puerta — hoy mismo si lo necesitas.
+                Conecta con técnicos certificados para la instalación de sistemas GPS, alarmas y cámaras de seguridad vehicular.
+                Llegan hasta tu puerta en Medellín y toda Colombia — hoy mismo si lo necesitas.
               </motion.p>
 
               {/* Trust pills */}
@@ -370,8 +370,8 @@ export function Hero() {
                   ))}
                 </div>
                 <div className="text-sm">
-                  <span className="font-semibold">+200 técnicos</span>
-                  <span className="text-muted-foreground"> verificados listos</span>
+                  <span className="font-semibold">+200 técnicos SENA</span>
+                  <span className="text-muted-foreground"> listos para instalar tu GPS</span>
                 </div>
               </motion.div>
             </div>

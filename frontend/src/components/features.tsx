@@ -115,7 +115,7 @@ function WhySection() {
     <section className="py-20 relative">
       <div className="container mx-auto px-4">
         <Reveal>
-          <SectionLabel label="Por qué elegirnos" title="La diferencia" highlight="Tec360" />
+          <SectionLabel label="Por qué elegirnos" title="Expertos en instalación de" highlight="Sistemas de Seguridad" />
         </Reveal>
         <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {whys.map((w, i) => (
@@ -270,10 +270,10 @@ function CTA() {
               </motion.div>
 
               <h2 className="text-3xl md:text-4xl font-bold mb-3">
-                ¿Listo para proteger tu vehículo?
+                ¿Listo para proteger tu vehículo en Colombia?
               </h2>
               <p className="text-muted-foreground mb-8 max-w-sm mx-auto text-sm leading-relaxed">
-                Más de 200 técnicos certificados están esperando tu solicitud.
+                Más de 200 técnicos SENA están listos para instalar tu GPS, cámara o alarma.
                 Primer servicio con garantía total.
               </p>
 
