@@ -229,7 +229,6 @@ async def get_service_detail_admin(
         "service_type": service.service_type,
         "status": service.status,
         "service_address": service.service_address,
-        "service_city": service.service_city,
         "description": service.description,
         "estimated_price": service.estimated_price,
         "scheduled_date": service.scheduled_date.isoformat() if service.scheduled_date else None,
