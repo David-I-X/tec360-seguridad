@@ -11,6 +11,7 @@ import { ProtectedRoute, useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { GlassCard } from "@/components/ui/glass-card"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   pending: { label: "Pendiente", color: "bg-yellow-500" },
@@ -96,12 +97,36 @@ function MyServicesContent() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-        <div className="relative">
-          <div className="h-14 w-14 rounded-full border-4 border-muted" />
-          <div className="absolute inset-0 h-14 w-14 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
+      <div className="space-y-6">
+        <div className="flex justify-between items-center mb-6">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48 rounded-md" />
+            <Skeleton className="h-4 w-64 rounded-md" />
+          </div>
+          <Skeleton className="h-10 w-40 rounded-md" />
         </div>
-        <p className="text-muted-foreground">Cargando tus servicios...</p>
+        
+        <div className="flex gap-2">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-8 w-24 rounded-md" />)}
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-2xl" />)}
+        </div>
+
+        <div className="space-y-4 mt-6">
+          {[...Array(3)].map((_, i) => (
+            <GlassCard key={i} className="p-5 flex items-center gap-4">
+               <Skeleton className="h-4 w-4 rounded-full flex-shrink-0" />
+               <div className="flex-1 space-y-2">
+                 <Skeleton className="h-5 w-1/3" />
+                 <Skeleton className="h-4 w-1/4" />
+               </div>
+               <Skeleton className="h-6 w-24 rounded-full flex-shrink-0" />
+               <Skeleton className="h-5 w-5 rounded-md flex-shrink-0" />
+            </GlassCard>
+          ))}
+        </div>
       </div>
     )
   }
@@ -287,32 +312,39 @@ function ServiceCard({ service, index }: { service: any; index: number }) {
 
 function EmptyState({ statusFilter, filterButtons }: { statusFilter: StatusFilter; filterButtons: { key: StatusFilter; label: string }[] }) {
   return (
-    <GlassCard className="p-12 text-center">
-      <div className="flex flex-col items-center gap-4">
-        <div className="h-20 w-20 rounded-3xl bg-muted/50 flex items-center justify-center">
-          <ClipboardList className="h-10 w-10 text-muted-foreground/50" />
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+      <GlassCard className="p-12 text-center border-dashed border-2 bg-gradient-to-b from-white/[0.02] to-transparent">
+        <div className="flex flex-col items-center gap-5 max-w-sm mx-auto">
+          <div className="relative">
+            <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full" />
+            <div className="h-24 w-24 rounded-3xl bg-gradient-to-br from-white/5 to-white/10 border border-white/10 flex items-center justify-center relative shadow-2xl">
+              <ClipboardList className="h-10 w-10 text-blue-400 drop-shadow-lg" />
+            </div>
+          </div>
+          
+          <div>
+            <h3 className="text-xl font-bold mb-2">
+              {statusFilter === "all" ? "No tienes servicios" : "Sin resultados"}
+            </h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {statusFilter === "all"
+                ? "Aún no has solicitado ningún servicio. ¡Nuestros técnicos certificados están listos para ayudarte hoy mismo!"
+                : `No encontramos servicios ${filterButtons.find(b => b.key === statusFilter)?.label.toLowerCase()} en este momento.`
+              }
+            </p>
+          </div>
+          
+          {statusFilter === "all" && (
+            <Button asChild size="lg" className="mt-4 gradient-brand text-white shadow-xl shadow-blue-500/20 w-full sm:w-auto">
+              <Link href="/servicios/nuevo">
+                <Plus className="mr-2 h-5 w-5" />
+                Solicitar mi primer servicio
+              </Link>
+            </Button>
+          )}
         </div>
-        <div>
-          <p className="font-semibold mb-1">
-            {statusFilter === "all" ? "Sin servicios" : "Sin resultados"}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {statusFilter === "all"
-              ? "No tienes servicios aún. ¡Solicita uno nuevo!"
-              : `No hay servicios ${filterButtons.find(b => b.key === statusFilter)?.label.toLowerCase()}.`
-            }
-          </p>
-        </div>
-        {statusFilter === "all" && (
-          <Button asChild className="mt-2 gradient-brand text-white">
-            <Link href="/servicios/nuevo">
-              <Plus className="mr-2 h-4 w-4" />
-              Solicitar Servicio
-            </Link>
-          </Button>
-        )}
-      </div>
-    </GlassCard>
+      </GlassCard>
+    </motion.div>
   )
 }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -108,6 +108,18 @@ export function ServiceRequestForm() {
         setVehiclePhotoFile(file)
         setVehiclePhotoPreview(URL.createObjectURL(file))
     }
+
+    // Prevención de pérdida de datos
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (form.formState.isDirty && !isSubmitting && !success) {
+                e.preventDefault()
+                e.returnValue = "" // El navegador mostrará su mensaje estándar
+            }
+        }
+        window.addEventListener("beforeunload", handleBeforeUnload)
+        return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+    }, [form.formState.isDirty, isSubmitting, success])
 
     // Validación por paso
     const nextStep = async () => {

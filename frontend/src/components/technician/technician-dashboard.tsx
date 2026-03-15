@@ -12,6 +12,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { GlassCard } from "@/components/ui/glass-card"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/components/ui/use-toast"
 import { getAvailableServices, getUserServices, acceptService } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
@@ -87,18 +89,59 @@ export function TechnicianDashboard() {
         }
     }
 
+    // Gamification: Profile Progress
+    const calculateProfileProgress = () => {
+        if (!user) return 0;
+        let score = 0;
+        if (user.full_name) score += 20;
+        if (user.email) score += 20;
+        if (user.phone) score += 20;
+        if (user.avatar_url) score += 40; // High weight for avatar
+        return score;
+    }
+
+    const profileProgress = calculateProfileProgress();
+
     // Stats
     const activeCount = myServices.filter(s => ["assigned", "en_route", "arrived", "in_progress"].includes(s.status)).length
     const completedCount = myServices.filter(s => s.status === "completed").length
 
     if (isLoading && availableServices.length === 0 && myServices.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center p-12 gap-4">
-                <div className="relative">
-                    <div className="h-14 w-14 rounded-full border-4 border-muted" />
-                    <div className="absolute inset-0 h-14 w-14 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin" />
+            <div className="space-y-6">
+                <div className="flex justify-between items-center mb-6">
+                    <div className="space-y-2">
+                        <Skeleton className="h-8 w-64 rounded-md" />
+                        <Skeleton className="h-4 w-40 rounded-md" />
+                    </div>
+                    <div className="flex gap-2">
+                        <Skeleton className="h-9 w-32 rounded-md" />
+                        <Skeleton className="h-9 w-24 rounded-md" />
+                    </div>
                 </div>
-                <p className="text-muted-foreground">Cargando panel...</p>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                    {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-2xl" />)}
+                </div>
+
+                <div className="mt-8 space-y-4">
+                    <Skeleton className="h-10 w-full max-w-sm rounded-md" />
+                    <div className="grid md:grid-cols-2 gap-4">
+                        {[...Array(4)].map((_, i) => (
+                            <GlassCard key={i} className="p-5 space-y-4">
+                                <div className="flex justify-between">
+                                    <Skeleton className="h-6 w-1/3" />
+                                    <Skeleton className="h-5 w-20 rounded-full" />
+                                </div>
+                                <Skeleton className="h-4 w-1/2" />
+                                <div className="flex justify-between items-center pt-2">
+                                    <Skeleton className="h-8 w-24 rounded-md" />
+                                    <Skeleton className="h-5 w-16" />
+                                </div>
+                            </GlassCard>
+                        ))}
+                    </div>
+                </div>
             </div>
         )
     }
@@ -139,6 +182,30 @@ export function TechnicianDashboard() {
                     </Button>
                 </div>
             </motion.div>
+
+            {/* Gamification: Profile Completeness Banner */}
+            {profileProgress < 100 && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+                    <Link href="/perfil">
+                        <GlassCard className="p-4 border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 cursor-pointer transition-colors group">
+                            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                                <div className="space-y-1 flex-1">
+                                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                                        Completa tu perfil de técnico <span className="text-emerald-500">+{100 - profileProgress} pts</span>
+                                    </h3>
+                                    <p className="text-xs text-muted-foreground">
+                                        Los clientes confían más en técnicos con perfiles completos y fotos reales.
+                                    </p>
+                                </div>
+                                <div className="w-full sm:w-48 flex items-center gap-3">
+                                    <Progress value={profileProgress} className="h-2 flex-1" />
+                                    <span className="text-xs font-bold text-emerald-500">{profileProgress}%</span>
+                                </div>
+                            </div>
+                        </GlassCard>
+                    </Link>
+                </motion.div>
+            )}
 
             {/* Quick Stats */}
             <motion.div
@@ -183,14 +250,27 @@ export function TechnicianDashboard() {
                 {/* Available services */}
                 <TabsContent value="available" className="space-y-4">
                     {availableServices.length === 0 ? (
-                        <GlassCard className="p-12 text-center">
-                            <div className="flex flex-col items-center gap-4">
-                                <div className="h-20 w-20 rounded-3xl bg-muted/50 flex items-center justify-center">
-                                    <Briefcase className="h-10 w-10 text-muted-foreground/50" />
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}>
+                            <GlassCard className="p-12 text-center border-dashed border-2 bg-gradient-to-b from-white/[0.01] to-transparent">
+                                <div className="flex flex-col items-center gap-5 max-w-sm mx-auto">
+                                    <div className="relative">
+                                        <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full" />
+                                        <div className="h-20 w-20 rounded-3xl bg-gradient-to-br from-white/5 to-white/10 border border-white/10 flex items-center justify-center relative shadow-xl">
+                                            <Briefcase className="h-8 w-8 text-blue-400 drop-shadow-lg" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold mb-1">Sin servicios disponibles</h3>
+                                        <p className="text-sm text-muted-foreground leading-relaxed">
+                                            No hay nuevos servicios en tu área en este momento. Mantén la página abierta para recibir alertas en vivo.
+                                        </p>
+                                    </div>
+                                    <Button onClick={fetchData} variant="outline" size="sm" className="mt-2">
+                                        <RefreshCw className="mr-2 h-4 w-4" /> Buscar de nuevo
+                                    </Button>
                                 </div>
-                                <p className="text-muted-foreground">No hay servicios disponibles en este momento.</p>
-                            </div>
-                        </GlassCard>
+                            </GlassCard>
+                        </motion.div>
                     ) : (
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             <AnimatePresence>
@@ -218,14 +298,24 @@ export function TechnicianDashboard() {
                 {/* My services */}
                 <TabsContent value="mine" className="space-y-4">
                     {myServices.length === 0 ? (
-                        <GlassCard className="p-12 text-center">
-                            <div className="flex flex-col items-center gap-4">
-                                <div className="h-20 w-20 rounded-3xl bg-muted/50 flex items-center justify-center">
-                                    <Wrench className="h-10 w-10 text-muted-foreground/50" />
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}>
+                            <GlassCard className="p-12 text-center border-dashed border-2 bg-gradient-to-b from-white/[0.01] to-transparent">
+                                <div className="flex flex-col items-center gap-5 max-w-sm mx-auto">
+                                    <div className="relative">
+                                        <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-full" />
+                                        <div className="h-20 w-20 rounded-3xl bg-gradient-to-br from-white/5 to-white/10 border border-white/10 flex items-center justify-center relative shadow-xl">
+                                            <Wrench className="h-8 w-8 text-purple-400 drop-shadow-lg" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold mb-1">Tu agenda está vacía</h3>
+                                        <p className="text-sm text-muted-foreground leading-relaxed">
+                                            Actualmente no tienes ningún trabajo asignado. Revisa la pestaña de "Disponibles" para aceptar nuevos retos.
+                                        </p>
+                                    </div>
                                 </div>
-                                <p className="text-muted-foreground">Aún no tienes trabajos asignados.</p>
-                            </div>
-                        </GlassCard>
+                            </GlassCard>
+                        </motion.div>
                     ) : (
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             <AnimatePresence>
