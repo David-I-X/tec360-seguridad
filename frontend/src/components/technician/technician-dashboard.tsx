@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Loader2, MapPin, Calendar, CheckCircle, Briefcase, FileText, Star, DollarSign, Wrench, RefreshCw, ArrowLeft } from "lucide-react"
+import { Loader2, MapPin, Calendar, CheckCircle, Briefcase, FileText, Star, DollarSign, Wrench, RefreshCw, ArrowLeft, User, Clock } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -345,46 +345,78 @@ export function TechnicianDashboard() {
 function ServiceCard({ service, onAction, onQuote, isProcessing, variant }: any) {
     const status = statusMap[service.status] || { label: service.status, color: "bg-gray-500" }
 
+    // Formatting price
+    const formattedPrice = service.estimated_price 
+        ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(service.estimated_price)
+        : null;
+
+    // Formatting date and time
+    const dateObj = service.scheduled_date ? new Date(service.scheduled_date) : null;
+    const formattedDate = dateObj ? format(dateObj, "EEEE, d 'de' MMMM", { locale: es }) : "Fecha por definir";
+    const formattedTime = service.scheduled_time || (dateObj ? format(dateObj, "h:mm a") : null);
+
     return (
-        <Card className="overflow-hidden hover-lift transition-all group">
-            {/* Status bar at top */}
-            <div className={`h-1 ${status.color}`} />
-            <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                    <Badge className={`${status.color} text-white text-xs`}>
+        <Card className="overflow-hidden hover-lift transition-all group border-border/40 bg-card/50 backdrop-blur-sm relative">
+            {/* Status Top Border */}
+            <div className={`absolute top-0 left-0 right-0 h-1.5 ${status.color} opacity-80`} />
+            
+            <CardHeader className="pb-2 pt-5">
+                <div className="flex justify-between items-start mb-2">
+                    <Badge className={`${variant === "available" ? "bg-amber-500 text-white border-0" : status.color} hover:opacity-90 transition-opacity`}>
                         {variant === "available" ? "Disponible" : status.label}
                     </Badge>
-                    {service.estimated_price && (
-                        <span className="flex items-center gap-1 font-bold text-green-500">
-                            <DollarSign className="h-4 w-4" />
-                            {service.estimated_price.toLocaleString()}
+                    {formattedPrice && (
+                        <span className="flex items-center gap-1 font-black text-green-500/90 dark:text-green-400 text-lg tracking-tight">
+                            {formattedPrice}
                         </span>
                     )}
                 </div>
-                <CardTitle className="text-lg mt-2 group-hover:text-blue-500 transition-colors">
+                
+                <CardTitle className="text-lg font-bold leading-tight group-hover:text-blue-500 transition-colors line-clamp-2">
                     {service.title}
                 </CardTitle>
-                <CardDescription className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" /> {service.service_city || "Sin ubicación"}
-                </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm pb-3">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
-                    {service.scheduled_date ? (
-                        format(new Date(service.scheduled_date), "PPP", { locale: es })
-                    ) : "Fecha por definir"}
+            
+            <CardContent className="space-y-3 text-sm pb-4">
+                {/* Client & Location */}
+                <div className="space-y-1.5 p-3 rounded-xl bg-muted/30 border border-muted/50">
+                    <div className="flex items-center gap-2 text-foreground font-medium">
+                        <User className="h-4 w-4 text-blue-500" />
+                        <span>{service.client?.full_name || service.client_name || "Cliente Confirmado"}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                        <MapPin className="h-3.5 w-3.5 text-muted-foreground/80" />
+                        <span className="truncate">{service.service_address}{service.service_city ? `, ${service.service_city}` : ""}</span>
+                    </div>
                 </div>
-                <p className="line-clamp-2 text-muted-foreground">{service.description || "Sin descripción"}</p>
-                <div className="text-xs text-muted-foreground mt-2">
-                    Cliente: {service.client_name || "Usuario"}
+
+                {/* Date & Time */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-muted/50">
+                    <div className="flex items-center gap-2 text-foreground font-medium capitalize text-xs">
+                        <Calendar className="h-4 w-4 text-purple-500" />
+                        <span>{formattedDate}</span>
+                    </div>
+                    {formattedTime && (
+                        <div className="flex items-center gap-1.5 text-foreground font-bold text-xs bg-background/50 px-2 py-1 rounded-md shadow-sm border border-border/40">
+                            <Clock className="h-3.5 w-3.5 text-amber-500" />
+                            <span>{formattedTime}</span>
+                        </div>
+                    )}
                 </div>
+
+                {/* Description */}
+                {service.description && service.description.toLowerCase() !== "sin descripción" && (
+                    <p className="line-clamp-2 text-xs text-muted-foreground italic border-l-2 border-muted-foreground/30 pl-2 ml-1">
+                        "{service.description}"
+                    </p>
+                )}
             </CardContent>
-            <CardFooter className="flex gap-2 pt-0">
+
+            <CardFooter className="flex gap-2 pt-0 pb-4 px-4 bg-gradient-to-t from-background/50 to-transparent">
                 {variant === "available" ? (
                     <>
                         <Button
-                            className="flex-1 gradient-brand text-white hover:opacity-90"
+                            className="flex-1 gradient-brand text-white shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all font-bold"
                             onClick={onAction}
                             disabled={isProcessing}
                         >
@@ -402,17 +434,17 @@ function ServiceCard({ service, onAction, onQuote, isProcessing, variant }: any)
                         </Button>
                         <Button
                             variant="outline"
-                            className="flex-1"
+                            className="flex-1 border-muted-foreground/30 hover:bg-muted/50 hover:text-foreground transition-all font-semibold"
                             onClick={onQuote}
                             disabled={isProcessing}
                         >
-                            <DollarSign className="mr-1 h-4 w-4" />
+                            <DollarSign className="mr-1 h-4 w-4 text-green-500" />
                             Cotizar
                         </Button>
                     </>
                 ) : (
                     <Button
-                        className="w-full"
+                        className="w-full font-semibold border-muted-foreground/30 hover:bg-muted/50 transition-all"
                         onClick={onAction}
                         variant="outline"
                     >
