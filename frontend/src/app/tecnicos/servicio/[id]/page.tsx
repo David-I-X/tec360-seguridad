@@ -13,6 +13,7 @@ import {
 
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
 import { getServiceById } from "@/lib/api"
+import { getImageUrl } from "@/lib/utils"
 import { useLocationTracking } from "@/lib/use-location-tracking"
 import { serviceWebSocket } from "@/lib/websocket"
 import { Button } from "@/components/ui/button"
@@ -228,9 +229,6 @@ function TechnicianServiceContent() {
         // Bug #1: Load already-uploaded photos so the modal doesn't re-block
         async function fetchExistingPhotos() {
             if (!token) return
-            // STATIC_URL: strip trailing /api so img src goes to nginx static,
-            // not through the backend (which requires auth)
-            const STATIC_URL = API_URL.replace(/\/api\/?$/, "")
             try {
                 const res = await fetch(`${API_URL}/uploads/service-photos/${params.id}`, {
                     headers: { Authorization: `Bearer ${token}` },
@@ -241,11 +239,7 @@ function TechnicianServiceContent() {
                     for (const photo of (data.photos || [])) {
                         if (photo.image_type in photoMap) {
                             // image_url is like /uploads/service-photos/file.jpg
-                            // Build full URL using STATIC_URL (no /api prefix)
-                            const fullUrl = photo.image_url.startsWith("http")
-                                ? photo.image_url
-                                : `${STATIC_URL}${photo.image_url}`
-                            photoMap[photo.image_type as PhotoStage] = fullUrl
+                            photoMap[photo.image_type as PhotoStage] = getImageUrl(photo.image_url) || null
                         }
                     }
                     setPhotos(photoMap)
@@ -524,11 +518,7 @@ function TechnicianServiceContent() {
                                 <div className="rounded-xl overflow-hidden aspect-video border border-border/50">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
-                                        src={
-                                            service.vehicle_photo_url.startsWith("http")
-                                                ? service.vehicle_photo_url
-                                                : `${API_URL.replace(/\/api\/?$/, "")}${service.vehicle_photo_url}`
-                                        }
+                                        src={getImageUrl(service.vehicle_photo_url)}
                                         alt="Vehículo del cliente"
                                         className="w-full h-full object-cover"
                                     />

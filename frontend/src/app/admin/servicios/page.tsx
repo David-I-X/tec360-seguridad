@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { getImageUrl } from "@/lib/utils"
 
 /* ─── Types ──────────────────────────────────────── */
 interface AdminService {
@@ -261,16 +262,12 @@ function ServiceDetailDrawer({
                                                     ? "border-green-500/50 hover:border-green-400"
                                                     : "border-border/30 bg-muted/10"
                                                     }`}
-                                                onClick={() => photo && setSelectedPhoto(
-                                                    photo.image_url.startsWith("/")
-                                                        ? `${API_URL.replace(/\/api\/?$/, "")}${photo.image_url}`
-                                                        : photo.image_url
-                                                )}
+                                                onClick={() => photo && setSelectedPhoto(getImageUrl(photo.image_url) || "")}
                                             >
                                                 {photo ? (
                                                     <>
                                                         <img
-                                                            src={photo.image_url.startsWith("/") ? `${API_URL.replace(/\/api\/?$/, "")}${photo.image_url}` : photo.image_url}
+                                                            src={getImageUrl(photo.image_url)}
                                                             alt={meta.label}
                                                             className="w-full h-full object-cover"
                                                         />

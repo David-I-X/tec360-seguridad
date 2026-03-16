@@ -135,6 +135,8 @@ async def verify_otp(data: OTPVerify, session: Session = Depends(get_session)):
             "phone": user.phone,
             "email": user.email,
             "role": user.role,
+            "full_name": user.full_name,
+            "avatar_url": user.avatar_url,
             "onboarding_completed": bool(user.full_name)
         },
         "is_new_user": is_new_user
@@ -172,6 +174,7 @@ async def complete_onboarding(
             "full_name": user.full_name,
             "email": user.email,
             "role": user.role,
+            "avatar_url": user.avatar_url,
             "onboarding_completed": True
         }
     }

@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
 from app.api import example, services, technicians, ratings, maps, images, auth, uploads, users, admin
@@ -152,6 +153,19 @@ async def root():
         "version": settings.VERSION,
         "environment": settings.ENVIRONMENT,
     }
+
+
+@app.get("/uploads/{folder}/{filename}", tags=["uploads"])
+async def serve_local_upload(folder: str, filename: str):
+    """Fallback route to serve uploads locally without intercepting POST /uploads/*"""
+    import os
+    from fastapi.responses import FileResponse
+    from fastapi import HTTPException
+    
+    file_path = os.path.join("/opt/tec360-seguridad/uploads", folder, filename)
+    if os.path.isfile(file_path):
+        return FileResponse(file_path)
+    raise HTTPException(status_code=404, detail="File not found")
 
 
 @app.get("/health")

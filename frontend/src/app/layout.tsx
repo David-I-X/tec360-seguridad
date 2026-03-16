@@ -31,14 +31,15 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL("https://tec-360.tech"),
   title: {
-    default: "Tec360 Seguridad - Técnicos Certificados SENA",
+    default: "Tec360 Seguridad - Instalación de GPS, Alarmas y Cámaras por Técnicos Certificados",
     template: "%s | Tec360 Seguridad"
   },
-  description: "Conectamos clientes con técnicos certificados por el SENA para instalación, mantenimiento y revisión de sistemas de seguridad electrónica, GPS y cámaras.",
+  description: "Servicio profesional de instalación de GPS vehicular, cámaras de seguridad y sistemas de alarmas en Colombia. Conecta con técnicos expertos y verificados por el SENA que llegan de inmediato al lugar de tu necesidad.",
   keywords: [
-    "seguridad electrónica", "GPS vehicular", "cámaras de seguridad", 
-    "instalación de alarmas", "técnicos SENA", "medellín", "colombia",
-    "rastreo satelital", "mantenimiento cctv", "seguridad vehicular"
+    "instalación de GPS", "GPS vehicular", "instalador de cámaras de seguridad", 
+    "técnicos en seguridad electrónica", "técnicos SENA", "instalación de alarmas",
+    "rastreo satelital", "Medellín", "Colombia", "servicios a domicilio",
+    "mantenimiento cctv"
   ],
   authors: [{ name: "Tec360 Seguridad" }],
   creator: "Tec360",
@@ -49,8 +50,8 @@ export const metadata: Metadata = {
     telephone: true,
   },
   openGraph: {
-    title: "Tec360 Seguridad - Técnicos Certificados SENA",
-    description: "Conectamos clientes con técnicos certificados por el SENA para instalación y mantenimiento de sistemas de seguridad electrónica y GPS.",
+    title: "Tec360 Seguridad - Especialistas en Instalación de GPS y Cámaras",
+    description: "Servicio experto de instalación de Sistemas GPS y Cámaras. Técnicos certificados por el SENA a domicilio, rápidos y confiables en Medellín y toda Colombia.",
     url: "https://tec-360.tech",
     siteName: "Tec360 Seguridad",
     locale: "es_CO",
