@@ -141,9 +141,12 @@ export default function ServiceDetailScreen() {
   const tech = service?.technician;
   const staticUrl = API_URL.replace(/\/api\/?$/, '');
   const isLive = ['assigned', 'en_route', 'arrived', 'in_progress'].includes(service?.status);
-  const serviceLat = service?.service_lat || 6.2518;
-  const serviceLng = service?.service_lon || -75.5636;
-  const hasCoords = !!(service?.service_lat && service?.service_lon);
+  const isTrackingStatus = ['en_route', 'in_progress'].includes(service?.status);
+  // Use explicit null check — 0.0 is falsy in JS but valid coord
+  const hasServiceCoords = service?.service_lat != null && service?.service_lon != null
+    && (service.service_lat !== 0 || service.service_lon !== 0);
+  const serviceLat = hasServiceCoords ? service.service_lat : 6.2518;
+  const serviceLng = hasServiceCoords ? service.service_lon : -75.5636;
   const si = statusInfo[service?.status] || statusInfo.pending;
 
   const formattedDate = service?.scheduled_date
@@ -204,7 +207,7 @@ export default function ServiceDetailScreen() {
       </TouchableOpacity>
 
       {/* Open maps */}
-      {hasCoords && (
+      {hasServiceCoords && (
         <TouchableOpacity style={styles.mapsBtn} onPress={openInMaps} activeOpacity={0.8}>
           <Ionicons name="navigate" size={14} color="#fff" />
           <Text style={styles.mapsBtnText}>Ver en mapa</Text>
@@ -218,6 +221,35 @@ export default function ServiceDetailScreen() {
           <Text style={styles.etaText}>{routeInfo.duration}</Text>
           <Text style={styles.etaDivider}>·</Text>
           <Text style={styles.etaDistance}>{routeInfo.distance}</Text>
+        </View>
+      )}
+
+      {/* Tracking status overlay on map */}
+      {isLive && !techLocation && (
+        <View style={styles.trackingOverlay}>
+          {isTrackingStatus ? (
+            <>
+              <ActivityIndicator size="small" color="#eab308" />
+              <Text style={styles.trackingOverlayText}>
+                Esperando ubicación del técnico...
+              </Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="time-outline" size={16} color="#8b8fa3" />
+              <Text style={styles.trackingOverlayText}>
+                El técnico aún no está en camino
+              </Text>
+            </>
+          )}
+        </View>
+      )}
+
+      {/* Live tracking active badge */}
+      {techLocation && (
+        <View style={styles.liveTrackingBadge}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveTrackingText}>EN VIVO</Text>
         </View>
       )}
 
@@ -504,5 +536,10 @@ const styles = StyleSheet.create({
   vehiclePhoto: { width: '100%', height: 180, borderRadius: 16, marginBottom: 16 },
   actionButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: 16, paddingVertical: 16, marginBottom: 16 },
   actionText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  trackingOverlay: { position: 'absolute', top: 240, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(10,14,28,0.92)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(234,179,8,0.3)', zIndex: 10 },
+  trackingOverlayText: { color: '#eab308', fontSize: 12, fontWeight: '600' },
+  liveTrackingBadge: { position: 'absolute', top: 240, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(34,197,94,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(34,197,94,0.3)', zIndex: 10 },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#22c55e' },
+  liveTrackingText: { color: '#22c55e', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   completedBanner: { alignItems: 'center', padding: 24, backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' },
 });
