@@ -21,6 +21,7 @@ if (Platform.OS !== 'web') {
 import { useAuth } from '@/lib/auth-context';
 import { getServiceById, getAuthToken, API_URL } from '@/lib/api';
 import { serviceWebSocket } from '@/lib/websocket';
+import { ServicePinMarker, TechnicianPinMarker } from '@/components/map-markers';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -179,9 +180,13 @@ export default function ServiceDetailScreen() {
         initialRegion={getRegion()}
         customMapStyle={darkMapStyle}
       >
-        <Marker coordinate={{ latitude: serviceLat, longitude: serviceLng }} title="Ubicación del servicio" pinColor="#8b5cf6" />
+        <Marker coordinate={{ latitude: serviceLat, longitude: serviceLng }} title="Ubicación del servicio" anchor={{ x: 0.5, y: 1 }}>
+          <ServicePinMarker />
+        </Marker>
         {techLocation && (
-          <Marker coordinate={{ latitude: techLocation.lat, longitude: techLocation.lng }} title={tech?.full_name || 'Técnico'} pinColor="#22c55e" />
+          <Marker coordinate={{ latitude: techLocation.lat, longitude: techLocation.lng }} title={tech?.full_name || 'Técnico'} anchor={{ x: 0.5, y: 0.5 }}>
+            <TechnicianPinMarker label={tech?.full_name?.split(' ')[0]} />
+          </Marker>
         )}
         {/* Real road route */}
         {routeCoords.length > 1 && (

@@ -22,6 +22,7 @@ import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { getServiceById, fetchWithAuth, getAuthToken, API_URL } from '@/lib/api';
+import { ServicePinMarker, MyLocationMarker } from '@/components/map-markers';
 import { serviceWebSocket } from '@/lib/websocket';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -256,9 +257,13 @@ export default function TechServiceScreen() {
         initialRegion={getMapRegion()}
         customMapStyle={darkMapStyle}
       >
-        <Marker coordinate={{ latitude: serviceLat, longitude: serviceLng }} title="Ubicación del servicio" pinColor="#8b5cf6" />
+        <Marker coordinate={{ latitude: serviceLat, longitude: serviceLng }} title="Ubicación del servicio" anchor={{ x: 0.5, y: 1 }}>
+          <ServicePinMarker />
+        </Marker>
         {myLocation && (
-          <Marker coordinate={{ latitude: myLocation.lat, longitude: myLocation.lng }} title="Mi ubicación" pinColor="#22c55e" />
+          <Marker coordinate={{ latitude: myLocation.lat, longitude: myLocation.lng }} title="Mi ubicación" anchor={{ x: 0.5, y: 0.5 }}>
+            <MyLocationMarker />
+          </Marker>
         )}
         {/* Real road route */}
         {routeCoords.length > 1 && (
