@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Image, Alert, ActivityIndicator,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
@@ -11,6 +12,7 @@ import { useAuth } from '@/lib/auth-context';
 import { fetchWithAuth, API_URL } from '@/lib/api';
 
 export default function TechProfileScreen() {
+  const router = useRouter();
   const { user, refreshUser, logout } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [stats, setStats] = useState({ completed: 0, total: 0 });
@@ -116,17 +118,17 @@ export default function TechProfileScreen() {
 
       {/* Menu Items */}
       <View style={styles.menuSection}>
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(tech)/edit-profile' as any)}>
           <Ionicons name="person-outline" size={20} color="#8b8fa3" />
           <Text style={styles.menuText}>Editar Perfil</Text>
           <Ionicons name="chevron-forward" size={18} color="#555872" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(tech)/quotations' as any)}>
           <Ionicons name="pricetags-outline" size={20} color="#8b8fa3" />
           <Text style={styles.menuText}>Mis Cotizaciones</Text>
           <Ionicons name="chevron-forward" size={18} color="#555872" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(tech)/support' as any)}>
           <Ionicons name="help-circle-outline" size={20} color="#8b8fa3" />
           <Text style={styles.menuText}>Soporte</Text>
           <Ionicons name="chevron-forward" size={18} color="#555872" />

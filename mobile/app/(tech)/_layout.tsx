@@ -53,6 +53,8 @@ export default function TechLayout() {
       {/* Hidden routes */}
       <Tabs.Screen name="service/[id]" options={{ href: null }} />
       <Tabs.Screen name="quotations" options={{ href: null }} />
+      <Tabs.Screen name="edit-profile" options={{ href: null }} />
+      <Tabs.Screen name="support" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Image, Alert, ActivityIndicator, Switch,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
@@ -11,6 +12,7 @@ import { useAuth } from '@/lib/auth-context';
 import { fetchWithAuth, API_URL } from '@/lib/api';
 
 export default function ClientSettingsScreen() {
+  const router = useRouter();
   const { user, refreshUser, logout } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [notifications, setNotifications] = useState(true);
@@ -98,12 +100,12 @@ export default function ClientSettingsScreen() {
 
       <Text style={styles.sectionTitle}>CUENTA</Text>
       <View style={styles.menuSection}>
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(client)/edit-profile' as any)}>
           <Ionicons name="person-outline" size={20} color="#8b8fa3" />
           <Text style={styles.menuText}>Editar Perfil</Text>
           <Ionicons name="chevron-forward" size={18} color="#555872" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(client)/privacy' as any)}>
           <Ionicons name="shield-checkmark-outline" size={20} color="#8b8fa3" />
           <Text style={styles.menuText}>Privacidad</Text>
           <Ionicons name="chevron-forward" size={18} color="#555872" />
@@ -112,12 +114,12 @@ export default function ClientSettingsScreen() {
 
       <Text style={styles.sectionTitle}>SOPORTE</Text>
       <View style={styles.menuSection}>
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(client)/help' as any)}>
           <Ionicons name="help-circle-outline" size={20} color="#8b8fa3" />
           <Text style={styles.menuText}>Centro de Ayuda</Text>
           <Ionicons name="chevron-forward" size={18} color="#555872" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(client)/support' as any)}>
           <Ionicons name="chatbubble-outline" size={20} color="#8b8fa3" />
           <Text style={styles.menuText}>Contactar Soporte</Text>
           <Ionicons name="chevron-forward" size={18} color="#555872" />

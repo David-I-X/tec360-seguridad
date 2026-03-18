@@ -54,6 +54,10 @@ export default function ClientLayout() {
       <Tabs.Screen name="service/[id]" options={{ href: null }} />
       <Tabs.Screen name="waiting/[id]" options={{ href: null }} />
       <Tabs.Screen name="quotations/[id]" options={{ href: null }} />
+      <Tabs.Screen name="edit-profile" options={{ href: null }} />
+      <Tabs.Screen name="help" options={{ href: null }} />
+      <Tabs.Screen name="support" options={{ href: null }} />
+      <Tabs.Screen name="privacy" options={{ href: null }} />
     </Tabs>
   );
 }
