@@ -80,8 +80,8 @@ export default function ServicesScreen() {
       <TouchableOpacity
         style={[styles.serviceCard, isLive && styles.serviceCardLive]}
         onPress={() => {
-          if (isLive) router.push(`/(client)/waiting/${item.id}` as any);
-          else router.push(`/(client)/service/${item.id}` as any);
+          // Always go to service detail (has map, route, timeline)
+          router.push(`/(client)/service/${item.id}` as any);
         }}
         activeOpacity={0.7}
       >
