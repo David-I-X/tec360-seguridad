@@ -6,7 +6,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-// Lazy import MapView — it's native-only
+
 let MapView: any = View;
 let Marker: any = View;
 let Polyline: any = View;
@@ -16,7 +16,7 @@ if (Platform.OS !== 'web') {
     MapView = maps.default;
     Marker = maps.Marker;
     Polyline = maps.Polyline;
-  } catch (e) { /* maps not available */ }
+  } catch (e) {}
 }
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
@@ -35,6 +35,29 @@ const STATUS_ACTIONS: Record<string, { label: string; next: StatusFlow; emoji: s
   in_progress: { label: 'Finalizar', next: 'completed', emoji: '✅', colors: ['#22c55e', '#16a34a'] },
 };
 
+// ─── Fetch real road route from OSRM (free, no API key) ───
+async function fetchRouteCoordinates(
+  originLat: number, originLng: number,
+  destLat: number, destLng: number
+): Promise<{ latitude: number; longitude: number }[]> {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.routes && data.routes.length > 0) {
+      const coords = data.routes[0].geometry.coordinates;
+      return coords.map((c: number[]) => ({ latitude: c[1], longitude: c[0] }));
+    }
+  } catch (e) {
+    console.warn('[Route] OSRM fetch failed:', e);
+  }
+  // Fallback: straight line
+  return [
+    { latitude: originLat, longitude: originLng },
+    { latitude: destLat, longitude: destLng },
+  ];
+}
+
 export default function TechServiceScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -42,8 +65,11 @@ export default function TechServiceScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [myLocation, setMyLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [routeCoords, setRouteCoords] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const mapRef = useRef<any>(null);
+  const lastRouteFetch = useRef<{ lat: number; lng: number } | null>(null);
 
   const loadService = useCallback(async () => {
     try {
@@ -72,7 +98,7 @@ export default function TechServiceScreen() {
     return () => { serviceWebSocket.disconnect(); unsub?.(); };
   }, [id]);
 
-  // GPS Tracking — send location updates when en_route or in_progress
+  // GPS Tracking
   useEffect(() => {
     if (!service || !['en_route', 'in_progress'].includes(service.status)) return;
 
@@ -92,7 +118,7 @@ export default function TechServiceScreen() {
     return () => { locationSubscription.current?.remove(); };
   }, [service?.status]);
 
-  // Get initial location for all statuses
+  // Get initial location
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -101,6 +127,41 @@ export default function TechServiceScreen() {
       setMyLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
     })();
   }, []);
+
+  // ─── Fetch real road route when location changes significantly ───
+  useEffect(() => {
+    if (!myLocation || !service?.service_lat || !service?.service_lon) return;
+
+    // Only re-fetch if moved >200m
+    if (lastRouteFetch.current) {
+      const dlat = Math.abs(myLocation.lat - lastRouteFetch.current.lat);
+      const dlng = Math.abs(myLocation.lng - lastRouteFetch.current.lng);
+      if (dlat < 0.002 && dlng < 0.002) return;
+    }
+
+    lastRouteFetch.current = { ...myLocation };
+
+    (async () => {
+      const coords = await fetchRouteCoordinates(
+        myLocation.lat, myLocation.lng,
+        service.service_lat, service.service_lon
+      );
+      setRouteCoords(coords);
+
+      // Also fetch route info (distance/duration)
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${myLocation.lng},${myLocation.lat};${service.service_lon},${service.service_lat}?overview=false`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.routes?.[0]) {
+          const r = data.routes[0];
+          const mins = Math.round(r.duration / 60);
+          const km = (r.distance / 1000).toFixed(1);
+          setRouteInfo({ distance: `${km} km`, duration: `${mins} min` });
+        }
+      } catch (e) {}
+    })();
+  }, [myLocation, service?.service_lat, service?.service_lon]);
 
   const handleStatusChange = async () => {
     const action = STATUS_ACTIONS[service?.status];
@@ -138,10 +199,7 @@ export default function TechServiceScreen() {
   };
 
   const capturePhoto = async (stage: string): Promise<string | null> => {
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.8,
-      allowsEditing: false,
-    });
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.8, allowsEditing: false });
     if (result.canceled || !result.assets[0]) return null;
     const compressed = await ImageManipulator.manipulateAsync(
       result.assets[0].uri,
@@ -170,7 +228,6 @@ export default function TechServiceScreen() {
   const serviceLng = service?.service_lon || -75.5636;
   const isTracking = ['en_route', 'in_progress'].includes(service?.status);
 
-  // Open native maps for navigation
   const openNavigation = () => {
     const url = Platform.select({
       ios: `maps:0,0?daddr=${serviceLat},${serviceLng}&dirflg=d`,
@@ -179,7 +236,6 @@ export default function TechServiceScreen() {
     if (url) Linking.openURL(url);
   };
 
-  // Map region that fits both markers
   const getMapRegion = () => {
     if (myLocation) {
       const midLat = (myLocation.lat + serviceLat) / 2;
@@ -200,30 +256,16 @@ export default function TechServiceScreen() {
         initialRegion={getMapRegion()}
         customMapStyle={darkMapStyle}
       >
-        {/* Service location pin */}
-        <Marker
-          coordinate={{ latitude: serviceLat, longitude: serviceLng }}
-          title="Ubicación del servicio"
-          pinColor="#8b5cf6"
-        />
-        {/* My location pin */}
+        <Marker coordinate={{ latitude: serviceLat, longitude: serviceLng }} title="Ubicación del servicio" pinColor="#8b5cf6" />
         {myLocation && (
-          <Marker
-            coordinate={{ latitude: myLocation.lat, longitude: myLocation.lng }}
-            title="Mi ubicación"
-            pinColor="#22c55e"
-          />
+          <Marker coordinate={{ latitude: myLocation.lat, longitude: myLocation.lng }} title="Mi ubicación" pinColor="#22c55e" />
         )}
-        {/* Route line between me and the service */}
-        {myLocation && (
+        {/* Real road route */}
+        {routeCoords.length > 1 && (
           <Polyline
-            coordinates={[
-              { latitude: myLocation.lat, longitude: myLocation.lng },
-              { latitude: serviceLat, longitude: serviceLng },
-            ]}
-            strokeColor="#8b5cf6"
-            strokeWidth={3}
-            lineDashPattern={[8, 4]}
+            coordinates={routeCoords}
+            strokeColor="#3b82f6"
+            strokeWidth={4}
           />
         )}
       </MapView>
@@ -233,7 +275,7 @@ export default function TechServiceScreen() {
         <Ionicons name="arrow-back" size={22} color="#f0f0f5" />
       </TouchableOpacity>
 
-      {/* Navigate button */}
+      {/* Navigate */}
       <TouchableOpacity style={styles.navBtn} onPress={openNavigation} activeOpacity={0.8}>
         <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.navBtnGradient}>
           <Ionicons name="navigate" size={16} color="#fff" />
@@ -241,12 +283,20 @@ export default function TechServiceScreen() {
         </LinearGradient>
       </TouchableOpacity>
 
+      {/* ETA overlay */}
+      {routeInfo && (
+        <View style={styles.etaOverlay}>
+          <Ionicons name="navigate" size={14} color="#3b82f6" />
+          <Text style={styles.etaText}>{routeInfo.duration}</Text>
+          <Text style={styles.etaDivider}>·</Text>
+          <Text style={styles.etaDistance}>{routeInfo.distance}</Text>
+        </View>
+      )}
+
       {/* Bottom Sheet */}
       <ScrollView style={styles.sheet} contentContainerStyle={{ paddingBottom: 120 }}>
-        {/* Service Info */}
         <Text style={styles.serviceTitle}>{service?.title}</Text>
 
-        {/* Info cards */}
         <View style={styles.infoGrid}>
           <View style={styles.infoCard}>
             <View style={[styles.infoIconBox, { backgroundColor: 'rgba(139,92,246,0.15)' }]}>
@@ -272,7 +322,6 @@ export default function TechServiceScreen() {
           )}
         </View>
 
-        {/* Tracking Status */}
         {isTracking && (
           <View style={styles.trackingBanner}>
             <View style={styles.trackingDot} />
@@ -280,7 +329,6 @@ export default function TechServiceScreen() {
           </View>
         )}
 
-        {/* Client Info */}
         {client && (
           <View style={styles.clientCard}>
             <Text style={styles.clientLabel}>CLIENTE</Text>
@@ -305,7 +353,6 @@ export default function TechServiceScreen() {
           </View>
         )}
 
-        {/* Status Action Button */}
         {action && (
           <TouchableOpacity
             style={[styles.actionBtn, isUpdating && { opacity: 0.6 }]}
@@ -326,8 +373,8 @@ export default function TechServiceScreen() {
 
         {service?.status === 'completed' && (
           <View style={styles.completedBanner}>
-            <Text style={styles.completedEmoji}>🎉</Text>
-            <Text style={styles.completedText}>Servicio completado</Text>
+            <Text style={{ fontSize: 36, marginBottom: 8 }}>🎉</Text>
+            <Text style={{ color: '#22c55e', fontSize: 18, fontWeight: '700' }}>Servicio completado</Text>
           </View>
         )}
       </ScrollView>
@@ -351,6 +398,10 @@ const styles = StyleSheet.create({
   navBtn: { position: 'absolute', top: 56, right: 16, borderRadius: 20, overflow: 'hidden', zIndex: 10 },
   navBtnGradient: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 },
   navBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  etaOverlay: { position: 'absolute', top: 100, left: 16, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(10,14,28,0.92)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)', zIndex: 10 },
+  etaText: { color: '#f0f0f5', fontSize: 13, fontWeight: '700' },
+  etaDivider: { color: '#555872', fontSize: 13 },
+  etaDistance: { color: '#8b8fa3', fontSize: 12 },
   sheet: { flex: 1, backgroundColor: '#050810', borderTopLeftRadius: 24, borderTopRightRadius: 24, marginTop: -24, paddingHorizontal: 20, paddingTop: 24 },
   serviceTitle: { color: '#f0f0f5', fontSize: 22, fontWeight: '800', marginBottom: 14 },
   infoGrid: { gap: 10, marginBottom: 14 },
@@ -375,6 +426,4 @@ const styles = StyleSheet.create({
   actionEmoji: { fontSize: 22 },
   actionText: { color: '#fff', fontSize: 18, fontWeight: '800' },
   completedBanner: { alignItems: 'center', marginTop: 8, padding: 20, backgroundColor: 'rgba(34,197,94,0.1)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' },
-  completedEmoji: { fontSize: 36, marginBottom: 8 },
-  completedText: { color: '#22c55e', fontSize: 18, fontWeight: '700' },
 });
