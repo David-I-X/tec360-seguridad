@@ -1,0 +1,118 @@
+/**
+ * Push Notification Service for Expo
+ * Handles: registration, permission requests, token storage, and notification handling
+ */
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+import { fetchWithAuth } from './api';
+
+// Configure how notifications are displayed when the app is in foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+/**
+ * Register for push notifications and return the Expo push token
+ */
+export async function registerForPushNotificationsAsync(): Promise<string | null> {
+  // Push notifications only work on physical devices
+  if (!Device.isDevice) {
+    console.log('[Notifications] Must use physical device for push notifications');
+    return null;
+  }
+
+  // Check/request permission
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+
+  if (finalStatus !== 'granted') {
+    console.log('[Notifications] Permission not granted');
+    return null;
+  }
+
+  // Get Expo push token
+  try {
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    const tokenData = await Notifications.getExpoPushTokenAsync({
+      projectId: projectId || undefined,
+    });
+    const token = tokenData.data;
+    console.log('[Notifications] Push token:', token);
+
+    // Android needs a notification channel
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'General',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#8b5cf6',
+        sound: 'default',
+      });
+
+      await Notifications.setNotificationChannelAsync('services', {
+        name: 'Servicios',
+        importance: Notifications.AndroidImportance.HIGH,
+        description: 'Notificaciones de servicios y actualizaciones',
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#8b5cf6',
+        sound: 'default',
+      });
+    }
+
+    return token;
+  } catch (error) {
+    console.error('[Notifications] Error getting push token:', error);
+    return null;
+  }
+}
+
+/**
+ * Send the push token to the backend so it can send notifications
+ */
+export async function sendPushTokenToBackend(token: string): Promise<void> {
+  try {
+    await fetchWithAuth('/auth/push-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        push_token: token,
+        platform: Platform.OS,
+      }),
+    });
+    console.log('[Notifications] Push token sent to backend');
+  } catch (error) {
+    console.warn('[Notifications] Failed to send push token to backend:', error);
+    // Non-critical — token will be sent on next app launch
+  }
+}
+
+/**
+ * Add listener for incoming notifications (foreground)
+ */
+export function addNotificationReceivedListener(
+  callback: (notification: Notifications.Notification) => void
+) {
+  return Notifications.addNotificationReceivedListener(callback);
+}
+
+/**
+ * Add listener for notification interactions (taps)
+ */
+export function addNotificationResponseListener(
+  callback: (response: Notifications.NotificationResponse) => void
+) {
+  return Notifications.addNotificationResponseReceivedListener(callback);
+}

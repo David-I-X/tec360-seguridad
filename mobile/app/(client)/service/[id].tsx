@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Image, Linking, Dimensions, Platform,
+  ActivityIndicator, Image, Linking, Dimensions, Platform, Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,9 +19,10 @@ if (Platform.OS !== 'web') {
   } catch (e) {}
 }
 import { useAuth } from '@/lib/auth-context';
-import { getServiceById, getAuthToken, API_URL } from '@/lib/api';
+import { getServiceById, getAuthToken, API_URL, fetchWithAuth } from '@/lib/api';
 import { serviceWebSocket } from '@/lib/websocket';
 import { ServicePinMarker, TechnicianPinMarker } from '@/components/map-markers';
+import RatingModal from '@/components/rating-modal';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -75,6 +76,9 @@ export default function ServiceDetailScreen() {
   const [routeCoords, setRouteCoords] = useState<{ latitude: number; longitude: number }[]>([]);
   const [routeInfo, setRouteInfo] = useState<{ duration: string; distance: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showRating, setShowRating] = useState(false);
+  const [canRate, setCanRate] = useState(false);
+  const [alreadyRated, setAlreadyRated] = useState(false);
   const lastRouteFetchRef = React.useRef<{ lat: number; lng: number } | null>(null);
 
   const loadService = useCallback(async () => {
@@ -86,6 +90,22 @@ export default function ServiceDetailScreen() {
   }, [id]);
 
   useEffect(() => { loadService(); }, [loadService]);
+
+  // Check if user can rate (for completed services)
+  useEffect(() => {
+    if (!service || service.status !== 'completed') return;
+    (async () => {
+      try {
+        const res = await fetchWithAuth(`/ratings/services/${id}/can-rate`);
+        const data = await res.json();
+        setCanRate(data.can_rate);
+        setAlreadyRated(!data.can_rate && data.reason?.includes('ya'));
+      } catch (e) {
+        // If endpoint fails, still allow rating attempt
+        setCanRate(true);
+      }
+    })();
+  }, [service?.status, id]);
 
   // WebSocket for live tracking
   useEffect(() => {
@@ -405,8 +425,40 @@ export default function ServiceDetailScreen() {
             <Text style={{ fontSize: 40, marginBottom: 8 }}>🎉</Text>
             <Text style={{ color: '#22c55e', fontSize: 18, fontWeight: '800' }}>¡Servicio completado!</Text>
             <Text style={{ color: '#8b8fa3', fontSize: 13, textAlign: 'center', marginTop: 4 }}>Tu técnico ha finalizado el trabajo.</Text>
+            {canRate && (
+              <TouchableOpacity onPress={() => setShowRating(true)} activeOpacity={0.8} style={{ marginTop: 16, width: '100%' }}>
+                <LinearGradient colors={['#eab308', '#ca8a04']} style={styles.actionButton}>
+                  <Ionicons name="star" size={18} color="#fff" />
+                  <Text style={styles.actionText}>Calificar servicio</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+            {alreadyRated && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 }}>
+                <Ionicons name="checkmark-circle" size={18} color="#22c55e" />
+                <Text style={{ color: '#22c55e', fontSize: 13, fontWeight: '600' }}>Ya calificaste este servicio</Text>
+              </View>
+            )}
           </View>
         )}
+
+        {/* Rating Modal */}
+        <RatingModal
+          visible={showRating}
+          techName={tech?.full_name?.split(' ')[0]}
+          onClose={() => setShowRating(false)}
+          onSubmit={async (rating, comment) => {
+            await fetchWithAuth(`/ratings/services/${id}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ rating, comment: comment || null }),
+            });
+            setShowRating(false);
+            setCanRate(false);
+            setAlreadyRated(true);
+            Alert.alert('¡Gracias! 🌟', 'Tu calificación ha sido enviada.');
+          }}
+        />
       </ScrollView>
     </View>
   );

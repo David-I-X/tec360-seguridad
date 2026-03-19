@@ -119,7 +119,7 @@ export default function NewServiceScreen() {
       }
 
       Alert.alert('¡Servicio creado!', 'Tu solicitud fue enviada a los técnicos disponibles.', [
-        { text: 'Ver servicio', onPress: () => router.replace(`/(client)/waiting/${serviceId}` as any) },
+        { text: 'Ver servicio', onPress: () => router.replace(`/(client)/service/${serviceId}` as any) },
       ]);
     } catch (err: any) {
       Alert.alert('Error', err.message);
