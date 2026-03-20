@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, Image, Dimensions, Linking, Platform,
+  ActivityIndicator, Alert, Image, Dimensions, Linking, Platform, RefreshControl,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -68,6 +68,7 @@ export default function TechServiceScreen() {
   const [myLocation, setMyLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [routeCoords, setRouteCoords] = useState<{ latitude: number; longitude: number }[]>([]);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const mapRef = useRef<any>(null);
   const lastRouteFetch = useRef<{ lat: number; lng: number } | null>(null);
@@ -77,7 +78,7 @@ export default function TechServiceScreen() {
       const data = await getServiceById(id!);
       setService(data.service || data);
     } catch (e) { console.error(e); }
-    finally { setIsLoading(false); }
+    finally { setIsLoading(false); setRefreshing(false); }
   }, [id]);
 
   useEffect(() => { loadService(); }, [loadService]);
@@ -299,7 +300,11 @@ export default function TechServiceScreen() {
       )}
 
       {/* Bottom Sheet */}
-      <ScrollView style={styles.sheet} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView 
+        style={styles.sheet} 
+        contentContainerStyle={{ paddingBottom: 120 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadService(); }} tintColor="#8b5cf6" />}
+      >
         <Text style={styles.serviceTitle}>{service?.title}</Text>
 
         <View style={styles.infoGrid}>

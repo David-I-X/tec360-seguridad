@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Image, Linking, Dimensions, Platform, Alert,
+  ActivityIndicator, Image, Linking, Dimensions, Platform, Alert, RefreshControl,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -79,6 +79,7 @@ export default function ServiceDetailScreen() {
   const [showRating, setShowRating] = useState(false);
   const [canRate, setCanRate] = useState(false);
   const [alreadyRated, setAlreadyRated] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const lastRouteFetchRef = React.useRef<{ lat: number; lng: number } | null>(null);
 
   const loadService = useCallback(async () => {
@@ -86,7 +87,7 @@ export default function ServiceDetailScreen() {
       const data = await getServiceById(id!);
       setService(data.service || data);
     } catch (e) { console.error(e); }
-    finally { setIsLoading(false); }
+    finally { setIsLoading(false); setRefreshing(false); }
   }, [id]);
 
   useEffect(() => { loadService(); }, [loadService]);
@@ -288,7 +289,11 @@ export default function ServiceDetailScreen() {
       )}
 
       {/* Bottom Sheet */}
-      <ScrollView style={styles.sheet} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView 
+        style={styles.sheet} 
+        contentContainerStyle={{ paddingBottom: 120 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadService(); }} tintColor="#8b5cf6" />}
+      >
 
         {/* ── Technician Card ── */}
         {tech && (
