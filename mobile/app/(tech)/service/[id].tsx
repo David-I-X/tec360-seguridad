@@ -376,6 +376,19 @@ export default function TechServiceScreen() {
           </TouchableOpacity>
         )}
 
+        {service?.status === 'pending' && (
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => router.push(`/(tech)/quotation/${id}/new` as any)}
+            activeOpacity={0.8}
+          >
+            <LinearGradient colors={['#a855f7', '#9333ea']} style={styles.actionGradient}>
+              <Text style={styles.actionEmoji}>💰</Text>
+              <Text style={styles.actionText}>Cotizar Servicio</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+
         {service?.status === 'completed' && (
           <View style={styles.completedBanner}>
             <Text style={{ fontSize: 36, marginBottom: 8 }}>🎉</Text>

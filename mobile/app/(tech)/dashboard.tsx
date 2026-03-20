@@ -91,7 +91,19 @@ export default function TechDashboardScreen() {
         </View>
         <Switch
           value={isOnline}
-          onValueChange={setIsOnline}
+          onValueChange={async (val) => {
+            setIsOnline(val);
+            try {
+              await fetchWithAuth('/technicians/me/availability', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_available: val }),
+              });
+            } catch (e) {
+              setIsOnline(!val); // rollback
+              console.error('Failed to update availability:', e);
+            }
+          }}
           trackColor={{ false: '#334155', true: 'rgba(34,197,94,0.3)' }}
           thumbColor={isOnline ? '#22c55e' : '#555872'}
         />

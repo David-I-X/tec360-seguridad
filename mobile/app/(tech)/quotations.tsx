@@ -3,11 +3,13 @@ import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fetchWithAuth } from '@/lib/api';
 
 export default function TechQuotationsScreen() {
+  const router = useRouter();
   const [quotations, setQuotations] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -47,7 +49,11 @@ export default function TechQuotationsScreen() {
         renderItem={({ item }) => {
           const statusColor = statusColors[item.status] || '#555872';
           return (
-            <View style={styles.quoteCard}>
+            <TouchableOpacity
+              style={styles.quoteCard}
+              activeOpacity={0.7}
+              onPress={() => router.push(`/(tech)/quotation/${item.id}` as any)}
+            >
               <View style={styles.quoteHeader}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.quoteTitle}>{item.service?.title || 'Servicio'}</Text>
@@ -57,7 +63,7 @@ export default function TechQuotationsScreen() {
                   <Text style={styles.quotePrice}>${item.price?.toLocaleString('es-CO')}</Text>
                   <View style={[styles.quoteBadge, { backgroundColor: `${statusColor}20` }]}>
                     <Text style={[styles.quoteBadgeText, { color: statusColor }]}>
-                      {item.status === 'pending' ? 'Pendiente' : item.status === 'accepted' ? 'Aceptada' : 'Rechazada'}
+                      {item.status === 'pending' ? 'Pendiente' : item.status === 'accepted' ? 'Aceptada' : item.status === 'counter_offered' ? 'Contraoferta' : 'Rechazada'}
                     </Text>
                   </View>
                 </View>
@@ -65,7 +71,7 @@ export default function TechQuotationsScreen() {
               {item.message && (
                 <Text style={styles.quoteMessage} numberOfLines={2}>"{item.message}"</Text>
               )}
-            </View>
+            </TouchableOpacity>
           );
         }}
         ListEmptyComponent={

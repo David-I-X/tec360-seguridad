@@ -58,6 +58,7 @@ export default function ClientLayout() {
       <Tabs.Screen name="help" options={{ href: null }} />
       <Tabs.Screen name="support" options={{ href: null }} />
       <Tabs.Screen name="privacy" options={{ href: null }} />
+      <Tabs.Screen name="tech-profile/[techId]" options={{ href: null }} />
     </Tabs>
   );
 }

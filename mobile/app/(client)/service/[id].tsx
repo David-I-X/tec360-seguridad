@@ -320,7 +320,7 @@ export default function ServiceDetailScreen() {
             </View>
 
             <View style={styles.techActions}>
-              <TouchableOpacity style={styles.profileBtn} activeOpacity={0.7}>
+              <TouchableOpacity style={styles.profileBtn} activeOpacity={0.7} onPress={() => router.push(`/(client)/tech-profile/${tech.id || service?.technician_id}` as any)}>
                 <Text style={styles.profileBtnText}>Ver perfil completo</Text>
               </TouchableOpacity>
               {tech.phone && (
@@ -412,12 +412,45 @@ export default function ServiceDetailScreen() {
         )}
 
         {service?.status === 'pending' && (
-          <TouchableOpacity onPress={() => router.push(`/(client)/quotations/${id}` as any)} activeOpacity={0.8}>
-            <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.actionButton}>
-              <Ionicons name="pricetags" size={18} color="#fff" />
-              <Text style={styles.actionText}>Ver Cotizaciones</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity onPress={() => router.push(`/(client)/quotations/${id}` as any)} activeOpacity={0.8}>
+              <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.actionButton}>
+                <Ionicons name="pricetags" size={18} color="#fff" />
+                <Text style={styles.actionText}>Ver Cotizaciones</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                Alert.alert(
+                  'Cancelar servicio',
+                  '¿Estás seguro de que deseas cancelar este servicio?',
+                  [
+                    { text: 'No', style: 'cancel' },
+                    {
+                      text: 'Sí, cancelar',
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          await fetchWithAuth(`/services/${id}`, { method: 'DELETE' });
+                          Alert.alert('Servicio cancelado', 'Tu servicio ha sido cancelado.');
+                          router.back();
+                        } catch (err) {
+                          Alert.alert('Error', 'No se pudo cancelar el servicio.');
+                        }
+                      },
+                    },
+                  ]
+                );
+              }}
+              activeOpacity={0.8}
+              style={{ marginTop: 4 }}
+            >
+              <View style={[styles.actionButton, { backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' }]}>
+                <Ionicons name="close-circle" size={18} color="#ef4444" />
+                <Text style={[styles.actionText, { color: '#ef4444' }]}>Cancelar servicio</Text>
+              </View>
+            </TouchableOpacity>
+          </>
         )}
 
         {service?.status === 'completed' && (
