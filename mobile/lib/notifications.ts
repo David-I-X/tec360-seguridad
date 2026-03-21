@@ -45,9 +45,21 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
   // Get Expo push token
   try {
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    const isExpoGo = Constants.appOwnership === 'expo';
+    let projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    
+    // Ignore placeholder project IDs
+    if (projectId === 'YOUR_EAS_PROJECT_ID') {
+      projectId = undefined;
+    }
+
+    if (isExpoGo) {
+      console.log('[Notifications] Running in Expo Go. Push notifications are not fully supported. Returning mock token.');
+      return 'ExponentPushToken[mock_token_for_expo_go]';
+    }
+
     const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: projectId || undefined,
+      projectId: projectId,
     });
     const token = tokenData.data;
     console.log('[Notifications] Push token:', token);
