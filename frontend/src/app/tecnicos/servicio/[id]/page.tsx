@@ -187,6 +187,21 @@ function TechnicianServiceContent() {
     const [isUpdating, setIsUpdating] = useState(false)
     const [confirmComplete, setConfirmComplete] = useState(false)  // UX #7: confirm before complete
 
+    const isRecovery = service?.service_type === "vehicle_recovery"
+
+    const displayStages: PhotoStage[] = isRecovery ? ["after"] : ["before", "during", "after"]
+    const getStageMeta = (stage: PhotoStage) => {
+        if (isRecovery && stage === "after") {
+            return {
+                label: "Vehículo Asegurado",
+                hint: "Toma una foto clara del vehículo tras asegurarlo",
+                emoji: "🚨",
+                color: "text-red-500"
+            }
+        }
+        return STAGE_META[stage]
+    }
+
     // Photo state — url once uploaded
     const [photos, setPhotos] = useState<Record<PhotoStage, string | null>>({
         before: null, during: null, after: null
@@ -384,7 +399,7 @@ function TechnicianServiceContent() {
     /* ─── Action handlers with photo gate ───────── */
     // "Arrived" → require before photo first
     const handleArrived = () => {
-        if (!photos.before) {
+        if (!isRecovery && !photos.before) {
             pendingStatusRef.current = "arrived"
             setPendingPhotoFor("before")
         } else {
@@ -394,7 +409,7 @@ function TechnicianServiceContent() {
 
     // "Start work" → require during photo then move to in_progress
     const handleInProgress = () => {
-        if (!photos.during) {
+        if (!isRecovery && !photos.during) {
             pendingStatusRef.current = "in_progress"
             setPendingPhotoFor("during")
         } else {
@@ -617,12 +632,12 @@ function TechnicianServiceContent() {
                             Evidencias fotográficas
                         </h3>
                         <span className="text-xs text-muted-foreground">
-                            {Object.values(photos).filter(Boolean).length}/3
+                            {Object.values(photos).filter(Boolean).length}/{isRecovery ? 1 : 3}
                         </span>
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
-                        {(["before", "during", "after"] as PhotoStage[]).map((stage) => {
-                            const meta = STAGE_META[stage]
+                    <div className={`grid gap-3 ${isRecovery ? "grid-cols-1 max-w-sm mx-auto" : "grid-cols-3"}`}>
+                        {displayStages.map((stage) => {
+                            const meta = getStageMeta(stage)
                             const url = photos[stage]
                             const isCurrentStage = (
                                 (stage === "before" && ["assigned", "en_route"].includes(service.status)) ||
@@ -674,18 +689,19 @@ function TechnicianServiceContent() {
                         </Button>
                     )}
 
+                    {/* Normal Technicians Action Button Prompts */}
                     {service.status === "en_route" && (
                         <Button onClick={handleArrived} size="lg" className="w-full bg-orange-600 hover:bg-orange-700" disabled={isUpdating}>
                             <MapPin className="mr-2 h-5 w-5" />
                             {isUpdating ? "Actualizando..." : "📍 He llegado al lugar"}
-                            {!photos.before && <span className="ml-2 text-xs opacity-70">(requiere foto)</span>}
+                            {!isRecovery && !photos.before && <span className="ml-2 text-xs opacity-70">(requiere foto)</span>}
                         </Button>
                     )}
 
                     {service.status === "arrived" && (
                         <Button onClick={handleInProgress} size="lg" className="w-full bg-purple-600 hover:bg-purple-700" disabled={isUpdating}>
                             🔧 {isUpdating ? "Actualizando..." : "Iniciar trabajo"}
-                            {!photos.during && <span className="ml-2 text-xs opacity-70">(requiere foto)</span>}
+                            {!isRecovery && !photos.during && <span className="ml-2 text-xs opacity-70">(requiere foto)</span>}
                         </Button>
                     )}
 
