@@ -15,9 +15,15 @@ class PushNotificationService:
     
     @staticmethod
     def get_user_tokens(user_id: str) -> List[PushToken]:
+        import uuid
+        try:
+            user_uuid = uuid.UUID(user_id)
+        except ValueError:
+            return []
+            
         with Session(engine) as session:
             tokens = session.exec(
-                select(PushToken).where(PushToken.user_id == user_id).where(PushToken.is_active == True)
+                select(PushToken).where(PushToken.user_id == user_uuid).where(PushToken.is_active == True)
             ).all()
             return tokens
             
