@@ -5,6 +5,7 @@ from app.core.database import get_session
 from app.core.security import get_current_user
 from app.models.user import User
 from app.models.technician import Technician
+from app.models.push_token import PushToken, PushTokenCreate
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -121,3 +122,34 @@ async def delete_my_account(
     session.add(user)
     session.commit()
     return {"message": "Account deactivated successfully"}
+
+@router.post("/me/push-tokens", summary="Register a push notification token")
+async def register_push_token(
+    token_data: PushTokenCreate,
+    current_user: dict = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    user_id = current_user["id"]
+    existing = session.exec(select(PushToken).where(PushToken.token == token_data.token)).first()
+    
+    if existing:
+        # If token exists but was assigned to another user (or disabled), reassign/enable
+        if str(existing.user_id) != str(user_id) or not existing.is_active or existing.platform != token_data.platform:
+            existing.user_id = user_id
+            existing.is_active = True
+            existing.platform = token_data.platform
+            session.add(existing)
+            session.commit()
+            return {"message": "Token updated and re-registered successfully", "token_id": str(existing.id)}
+        return {"message": "Token already registered", "token_id": str(existing.id)}
+        
+    new_token = PushToken(
+        user_id=user_id,
+        token=token_data.token,
+        platform=token_data.platform,
+        is_active=True
+    )
+    session.add(new_token)
+    session.commit()
+    return {"message": "Token registered successfully", "token_id": str(new_token.id)}
+

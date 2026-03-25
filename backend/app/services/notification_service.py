@@ -48,6 +48,22 @@ class NotificationService:
             # Don't fail if WebSocket fails
             import logging
             logging.warning(f"WebSocket notification failed: {e}")
+            
+        # Trigger external Push Notification (Expo/WebPush)
+        try:
+            from app.services.push_service import push_service
+            await push_service.send_push_notification(
+                user_id=str(data.user_id),
+                title=data.title,
+                body=data.message,
+                data={
+                    "notification_type": data.notification_type,
+                    "service_id": str(data.service_id) if data.service_id else None
+                }
+            )
+        except Exception as e:
+            import logging
+            logging.warning(f"Push notification dispatch failed: {e}")
         
         return notification
     

@@ -86,4 +86,58 @@ self.addEventListener("fetch", (event) => {
                 });
             })
     );
+            })
+    );
+});
+
+// ============================================
+// WEB PUSH NOTIFICATIONS
+// ============================================
+
+self.addEventListener("push", (event) => {
+    let data = {};
+    try {
+        if (event.data) {
+            data = event.data.json();
+        }
+    } catch(e) {
+        console.warn("Push event data is not JSON");
+        data = { title: "Tec360 Seguridad", message: event.data.text() };
+    }
+    
+    const title = data.title || "Notificación de Tec360";
+    const options = {
+        body: data.message || data.body || "Tienes una nueva actualización",
+        icon: "/icons/icon-192x192.png", // Assuming this exists from PWA standard
+        badge: "/icons/icon-192x192.png",
+        data: data,
+        vibrate: [100, 50, 100],
+    };
+
+    event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+    event.notification.close();
+    
+    // Define target URL from notification payload or default to index
+    const urlToOpen = event.notification.data?.service_id 
+        ? `/servicios/${event.notification.data.service_id}`
+        : "/servicios";
+
+    event.waitUntil(
+        clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+            // Focus if open
+            const matchingClient = windowClients.find((c) => {
+                return c.url === new URL(urlToOpen, self.location.origin).href;
+            });
+            if (matchingClient) {
+                return matchingClient.focus();
+            }
+            // Open new window otherwise
+            if (clients.openWindow) {
+                return clients.openWindow(urlToOpen);
+            }
+        })
+    );
 });

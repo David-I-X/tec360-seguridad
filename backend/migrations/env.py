@@ -19,6 +19,7 @@ if config.config_file_name is not None:
 from sqlmodel import SQLModel
 from app.models.user import User
 from app.models.service import Service
+from app.models.push_token import PushToken
 
 target_metadata = SQLModel.metadata
 

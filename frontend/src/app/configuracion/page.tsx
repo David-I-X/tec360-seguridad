@@ -7,13 +7,15 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { toast } from "react-hot-toast"
 import { getAvatarUrl } from "@/lib/utils"
-import { Camera, User, Wrench, Shield, AlertTriangle, LogOut, ArrowLeft } from "lucide-react"
+import { Camera, User, Wrench, Shield, AlertTriangle, LogOut, ArrowLeft, Bell } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { usePushNotifications } from "@/hooks/use-push-notifications"
 
 export default function ConfigPage() {
     const { user, logout, refreshUser } = useAuth()
     const router = useRouter()
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const push = usePushNotifications()
 
     const [activeTab, setActiveTab] = useState("personal")
     const [loading, setLoading] = useState(true)
@@ -286,6 +288,40 @@ export default function ConfigPage() {
                                                 onChange={e => setPersonalForm({ ...personalForm, city: e.target.value })}
                                                 className="w-full glass-input rounded-xl text-white text-sm px-4 py-3"
                                             />
+                                        </div>
+
+                                        {/* WEB PUSH NOTIFICATIONS SEC */}
+                                        <div className="col-span-full mt-4 pt-6 border-t border-white/5">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2">
+                                                        <Bell className="w-3.5 h-3.5" /> Alertas del Sistema (Web Push)
+                                                    </label>
+                                                    <p className="text-xs text-slate-500">Recibe notificaciones en tu navegador incluso con la app cerrada.</p>
+                                                </div>
+                                                <div>
+                                                    {!push.isSupported ? (
+                                                        <span className="text-xs text-red-400 bg-red-400/10 px-3 py-1.5 rounded-lg border border-red-400/20">Navegador Incompatible</span>
+                                                    ) : push.permission === "denied" ? (
+                                                        <span className="text-xs text-orange-400 bg-orange-400/10 px-3 py-1.5 rounded-lg border border-orange-400/20">Permiso Denegado</span>
+                                                    ) : push.isSubscribed ? (
+                                                        <span className="text-xs font-bold text-[#00f2ff] bg-[#00f2ff]/10 px-3 py-1.5 rounded-lg border border-[#00f2ff]/20 flex items-center gap-1">
+                                                            Activadas ✓
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            onClick={async () => {
+                                                                const success = await push.subscribeToPush();
+                                                                if (success) toast.success("Notificaciones activadas!");
+                                                            }}
+                                                            type="button"
+                                                            className="bg-white/5 hover:bg-white/10 text-white border border-white/10 px-4 py-2 rounded-xl text-xs font-bold transition-all"
+                                                        >
+                                                            Activar Alertas
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

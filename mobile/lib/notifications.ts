@@ -96,12 +96,12 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
  */
 export async function sendPushTokenToBackend(token: string): Promise<void> {
   try {
-    await fetchWithAuth('/auth/push-token', {
+    await fetchWithAuth('/users/me/push-tokens', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        push_token: token,
-        platform: Platform.OS,
+        token: token,
+        platform: 'expo',
       }),
     });
     console.log('[Notifications] Push token sent to backend');

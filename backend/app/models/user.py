@@ -31,6 +31,11 @@ class User(UserBase, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+    # Note: relationship fields in SQLModel are typed list, but we use SQLAlchemy relation type
+    # For now, if we need it, we can declare it. SQLModel uses List["PushToken"]
+    # So we prefer generic back_populates if needed
+
+
 class UserCreate(UserBase):
     password: str
 
