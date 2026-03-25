@@ -14,6 +14,7 @@ from app.api import ws as websocket_router
 from app.api import location as location_router
 from app.api import notifications as notifications_router
 from app.api import quotations as quotations_router
+from app.api import payments as payments_router
 import os
 import logging
 import time
@@ -134,6 +135,9 @@ app.include_router(notifications_router.router)
 
 # Quotations
 app.include_router(quotations_router.router)
+
+# Payments (feature-flagged via PAYMENTS_ENABLED)
+app.include_router(payments_router.router)
 
 # Simulation (development only — excluded in production)
 if settings.ENVIRONMENT != "production":

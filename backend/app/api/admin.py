@@ -1,8 +1,9 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select, func, or_
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timedelta
+from sqlalchemy import text
 
 from app.core.database import get_session
 from app.core.security import require_roles
@@ -36,15 +37,25 @@ async def list_users(
     skip: int = 0,
     limit: int = 50,
     role: Optional[str] = None,
+    search: Optional[str] = Query(None, description="Buscar por nombre, email o teléfono"),
     current_user: dict = Depends(require_roles("admin")),
     session: Session = Depends(get_session)
 ):
     query = select(User)
     if role:
         query = query.where(User.role == role)
+    if search:
+        pattern = f"%{search}%"
+        query = query.where(
+            or_(
+                User.full_name.ilike(pattern),
+                User.email.ilike(pattern),
+                User.phone.ilike(pattern),
+            )
+        )
         
     total = session.exec(select(func.count()).select_from(query.subquery())).one()
-    users = session.exec(query.offset(skip).limit(limit)).all()
+    users = session.exec(query.order_by(User.created_at.desc()).offset(skip).limit(limit)).all()
     
     result_list = []
     for u in users:
@@ -137,7 +148,7 @@ async def change_user_status(
 
 
 class RoleChangeRequest(BaseModel):
-    role: str  # "client" | "technician" | "admin"
+    role: str  # "client" | "technician" | "admin" | "reaction_team"
 
 @router.put("/users/{user_id}/role", summary="Change user role")
 async def change_user_role(
@@ -171,34 +182,58 @@ async def change_user_role(
 
 # --- Admin Services Management ---
 
-@router.get("/services", summary="List all services across platform")
+@router.get("/services", summary="List all services with resolved names")
 async def list_global_services(
     skip: int = 0,
     limit: int = 50,
-    status: Optional[ServiceStatus] = None,
+    status: Optional[str] = Query(None, description="Filtrar por estado"),
+    service_type: Optional[str] = Query(None, description="Filtrar por tipo"),
+    search: Optional[str] = Query(None, description="Buscar por título, dirección o placa"),
     current_user: dict = Depends(require_roles("admin")),
     session: Session = Depends(get_session)
 ):
     query = select(Service)
     if status:
         query = query.where(Service.status == status)
+    if service_type:
+        query = query.where(Service.service_type == service_type)
+    if search:
+        pattern = f"%{search}%"
+        query = query.where(
+            or_(
+                Service.title.ilike(pattern),
+                Service.service_address.ilike(pattern),
+                Service.vehicle_plate.ilike(pattern),
+                Service.description.ilike(pattern),
+            )
+        )
         
     total = session.exec(select(func.count()).select_from(query.subquery())).one()
     services = session.exec(query.order_by(Service.created_at.desc()).offset(skip).limit(limit)).all()
     
+    # Resolve client and technician names
+    items = []
+    for s in services:
+        client = session.get(User, s.client_id) if s.client_id else None
+        technician = session.get(User, s.technician_id) if s.technician_id else None
+        items.append({
+            "id": str(s.id),
+            "title": s.title,
+            "service_type": s.service_type,
+            "status": s.status,
+            "service_address": s.service_address,
+            "estimated_price": s.estimated_price,
+            "vehicle_plate": s.vehicle_plate,
+            "client_id": str(s.client_id),
+            "client_name": client.full_name if client else None,
+            "client_phone": client.phone if client else None,
+            "technician_id": str(s.technician_id) if s.technician_id else None,
+            "technician_name": technician.full_name if technician else None,
+            "created_at": s.created_at,
+        })
+    
     return {
-        "items": [
-            {
-                "id": str(s.id),
-                "title": s.title,
-                "service_type": s.service_type,
-                "status": s.status,
-                "service_address": s.service_address,
-                "client_id": str(s.client_id),
-                "technician_id": str(s.technician_id) if s.technician_id else None,
-                "created_at": s.created_at,
-            } for s in services
-        ],
+        "items": items,
         "total": total
     }
 
@@ -231,6 +266,10 @@ async def get_service_detail_admin(
         "service_address": service.service_address,
         "description": service.description,
         "estimated_price": service.estimated_price,
+        "vehicle_type": service.vehicle_type,
+        "vehicle_model": service.vehicle_model,
+        "vehicle_plate": service.vehicle_plate,
+        "service_metadata": service.service_metadata,
         "scheduled_date": service.scheduled_date.isoformat() if service.scheduled_date else None,
         "created_at": service.created_at.isoformat() if service.created_at else None,
         "client_id": str(service.client_id) if service.client_id else None,
@@ -247,26 +286,103 @@ async def get_service_detail_admin(
     }
 
 
+# --- Estadísticas ---
 
-@router.get("/stats", summary="Platform wide statistics")
+@router.get("/stats", summary="Platform wide statistics — real data")
 async def platform_stats(
     current_user: dict = Depends(require_roles("admin")),
     session: Session = Depends(get_session)
 ):
+    # User counts by role
     total_clients = session.exec(select(func.count()).select_from(select(User).where(User.role == "client").subquery())).one()
     total_techs = session.exec(select(func.count()).select_from(select(User).where(User.role == "technician").subquery())).one()
+    total_reaction = session.exec(select(func.count()).select_from(select(User).where(User.role == "reaction_team").subquery())).one()
+
+    # Service counts
     total_services = session.exec(select(func.count()).select_from(select(Service).subquery())).one()
-    completed_services = session.exec(select(func.count()).select_from(select(Service).where(Service.status == "completed").subquery())).one()
     
+    status_counts = {}
+    for s in ServiceStatus:
+        count = session.exec(select(func.count()).select_from(select(Service).where(Service.status == s.value).subquery())).one()
+        status_counts[s.value] = count
+
+    # Revenue — real SUM of estimated_price for completed services
+    revenue_result = session.exec(
+        select(func.coalesce(func.sum(Service.estimated_price), 0))
+        .where(Service.status == "completed")
+    ).one()
+    total_revenue = float(revenue_result)
+
+    # Recovery services
+    recovery_total = session.exec(select(func.count()).select_from(
+        select(Service).where(Service.service_type == "vehicle_recovery").subquery()
+    )).one()
+    recovery_active = session.exec(select(func.count()).select_from(
+        select(Service).where(
+            Service.service_type == "vehicle_recovery",
+            Service.status.notin_(["completed", "cancelled"])
+        ).subquery()
+    )).one()
+
+    # Avg ticket (completed with price)
+    avg_ticket_result = session.exec(
+        select(func.coalesce(func.avg(Service.estimated_price), 0))
+        .where(Service.status == "completed", Service.estimated_price.isnot(None))
+    ).one()
+
+    completed = status_counts.get("completed", 0)
+
     return {
         "users": {
             "clients": total_clients,
             "technicians": total_techs,
-            "total": total_clients + total_techs
+            "reaction_team": total_reaction,
+            "total": total_clients + total_techs + total_reaction
         },
         "services": {
             "total": total_services,
-            "completed": completed_services,
-            "completion_rate": f"{(completed_services / total_services * 100):.1f}%" if total_services > 0 else "0%"
+            "by_status": status_counts,
+            "completed": completed,
+            "completion_rate": f"{(completed / total_services * 100):.1f}%" if total_services > 0 else "0%"
+        },
+        "revenue": {
+            "total": total_revenue,
+            "average_ticket": float(avg_ticket_result),
+            "currency": "COP"
+        },
+        "recovery": {
+            "total": recovery_total,
+            "active": recovery_active,
         }
     }
+
+
+@router.get("/stats/timeline", summary="Services created per week (last 12 weeks)")
+async def stats_timeline(
+    weeks: int = Query(12, ge=1, le=52, description="Number of past weeks"),
+    current_user: dict = Depends(require_roles("admin")),
+    session: Session = Depends(get_session)
+):
+    start_date = datetime.utcnow() - timedelta(weeks=weeks)
+    
+    # Raw SQL for date_trunc — cleaner for time series
+    result = session.exec(text("""
+        SELECT
+            date_trunc('week', created_at)::date AS week_start,
+            COUNT(*) AS count,
+            COALESCE(SUM(estimated_price), 0) AS revenue
+        FROM services
+        WHERE created_at >= :start_date
+        GROUP BY week_start
+        ORDER BY week_start
+    """), params={"start_date": start_date})
+    
+    timeline = []
+    for row in result:
+        timeline.append({
+            "week": row[0].isoformat(),
+            "services": row[1],
+            "revenue": float(row[2])
+        })
+    
+    return {"timeline": timeline, "weeks": weeks}

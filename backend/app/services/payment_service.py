@@ -1,0 +1,167 @@
+"""
+Servicio de Pagos — Tec360 Seguridad
+Lógica de negocio para pagos en efectivo y digitales
+"""
+from datetime import datetime
+from uuid import UUID
+from typing import Optional
+
+from sqlmodel import Session, select, func
+from fastapi import HTTPException
+
+from app.models.payment import Payment, PaymentStatus, PaymentMethod
+from app.models.service import Service
+from app.models.user import User
+from app.schemas.payment import CashPaymentConfirm, PaymentResponse, PaymentListResponse
+
+
+class PaymentService:
+    """Service layer para pagos"""
+
+    async def confirm_cash_payment(
+        self,
+        session: Session,
+        data: CashPaymentConfirm,
+        technician_id: str,
+    ) -> PaymentResponse:
+        """Técnico confirma que recibió pago en efectivo del cliente"""
+        service = session.get(Service, UUID(data.service_id))
+        if not service:
+            raise HTTPException(status_code=404, detail="Servicio no encontrado")
+
+        # Verify the technician is assigned to this service
+        if str(service.technician_id) != str(technician_id):
+            raise HTTPException(
+                status_code=403,
+                detail="Solo el técnico asignado puede confirmar el pago"
+            )
+
+        # Check if payment already exists for this service
+        existing = session.exec(
+            select(Payment).where(
+                Payment.service_id == service.id,
+                Payment.status.in_(["approved", "confirmed_by_technician", "confirmed_by_admin"])
+            )
+        ).first()
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail="Ya existe un pago registrado para este servicio"
+            )
+
+        payment = Payment(
+            service_id=service.id,
+            client_id=service.client_id,
+            technician_id=UUID(technician_id),
+            amount=data.amount,
+            currency="COP",
+            payment_method=PaymentMethod.cash,
+            payment_provider="manual",
+            status=PaymentStatus.confirmed_by_technician,
+            notes=data.notes,
+            paid_at=datetime.utcnow(),
+            confirmed_by=UUID(technician_id),
+        )
+
+        session.add(payment)
+        session.commit()
+        session.refresh(payment)
+
+        return self._to_response(payment, session)
+
+    async def admin_confirm_payment(
+        self,
+        session: Session,
+        payment_id: str,
+        admin_id: str,
+    ) -> PaymentResponse:
+        """Admin valida un pago en efectivo confirmado por el técnico"""
+        payment = session.get(Payment, UUID(payment_id))
+        if not payment:
+            raise HTTPException(status_code=404, detail="Pago no encontrado")
+
+        if payment.status != PaymentStatus.confirmed_by_technician:
+            raise HTTPException(
+                status_code=400,
+                detail="Solo se pueden validar pagos confirmados por el técnico"
+            )
+
+        payment.status = PaymentStatus.confirmed_by_admin
+        payment.confirmed_by = UUID(admin_id)
+        payment.updated_at = datetime.utcnow()
+
+        session.add(payment)
+        session.commit()
+        session.refresh(payment)
+
+        return self._to_response(payment, session)
+
+    async def get_service_payment(
+        self,
+        session: Session,
+        service_id: str,
+    ) -> Optional[PaymentResponse]:
+        """Get payment info for a specific service"""
+        payment = session.exec(
+            select(Payment).where(Payment.service_id == UUID(service_id))
+        ).first()
+
+        if not payment:
+            return None
+
+        return self._to_response(payment, session)
+
+    async def list_payments(
+        self,
+        session: Session,
+        skip: int = 0,
+        limit: int = 50,
+        status_filter: Optional[str] = None,
+        method_filter: Optional[str] = None,
+    ) -> PaymentListResponse:
+        """Admin: list all payments with filters"""
+        query = select(Payment)
+
+        if status_filter:
+            query = query.where(Payment.status == status_filter)
+        if method_filter:
+            query = query.where(Payment.payment_method == method_filter)
+
+        total = session.exec(select(func.count()).select_from(query.subquery())).one()
+        payments = session.exec(
+            query.order_by(Payment.created_at.desc()).offset(skip).limit(limit)
+        ).all()
+
+        items = [self._to_response(p, session) for p in payments]
+
+        return PaymentListResponse(items=items, total=total)
+
+    def _to_response(self, payment: Payment, session: Session) -> PaymentResponse:
+        """Convert payment model to response schema with hydrated names"""
+        client = session.get(User, payment.client_id) if payment.client_id else None
+        technician = session.get(User, payment.technician_id) if payment.technician_id else None
+        service = session.get(Service, payment.service_id) if payment.service_id else None
+
+        return PaymentResponse(
+            id=str(payment.id),
+            service_id=str(payment.service_id),
+            client_id=str(payment.client_id),
+            technician_id=str(payment.technician_id) if payment.technician_id else None,
+            quotation_id=str(payment.quotation_id) if payment.quotation_id else None,
+            amount=payment.amount,
+            currency=payment.currency,
+            payment_method=payment.payment_method,
+            payment_provider=payment.payment_provider,
+            provider_reference=payment.provider_reference,
+            status=payment.status,
+            notes=payment.notes,
+            paid_at=payment.paid_at,
+            confirmed_by=str(payment.confirmed_by) if payment.confirmed_by else None,
+            created_at=payment.created_at,
+            client_name=client.full_name if client else None,
+            technician_name=technician.full_name if technician else None,
+            service_title=service.title if service else None,
+        )
+
+
+payment_service = PaymentService()

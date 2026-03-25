@@ -1,14 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
     ShieldAlert, MapPin, CalendarClock, User, X,
-    Camera, DollarSign, Phone, CheckCircle, Clock, Loader2
+    Camera, Phone, CheckCircle, Clock, Loader2, Search, Filter
 } from "lucide-react"
 import { toast } from "react-hot-toast"
 import api from "@/lib/api"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -21,16 +20,23 @@ interface AdminService {
     service_type: string
     status: string
     service_address: string
+    estimated_price: number | null
+    vehicle_plate: string | null
     client_id: string
+    client_name: string | null
+    client_phone: string | null
     technician_id: string | null
+    technician_name: string | null
     created_at: string
 }
 
 interface ServiceDetail extends AdminService {
     description?: string
-    estimated_price?: number
     scheduled_date?: string
     service_city?: string
+    vehicle_type?: string
+    vehicle_model?: string
+    service_metadata?: Record<string, any>
     client?: { full_name?: string; phone?: string; email?: string }
     technician?: { full_name?: string; phone?: string; average_rating?: number }
 }
@@ -52,6 +58,17 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
     completed: { label: "Completado", color: "text-green-400", bg: "bg-green-400/10 border-green-400/20" },
     cancelled: { label: "Cancelado", color: "text-red-400", bg: "bg-red-400/10 border-red-400/20" },
     quoted: { label: "Cotizado", color: "text-cyan-400", bg: "bg-cyan-400/10 border-cyan-400/20" },
+}
+
+const TYPE_LABELS: Record<string, string> = {
+    gps_installation: "Instalación GPS",
+    gps_maintenance: "Mantenimiento GPS",
+    alarm_installation: "Instalación Alarma",
+    alarm_maintenance: "Mantenimiento Alarma",
+    camera_installation: "Instalación Dashcam",
+    camera_maintenance: "Mantenimiento Dashcam",
+    vehicle_recovery: "🚨 Recuperación",
+    other: "Otro",
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -82,8 +99,6 @@ function ServiceDetailDrawer({
     const [photos, setPhotos] = useState<ServicePhoto[]>([])
     const [loading, setLoading] = useState(true)
     const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
-
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
     useEffect(() => {
         const fetchAll = async () => {
@@ -152,7 +167,7 @@ function ServiceDetailDrawer({
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="bg-muted/20 rounded-xl p-3 border border-border/20">
                                     <p className="text-[10px] text-muted-foreground mb-1">Tipo de servicio</p>
-                                    <p className="text-sm font-semibold capitalize">{detail.service_type?.replace("_", " ") || "—"}</p>
+                                    <p className="text-sm font-semibold">{TYPE_LABELS[detail.service_type] || detail.service_type}</p>
                                 </div>
                                 <div className="bg-muted/20 rounded-xl p-3 border border-border/20">
                                     <p className="text-[10px] text-muted-foreground mb-1">Precio</p>
@@ -165,7 +180,6 @@ function ServiceDetailDrawer({
                                         <MapPin className="w-3 h-3" /> Dirección
                                     </p>
                                     <p className="text-sm font-medium">{detail.service_address}</p>
-                                    {detail.service_city && <p className="text-xs text-muted-foreground">{detail.service_city}</p>}
                                 </div>
                                 {detail.scheduled_date && (
                                     <div className="bg-muted/20 rounded-xl p-3 border border-border/20 col-span-2">
@@ -190,6 +204,22 @@ function ServiceDetailDrawer({
                                     <p className="text-sm text-muted-foreground">{detail.description}</p>
                                 </div>
                             )}
+                            {/* Vehicle recovery metadata */}
+                            {detail.service_type === "vehicle_recovery" && detail.service_metadata && (
+                                <div className="bg-orange-500/5 rounded-xl p-4 border border-orange-500/20">
+                                    <p className="text-[10px] text-orange-500 mb-2 font-bold uppercase tracking-wider">🚨 Datos de Recuperación</p>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                        {detail.vehicle_type && <div><span className="text-muted-foreground">Tipo:</span> <span className="font-semibold capitalize">{detail.vehicle_type === "car" ? "Carro" : "Moto"}</span></div>}
+                                        {detail.vehicle_model && <div><span className="text-muted-foreground">Modelo:</span> <span className="font-semibold">{detail.vehicle_model}</span></div>}
+                                        {detail.vehicle_plate && <div><span className="text-muted-foreground">Placa:</span> <span className="font-bold">{detail.vehicle_plate}</span></div>}
+                                        {detail.service_metadata.vehicle_color && <div><span className="text-muted-foreground">Color:</span> <span className="font-semibold">{detail.service_metadata.vehicle_color}</span></div>}
+                                        {detail.service_metadata.stolen_datetime && <div className="col-span-2"><span className="text-muted-foreground">Fecha robo:</span> <span className="font-semibold">{new Date(detail.service_metadata.stolen_datetime).toLocaleString("es-CO")}</span></div>}
+                                        {detail.service_metadata.has_gps && <div><span className="text-muted-foreground">GPS:</span> <span className="font-semibold">{detail.service_metadata.has_gps === "yes" ? `Sí (${detail.service_metadata.gps_brand || "—"})` : detail.service_metadata.has_gps === "no" ? "No" : "No sabe"}</span></div>}
+                                        {detail.service_metadata.distinctive_marks && <div className="col-span-2"><span className="text-muted-foreground">Marcas:</span> <span className="font-semibold">{detail.service_metadata.distinctive_marks}</span></div>}
+                                        {detail.service_metadata.police_report_number && <div className="col-span-2"><span className="text-muted-foreground">Denuncia:</span> <span className="font-semibold">{detail.service_metadata.police_report_number}</span></div>}
+                                    </div>
+                                </div>
+                            )}
                         </section>
 
                         {/* ─── Client & Technician ──────────── */}
@@ -204,7 +234,7 @@ function ServiceDetailDrawer({
                                     <div className="flex-1 min-w-0">
                                         <p className="text-[10px] text-muted-foreground">Cliente</p>
                                         <p className="text-sm font-semibold truncate">
-                                            {detail.client?.full_name || detail.client_id.substring(0, 12) + "..."}
+                                            {detail.client?.full_name || detail.client_id?.substring(0, 12) + "..."}
                                         </p>
                                         {detail.client?.phone && (
                                             <a href={`tel:${detail.client.phone}`} className="text-xs text-blue-400 flex items-center gap-1">
@@ -231,11 +261,6 @@ function ServiceDetailDrawer({
                                                 </a>
                                             )}
                                         </div>
-                                        {detail.technician?.average_rating && (
-                                            <div className="text-right shrink-0">
-                                                <p className="text-xs font-bold text-amber-400">⭐ {detail.technician.average_rating.toFixed(1)}</p>
-                                            </div>
-                                        )}
                                     </div>
                                 ) : (
                                     <div className="bg-muted/10 rounded-xl p-3 border border-border/20 text-center">
@@ -333,36 +358,91 @@ export default function AdminServicesPage() {
     const [loading, setLoading] = useState(true)
     const [total, setTotal] = useState(0)
     const [selectedId, setSelectedId] = useState<string | null>(null)
+    const [statusFilter, setStatusFilter] = useState("")
+    const [typeFilter, setTypeFilter] = useState("")
+    const [searchQuery, setSearchQuery] = useState("")
+
+    const fetchServices = async () => {
+        setLoading(true)
+        try {
+            const params = new URLSearchParams()
+            params.append("limit", "100")
+            if (statusFilter) params.append("status", statusFilter)
+            if (typeFilter) params.append("service_type", typeFilter)
+            if (searchQuery.length >= 3) params.append("search", searchQuery)
+            
+            const response = await api.get(`/admin/services?${params.toString()}`)
+            setServices(response.data.items)
+            setTotal(response.data.total)
+        } catch {
+            toast.error("Error al cargar servicios")
+        } finally {
+            setLoading(false)
+        }
+    }
 
     useEffect(() => {
-        const fetchServices = async () => {
-            try {
-                const response = await api.get("/admin/services?limit=100")
-                setServices(response.data.items)
-                setTotal(response.data.total)
-            } catch {
-                toast.error("Error al cargar servicios")
-            } finally {
-                setLoading(false)
-            }
-        }
         fetchServices()
-    }, [])
+    }, [statusFilter, typeFilter])
+
+    // Debounced search
+    useEffect(() => {
+        if (searchQuery.length >= 3 || searchQuery.length === 0) {
+            const t = setTimeout(fetchServices, 400)
+            return () => clearTimeout(t)
+        }
+    }, [searchQuery])
 
     return (
         <>
             <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
                 {/* Header */}
-                <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <div>
-                        <h3 className="text-lg font-bold flex items-center gap-2">
-                            <ShieldAlert className="w-5 h-5 text-primary" /> Gestión de Servicios
-                        </h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                            Haz clic en una fila para ver el detalle completo con fotos de evidencia.
-                        </p>
+                <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 className="text-lg font-bold flex items-center gap-2">
+                                <ShieldAlert className="w-5 h-5 text-primary" /> Gestión de Servicios
+                            </h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                Haz clic en una fila para ver el detalle completo con fotos de evidencia.
+                            </p>
+                        </div>
+                        <span className="text-sm font-semibold text-muted-foreground">{total} total</span>
                     </div>
-                    <span className="text-sm font-semibold text-muted-foreground">{total} total</span>
+                    
+                    {/* Filters */}
+                    <div className="flex flex-wrap gap-3">
+                        <div className="relative flex-1 min-w-[200px]">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Buscar por título, dirección, placa..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            />
+                        </div>
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm"
+                        >
+                            <option value="">Todos los estados</option>
+                            {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                                <option key={key} value={key}>{cfg.label}</option>
+                            ))}
+                        </select>
+                        <select
+                            value={typeFilter}
+                            onChange={(e) => setTypeFilter(e.target.value)}
+                            className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm"
+                        >
+                            <option value="">Todos los tipos</option>
+                            {Object.entries(TYPE_LABELS).map(([key, label]) => (
+                                <option key={key} value={key}>{label}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
                 {/* Table */}
@@ -372,18 +452,19 @@ export default function AdminServicesPage() {
                             <tr>
                                 <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">Servicio</th>
                                 <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">Estado</th>
-                                <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 hidden md:table-cell">Cliente / Técnico</th>
+                                <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 hidden md:table-cell">Cliente</th>
+                                <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 hidden md:table-cell">Técnico</th>
                                 <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 hidden sm:table-cell">Fecha</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                             {loading ? (
-                                <tr><td colSpan={4} className="p-8 text-center text-slate-500">
+                                <tr><td colSpan={5} className="p-8 text-center text-slate-500">
                                     <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
                                     Cargando servicios...
                                 </td></tr>
                             ) : services.length === 0 ? (
-                                <tr><td colSpan={4} className="p-8 text-center text-slate-500">No hay servicios registrados</td></tr>
+                                <tr><td colSpan={5} className="p-8 text-center text-slate-500">No hay servicios que coincidan</td></tr>
                             ) : (
                                 services.map((service) => (
                                     <tr
@@ -394,32 +475,36 @@ export default function AdminServicesPage() {
                                         <td className="px-6 py-4">
                                             <p className="text-sm font-semibold group-hover:text-primary transition-colors">{service.title}</p>
                                             <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
-                                                <span className="capitalize">{service.service_type?.replace("_", " ")}</span>
+                                                <span className={service.service_type === "vehicle_recovery" ? "text-orange-500 font-bold" : ""}>
+                                                    {TYPE_LABELS[service.service_type] || service.service_type}
+                                                </span>
                                                 <span className="text-slate-300">·</span>
-                                                <span className="flex items-center gap-1">
-                                                    <MapPin className="w-3 h-3" />
-                                                    {service.service_address.substring(0, 28)}...
+                                                <span className="flex items-center gap-1 truncate max-w-[200px]">
+                                                    <MapPin className="w-3 h-3 shrink-0" />
+                                                    {service.service_address}
                                                 </span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <StatusBadge status={service.status} />
+                                            {service.estimated_price && (
+                                                <p className="text-[10px] text-green-500 font-semibold mt-1">${service.estimated_price.toLocaleString()}</p>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 hidden md:table-cell">
-                                            <div className="space-y-0.5">
-                                                <p className="text-xs flex items-center gap-1 text-slate-500">
-                                                    <User className="w-3 h-3 text-slate-400" />
-                                                    {service.client_id.substring(0, 10)}...
+                                            <p className="text-sm font-medium">{service.client_name || "—"}</p>
+                                            {service.client_phone && (
+                                                <p className="text-xs text-slate-400">{service.client_phone}</p>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 hidden md:table-cell">
+                                            {service.technician_name ? (
+                                                <p className="text-sm font-medium text-primary flex items-center gap-1">
+                                                    <CheckCircle className="w-3 h-3" /> {service.technician_name}
                                                 </p>
-                                                {service.technician_id ? (
-                                                    <p className="text-xs flex items-center gap-1 text-primary">
-                                                        <CheckCircle className="w-3 h-3" />
-                                                        {service.technician_id.substring(0, 10)}...
-                                                    </p>
-                                                ) : (
-                                                    <p className="text-xs text-slate-400 italic">Sin técnico</p>
-                                                )}
-                                            </div>
+                                            ) : (
+                                                <p className="text-xs text-slate-400 italic">Sin asignar</p>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 hidden sm:table-cell">
                                             <span className="text-xs text-slate-500 flex items-center gap-1">

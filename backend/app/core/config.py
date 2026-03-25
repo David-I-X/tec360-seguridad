@@ -51,6 +51,12 @@ class Settings(BaseSettings):
     OTP_RATE_LIMIT_MINUTES: int = int(os.getenv("OTP_RATE_LIMIT_MINUTES", "15"))
     OTP_RATE_LIMIT_MAX: int = int(os.getenv("OTP_RATE_LIMIT_MAX", "5"))
 
+    # Payments (feature-flagged — disabled by default)
+    PAYMENTS_ENABLED: bool = os.getenv("PAYMENTS_ENABLED", "false").lower() == "true"
+    WOMPI_PUBLIC_KEY: str = os.getenv("WOMPI_PUBLIC_KEY", "")
+    WOMPI_PRIVATE_KEY: str = os.getenv("WOMPI_PRIVATE_KEY", "")
+    WOMPI_EVENTS_SECRET: str = os.getenv("WOMPI_EVENTS_SECRET", "")
+
     # CORS - Orígenes permitidos
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",  # Frontend local
