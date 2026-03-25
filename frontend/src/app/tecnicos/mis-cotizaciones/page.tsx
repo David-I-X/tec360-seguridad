@@ -418,7 +418,7 @@ function QuotationListCard({
 
 export default function TechnicianQuotationsPage() {
     return (
-        <ProtectedRoute allowedRoles={["technician"]}>
+        <ProtectedRoute allowedRoles={["technician", "reaction_team"]}>
             <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
                 <div className="container max-w-3xl mx-auto px-4 py-8">
                     <TechnicianQuotationsContent />

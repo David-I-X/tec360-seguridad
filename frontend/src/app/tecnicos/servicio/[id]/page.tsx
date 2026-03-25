@@ -657,7 +657,7 @@ function TechnicianServiceContent() {
 
 export default function TechnicianServicePage() {
     return (
-        <ProtectedRoute allowedRoles={["technician"]}>
+        <ProtectedRoute allowedRoles={["technician", "reaction_team"]}>
             <div className="container pt-24 pb-8 px-4 max-w-2xl">
                 <TechnicianServiceContent />
             </div>

@@ -31,7 +31,7 @@ router = APIRouter(prefix="/quotations", tags=["quotations"])
 async def create_quotation(
     service_id: str,
     quotation_data: QuotationCreate,
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session)
 ):
     """
@@ -58,7 +58,7 @@ async def get_my_quotations(
     status_filter: Optional[str] = Query(None, description="Filtrar por estado"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=50),
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session)
 ):
     """
@@ -196,7 +196,7 @@ async def counter_offer(
 )
 async def accept_counter_offer(
     quotation_id: str,
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session)
 ):
     """
@@ -220,7 +220,7 @@ async def accept_counter_offer(
 )
 async def reject_counter_offer(
     quotation_id: str,
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session)
 ):
     """

@@ -54,7 +54,7 @@ export function Navbar() {
       ]
     }
 
-    if (user.role === "technician") {
+    if (user.role === "technician" || user.role === "reaction_team") {
       return [
         { href: "/tecnicos/dashboard", label: "Dashboard", icon: Wrench },
         { href: "/tecnicos/mis-cotizaciones", label: "Cotizaciones", icon: FileText },

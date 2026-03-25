@@ -14,7 +14,7 @@ export default function LoginPage() {
   // If already authenticated, redirect
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.role === "technician") {
+      if (user.role === "technician" || user.role === "reaction_team") {
         router.push("/tecnicos/dashboard")
       } else {
         router.push("/servicios")

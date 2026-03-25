@@ -21,7 +21,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.role === "technician") {
+      if (user.role === "technician" || user.role === "reaction_team") {
         router.push("/tecnicos/dashboard")
       } else {
         router.push("/servicios")

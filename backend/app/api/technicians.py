@@ -239,7 +239,7 @@ async def toggle_my_availability(
 
 @router.get("/me/stats", response_model=TechnicianStatsResponse)
 async def get_my_stats(
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session)
 ):
     """

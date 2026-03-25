@@ -10,7 +10,7 @@ function DashboardContent() {
     const router = useRouter()
 
     useEffect(() => {
-        if (!isLoading && user?.role !== "technician") {
+        if (!isLoading && user?.role !== "technician" && user?.role !== "reaction_team") {
             // Si no es técnico, mandar al home o a servicios de cliente
             router.push("/servicios")
         }
@@ -18,7 +18,7 @@ function DashboardContent() {
 
     if (isLoading) return null
 
-    if (user?.role !== "technician") {
+    if (user?.role !== "technician" && user?.role !== "reaction_team") {
         return (
             <div className="p-8 text-center">
                 <p>Acceso restringido. Solo técnicos pueden ver esta página.</p>

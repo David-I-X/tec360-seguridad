@@ -253,7 +253,7 @@ export function ProtectedRoute({
     if (allowedRoles && allowedRoles.length > 0 && user?.role) {
       if (!allowedRoles.includes(user.role)) {
         // Role-aware redirect when user doesn't have the required role
-        const fallback = user.role === "technician" ? "/tecnicos/dashboard" : "/servicios"
+        const fallback = (user.role === "technician" || user.role === "reaction_team") ? "/tecnicos/dashboard" : "/servicios"
         router.push(fallback)
         return
       }

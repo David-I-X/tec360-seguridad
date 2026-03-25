@@ -52,7 +52,7 @@ async def create_service_rating(
 async def create_technician_rating(
     service_id: str,
     rating_data: RatingCreate,
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session)
 ):
     """
@@ -173,7 +173,7 @@ async def get_service_rating(
 async def get_my_ratings(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=50),
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session)
 ):
     """
@@ -193,7 +193,7 @@ async def get_my_ratings(
     summary="Obtener mis estadísticas (técnico)"
 )
 async def get_my_rating_stats(
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session)
 ):
     """
