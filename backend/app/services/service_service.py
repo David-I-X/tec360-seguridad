@@ -52,12 +52,7 @@ class ServiceService:
                 scheduled_date=service_data.scheduled_date,
                 estimated_price=service_data.estimated_price,
                 status=ServiceStatus.pending,
-                # client_notes no está en ServiceBase? Revisar Modelo. 
-                # El modelo ServiceBase no tiene client_notes en la definición que vi.
-                # Voy a asumir que si faltan campos en el modelo, debo agregarlos o ignorarlos.
-                # Viendo el modelo: title, description, service_type, status, service_address, estimated_price, requested_date.
-                # NO TIENE client_notes ni service_city ni lat/lon separados.
-                # service_location guarda la posicion.
+                metadata=service_data.metadata,
             )
             
             # TODO: El modelo ServiceBase parece incompleto comparado con el Schema.
@@ -117,7 +112,7 @@ class ServiceService:
             # Validar permisos
             if user_role == "client" and str(service.client_id) != user_id:
                 raise HTTPException(status.HTTP_403_FORBIDDEN, detail="No tienes permiso")
-            if user_role == "technician" and service.technician_id and str(service.technician_id) != user_id:
+            if user_role in ("technician", "reaction_team") and service.technician_id and str(service.technician_id) != user_id:
                 raise HTTPException(status.HTTP_403_FORBIDDEN, detail="No tienes permiso")
                 
             # Traer info de usuarios
@@ -148,7 +143,7 @@ class ServiceService:
             
             if user_role == "client":
                 query = query.where(Service.client_id == user_id)
-            elif user_role == "technician":
+            elif user_role in ("technician", "reaction_team"):
                 query = query.where(Service.technician_id == user_id)
                 
             if status_filter:
@@ -198,15 +193,24 @@ class ServiceService:
         self,
         session: Session,
         user_id: str,
+        user_role: str = "technician",
         page: int = 1,
         page_size: int = 10
     ) -> Dict[str, Any]:
-        """Marketplace para técnicos"""
+        """Marketplace para técnicos / equipo de reacción"""
         try:
+            from app.models.service import ServiceType
             query = select(Service).where(
                 Service.status == ServiceStatus.pending,
                 Service.technician_id == None  # noqa: E711 — SQLAlchemy translates to IS NULL
             )
+            
+            # Role-based filtering
+            if user_role == "reaction_team":
+                query = query.where(Service.service_type == ServiceType.vehicle_recovery)
+            elif user_role == "technician":
+                query = query.where(Service.service_type != ServiceType.vehicle_recovery)
+            # admin sees all
             
             # Count
             total = session.exec(select(func.count()).select_from(query.subquery())).one()
@@ -226,6 +230,7 @@ class ServiceService:
                     service_city="Medellín",
                     scheduled_date=s.scheduled_date,
                     estimated_price=s.estimated_price,
+                    metadata=s.metadata,
                     created_at=s.created_at
                 ))
                 
@@ -440,6 +445,7 @@ class ServiceService:
             "requested_date": service.requested_date,
             "scheduled_date": service.scheduled_date,
             "estimated_price": service.estimated_price,
+            "metadata": service.metadata,
             "created_at": service.created_at,
             "updated_at": service.updated_at
         }

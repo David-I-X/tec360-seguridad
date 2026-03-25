@@ -24,6 +24,7 @@ export default function NewServiceScreen() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [formMode, setFormMode] = useState<'normal' | 'recovery'>('normal');
 
   // Form data
   const [serviceType, setServiceType] = useState('');
@@ -35,6 +36,20 @@ export default function NewServiceScreen() {
   const [vehicleModel, setVehicleModel] = useState('');
   const [vehiclePlate, setVehiclePlate] = useState('');
   const [vehiclePhotoUri, setVehiclePhotoUri] = useState<string | null>(null);
+
+  // Recovery-specific state
+  const [recVehicleType, setRecVehicleType] = useState('');
+  const [recVehicleModel, setRecVehicleModel] = useState('');
+  const [recVehiclePlate, setRecVehiclePlate] = useState('');
+  const [recVehicleColor, setRecVehicleColor] = useState('');
+  const [recDistinctiveMarks, setRecDistinctiveMarks] = useState('');
+  const [recStolenDate, setRecStolenDate] = useState('');
+  const [recStolenTime, setRecStolenTime] = useState('');
+  const [recHasGps, setRecHasGps] = useState<'yes' | 'no' | 'unknown'>('unknown');
+  const [recGpsBrand, setRecGpsBrand] = useState('');
+  const [recAddress, setRecAddress] = useState('');
+  const [recPoliceReport, setRecPoliceReport] = useState('');
+  const [recDescription, setRecDescription] = useState('');
 
   const pickVehiclePhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -128,17 +143,181 @@ export default function NewServiceScreen() {
     }
   };
 
+  const handleRecoverySubmit = async () => {
+    if (!recVehicleType || !recVehicleModel || !recVehiclePlate || !recAddress) {
+      Alert.alert('Campos requeridos', 'Completa tipo de vehículo, modelo, placa y ubicación.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const recTitle = `\u{1F6A8} Recuperación - ${recVehicleType === 'motorcycle' ? 'Moto' : 'Carro'} ${recVehicleModel} (${recVehiclePlate})`;
+      const res = await fetchWithAuth('/services', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service_type: 'vehicle_recovery',
+          title: recTitle,
+          description: recDescription || 'Solicitud de recuperación de vehículo robado',
+          service_address: recAddress,
+          service_city: 'Colombia',
+          service_lat: 4.6097,
+          service_lon: -74.0817,
+          vehicle_type: recVehicleType,
+          vehicle_model: recVehicleModel,
+          vehicle_plate: recVehiclePlate,
+          service_metadata: {
+            stolen_datetime: recStolenDate && recStolenTime ? `${recStolenDate}T${recStolenTime}` : recStolenDate || null,
+            has_gps: recHasGps,
+            gps_brand: recHasGps === 'yes' ? recGpsBrand : null,
+            vehicle_color: recVehicleColor || null,
+            distinctive_marks: recDistinctiveMarks || null,
+            police_report_number: recPoliceReport || null,
+          },
+        }),
+      });
+      if (!res.ok) throw new Error('Error al crear solicitud de recuperación');
+      const data = await res.json();
+      const serviceId = data.id || data.service?.id;
+      Alert.alert('\u{1F6A8} Alerta Enviada', 'Tu solicitud fue enviada al equipo de reacción.', [
+        { text: 'Ver servicio', onPress: () => router.replace(`/(client)/service/${serviceId}` as any) },
+      ]);
+    } catch (err: any) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#f0f0f5" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Nuevo Servicio</Text>
+        <Text style={styles.headerTitle}>Nueva Solicitud</Text>
         <View style={{ width: 24 }} />
       </View>
 
+      {/* Mode Selector */}
+      <View style={styles.modeRow}>
+        <TouchableOpacity
+          style={[styles.modeBtn, formMode === 'normal' && styles.modeBtnActive]}
+          onPress={() => setFormMode('normal')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.modeEmoji}>\u{1F527}</Text>
+          <Text style={[styles.modeBtnText, formMode === 'normal' && styles.modeBtnTextActive]}>Servicio Técnico</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.modeBtn, formMode === 'recovery' && styles.modeBtnRecovery]}
+          onPress={() => setFormMode('recovery')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.modeEmoji}>\u{1F6A8}</Text>
+          <Text style={[styles.modeBtnText, formMode === 'recovery' && styles.modeBtnTextRecovery]}>Equipo Reacción</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* RECOVERY MODE */}
+      {formMode === 'recovery' ? (
+        <>
+        <ScrollView style={styles.form} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 120 }}>
+          <View style={styles.recoveryBadge}>
+            <Ionicons name="shield" size={16} color="#ef4444" />
+            <Text style={styles.recoveryBadgeText}>Recuperación de Vehículo Robado</Text>
+          </View>
+
+          <Text style={styles.sectionTitle}>Reportar Robo</Text>
+
+          {/* Vehicle Type */}
+          <Text style={styles.inputLabel}>Tipo de Vehículo *</Text>
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+            {[{ value: 'motorcycle', label: 'Moto', emoji: '\u{1F3CD}\u{FE0F}' }, { value: 'car', label: 'Carro', emoji: '\u{1F697}' }].map(vt => (
+              <TouchableOpacity
+                key={vt.value}
+                style={[styles.typeCard, { flex: 1 }, recVehicleType === vt.value && styles.typeCardRecovery]}
+                onPress={() => setRecVehicleType(vt.value)}
+              >
+                <Text style={styles.typeEmoji}>{vt.emoji}</Text>
+                <Text style={[styles.typeLabel, recVehicleType === vt.value && { color: '#ef4444' }]}>{vt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Model + Plate */}
+          <Text style={styles.inputLabel}>Modelo *</Text>
+          <TextInput style={styles.input} placeholder="Ej: Honda CB 190R" placeholderTextColor="#555872" value={recVehicleModel} onChangeText={setRecVehicleModel} />
+
+          <Text style={styles.inputLabel}>Placa *</Text>
+          <TextInput style={styles.input} placeholder="ABC123" placeholderTextColor="#555872" value={recVehiclePlate} onChangeText={t => setRecVehiclePlate(t.toUpperCase())} autoCapitalize="characters" />
+
+          {/* Color + Marks */}
+          <Text style={styles.inputLabel}>Color del vehículo</Text>
+          <TextInput style={styles.input} placeholder="Ej: Rojo, Negro mate" placeholderTextColor="#555872" value={recVehicleColor} onChangeText={setRecVehicleColor} />
+
+          <Text style={styles.inputLabel}>Marcas distintivas</Text>
+          <TextInput style={styles.input} placeholder="Stickers, rayas, modificaciones..." placeholderTextColor="#555872" value={recDistinctiveMarks} onChangeText={setRecDistinctiveMarks} />
+
+          {/* Stolen date/time */}
+          <Text style={styles.inputLabel}>Fecha del robo (YYYY-MM-DD)</Text>
+          <TextInput style={styles.input} placeholder="2025-03-20" placeholderTextColor="#555872" value={recStolenDate} onChangeText={setRecStolenDate} />
+
+          <Text style={styles.inputLabel}>Hora del robo (HH:MM)</Text>
+          <TextInput style={styles.input} placeholder="14:30" placeholderTextColor="#555872" value={recStolenTime} onChangeText={setRecStolenTime} />
+
+          {/* Has GPS */}
+          <Text style={styles.inputLabel}>¿Tiene GPS activo?</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+            {(['yes', 'no', 'unknown'] as const).map(opt => (
+              <TouchableOpacity
+                key={opt}
+                style={[styles.gpsOption, recHasGps === opt && styles.gpsOptionActive]}
+                onPress={() => setRecHasGps(opt)}
+              >
+                <Text style={[styles.gpsOptionText, recHasGps === opt && { color: '#ef4444' }]}>
+                  {opt === 'yes' ? 'Sí' : opt === 'no' ? 'No' : 'No sé'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {recHasGps === 'yes' && (
+            <>
+              <Text style={styles.inputLabel}>Marca del GPS</Text>
+              <TextInput style={styles.input} placeholder="Ej: Tec360, Tracker" placeholderTextColor="#555872" value={recGpsBrand} onChangeText={setRecGpsBrand} />
+            </>
+          )}
+
+          {/* Last seen location */}
+          <Text style={styles.inputLabel}>Última ubicación vista *</Text>
+          <TextInput style={styles.input} placeholder="Barrio, calle, referencia..." placeholderTextColor="#555872" value={recAddress} onChangeText={setRecAddress} />
+
+          {/* Police report */}
+          <Text style={styles.inputLabel}>N° denuncia policial (opcional)</Text>
+          <TextInput style={styles.input} placeholder="Ej: 202500012345" placeholderTextColor="#555872" value={recPoliceReport} onChangeText={setRecPoliceReport} />
+
+          {/* Notes */}
+          <Text style={styles.inputLabel}>Información adicional (opcional)</Text>
+          <TextInput style={[styles.input, { height: 80, textAlignVertical: 'top' }]} placeholder="Cualquier dato relevante..." placeholderTextColor="#555872" value={recDescription} onChangeText={setRecDescription} multiline />
+        </ScrollView>
+
+        <View style={styles.bottomActions}>
+          <TouchableOpacity
+            style={[styles.nextBtn, isLoading && { opacity: 0.6 }]}
+            onPress={handleRecoverySubmit}
+            disabled={isLoading}
+            activeOpacity={0.8}
+          >
+            <LinearGradient colors={['#dc2626', '#ef4444']} style={styles.nextBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+              {isLoading ? <ActivityIndicator color="#fff" /> : (
+                <Text style={styles.nextBtnText}>\u{1F6A8} Activar Equipo de Reacción</Text>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+        </>
+      ) : (
+      /* NORMAL MODE */
+      <>
       {/* Steps indicator */}
       <View style={styles.stepsRow}>
         {['Tipo', 'Vehículo', 'Ubicación'].map((label, i) => (
@@ -244,6 +423,8 @@ export default function NewServiceScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </View>
+      </>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -280,4 +461,20 @@ const styles = StyleSheet.create({
   nextBtn: { flex: 1, borderRadius: 16, overflow: 'hidden' },
   nextBtnGradient: { paddingVertical: 16, alignItems: 'center', borderRadius: 16 },
   nextBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  // Mode selector
+  modeRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginBottom: 16 },
+  modeBtn: { flex: 1, backgroundColor: 'rgba(10,14,28,0.85)', borderRadius: 14, padding: 14, alignItems: 'center', borderWidth: 2, borderColor: 'rgba(80,60,160,0.2)', gap: 4 },
+  modeBtnActive: { borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.1)' },
+  modeBtnRecovery: { borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)' },
+  modeEmoji: { fontSize: 22 },
+  modeBtnText: { color: '#8b8fa3', fontSize: 12, fontWeight: '700' },
+  modeBtnTextActive: { color: '#8b5cf6' },
+  modeBtnTextRecovery: { color: '#ef4444' },
+  // Recovery
+  recoveryBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: 6, backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginBottom: 16 },
+  recoveryBadgeText: { color: '#ef4444', fontSize: 12, fontWeight: '600' },
+  typeCardRecovery: { borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)' },
+  gpsOption: { flex: 1, backgroundColor: 'rgba(10,14,28,0.85)', borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 2, borderColor: 'rgba(80,60,160,0.2)' },
+  gpsOptionActive: { borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)' },
+  gpsOptionText: { color: '#8b8fa3', fontSize: 13, fontWeight: '600' },
 });

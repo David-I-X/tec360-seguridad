@@ -3,6 +3,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 from sqlmodel import Field, SQLModel
 from sqlalchemy import Column
+from sqlalchemy.dialects.postgresql import JSONB
 from geoalchemy2 import Geometry
 from enum import Enum
 
@@ -24,6 +25,7 @@ class ServiceType(str, Enum):
     alarm_maintenance = "alarm_maintenance"
     camera_installation = "camera_installation"
     camera_maintenance = "camera_maintenance"
+    vehicle_recovery = "vehicle_recovery"
     other = "other"
 
 class VehicleType(str, Enum):
@@ -45,6 +47,7 @@ class ServiceBase(SQLModel):
     vehicle_plate: Optional[str] = None
     vehicle_photo_url: Optional[str] = None
     client_confirmed_at: Optional[datetime] = None
+    service_metadata: Optional[dict] = Field(default=None, sa_column=Column(JSONB))
 
 class Service(ServiceBase, table=True):
     __tablename__ = "services"

@@ -159,6 +159,9 @@ async def complete_onboarding(
     user.full_name = data.full_name
     if data.email:
         user.email = data.email
+    # Only allow client/technician via public onboarding
+    if data.user_type not in ("client", "technician"):
+        raise HTTPException(status_code=403, detail="Rol no permitido desde el registro público")
     user.role = data.user_type
     
     session.add(user)

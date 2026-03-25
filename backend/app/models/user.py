@@ -9,7 +9,7 @@ class UserBase(SQLModel):
     email: str = Field(unique=True, index=True)
     full_name: Optional[str] = None
     phone: Optional[str] = None
-    role: str = Field(default="client") # client, technician, admin
+    role: str = Field(default="client") # client, technician, admin, reaction_team
     is_active: bool = Field(default=True)
     avatar_url: Optional[str] = None
     address: Optional[str] = None

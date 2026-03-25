@@ -30,7 +30,7 @@ class LocationUpdate(BaseModel):
 @router.post("/update")
 async def update_technician_location(
     data: LocationUpdate,
-    current_user: dict = Depends(require_roles("technician", "admin")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team", "admin")),
     session: Session = Depends(get_session)
 ):
     """
@@ -61,7 +61,7 @@ async def update_technician_location(
 @router.get("/{service_id}")
 async def get_technician_location(
     service_id: str,
-    current_user: dict = Depends(require_roles("client", "technician", "admin")),
+    current_user: dict = Depends(require_roles("client", "technician", "reaction_team", "admin")),
     session: Session = Depends(get_session)
 ):
     """

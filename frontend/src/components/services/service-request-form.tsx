@@ -7,7 +7,7 @@ import * as z from "zod"
 import { format, addDays, startOfDay, isSameDay } from "date-fns"
 import { es } from "date-fns/locale"
 import { motion, AnimatePresence } from "framer-motion"
-import { Loader2, ArrowRight, ArrowLeft, MapPin, Check, Car, Clock, DollarSign } from "lucide-react"
+import { Loader2, ArrowRight, ArrowLeft, MapPin, Check, Car, Clock, DollarSign, ShieldAlert } from "lucide-react"
 import dynamic from "next/dynamic"
 
 import { cn } from "@/lib/utils"
@@ -85,6 +85,25 @@ export function ServiceRequestForm() {
     const [vehiclePhotoPreview, setVehiclePhotoPreview] = useState<string | null>(null)
     const [vehiclePhotoFile, setVehiclePhotoFile] = useState<File | null>(null)
     const [showDayPicker, setShowDayPicker] = useState(false)
+    const [formMode, setFormMode] = useState<"normal" | "recovery">("normal")
+
+    // Recovery-specific state
+    const [recStolenDate, setRecStolenDate] = useState("")
+    const [recStolenTime, setRecStolenTime] = useState("")
+    const [recHasGps, setRecHasGps] = useState<"yes" | "no" | "unknown">("unknown")
+    const [recGpsBrand, setRecGpsBrand] = useState("")
+    const [recVehicleColor, setRecVehicleColor] = useState("")
+    const [recDistinctiveMarks, setRecDistinctiveMarks] = useState("")
+    const [recPoliceReport, setRecPoliceReport] = useState("")
+    const [recDescription, setRecDescription] = useState("")
+    const [recVehicleType, setRecVehicleType] = useState("")
+    const [recVehicleModel, setRecVehicleModel] = useState("")
+    const [recVehiclePlate, setRecVehiclePlate] = useState("")
+    const [recAddress, setRecAddress] = useState("")
+    const [recLat, setRecLat] = useState<number | undefined>(undefined)
+    const [recLng, setRecLng] = useState<number | undefined>(undefined)
+    const [recSubmitting, setRecSubmitting] = useState(false)
+    const [recError, setRecError] = useState("")
 
     const form = useForm<ServiceValues>({
         resolver: zodResolver(serviceSchema) as any,
@@ -263,14 +282,243 @@ export function ServiceRequestForm() {
         }
     }
 
+    // ============================================
+    // RECOVERY SUBMISSION
+    // ============================================
+    async function onRecoverySubmit() {
+        setRecSubmitting(true)
+        setRecError("")
+        try {
+            if (!recVehicleType || !recVehicleModel || !recVehiclePlate || !recAddress) {
+                setRecError("Completa todos los campos obligatorios")
+                setRecSubmitting(false)
+                return
+            }
+
+            const title = `🚨 Recuperación - ${recVehicleType === "motorcycle" ? "Moto" : "Carro"} ${recVehicleModel} (${recVehiclePlate})`
+
+            const result = await createServiceRequest({
+                service_type: "vehicle_recovery",
+                title,
+                description: recDescription || "Solicitud de recuperación de vehículo robado",
+                service_address: recAddress,
+                service_city: "Medellín",
+                service_lat: recLat || 6.2442,
+                service_lon: recLng || -75.5636,
+                vehicle_type: recVehicleType,
+                vehicle_model: recVehicleModel,
+                vehicle_plate: recVehiclePlate,
+                service_metadata: {
+                    stolen_datetime: recStolenDate && recStolenTime ? `${recStolenDate}T${recStolenTime}` : recStolenDate || null,
+                    has_gps: recHasGps,
+                    gps_brand: recHasGps === "yes" ? recGpsBrand : null,
+                    vehicle_color: recVehicleColor || null,
+                    distinctive_marks: recDistinctiveMarks || null,
+                    police_report_number: recPoliceReport || null,
+                },
+            })
+
+            setCreatedServiceId(result.id)
+            setSuccess(true)
+        } catch (err: any) {
+            setRecError(err.message || "Error al crear solicitud de recuperación")
+        } finally {
+            setRecSubmitting(false)
+        }
+    }
+
     if (success && createdServiceId) {
         window.location.href = `/servicios/${createdServiceId}/esperando`
         return null
     }
 
-
     return (
         <div className="max-w-2xl mx-auto">
+            {/* ========== MODE SELECTOR ========== */}
+            <div className="mb-8 grid grid-cols-2 gap-3">
+                <button
+                    type="button"
+                    onClick={() => setFormMode("normal")}
+                    className={cn(
+                        "flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all duration-200",
+                        formMode === "normal"
+                            ? "border-primary bg-primary/10 text-primary shadow-lg shadow-primary/20"
+                            : "border-muted hover:border-primary/50 bg-muted/20"
+                    )}
+                >
+                    <span className="text-2xl">🔧</span>
+                    <span className="font-semibold">Servicio Técnico</span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setFormMode("recovery")}
+                    className={cn(
+                        "flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all duration-200",
+                        formMode === "recovery"
+                            ? "border-red-500 bg-red-500/10 text-red-400 shadow-lg shadow-red-500/20"
+                            : "border-muted hover:border-red-500/50 bg-muted/20 text-muted-foreground"
+                    )}
+                >
+                    <ShieldAlert className="h-5 w-5" />
+                    <span className="font-semibold">Equipo de Reacción</span>
+                </button>
+            </div>
+
+            {/* ========== RECOVERY FORM ========== */}
+            {formMode === "recovery" ? (
+                <GlassCard className="p-6 md:p-8" gradient>
+                    <div className="text-center mb-6">
+                        <div className="inline-flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-2 rounded-full text-sm font-medium mb-4">
+                            <ShieldAlert className="h-4 w-4" />
+                            Recuperación de Vehículo Robado
+                        </div>
+                        <h2 className="text-2xl font-bold">Reportar Robo</h2>
+                        <p className="text-muted-foreground text-sm mt-1">Completa la información para activar al equipo de reacción</p>
+                    </div>
+
+                    <div className="space-y-5">
+                        {/* Vehicle type */}
+                        <div>
+                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-2">Tipo de Vehículo *</label>
+                            <div className="grid grid-cols-2 gap-3">
+                                {[{ value: "motorcycle", label: "Moto", icon: "🏍️" }, { value: "car", label: "Carro", icon: "🚗" }].map((vt) => (
+                                    <button
+                                        key={vt.value}
+                                        type="button"
+                                        onClick={() => setRecVehicleType(vt.value)}
+                                        className={cn(
+                                            "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
+                                            recVehicleType === vt.value ? "border-red-500 bg-red-500/10" : "border-muted hover:border-red-500/50 bg-muted/20"
+                                        )}
+                                    >
+                                        <span className="text-3xl">{vt.icon}</span>
+                                        <span className="text-sm font-semibold">{vt.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Vehicle model + plate */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Modelo *</label>
+                                <Input placeholder="Ej: Honda CB 190R" value={recVehicleModel} onChange={(e) => setRecVehicleModel(e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Placa *</label>
+                                <Input placeholder="ABC123" className="uppercase font-mono" maxLength={10} value={recVehiclePlate} onChange={(e) => setRecVehiclePlate(e.target.value.toUpperCase())} />
+                            </div>
+                        </div>
+
+                        {/* Color + Distinctive marks */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Color del vehículo</label>
+                                <Input placeholder="Ej: Rojo, Negro mate" value={recVehicleColor} onChange={(e) => setRecVehicleColor(e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Marcas Distintivas</label>
+                                <Input placeholder="Stickers, rayas, etc." value={recDistinctiveMarks} onChange={(e) => setRecDistinctiveMarks(e.target.value)} />
+                            </div>
+                        </div>
+
+                        {/* Stolen date/time */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Fecha del robo (aprox.)</label>
+                                <Input type="date" value={recStolenDate} onChange={(e) => setRecStolenDate(e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Hora del robo (aprox.)</label>
+                                <Input type="time" value={recStolenTime} onChange={(e) => setRecStolenTime(e.target.value)} />
+                            </div>
+                        </div>
+
+                        {/* Has GPS? */}
+                        <div>
+                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-2">¿El vehículo tiene GPS activo?</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {(["yes", "no", "unknown"] as const).map((opt) => (
+                                    <button
+                                        key={opt}
+                                        type="button"
+                                        onClick={() => setRecHasGps(opt)}
+                                        className={cn(
+                                            "py-2 px-3 rounded-lg border-2 text-sm font-medium transition-all",
+                                            recHasGps === opt ? "border-red-500 bg-red-500/10 text-red-400" : "border-muted hover:border-red-500/50"
+                                        )}
+                                    >
+                                        {opt === "yes" ? "Sí" : opt === "no" ? "No" : "No sé"}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {recHasGps === "yes" && (
+                            <div>
+                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Marca del GPS</label>
+                                <Input placeholder="Ej: Tec360, Tracker, etc." value={recGpsBrand} onChange={(e) => setRecGpsBrand(e.target.value)} />
+                            </div>
+                        )}
+
+                        {/* Last seen location */}
+                        <div>
+                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Última ubicación vista *</label>
+                            <div className="relative">
+                                <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input className="pl-9" placeholder="Ej: Barrio Castilla, frente al centro comercial..." value={recAddress} onChange={(e) => setRecAddress(e.target.value)} />
+                            </div>
+                        </div>
+
+                        {/* Map */}
+                        <LocationPicker
+                            initialLat={recLat}
+                            initialLng={recLng}
+                            onLocationSelect={(lat, lng) => { setRecLat(lat); setRecLng(lng); }}
+                        />
+
+                        {/* Police report */}
+                        <div>
+                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Número de denuncia policial (opcional)</label>
+                            <Input placeholder="Ej: 202500012345" value={recPoliceReport} onChange={(e) => setRecPoliceReport(e.target.value)} />
+                        </div>
+
+                        {/* Extra notes */}
+                        <div>
+                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">
+                                Información adicional <span className="normal-case font-normal">(opcional)</span>
+                            </label>
+                            <Textarea
+                                placeholder="Cualquier dato relevante que ayude a la recuperación..."
+                                className="resize-none min-h-[80px] text-sm bg-muted/20"
+                                value={recDescription}
+                                onChange={(e) => setRecDescription(e.target.value)}
+                            />
+                        </div>
+
+                        {recError && (
+                            <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md border border-red-100">
+                                {recError}
+                            </div>
+                        )}
+
+                        <Button
+                            type="button"
+                            onClick={onRecoverySubmit}
+                            disabled={recSubmitting}
+                            className="w-full bg-red-600 hover:bg-red-700 text-white h-12 text-base"
+                        >
+                            {recSubmitting ? (
+                                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando Alerta...</>
+                            ) : (
+                                <>🚨 Activar Equipo de Reacción</>
+                            )}
+                        </Button>
+                    </div>
+                </GlassCard>
+            ) : (
+            /* ========== NORMAL FORM (original wizard) ========== */
+            <>
             {/* Progress Bar */}
             <div className="mb-8 flex justify-between items-center relative">
                 <div className="absolute left-0 top-1/2 w-full h-1 bg-muted -z-10 rounded-full" />
@@ -736,6 +984,8 @@ export function ServiceRequestForm() {
                     </form>
                 </Form>
             </GlassCard>
+            </>
+            )}
         </div>
     )
 }

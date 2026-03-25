@@ -349,12 +349,13 @@ export async function createServiceRequest(data: {
   service_city: string
   service_lat: number
   service_lon: number
-  scheduled_date: string
+  scheduled_date?: string
   client_notes?: string
   estimated_price?: number
   vehicle_type?: string
   vehicle_model?: string
   vehicle_plate?: string
+  service_metadata?: Record<string, any>
 }): Promise<any> {
   const response = await fetchWithAuth("/services", {
     method: "POST",

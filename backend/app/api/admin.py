@@ -148,7 +148,7 @@ async def change_user_role(
 ):
     from uuid import UUID
     
-    allowed_roles = ["client", "technician", "admin"]
+    allowed_roles = ["client", "technician", "admin", "reaction_team"]
     if body.role not in allowed_roles:
         raise HTTPException(status_code=400, detail=f"Role must be one of: {allowed_roles}")
     

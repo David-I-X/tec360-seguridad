@@ -160,7 +160,7 @@ async def get_technician_public_profile(
 @router.post("/me/profile", response_model=TechnicianResponse, status_code=status.HTTP_201_CREATED)
 async def create_my_technician_profile(
     technician_data: TechnicianCreate,
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session)
 ):
     """
@@ -176,7 +176,7 @@ async def create_my_technician_profile(
 
 @router.get("/me", response_model=TechnicianResponse)
 async def get_my_profile(
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session)
 ):
     """
@@ -192,7 +192,7 @@ async def get_my_profile(
 @router.patch("/me", response_model=TechnicianResponse)
 async def update_my_profile(
     technician_data: TechnicianUpdate,
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session)
 ):
     """
@@ -208,7 +208,7 @@ async def update_my_profile(
 @router.patch("/me/location", response_model=dict)
 async def update_my_location(
     location_data: TechnicianLocationUpdate,
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session)
 ):
     """
@@ -224,7 +224,7 @@ async def update_my_location(
 @router.patch("/me/availability", response_model=dict)
 async def toggle_my_availability(
     availability_data: TechnicianAvailabilityUpdate,
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session)
 ):
     """

@@ -65,3 +65,5 @@ backend/test_output.txt
 
 # PWA (cache artifacts)
 frontend/public/sw.js.map
+# SQL Editor sessions
+tec_post.session.sql

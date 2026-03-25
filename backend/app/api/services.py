@@ -125,7 +125,7 @@ async def list_services(
 
 @router.get("/available", response_model=ServiceListPaginated)
 async def list_available_services(
-    current_user: dict = Depends(require_roles("technician", "admin")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team", "admin")),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     session: Session = Depends(get_session)
@@ -137,6 +137,7 @@ async def list_available_services(
     return await service_service.list_available_services(
         session=session,
         user_id=current_user["id"],
+        user_role=current_user["role"],
         page=page,
         page_size=page_size
     )
@@ -145,7 +146,7 @@ async def list_available_services(
 @router.post("/{service_id}/accept", response_model=ServiceResponse)
 async def accept_service(
     service_id: str = Path(..., description="UUID del servicio"),
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session)
 ):
     """
@@ -162,7 +163,7 @@ async def accept_service(
 async def update_service_status(
     service_id: str = Path(..., description="UUID del servicio"),
     new_status: str = Query(..., description="Nuevo estado: en_route, arrived, in_progress, completed"),
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session)
 ):
     """

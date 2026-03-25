@@ -118,6 +118,10 @@ class ServiceCreate(BaseModel):
         description="Placa del vehículo",
         example="ABC123"
     )
+    service_metadata: Optional[dict] = Field(
+        None,
+        description="Datos adicionales (JSON). Para vehicle_recovery contiene: stolen_datetime, has_gps, gps_brand, vehicle_color, distinctive_marks, police_report_number",
+    )
 
     @validator('service_type')
     def validate_service_type(cls, v):
@@ -125,7 +129,8 @@ class ServiceCreate(BaseModel):
         valid_types = [
             'gps_installation', 'gps_maintenance',
             'alarm_installation', 'alarm_maintenance',
-            'camera_installation', 'camera_maintenance', 'other'
+            'camera_installation', 'camera_maintenance',
+            'vehicle_recovery', 'other'
         ]
         if v not in valid_types:
             raise ValueError(f'Tipo de servicio inválido. Debe ser uno de: {", ".join(valid_types)}')
@@ -254,6 +259,7 @@ class ServiceResponse(BaseModel):
     vehicle_model: Optional[str] = None
     vehicle_plate: Optional[str] = None
     vehicle_photo_url: Optional[str] = None
+    service_metadata: Optional[dict] = None
     created_at: datetime
     updated_at: datetime
     
@@ -302,6 +308,7 @@ class ServiceListResponse(BaseModel):
     vehicle_model: Optional[str] = None
     vehicle_plate: Optional[str] = None
     vehicle_photo_url: Optional[str] = None
+    service_metadata: Optional[dict] = None
     created_at: datetime
     
     # Info mínima del cliente/técnico
