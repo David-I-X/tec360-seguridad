@@ -52,7 +52,7 @@ class ServiceService:
                 scheduled_date=service_data.scheduled_date,
                 estimated_price=service_data.estimated_price,
                 status=ServiceStatus.pending,
-                metadata=service_data.metadata,
+                service_metadata=service_data.service_metadata,
             )
             
             # TODO: El modelo ServiceBase parece incompleto comparado con el Schema.
@@ -445,7 +445,7 @@ class ServiceService:
             "requested_date": service.requested_date,
             "scheduled_date": service.scheduled_date,
             "estimated_price": service.estimated_price,
-            "metadata": service.metadata,
+            "service_metadata": service.service_metadata,
             "created_at": service.created_at,
             "updated_at": service.updated_at
         }
