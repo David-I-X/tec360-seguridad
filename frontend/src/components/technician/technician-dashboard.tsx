@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Loader2, MapPin, Calendar, CheckCircle, Briefcase, FileText, Star, DollarSign, Wrench, RefreshCw, ArrowLeft, User, Clock } from "lucide-react"
+import { Loader2, MapPin, Calendar, CheckCircle, Briefcase, FileText, Star, DollarSign, Wrench, RefreshCw, ArrowLeft, User, Clock, Car } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -409,6 +409,16 @@ function ServiceCard({ service, onAction, onQuote, isProcessing, variant }: any)
                     <p className="line-clamp-2 text-xs text-muted-foreground italic border-l-2 border-muted-foreground/30 pl-2 ml-1">
                         "{service.description}"
                     </p>
+                )}
+
+                {/* Vehicle Info Badge (If Present) */}
+                {(service.vehicle_plate || service.vehicle_model) && (
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-600 dark:text-orange-400 mt-2">
+                        <Car className="h-4 w-4 shrink-0" />
+                        <span className="text-xs font-semibold leading-none truncate">
+                            {service.vehicle_model || "Vehículo"} {service.vehicle_plate ? `• ${service.vehicle_plate.toUpperCase()}` : ""}
+                        </span>
+                    </div>
                 )}
             </CardContent>
 

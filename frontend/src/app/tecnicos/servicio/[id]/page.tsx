@@ -8,7 +8,7 @@ import { es } from "date-fns/locale"
 import { motion, AnimatePresence } from "framer-motion"
 import {
     ArrowLeft, MapPin, Calendar, Phone, Navigation,
-    Loader2, CheckCircle, Camera, X, AlertCircle
+    Loader2, CheckCircle, Camera, X, AlertCircle, Car
 } from "lucide-react"
 
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
@@ -543,6 +543,63 @@ function TechnicianServiceContent() {
                         )}
                     </GlassCard>
                 </div>
+
+                {/* Vehicle/Recovery Metadata */}
+                {service.service_type === "vehicle_recovery" && service.service_metadata && (
+                    <GlassCard className="p-5 border-orange-500/30 bg-orange-500/5">
+                        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-orange-500">
+                            <Car className="w-4 h-4" /> Datos de Recuperación de Vehículo
+                        </h3>
+                        <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm mt-3">
+                            <div className="col-span-2 sm:col-span-1 bg-background/50 p-2.5 rounded-lg border border-border/40">
+                                <span className="text-muted-foreground block text-xs mb-1">Vehículo</span>
+                                <span className="font-semibold">{service.vehicle_type === 'car' ? 'Carro' : service.vehicle_type === 'motorcycle' ? 'Moto' : service.vehicle_type} {service.vehicle_model}</span>
+                            </div>
+                            <div className="bg-background/50 p-2.5 rounded-lg border border-border/40">
+                                <span className="text-muted-foreground block text-xs mb-1">Placa</span>
+                                <span className="font-bold text-base uppercase tracking-wider">{service.vehicle_plate}</span>
+                            </div>
+                            {service.service_metadata.vehicle_color && (
+                                <div className="bg-background/50 p-2.5 rounded-lg border border-border/40">
+                                    <span className="text-muted-foreground block text-xs mb-1">Color</span>
+                                    <span className="font-semibold capitalize">{service.service_metadata.vehicle_color}</span>
+                                </div>
+                            )}
+                            {service.service_metadata.stolen_datetime && (
+                                <div className="col-span-2 sm:col-span-1 bg-background/50 p-2.5 rounded-lg border border-border/40">
+                                    <span className="text-muted-foreground block text-xs mb-1">Fecha / Hora de robo</span>
+                                    <span className="font-semibold">{new Date(service.service_metadata.stolen_datetime).toLocaleString("es-CO")}</span>
+                                </div>
+                            )}
+                            {service.service_metadata.has_gps && (
+                                <div className="bg-background/50 p-2.5 rounded-lg border border-border/40">
+                                    <span className="text-muted-foreground block text-xs mb-1">¿Tiene GPS?</span>
+                                    <span className="font-semibold">
+                                        {service.service_metadata.has_gps === "yes" ? `Sí (${service.service_metadata.gps_brand || "N/A"})` : service.service_metadata.has_gps === "no" ? "No" : "No sabe"}
+                                    </span>
+                                </div>
+                            )}
+                            {service.service_metadata.police_report_number && (
+                                <div className="col-span-2 sm:col-span-1 bg-background/50 p-2.5 rounded-lg border border-border/40">
+                                    <span className="text-muted-foreground block text-xs mb-1">N° Denuncia Policial</span>
+                                    <span className="font-semibold font-mono">{service.service_metadata.police_report_number}</span>
+                                </div>
+                            )}
+                            {service.service_metadata.additional_phone && (
+                                <div className="col-span-2 sm:col-span-1 bg-background/50 p-2.5 rounded-lg border border-border/40">
+                                    <span className="text-muted-foreground block text-xs mb-1">Teléfono Alterno</span>
+                                    <span className="font-semibold">{service.service_metadata.additional_phone}</span>
+                                </div>
+                            )}
+                            {service.service_metadata.distinctive_marks && (
+                                <div className="col-span-2 bg-background/50 p-2.5 rounded-lg border border-border/40">
+                                    <span className="text-muted-foreground block text-xs mb-1">Marcas distintivas</span>
+                                    <span className="font-semibold">{service.service_metadata.distinctive_marks}</span>
+                                </div>
+                            )}
+                        </div>
+                    </GlassCard>
+                )}
 
                 {/* Description */}
                 {service.description && (

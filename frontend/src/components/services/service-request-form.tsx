@@ -96,6 +96,7 @@ export function ServiceRequestForm() {
     const [recDistinctiveMarks, setRecDistinctiveMarks] = useState("")
     const [recPoliceReport, setRecPoliceReport] = useState("")
     const [recDescription, setRecDescription] = useState("")
+    const [recAdditionalPhone, setRecAdditionalPhone] = useState("")
     const [recVehicleType, setRecVehicleType] = useState("")
     const [recVehicleModel, setRecVehicleModel] = useState("")
     const [recVehiclePlate, setRecVehiclePlate] = useState("")
@@ -315,6 +316,7 @@ export function ServiceRequestForm() {
                     vehicle_color: recVehicleColor || null,
                     distinctive_marks: recDistinctiveMarks || null,
                     police_report_number: recPoliceReport || null,
+                    additional_phone: recAdditionalPhone || null,
                 },
             })
 
@@ -478,9 +480,15 @@ export function ServiceRequestForm() {
                         />
 
                         {/* Police report */}
-                        <div>
-                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Número de denuncia policial (opcional)</label>
-                            <Input placeholder="Ej: 202500012345" value={recPoliceReport} onChange={(e) => setRecPoliceReport(e.target.value)} />
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">N° Denuncia Policial (opcional)</label>
+                                <Input placeholder="Ej: 202500..." value={recPoliceReport} onChange={(e) => setRecPoliceReport(e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Teléfono Alterno (opcional)</label>
+                                <Input type="tel" placeholder="Ej: 300 123 4567" value={recAdditionalPhone} onChange={(e) => setRecAdditionalPhone(e.target.value)} />
+                            </div>
                         </div>
 
                         {/* Extra notes */}

@@ -217,6 +217,7 @@ function ServiceDetailDrawer({
                                         {detail.service_metadata.has_gps && <div><span className="text-muted-foreground">GPS:</span> <span className="font-semibold">{detail.service_metadata.has_gps === "yes" ? `Sí (${detail.service_metadata.gps_brand || "—"})` : detail.service_metadata.has_gps === "no" ? "No" : "No sabe"}</span></div>}
                                         {detail.service_metadata.distinctive_marks && <div className="col-span-2"><span className="text-muted-foreground">Marcas:</span> <span className="font-semibold">{detail.service_metadata.distinctive_marks}</span></div>}
                                         {detail.service_metadata.police_report_number && <div className="col-span-2"><span className="text-muted-foreground">Denuncia:</span> <span className="font-semibold">{detail.service_metadata.police_report_number}</span></div>}
+                                        {detail.service_metadata.additional_phone && <div className="col-span-2"><span className="text-muted-foreground">Tel Alterno:</span> <span className="font-semibold">{detail.service_metadata.additional_phone}</span></div>}
                                     </div>
                                 </div>
                             )}
