@@ -7,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
 from app.api import example, services, technicians, ratings, maps, images, auth, uploads, users, admin
