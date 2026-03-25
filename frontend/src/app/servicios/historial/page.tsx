@@ -33,6 +33,7 @@ const TYPE_LABELS: Record<string, string> = {
     camera_maintenance: "Mant. Dashcam",
     alarm_maintenance: "Mant. Alarma",
     gps_maintenance: "Mant. GPS",
+    vehicle_recovery: "Reacción",
     other: "Servicio Técnico",
 }
 

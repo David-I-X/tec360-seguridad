@@ -150,11 +150,11 @@ export function LiveTrackingView({ service, token }: LiveTrackingViewProps) {
         <div className="space-y-4">
             {/* Status Banner */}
             <AnimatePresence mode="wait">
-                {status === "searching" && <SearchingBanner key="searching" />}
-                {status === "found" && <FoundBanner key="found" technician={technician} />}
-                {status === "en_route" && <EnRouteBanner key="en_route" technician={technician} />}
-                {status === "arrived" && <ArrivedBanner key="arrived" technician={technician} />}
-                {status === "completed" && <CompletedBanner key="completed" />}
+                {status === "searching" && <SearchingBanner key="searching" isRecovery={service.service_type === "vehicle_recovery"} />}
+                {status === "found" && <FoundBanner key="found" technician={technician} isRecovery={service.service_type === "vehicle_recovery"} />}
+                {status === "en_route" && <EnRouteBanner key="en_route" technician={technician} isRecovery={service.service_type === "vehicle_recovery"} />}
+                {status === "arrived" && <ArrivedBanner key="arrived" technician={technician} isRecovery={service.service_type === "vehicle_recovery"} />}
+                {status === "completed" && <CompletedBanner key="completed" isRecovery={service.service_type === "vehicle_recovery"} />}
             </AnimatePresence>
 
             {/* Location error banner */}
@@ -180,7 +180,7 @@ export function LiveTrackingView({ service, token }: LiveTrackingViewProps) {
 
             {/* Technician Info Card (when assigned) */}
             {technician && status !== "searching" && status !== "completed" && (
-                <TechnicianCard technician={technician} />
+                <TechnicianCard technician={technician} isRecovery={service.service_type === "vehicle_recovery"} />
             )}
 
             {/* Connection status bar */}
@@ -215,7 +215,7 @@ export function LiveTrackingView({ service, token }: LiveTrackingViewProps) {
 // Sub-components for different tracking states
 // ============================================================
 
-function SearchingBanner() {
+function SearchingBanner({ isRecovery }: { isRecovery?: boolean }) {
     return (
         <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -231,8 +231,8 @@ function SearchingBanner() {
                         <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
                     </div>
                     <div>
-                        <h3 className="text-lg font-semibold">Buscando técnico disponible...</h3>
-                        <p className="text-sm text-muted-foreground">Te notificaremos cuando uno acepte tu solicitud</p>
+                        <h3 className="text-lg font-semibold">{isRecovery ? "Buscando equipo de reacción..." : "Buscando técnico disponible..."}</h3>
+                        <p className="text-sm text-muted-foreground">{isRecovery ? "Asignando la alerta a los agentes cercanos" : "Te notificaremos cuando uno acepte tu solicitud"}</p>
                     </div>
                     <Loader2 className="h-5 w-5 animate-spin text-primary" />
                 </div>
@@ -241,7 +241,7 @@ function SearchingBanner() {
     )
 }
 
-function FoundBanner({ technician }: { technician: any }) {
+function FoundBanner({ technician, isRecovery }: { technician: any, isRecovery?: boolean }) {
     return (
         <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -257,14 +257,14 @@ function FoundBanner({ technician }: { technician: any }) {
                 >
                     <CheckCircle2 className="h-10 w-10 text-white" />
                 </motion.div>
-                <h3 className="text-xl font-bold text-green-600">¡Técnico encontrado!</h3>
-                <p className="text-muted-foreground">{technician?.full_name || "Un técnico"} aceptó tu solicitud</p>
+                <h3 className="text-xl font-bold text-green-600">{isRecovery ? "¡Equipo asignado!" : "¡Técnico encontrado!"}</h3>
+                <p className="text-muted-foreground">{technician?.full_name || "Un técnico"} {isRecovery ? "atenderá tu alerta" : "aceptó tu solicitud"}</p>
             </GlassCard>
         </motion.div>
     )
 }
 
-function EnRouteBanner({ technician }: { technician: any }) {
+function EnRouteBanner({ technician, isRecovery }: { technician: any, isRecovery?: boolean }) {
     return (
         <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -277,7 +277,7 @@ function EnRouteBanner({ technician }: { technician: any }) {
                         <Navigation className="h-6 w-6 text-blue-500 animate-pulse" />
                     </div>
                     <div className="flex-1">
-                        <h3 className="font-semibold">Técnico en camino</h3>
+                        <h3 className="font-semibold">{isRecovery ? "Equipo en camino" : "Técnico en camino"}</h3>
                         <p className="text-sm text-muted-foreground">{technician?.full_name} está yendo hacia ti</p>
                     </div>
                     <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">
@@ -289,7 +289,7 @@ function EnRouteBanner({ technician }: { technician: any }) {
     )
 }
 
-function ArrivedBanner({ technician }: { technician: any }) {
+function ArrivedBanner({ technician, isRecovery }: { technician: any, isRecovery?: boolean }) {
     return (
         <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -302,17 +302,17 @@ function ArrivedBanner({ technician }: { technician: any }) {
                         <MapPin className="h-6 w-6 text-green-500" />
                     </div>
                     <div className="flex-1">
-                        <h3 className="font-semibold">Técnico ha llegado</h3>
-                        <p className="text-sm text-muted-foreground">{technician?.full_name} está en el lugar</p>
+                        <h3 className="font-semibold">{isRecovery ? "Equipo en el lugar" : "Técnico ha llegado"}</h3>
+                        <p className="text-sm text-muted-foreground">{technician?.full_name} {isRecovery ? "ha llegado al perímetro" : "está en el lugar"}</p>
                     </div>
-                    <Badge className="bg-green-500">Trabajando</Badge>
+                    <Badge className="bg-green-500">{isRecovery ? "Operando" : "Trabajando"}</Badge>
                 </div>
             </GlassCard>
         </motion.div>
     )
 }
 
-function CompletedBanner() {
+function CompletedBanner({ isRecovery }: { isRecovery?: boolean }) {
     return (
         <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -320,8 +320,8 @@ function CompletedBanner() {
         >
             <GlassCard className="p-6 text-center bg-gradient-to-r from-green-500/20 to-emerald-500/20">
                 <CheckCircle2 className="h-16 w-16 mx-auto text-green-500 mb-4" />
-                <h3 className="text-xl font-bold">¡Servicio completado!</h3>
-                <p className="text-muted-foreground">Gracias por usar Tec360</p>
+                <h3 className="text-xl font-bold">{isRecovery ? "¡Vehículo asegurado!" : "¡Servicio completado!"}</h3>
+                <p className="text-muted-foreground">{isRecovery ? "El operativo ha concluido exitosamente" : "Gracias por usar Tec360"}</p>
             </GlassCard>
         </motion.div>
     )
@@ -348,7 +348,7 @@ const RANK_INFO: Record<string, { label: string; color: string; icon: string; bo
     },
 }
 
-function TechnicianCard({ technician }: { technician: any }) {
+function TechnicianCard({ technician, isRecovery }: { technician: any, isRecovery?: boolean }) {
     return (
         <GlassCard className="p-4">
             <div className="flex items-center gap-4">
@@ -360,9 +360,9 @@ function TechnicianCard({ technician }: { technician: any }) {
                     </div>
                 )}
                 <div className="flex-1">
-                    <h4 className="font-semibold">{technician.full_name || "Técnico Tec360"}</h4>
+                    <h4 className="font-semibold">{technician.full_name || (isRecovery ? "Agente Tec360" : "Técnico Tec360")}</h4>
                     <div className="flex items-center gap-2 mt-1">
-                        <p className="text-sm text-muted-foreground">Técnico certificado</p>
+                        <p className="text-sm text-muted-foreground">{isRecovery ? "Equipo Especializado" : "Técnico certificado"}</p>
                         {technician.rank && RANK_INFO[technician.rank] && (
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border flex items-center gap-1 ${RANK_INFO[technician.rank].color} ${RANK_INFO[technician.rank].border}`}>
                                 {RANK_INFO[technician.rank].icon} {RANK_INFO[technician.rank].label}

@@ -48,6 +48,7 @@ const typeLabels: Record<string, string> = {
     camera_maintenance: "Mantenimiento Dashcam",
     alarm_maintenance: "Mantenimiento Alarma",
     gps_maintenance: "Mantenimiento GPS",
+    vehicle_recovery: "Equipo de Reacción",
     other: "Servicio Técnico",
 }
 
@@ -262,7 +263,7 @@ function ServiceDetailContent() {
                             <GlassCard className="p-6">
                                 <h3 className="font-semibold mb-4 flex items-center gap-2">
                                     <User className="h-4 w-4" />
-                                    Técnico Asignado
+                                    {service.service_type === "vehicle_recovery" ? "Equipo Asignado" : "Técnico Asignado"}
                                 </h3>
                                 <div className="flex items-center gap-4">
                                     {service.technician.avatar_url ? (
@@ -273,7 +274,7 @@ function ServiceDetailContent() {
                                         </div>
                                     )}
                                     <div className="flex-1">
-                                        <p className="font-semibold">{service.technician.full_name || "Técnico"}</p>
+                                        <p className="font-semibold">{service.technician.full_name || (service.service_type === "vehicle_recovery" ? "Agente" : "Técnico")}</p>
                                         {service.technician.average_rating > 0 && (
                                             <StarDisplay rating={service.technician.average_rating} size="sm" className="mt-0.5" />
                                         )}

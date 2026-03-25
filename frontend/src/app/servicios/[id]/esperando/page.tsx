@@ -77,17 +77,17 @@ function DotsLoader() {
 }
 
 /* ─── Live service status stepper ───────────────────────── */
-const SERVICE_STEPS = [
-    { key: "assigned", label: "Técnico asignado", icon: "🔔", detail: "Tu técnico aceptó el servicio" },
-    { key: "en_route", label: "En camino", icon: "🚗", detail: "El técnico está en ruta" },
-    { key: "arrived", label: "Llegó", icon: "📍", detail: "El técnico está en tu ubicación" },
-    { key: "in_progress", label: "Trabajando", icon: "🔧", detail: "El servicio está en progreso" },
-    { key: "completed", label: "Completado", icon: "✅", detail: "¡Servicio terminado!" },
-]
+function StatusStepper({ status, isRecovery }: { status: string, isRecovery?: boolean }) {
+    const steps = [
+        { key: "assigned", label: isRecovery ? "Equipo asignado" : "Técnico asignado", icon: "🔔", detail: isRecovery ? "Tu equipo aceptó la alerta" : "Tu técnico aceptó el servicio" },
+        { key: "en_route", label: "En camino", icon: "🚗", detail: isRecovery ? "El equipo de reacción está en ruta" : "El técnico está en ruta" },
+        { key: "arrived", label: "Llegó", icon: "📍", detail: isRecovery ? "El equipo de reacción ha llegado al punto rojo" : "El técnico está en tu ubicación" },
+        { key: "in_progress", label: isRecovery ? "Operando" : "Trabajando", icon: isRecovery ? "🚨" : "🔧", detail: isRecovery ? "Asegurando el vehículo" : "El servicio está en progreso" },
+        { key: "completed", label: "Completado", icon: "✅", detail: isRecovery ? "¡Vehículo asegurado!" : "¡Servicio terminado!" },
+    ]
 
-function StatusStepper({ status }: { status: string }) {
-    const current = SERVICE_STEPS.findIndex(s => s.key === status)
-    const activeStep = SERVICE_STEPS[current]
+    const current = steps.findIndex(s => s.key === status)
+    const activeStep = steps[current]
 
     return (
         <div className="w-full">
@@ -102,7 +102,7 @@ function StatusStepper({ status }: { status: string }) {
 
             {/* Steps */}
             <div className="space-y-2">
-                {SERVICE_STEPS.map((step, i) => {
+                {steps.map((step, i) => {
                     const done = i < current
                     const active = i === current
                     const upcoming = i > current
@@ -141,7 +141,7 @@ function StatusStepper({ status }: { status: string }) {
 }
 
 /* ─── Technician card ──────────────────────────────────── */
-function TechnicianCard({ technician, serviceId }: { technician: any; serviceId: string }) {
+function TechnicianCard({ technician, serviceId, isRecovery }: { technician: any; serviceId: string; isRecovery?: boolean }) {
     const router = useRouter()
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
     const STATIC_URL = API_URL.replace(/\/api\/?$/, "")
@@ -154,7 +154,7 @@ function TechnicianCard({ technician, serviceId }: { technician: any; serviceId:
             className="w-full bg-muted/10 border border-border/40 rounded-3xl p-5 shadow-lg relative overflow-hidden"
         >
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500" />
-            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">Técnico Asignado</h3>
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">{isRecovery ? "Equipo Asignado" : "Técnico Asignado"}</h3>
 
             <div className="flex items-center gap-4 mb-4">
                 {technician.avatar_url && !imgError ? (
@@ -162,7 +162,7 @@ function TechnicianCard({ technician, serviceId }: { technician: any; serviceId:
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src={getAvatarUrl(technician.avatar_url)}
-                            alt={technician.full_name || "Técnico"}
+                            alt={technician.full_name || (isRecovery ? "Agente" : "Técnico")}
                             className="w-full h-full object-cover"
                             onError={() => setImgError(true)}
                         />
@@ -174,7 +174,7 @@ function TechnicianCard({ technician, serviceId }: { technician: any; serviceId:
                 )}
 
                 <div className="flex-1 min-w-0">
-                    <p className="font-bold text-lg leading-tight">{technician.full_name || "Técnico"}</p>
+                    <p className="font-bold text-lg leading-tight">{technician.full_name || (isRecovery ? "Agente" : "Técnico")}</p>
                     <div className="flex flex-wrap items-center gap-2 mt-1.5">
                         <div className="flex items-center gap-1.5 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
                             <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
@@ -221,11 +221,18 @@ function TechnicianCard({ technician, serviceId }: { technician: any; serviceId:
 }
 
 /* ─── Search messages ─────────────────────────────────── */
-const searchMessages = [
+const normalSearchMessages = [
     "Buscando técnicos en tu zona...",
     "Analizando disponibilidad...",
     "Contactando técnicos certificados...",
     "Tu solicitud está siendo procesada...",
+]
+
+const recoverySearchMessages = [
+    "Asignando alerta a agentes cercanos...",
+    "Localizando equipo de reacción...",
+    "Coordinando respuesta...",
+    "Activando operativo de recuperación...",
 ]
 
 /* ─── Main content ────────────────────────────────────── */
@@ -238,7 +245,10 @@ function WaitingContent() {
     const [elapsedSeconds, setElapsedSeconds] = useState(0)
     const pollRef = useRef<NodeJS.Timeout | null>(null)
     const startTime = useRef(Date.now())
-    const isMounted = useRef(true)  // Bug #3: prevent state updates after unmount
+    const isMounted = useRef(true)
+
+    const isRecovery = service?.service_type === "vehicle_recovery"
+    const currentMessages = isRecovery ? recoverySearchMessages : normalSearchMessages
 
     // Bug #3: Cleanup isMounted on unmount
     useEffect(() => {
@@ -248,9 +258,9 @@ function WaitingContent() {
 
     // Cycle search messages
     useEffect(() => {
-        const t = setInterval(() => setMsgIndex(i => (i + 1) % searchMessages.length), 3000)
+        const t = setInterval(() => setMsgIndex(i => (i + 1) % currentMessages.length), 3000)
         return () => clearInterval(t)
-    }, [])
+    }, [currentMessages.length])
 
     // Bug #4: Track elapsed time every second, show 'Justo ahora' for first 60s
     useEffect(() => {
@@ -412,7 +422,7 @@ function WaitingContent() {
                                 className="flex flex-col items-center text-center gap-5">
                                 <RadarPulse />
                                 <div>
-                                    <h2 className="text-xl font-bold mb-1">Buscando técnico</h2>
+                                    <h2 className="text-xl font-bold mb-1">{isRecovery ? "Asignando alerta" : "Buscando técnico"}</h2>
                                     <AnimatePresence mode="wait">
                                         <motion.p
                                             key={msgIndex}
@@ -421,7 +431,7 @@ function WaitingContent() {
                                             exit={{ opacity: 0, y: -8 }}
                                             className="text-sm text-muted-foreground"
                                         >
-                                            {searchMessages[msgIndex]}
+                                            {currentMessages[msgIndex] || currentMessages[0]}
                                         </motion.p>
                                     </AnimatePresence>
                                 </div>
@@ -455,12 +465,12 @@ function WaitingContent() {
                                 className="flex flex-col gap-5">
                                 {/* Technician card */}
                                 {service?.technician && (
-                                    <TechnicianCard technician={service.technician} serviceId={params.id as string} />
+                                    <TechnicianCard technician={service.technician} serviceId={params.id as string} isRecovery={isRecovery} />
                                 )}
 
                                 {/* Status stepper */}
                                 {service?.status && service.status !== "pending" && (
-                                    <StatusStepper status={service.status} />
+                                    <StatusStepper status={service.status} isRecovery={isRecovery} />
                                 )}
 
                                 {/* Navigate button if technician location available */}

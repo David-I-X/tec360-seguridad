@@ -150,7 +150,7 @@ export default function NewServiceScreen() {
     }
     setIsLoading(true);
     try {
-      const recTitle = `\u{1F6A8} Recuperación - ${recVehicleType === 'motorcycle' ? 'Moto' : 'Carro'} ${recVehicleModel} (${recVehiclePlate})`;
+      const recTitle = `🚨 Recuperación - ${recVehicleType === 'motorcycle' ? 'Moto' : 'Carro'} ${recVehicleModel} (${recVehiclePlate})`;
       const res = await fetchWithAuth('/services', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -178,7 +178,7 @@ export default function NewServiceScreen() {
       if (!res.ok) throw new Error('Error al crear solicitud de recuperación');
       const data = await res.json();
       const serviceId = data.id || data.service?.id;
-      Alert.alert('\u{1F6A8} Alerta Enviada', 'Tu solicitud fue enviada al equipo de reacción.', [
+      Alert.alert('🚨 Alerta Enviada', 'Tu solicitud fue enviada al equipo de reacción.', [
         { text: 'Ver servicio', onPress: () => router.replace(`/(client)/service/${serviceId}` as any) },
       ]);
     } catch (err: any) {
@@ -205,7 +205,7 @@ export default function NewServiceScreen() {
           onPress={() => setFormMode('normal')}
           activeOpacity={0.7}
         >
-          <Text style={styles.modeEmoji}>\u{1F527}</Text>
+          <Text style={styles.modeEmoji}>🔧</Text>
           <Text style={[styles.modeBtnText, formMode === 'normal' && styles.modeBtnTextActive]}>Servicio Técnico</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -213,7 +213,7 @@ export default function NewServiceScreen() {
           onPress={() => setFormMode('recovery')}
           activeOpacity={0.7}
         >
-          <Text style={styles.modeEmoji}>\u{1F6A8}</Text>
+          <Text style={styles.modeEmoji}>🚨</Text>
           <Text style={[styles.modeBtnText, formMode === 'recovery' && styles.modeBtnTextRecovery]}>Equipo Reacción</Text>
         </TouchableOpacity>
       </View>
@@ -232,7 +232,7 @@ export default function NewServiceScreen() {
           {/* Vehicle Type */}
           <Text style={styles.inputLabel}>Tipo de Vehículo *</Text>
           <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
-            {[{ value: 'motorcycle', label: 'Moto', emoji: '\u{1F3CD}\u{FE0F}' }, { value: 'car', label: 'Carro', emoji: '\u{1F697}' }].map(vt => (
+            {[{ value: 'motorcycle', label: 'Moto', emoji: '🏍️' }, { value: 'car', label: 'Carro', emoji: '🚗' }].map(vt => (
               <TouchableOpacity
                 key={vt.value}
                 style={[styles.typeCard, { flex: 1 }, recVehicleType === vt.value && styles.typeCardRecovery]}
@@ -309,7 +309,7 @@ export default function NewServiceScreen() {
           >
             <LinearGradient colors={['#dc2626', '#ef4444']} style={styles.nextBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
               {isLoading ? <ActivityIndicator color="#fff" /> : (
-                <Text style={styles.nextBtnText}>\u{1F6A8} Activar Equipo de Reacción</Text>
+                <Text style={styles.nextBtnText}>🚨 Activar Equipo de Reacción</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
