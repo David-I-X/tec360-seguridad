@@ -186,7 +186,7 @@ export function TechnicianDashboard() {
             {/* Gamification: Profile Completeness Banner */}
             {profileProgress < 100 && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-                    <Link href="/perfil">
+                    <Link href="/configuracion">
                         <GlassCard className="p-4 border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 cursor-pointer transition-colors group">
                             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                                 <div className="space-y-1 flex-1">
