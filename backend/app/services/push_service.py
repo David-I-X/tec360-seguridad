@@ -23,7 +23,7 @@ class PushNotificationService:
             
         with Session(engine) as session:
             tokens = session.exec(
-                select(PushToken).where(PushToken.user_id == user_uuid).where(PushToken.is_active == True)
+                select(PushToken).where(PushToken.user_id == user_uuid).where(PushToken.is_active)
             ).all()
             return tokens
             
@@ -67,7 +67,7 @@ class PushNotificationService:
                 # Implement pywebpush logic
                 try:
                     import json
-                    from pywebpush import webpush, WebPushException
+                    from pywebpush import webpush
                     from app.core.config import settings
                     
                     sub_info = json.loads(push_token.token)

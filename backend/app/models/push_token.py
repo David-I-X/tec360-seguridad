@@ -1,8 +1,7 @@
-from typing import Optional
 from datetime import datetime
 from uuid import UUID, uuid4
 from sqlmodel import Field, SQLModel
-from sqlalchemy import Column, String, Enum
+from sqlalchemy import Column, Enum
 import enum
 
 class PlatformEnum(str, enum.Enum):
