@@ -86,8 +86,6 @@ self.addEventListener("fetch", (event) => {
                 });
             })
     );
-            })
-    );
 });
 
 // ============================================
@@ -114,7 +112,16 @@ self.addEventListener("push", (event) => {
         vibrate: [100, 50, 100],
     };
 
-    event.waitUntil(self.registration.showNotification(title, options));
+    event.waitUntil(
+        Promise.all([
+            self.registration.showNotification(title, options),
+            self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+                for (const client of clientList) {
+                    client.postMessage({ type: "PUSH_RECEIVED", notification: data });
+                }
+            })
+        ])
+    );
 });
 
 self.addEventListener("notificationclick", (event) => {
@@ -126,7 +133,7 @@ self.addEventListener("notificationclick", (event) => {
         : "/servicios";
 
     event.waitUntil(
-        clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+        self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
             // Focus if open
             const matchingClient = windowClients.find((c) => {
                 return c.url === new URL(urlToOpen, self.location.origin).href;
@@ -135,8 +142,8 @@ self.addEventListener("notificationclick", (event) => {
                 return matchingClient.focus();
             }
             // Open new window otherwise
-            if (clients.openWindow) {
-                return clients.openWindow(urlToOpen);
+            if (self.clients.openWindow) {
+                return self.clients.openWindow(urlToOpen);
             }
         })
     );

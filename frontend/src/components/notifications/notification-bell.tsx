@@ -33,6 +33,25 @@ export function NotificationBell() {
         return () => clearInterval(interval)
     }, [])
 
+    // Listen for live Push notifications from Service Worker
+    useEffect(() => {
+        const handleServiceWorkerMessage = (event: MessageEvent) => {
+            if (event.data && event.data.type === "PUSH_RECEIVED") {
+                fetchUnreadCount()
+                if (isOpen) {
+                    fetchNotifications()
+                }
+            }
+        }
+        
+        if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.addEventListener("message", handleServiceWorkerMessage)
+            return () => {
+                navigator.serviceWorker.removeEventListener("message", handleServiceWorkerMessage)
+            }
+        }
+    }, [isOpen])
+
     // Close dropdown when clicking outside
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
