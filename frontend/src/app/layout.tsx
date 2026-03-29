@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/lib/auth-context"
 import { ServiceWorkerRegistration } from "@/components/pwa/sw-register"
+import { PushAutoRegister } from "@/components/pwa/push-auto-register"
 import { Navbar } from "@/components/navbar"
 import "./globals.css"
 
@@ -111,6 +112,7 @@ export default function RootLayout({
           <AuthProvider>
             <Navbar />
             {children}
+            <PushAutoRegister />
           </AuthProvider>
 
 

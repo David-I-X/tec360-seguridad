@@ -78,7 +78,7 @@ class NotificationService:
         query = select(Notification).where(Notification.user_id == user_id)
         
         if unread_only:
-            query = query.where(not Notification.is_read)
+            query = query.where(Notification.is_read == False)  # noqa: E712
         
         query = query.order_by(desc(Notification.created_at)).limit(limit)
         return session.exec(query).all()
@@ -88,7 +88,7 @@ class NotificationService:
         """Get count of unread notifications"""
         query = select(Notification).where(
             Notification.user_id == user_id,
-            not Notification.is_read
+            Notification.is_read == False  # noqa: E712
         )
         return len(session.exec(query).all())
     
@@ -108,7 +108,7 @@ class NotificationService:
         """Mark all notifications as read for a user"""
         query = select(Notification).where(
             Notification.user_id == user_id,
-            not Notification.is_read
+            Notification.is_read == False  # noqa: E712
         )
         notifications = session.exec(query).all()
         count = 0
