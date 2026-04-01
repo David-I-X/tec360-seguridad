@@ -106,3 +106,16 @@ jobs:
           
           echo "✅ APK actualizado en el repositorio"
           echo "🌐 Disponible en: https://tec-360.tech/descargar-app"
+
+      - name: 🚀 Update Server with new APK
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.type == 'build'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            echo "📥 Descargando nuevo APK al servidor..."
+            cd /opt/tec360-seguridad
+            git pull origin master --ff-only || true
+            echo "✅ El APK ya está disponible en el Next.js server por el nuevo volumen."

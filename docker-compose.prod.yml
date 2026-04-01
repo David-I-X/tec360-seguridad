@@ -57,7 +57,6 @@ services:
     expose:
       - "8000"
 
-  # --- Frontend (Next.js) ---
   frontend:
     image: ghcr.io/david-i-x/tec360-seguridad/frontend:latest
     pull_policy: always
@@ -65,6 +64,8 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    volumes:
+      - ./frontend/public/app:/app/public/app
     networks:
       - tec360_net
     expose:
