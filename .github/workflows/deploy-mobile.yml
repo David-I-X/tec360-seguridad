@@ -24,6 +24,8 @@ jobs:
   mobile-ci:
     name: Mobile EAS CI/CD
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     steps:
       - name: 🏗 Setup repository
