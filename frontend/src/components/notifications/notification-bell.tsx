@@ -29,7 +29,7 @@ export function NotificationBell() {
     // Fetch unread count on mount and periodically
     useEffect(() => {
         fetchUnreadCount()
-        const interval = setInterval(fetchUnreadCount, 30000) // Every 30 seconds
+        const interval = setInterval(fetchUnreadCount, 10000) // Every 10 seconds
         return () => clearInterval(interval)
     }, [])
 
@@ -37,6 +37,16 @@ export function NotificationBell() {
     useEffect(() => {
         const handleServiceWorkerMessage = (event: MessageEvent) => {
             if (event.data && event.data.type === "PUSH_RECEIVED") {
+                // Vibrate for haptic feedback
+                if ("vibrate" in navigator) {
+                    navigator.vibrate(200)
+                }
+                // Play notification sound
+                try {
+                    const audio = new Audio("/notification.mp3")
+                    audio.volume = 0.3
+                    audio.play().catch(() => {})
+                } catch {}
                 fetchUnreadCount()
                 if (isOpen) {
                     fetchNotifications()
@@ -145,7 +155,7 @@ export function NotificationBell() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute right-0 mt-2 w-80 sm:w-96 bg-background border rounded-xl shadow-xl z-50 overflow-hidden"
+                        className="fixed sm:absolute inset-x-2 sm:inset-x-auto top-16 sm:top-auto sm:right-0 sm:mt-2 sm:w-96 max-w-[calc(100vw-1rem)] bg-background border rounded-xl shadow-xl z-50 overflow-hidden"
                     >
                         {/* Header */}
                         <div className="flex items-center justify-between p-4 border-b">

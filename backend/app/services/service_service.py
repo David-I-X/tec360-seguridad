@@ -296,7 +296,10 @@ class ServiceService:
                 import logging
                 logging.warning(f"Persistent notification failed: {notif_error}")
             
-            return self._to_response(service)
+            # Fetch client for full response
+            client = session.exec(select(User).where(User.id == service.client_id)).first()
+            
+            return self._to_response(service, client=client, technician=technician)
         except HTTPException:
             raise
         except Exception as e:
@@ -457,7 +460,8 @@ class ServiceService:
                 id=str(client.id),
                 email=client.email,
                 full_name=client.full_name,
-                phone=client.phone
+                phone=client.phone,
+                avatar_url=client.avatar_url
             )
             
         if technician:

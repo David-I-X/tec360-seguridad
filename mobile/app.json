@@ -12,7 +12,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.tec360.seguridad",
       "config": {
-        "googleMapsApiKey": "YOUR_GOOGLE_MAPS_IOS_KEY"
+        "googleMapsApiKey": "AIzaSyD5VuK1MncGyFNIXUUUHi0qCKljHSaRXjA"
       }
     },
     "android": {
@@ -26,7 +26,7 @@
       "edgeToEdgeEnabled": true,
       "config": {
         "googleMaps": {
-          "apiKey": "YOUR_GOOGLE_MAPS_ANDROID_KEY"
+          "apiKey": "AIzaSyD5VuK1MncGyFNIXUUUHi0qCKljHSaRXjA"
         }
       },
       "permissions": [

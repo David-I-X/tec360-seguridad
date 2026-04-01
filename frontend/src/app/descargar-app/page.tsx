@@ -46,7 +46,7 @@ export default function DescargarAppPage() {
     ]
 
     return (
-        <div className="min-h-screen bg-[#0f172a] bg-[url('/grid.svg')] bg-center bg-fixed pt-24 pb-16 px-4">
+        <div className="min-h-screen bg-background pt-24 pb-16 px-4">
             <div className="max-w-4xl mx-auto space-y-12">
                 
                 {/* Header Back Link */}
