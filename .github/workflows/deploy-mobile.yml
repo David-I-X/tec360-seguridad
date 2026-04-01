@@ -1,0 +1,60 @@
+name: EAS Build and Update CI/CD
+
+on:
+  push:
+    tags:
+      - 'v*-mobile'  # Trigger full APK build e.g. v1.0.0-mobile
+  workflow_dispatch:
+    inputs:
+      type:
+        description: 'Tipo de Despliegue'
+        required: true
+        type: choice
+        options:
+          - 'update'   # Solo Over The Air (rápido, no cambia el APK)
+          - 'build'    # Hacer un nuevo APK (requerido si instalas librerías nuevas)
+        default: 'update'
+      message:
+        description: 'Mensaje para este OTA Update (solo requerido para update)'
+        required: false
+        type: string
+        default: 'Actualización automática'
+
+jobs:
+  mobile-ci:
+    name: Mobile EAS CI/CD
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🏗 Setup repository
+        uses: actions/checkout@v4
+
+      - name: 🏗 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: 🏗 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📦 Install dependencies
+        working-directory: ./mobile
+        run: npm ci
+
+      # --- OTA UPDATE MODE ---
+      - name: 🚀 Publish OTA Update
+        if: github.event.inputs.type == 'update'
+        working-directory: ./mobile
+        run: eas update --auto --message "${{ github.event.inputs.message }}"
+        
+      # --- FULL BUILD MODE ---
+      # This runs if it's pushed by tag v*-mobile OR manual trigger set to 'build'
+      - name: 🏗 Build APK
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.type == 'build'
+        working-directory: ./mobile
+        run: eas build --platform android --profile preview --non-interactive --no-wait
