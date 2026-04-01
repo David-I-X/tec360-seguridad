@@ -1,4 +1,4 @@
-name: EAS Build and Update CI/CD
+name: Mobile EAS CI/CD
 
 on:
   push:
@@ -28,6 +28,8 @@ jobs:
     steps:
       - name: 🏗 Setup repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 🏗 Setup Node
         uses: actions/setup-node@v4
@@ -53,8 +55,50 @@ jobs:
         run: eas update --auto --message "${{ github.event.inputs.message }}"
         
       # --- FULL BUILD MODE ---
-      # This runs if it's pushed by tag v*-mobile OR manual trigger set to 'build'
-      - name: 🏗 Build APK
+      - name: 🏗 Build APK (espera a que termine)
+        id: build
         if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.type == 'build'
         working-directory: ./mobile
-        run: eas build --platform android --profile preview --non-interactive --no-wait
+        run: |
+          echo "🔨 Iniciando build en EAS (esto toma ~25-30 min)..."
+          eas build --platform android --profile preview --non-interactive 2>&1 | tee build_output.txt
+          echo "✅ Build completado"
+
+      - name: 📥 Descargar APK de EAS
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.type == 'build'
+        working-directory: ./mobile
+        run: |
+          echo "📋 Obteniendo URL del último build..."
+          BUILD_URL=$(eas build:list --platform android --status finished --limit 1 --json --non-interactive | jq -r '.[0].artifacts.buildUrl')
+          
+          if [ -z "$BUILD_URL" ] || [ "$BUILD_URL" = "null" ]; then
+            echo "❌ No se pudo obtener la URL del build"
+            exit 1
+          fi
+          
+          echo "⬇️ Descargando APK desde: $BUILD_URL"
+          mkdir -p ../frontend/public/app
+          curl -L -o ../frontend/public/app/tec360-seguridad-latest.apk "$BUILD_URL"
+          
+          FILE_SIZE=$(stat -c%s "../frontend/public/app/tec360-seguridad-latest.apk" 2>/dev/null || echo "0")
+          echo "📦 APK descargado: ${FILE_SIZE} bytes"
+          
+          if [ "$FILE_SIZE" -lt 1000000 ]; then
+            echo "⚠️ El archivo es muy pequeño, posible error de descarga"
+            exit 1
+          fi
+          
+          echo "✅ APK listo para subir al repositorio"
+
+      - name: 📤 Subir APK al repositorio
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.type == 'build'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add frontend/public/app/tec360-seguridad-latest.apk
+          git commit -m "🤖 Auto-update APK from EAS build ${{ github.ref_name || 'manual' }}" || echo "No changes to commit"
+          git push origin HEAD:master
+          
+          echo "✅ APK actualizado en el repositorio"
+          echo "🌐 Disponible en: https://tec-360.tech/descargar-app"
