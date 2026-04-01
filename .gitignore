@@ -9,6 +9,8 @@ backend/.pytest_cache/
 backend/.coverage
 backend/htmlcov/
 backend/.env
+mobile/.env
+mobile/.env.local
 
 # ============================================
 # FRONTEND
