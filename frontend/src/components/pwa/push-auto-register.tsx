@@ -74,8 +74,9 @@ export function PushAutoRegister() {
                     const err = await response.text()
                     console.error("[PushAutoRegister] ❌ Failed to register token:", response.status, err)
                 }
-            } catch (error) {
-                console.error("[PushAutoRegister] Error:", error)
+            } catch (error: any) {
+                // Push errors (AbortError) are common in local/incognito testing or when FCM is unreachable
+                console.warn("[PushAutoRegister] Omitido: no se pudo registrar web push localmente.", error.message || error)
             }
         }
 

@@ -216,7 +216,7 @@ function TechnicianServiceContent() {
 
     const isActiveService = service && ["assigned", "en_route", "arrived", "in_progress"].includes(service.status)
 
-    const { error: trackingError } = useLocationTracking({
+    const { lastPosition, error: trackingError } = useLocationTracking({
         serviceId: params.id as string,
         enabled: isTracking && isActiveService,
         intervalMs: 5000,
@@ -484,7 +484,13 @@ function TechnicianServiceContent() {
 
                 {/* Map */}
                 <GlassCard className="p-0 overflow-hidden">
-                    <ServiceMap lat={service.service_lat} lng={service.service_lon} address={service.service_address} />
+                    <ServiceMap 
+                        lat={service.service_lat} 
+                        lng={service.service_lon} 
+                        address={service.service_address} 
+                        technicianLat={lastPosition?.lat}
+                        technicianLng={lastPosition?.lng}
+                    />
                 </GlassCard>
 
                 {/* Location + navigation */}
