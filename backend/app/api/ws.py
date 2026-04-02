@@ -53,10 +53,24 @@ async def websocket_service_room(
             # Procesar mensajes del técnico (ubicación)
             if message.get("type") == "location_update":
                 location = message.get("data", {})
+                lat = location.get("lat", 0)
+                lng = location.get("lng", 0)
+                
+                # Import to update the in-memory cache directly
+                from app.api.location import _location_cache
+                import datetime
+                
+                _location_cache[service_id] = {
+                    "technician_id": user_id,
+                    "lat": lat,
+                    "lng": lng,
+                    "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                }
+
                 await ws_manager.broadcast_location_update(
                     service_id=service_id,
-                    lat=location.get("lat", 0),
-                    lng=location.get("lng", 0),
+                    lat=lat,
+                    lng=lng,
                     technician_id=user_id
                 )
             
