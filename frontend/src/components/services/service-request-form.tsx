@@ -126,6 +126,7 @@ export function ServiceRequestForm() {
 
     const handleVehiclePhoto = (file: File) => {
         setVehiclePhotoFile(file)
+        form.setValue("vehiclePhotoFile", file)
         setVehiclePhotoPreview(URL.createObjectURL(file))
     }
 
@@ -149,7 +150,7 @@ export function ServiceRequestForm() {
         } else if (step === 1) {
             isValid = await form.trigger(["vehicle_type", "vehicle_model", "vehicle_plate"])
         } else if (step === 2) {
-            isValid = true
+            isValid = await form.trigger("address")
         } else {
             isValid = await form.trigger()
         }
@@ -963,28 +964,31 @@ export function ServiceRequestForm() {
                             </div>
                         )}
 
-                        <div className="mt-8 flex justify-between gap-4">
+                        <div className="mt-8 flex flex-col-reverse sm:flex-row justify-between gap-3">
                             {step > 0 && (
-                                <Button type="button" variant="outline" onClick={prevStep} disabled={isSubmitting}>
+                                <Button type="button" variant="outline" onClick={prevStep} disabled={isSubmitting} className="w-full sm:w-auto">
                                     <ArrowLeft className="mr-2 h-4 w-4" />
                                     Atrás
                                 </Button>
                             )}
 
                             {step < steps.length - 1 ? (
-                                <Button type="button" onClick={nextStep} className="ml-auto w-full md:w-auto">
+                                <Button type="button" onClick={nextStep} className="w-full sm:w-auto sm:ml-auto">
                                     Siguiente
                                     <ArrowRight className="ml-2 h-4 w-4" />
                                 </Button>
                             ) : (
-                                <Button type="submit" className="ml-auto w-full md:w-auto" disabled={isSubmitting}>
+                                <Button type="submit" className="w-full sm:w-auto sm:ml-auto" disabled={isSubmitting}>
                                     {isSubmitting ? (
                                         <>
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                             Enviando...
                                         </>
                                     ) : (
-                                        "Confirmar Solicitud"
+                                        <>
+                                            <Check className="mr-2 h-4 w-4" />
+                                            Confirmar Solicitud
+                                        </>
                                     )}
                                 </Button>
                             )}
