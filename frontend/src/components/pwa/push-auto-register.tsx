@@ -33,7 +33,7 @@ export function PushAutoRegister() {
             return
         }
 
-        const register = async () => {
+        const register = async (retryCount = 0) => {
             try {
                 const registration = await navigator.serviceWorker.ready
                 
@@ -76,12 +76,18 @@ export function PushAutoRegister() {
                 }
             } catch (error: any) {
                 // Push errors (AbortError) are common in local/incognito testing or when FCM is unreachable
-                console.warn("[PushAutoRegister] Omitido: no se pudo registrar web push localmente.", error.message || error)
+                if (retryCount < 3) {
+                    const delay = Math.pow(2, retryCount) * 2000
+                    console.warn(`[PushAutoRegister] Push error (${error.name}). Reintentando en ${delay}ms...`)
+                    setTimeout(() => register(retryCount + 1), delay)
+                } else {
+                    console.warn("[PushAutoRegister] Omitido: no se pudo registrar web push después de varios reintentos.", error.message || error)
+                }
             }
         }
 
         // Small delay to let SW finish registering
-        const timeout = setTimeout(register, 2000)
+        const timeout = setTimeout(() => register(0), 2000)
         return () => clearTimeout(timeout)
     }, [isAuthenticated, user])
 

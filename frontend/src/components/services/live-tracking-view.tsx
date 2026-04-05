@@ -202,11 +202,13 @@ export function LiveTrackingView({ service, token }: LiveTrackingViewProps) {
             </div>
 
             {/* Dev: Tracking Simulator */}
-            <TrackingSimulator
-                serviceId={service.id}
-                destLat={service.service_lat}
-                destLng={service.service_lon}
-            />
+            {process.env.NODE_ENV === "development" && (
+                <TrackingSimulator
+                    serviceId={service.id}
+                    destLat={service.service_lat}
+                    destLng={service.service_lon}
+                />
+            )}
         </div>
     )
 }

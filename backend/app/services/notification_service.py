@@ -179,6 +179,24 @@ class NotificationService:
             )
         )
 
+    @staticmethod
+    async def notify_technician_service_confirmed(
+        session: Session,
+        technician_id: UUID,
+        service_id: UUID,
+    ):
+        """Notify technician that client confirmed the service"""
+        await NotificationService.create_notification(
+            session=session,
+            data=NotificationCreate(
+                user_id=technician_id,
+                title="⭐ Servicio Confirmado",
+                message="El cliente ha confirmado el nivel de satisfacción del trabajo. Ya puedes ver tu calificación.",
+                notification_type="status",
+                service_id=service_id
+            )
+        )
+
 
 # Singleton instance for easy import
 notification_service = NotificationService()

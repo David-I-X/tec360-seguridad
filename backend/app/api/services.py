@@ -215,6 +215,22 @@ async def update_service(
     )
 
 
+@router.patch("/{service_id}/confirm", response_model=ServiceResponse)
+async def confirm_service(
+    service_id: str = Path(..., description="UUID del servicio"),
+    current_user: dict = Depends(require_roles("client")),
+    session: Session = Depends(get_session)
+):
+    """
+    Permite al cliente confirmar que el servicio fue completado satisfactoriamente.
+    """
+    return await service_service.confirm_service(
+        session=session,
+        service_id=service_id,
+        client_id=current_user["id"]
+    )
+
+
 @router.post("/{service_id}/assign", response_model=ServiceResponse)
 async def assign_technician_to_service(
     service_id: str = Path(..., description="UUID del servicio"),

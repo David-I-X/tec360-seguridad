@@ -441,6 +441,19 @@ export async function cancelService(serviceId: string): Promise<void> {
 }
 
 /**
+ * Confirm a completed service (client)
+ */
+export async function confirmService(serviceId: string): Promise<any> {
+  const response = await fetchWithAuth(`/services/${serviceId}/confirm`, {
+    method: "PATCH",
+  })
+  if (!response.ok) {
+    await handleAPIError(response)
+  }
+  return response.json()
+}
+
+/**
  * Obtiene servicios disponibles con filtro geográfico opcional
  */
 export async function getAvailableServicesFiltered(params?: {

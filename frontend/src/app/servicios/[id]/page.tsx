@@ -8,7 +8,7 @@ import dynamic from "next/dynamic"
 import { ArrowLeft, Calendar, MapPin, User, Wrench, Clock, Loader2, FileText, XCircle } from "lucide-react"
 
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
-import { getServiceById, cancelService } from "@/lib/api"
+import { getServiceById, cancelService, confirmService } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { GlassCard } from "@/components/ui/glass-card"
@@ -62,6 +62,7 @@ function ServiceDetailContent() {
     const [showRatingModal, setShowRatingModal] = useState(false)
     const [hasRated, setHasRated] = useState(false)
     const [isCancelling, setIsCancelling] = useState(false)
+    const [isConfirming, setIsConfirming] = useState(false)
 
     const handleCancel = async () => {
         setIsCancelling(true)
@@ -72,6 +73,18 @@ function ServiceDetailContent() {
             console.error("Cancel error:", err)
         } finally {
             setIsCancelling(false)
+        }
+    }
+
+    const handleConfirm = async () => {
+        setIsConfirming(true)
+        try {
+            await confirmService(params.id as string)
+            setService((prev: any) => ({ ...prev, status: "confirmed" }))
+        } catch (err: any) {
+            console.error("Confirm error:", err)
+        } finally {
+            setIsConfirming(false)
         }
     }
 
@@ -294,8 +307,31 @@ function ServiceDetailContent() {
                     </>
                 )}
 
-                {/* Rating prompt for completed services */}
-                {service.status === "completed" && user?.role === "client" && !hasRated && (
+                {/* Confirmation prompt for completed services */}
+                {service.status === "completed" && user?.role === "client" && (
+                    <GlassCard className="p-6 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border-blue-500/20">
+                        <div className="flex flex-col sm:flex-row items-center gap-4">
+                            <div className="text-4xl">🛠️</div>
+                            <div className="flex-1 text-center sm:text-left">
+                                <h3 className="font-semibold text-lg">Servicio Finalizado</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    El técnico ha indicado que terminó el trabajo. Por favor, confirma que todo quedó bien.
+                                </p>
+                            </div>
+                            <Button
+                                onClick={handleConfirm}
+                                disabled={isConfirming}
+                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                            >
+                                {isConfirming ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                {isConfirming ? "Confirmando..." : "Confirmar Trabajo"}
+                            </Button>
+                        </div>
+                    </GlassCard>
+                )}
+
+                {/* Rating prompt for confirmed services */}
+                {service.status === "confirmed" && user?.role === "client" && !hasRated && (
                     <GlassCard className="p-6 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border-yellow-500/20">
                         <div className="flex flex-col sm:flex-row items-center gap-4">
                             <div className="text-4xl">⭐</div>

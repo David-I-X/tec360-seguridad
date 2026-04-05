@@ -5,7 +5,7 @@ import {
     GoogleMap,
     useLoadScript,
     Marker,
-    DirectionsRenderer,
+    Polyline,
 } from "@react-google-maps/api"
 import { Loader2, MapPin, Navigation2 } from "lucide-react"
 
@@ -137,11 +137,11 @@ export default function ServiceMap({ lat, lng, address, technicianLat, technicia
     })
 
     const mapRef = useRef<google.maps.Map | null>(null)
-    const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null)
+    const [osrmPath, setOsrmPath] = useState<{lat: number, lng: number}[]>([])
     const [eta, setEta] = useState<string | null>(null)
     const [distance, setDistance] = useState<string | null>(null)
-    const directionsRequested = useRef(false)
-    const lastDirectionsPos = useRef<{ lat: number; lng: number } | null>(null)
+    const routeRequested = useRef(false)
+    const lastRoutePos = useRef<{ lat: number; lng: number } | null>(null)
 
     // Detect dark mode
     const isDark = typeof document !== "undefined" &&
@@ -151,50 +151,53 @@ export default function ServiceMap({ lat, lng, address, technicianLat, technicia
     const smoothTechPos = useSmoothMarkerPosition(technicianLat, technicianLng, 2000)
 
     // ============================================================
-    // Google Directions API — get real route along streets
+    // OSRM API — get real route along streets (Free fallback)
     // ============================================================
     useEffect(() => {
         if (!isLoaded || !technicianLat || !technicianLng || !lat || !lng) return
-        if (typeof google === "undefined") return
 
         // Only re-request directions if technician moved significantly (>200m)
-        if (lastDirectionsPos.current) {
-            const dlat = Math.abs(technicianLat - lastDirectionsPos.current.lat)
-            const dlng = Math.abs(technicianLng - lastDirectionsPos.current.lng)
+        if (lastRoutePos.current) {
+            const dlat = Math.abs(technicianLat - lastRoutePos.current.lat)
+            const dlng = Math.abs(technicianLng - lastRoutePos.current.lng)
             // ~200m threshold
-            if (dlat < 0.002 && dlng < 0.002 && directionsRequested.current) return
+            if (dlat < 0.002 && dlng < 0.002 && routeRequested.current) return
         }
 
-        const directionsService = new google.maps.DirectionsService()
+        async function fetchRoute() {
+            try {
+                const url = `https://router.project-osrm.org/route/v1/driving/${technicianLng},${technicianLat};${lng},${lat}?overview=full&geometries=geojson`
+                const res = await fetch(url)
+                const data = await res.json()
+                
+                if (data.routes && data.routes.length > 0) {
+                    const route = data.routes[0]
+                    const coords = route.geometry.coordinates
+                    const path = coords.map((c: number[]) => ({ lat: c[1], lng: c[0] }))
+                    
+                    setOsrmPath(path)
+                    routeRequested.current = true
+                    lastRoutePos.current = { lat: technicianLat!, lng: technicianLng! }
 
-        directionsService.route(
-            {
-                origin: { lat: technicianLat, lng: technicianLng },
-                destination: { lat, lng },
-                travelMode: google.maps.TravelMode.DRIVING,
-            },
-            (result, status) => {
-                if (status === google.maps.DirectionsStatus.OK && result) {
-                    setDirections(result)
-                    directionsRequested.current = true
-                    lastDirectionsPos.current = { lat: technicianLat, lng: technicianLng }
-
-                    // Extract ETA and distance
-                    const leg = result.routes?.[0]?.legs?.[0]
-                    if (leg) {
-                        setEta(leg.duration?.text || null)
-                        setDistance(leg.distance?.text || null)
+                    if (route.duration) {
+                        const mins = Math.round(route.duration / 60)
+                        setEta(mins > 60 ? `${Math.floor(mins/60)} h ${mins%60} min` : `${mins} min`)
                     }
-
-                    console.log("[Map] Directions updated:", {
-                        eta: leg?.duration?.text,
-                        distance: leg?.distance?.text,
-                    })
-                } else {
-                    console.warn("[Map] Directions request failed:", status)
+                    if (route.distance) {
+                        setDistance((route.distance / 1000).toFixed(1) + " km")
+                    }
                 }
+            } catch (err) {
+                console.warn("[Map] OSRM route fetch failed:", err)
+                // Fallback to straight line
+                setOsrmPath([
+                    { lat: technicianLat!, lng: technicianLng! },
+                    { lat, lng }
+                ])
             }
-        )
+        }
+
+        fetchRoute()
     }, [isLoaded, technicianLat, technicianLng, lat, lng])
 
     // Auto-follow: pan map to show technician when position updates
@@ -218,14 +221,11 @@ export default function ServiceMap({ lat, lng, address, technicianLat, technicia
         mapRef.current = map
     }, [])
 
-    // DirectionsRenderer options — blue route line only, no default markers
-    const directionsOptions = useMemo(() => ({
-        suppressMarkers: true,
-        polylineOptions: {
-            strokeColor: "#3b82f6",
-            strokeOpacity: 0.8,
-            strokeWeight: 5,
-        },
+    // Polyline options — blue route line
+    const polylineOptions = useMemo(() => ({
+        strokeColor: "#3b82f6",
+        strokeOpacity: 0.8,
+        strokeWeight: 5,
     }), [])
 
     // ============================================================
@@ -278,11 +278,11 @@ export default function ServiceMap({ lat, lng, address, technicianLat, technicia
                     gestureHandling: "greedy",
                 }}
             >
-                {/* Google Directions route (blue line along streets) */}
-                {directions && (
-                    <DirectionsRenderer
-                        directions={directions}
-                        options={directionsOptions}
+                {/* OSRM route (blue line along streets) */}
+                {osrmPath.length > 0 && (
+                    <Polyline
+                        path={osrmPath}
+                        options={polylineOptions}
                     />
                 )}
 

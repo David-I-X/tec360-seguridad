@@ -411,6 +411,45 @@ class ServiceService:
         except Exception as e:
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
+    async def confirm_service(self, session: Session, service_id: str, client_id: str) -> ServiceResponse:
+        try:
+            service = session.exec(select(Service).where(Service.id == service_id)).first()
+            if not service:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
+            
+            if str(service.client_id) != client_id:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "No autorizado")
+                
+            if service.status != ServiceStatus.completed:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "El servicio debe estar completado para poder confirmarlo")
+                
+            service.status = ServiceStatus.confirmed
+            service.client_confirmed_at = datetime.utcnow()
+            service.updated_at = datetime.utcnow()
+            
+            session.add(service)
+            session.commit()
+            session.refresh(service)
+            
+            # Notificar al técnico
+            if service.technician_id:
+                try:
+                    from app.services.notification_service import NotificationService
+                    await NotificationService.notify_technician_service_confirmed(
+                        session=session,
+                        technician_id=service.technician_id,
+                        service_id=service.id,
+                    )
+                except Exception as notif_error:
+                    import logging
+                    logging.warning(f"Notification failed: {notif_error}")
+            
+            return self._to_response(service)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
     async def assign_technician(self, session: Session, service_id: str, technician_id: str, user_role: str) -> ServiceResponse:
         if user_role != "admin":
              raise HTTPException(status.HTTP_403_FORBIDDEN, "Solo admin")
