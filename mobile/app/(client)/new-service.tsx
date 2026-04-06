@@ -179,10 +179,6 @@ export default function NewServiceScreen() {
             distinctive_marks: recDistinctiveMarks || null,
             police_report_number: recPoliceReport || null,
           },
-            vehicle_color: recVehicleColor || null,
-            distinctive_marks: recDistinctiveMarks || null,
-            police_report_number: recPoliceReport || null,
-          },
         }),
       });
       if (!res.ok) throw new Error('Error al crear solicitud de recuperación');
