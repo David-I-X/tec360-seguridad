@@ -130,6 +130,24 @@ export function ServiceRequestForm() {
         setVehiclePhotoPreview(URL.createObjectURL(file))
     }
 
+    const handleGetLocation = () => {
+        if (!navigator.geolocation) {
+            alert("Tu navegador no soporta geolocalización. Ingresa la ubicación manualmente.")
+            return
+        }
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setRecLat(position.coords.latitude)
+                setRecLng(position.coords.longitude)
+                setRecAddress("Ubicación por GPS actual")
+            },
+            (error) => {
+                console.error("Error GPS:", error)
+                alert("No pudimos obtener tu ubicación. Verifica los permisos de tu navegador o escribe la dirección manualmente.")
+            }
+        )
+    }
+
     // Prevención de pérdida de datos
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -291,8 +309,18 @@ export function ServiceRequestForm() {
         setRecSubmitting(true)
         setRecError("")
         try {
-            if (!recVehicleType || !recVehicleModel || !recVehiclePlate || !recAddress) {
-                setRecError("Completa todos los campos obligatorios")
+            if (!recPoliceReport) {
+                setRecError("El número de denuncia policial es obligatorio")
+                setRecSubmitting(false)
+                return
+            }
+            if (!recVehicleType || !recVehicleModel || !recVehiclePlate) {
+                setRecError("Completa todos los datos del vehículo")
+                setRecSubmitting(false)
+                return
+            }
+            if (recHasGps !== "yes" && !recAddress) {
+                setRecError("Ingresa la última ubicación vista o usa el botón de ubicación actual")
                 setRecSubmitting(false)
                 return
             }
@@ -311,13 +339,13 @@ export function ServiceRequestForm() {
                 vehicle_model: recVehicleModel,
                 vehicle_plate: recVehiclePlate,
                 service_metadata: {
-                    stolen_datetime: recStolenDate && recStolenTime ? `${recStolenDate}T${recStolenTime}` : recStolenDate || null,
+                service_metadata: {
                     has_gps: recHasGps,
-                    gps_brand: recHasGps === "yes" ? recGpsBrand : null,
                     vehicle_color: recVehicleColor || null,
                     distinctive_marks: recDistinctiveMarks || null,
                     police_report_number: recPoliceReport || null,
                     additional_phone: recAdditionalPhone || null,
+                },
                 },
             })
 
@@ -380,6 +408,23 @@ export function ServiceRequestForm() {
                     </div>
 
                     <div className="space-y-5">
+                        {/* Police report - Top Priority */}
+                        <div className="bg-red-500/10 border-l-4 border-red-500 p-4 rounded-r-lg">
+                            <label className="text-sm font-bold text-red-500 uppercase tracking-wide block mb-1">
+                                N° Denuncia Policial *
+                            </label>
+                            <p className="text-xs text-red-400 mb-2">⚠️ ¡Importante! Primero marca al 123 para realizar la denuncia.</p>
+                            <Input 
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                placeholder="Ej: 202500123" 
+                                value={recPoliceReport} 
+                                onChange={(e) => setRecPoliceReport(e.target.value.replace(/[^0-9]/g, ''))} 
+                                className="border-red-500/30 focus-visible:ring-red-500 bg-background font-mono text-lg"
+                            />
+                        </div>
+
                         {/* Vehicle type */}
                         <div>
                             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-2">Tipo de Vehículo *</label>
@@ -425,18 +470,6 @@ export function ServiceRequestForm() {
                             </div>
                         </div>
 
-                        {/* Stolen date/time */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Fecha del robo (aprox.)</label>
-                                <Input type="date" value={recStolenDate} onChange={(e) => setRecStolenDate(e.target.value)} />
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Hora del robo (aprox.)</label>
-                                <Input type="time" value={recStolenTime} onChange={(e) => setRecStolenTime(e.target.value)} />
-                            </div>
-                        </div>
-
                         {/* Has GPS? */}
                         <div>
                             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-2">¿El vehículo tiene GPS activo?</label>
@@ -457,39 +490,29 @@ export function ServiceRequestForm() {
                             </div>
                         </div>
 
-                        {recHasGps === "yes" && (
-                            <div>
-                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Marca del GPS</label>
-                                <Input placeholder="Ej: Tec360, Tracker, etc." value={recGpsBrand} onChange={(e) => setRecGpsBrand(e.target.value)} />
+                        {/* Location logic: Show only if NO GPS */}
+                        {recHasGps !== "yes" && (
+                            <div className="bg-muted/10 p-4 rounded-xl space-y-3 border border-muted">
+                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block">Última ubicación vista *</label>
+                                <div className="relative">
+                                    <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input className="pl-9 bg-background" placeholder="Ej: Barrio Castilla, frente al centro comercial..." value={recAddress} onChange={(e) => setRecAddress(e.target.value)} />
+                                </div>
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    className="w-full text-xs h-9 border-dashed"
+                                    onClick={handleGetLocation}
+                                >
+                                    📍 Obtener mi ubicación actual
+                                </Button>
                             </div>
                         )}
 
-                        {/* Last seen location */}
+                        {/* Additional phone */}
                         <div>
-                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Última ubicación vista *</label>
-                            <div className="relative">
-                                <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input className="pl-9" placeholder="Ej: Barrio Castilla, frente al centro comercial..." value={recAddress} onChange={(e) => setRecAddress(e.target.value)} />
-                            </div>
-                        </div>
-
-                        {/* Map */}
-                        <LocationPicker
-                            initialLat={recLat}
-                            initialLng={recLng}
-                            onLocationSelect={(lat, lng) => { setRecLat(lat); setRecLng(lng); }}
-                        />
-
-                        {/* Police report */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">N° Denuncia Policial (opcional)</label>
-                                <Input placeholder="Ej: 202500..." value={recPoliceReport} onChange={(e) => setRecPoliceReport(e.target.value)} />
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Teléfono Alterno (opcional)</label>
-                                <Input type="tel" placeholder="Ej: 300 123 4567" value={recAdditionalPhone} onChange={(e) => setRecAdditionalPhone(e.target.value)} />
-                            </div>
+                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Teléfono Alterno (opcional)</label>
+                            <Input type="tel" placeholder="Ej: 300 123 4567" value={recAdditionalPhone} onChange={(e) => setRecAdditionalPhone(e.target.value)} />
                         </div>
 
                         {/* Extra notes */}

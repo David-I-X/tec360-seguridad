@@ -144,8 +144,16 @@ export default function NewServiceScreen() {
   };
 
   const handleRecoverySubmit = async () => {
-    if (!recVehicleType || !recVehicleModel || !recVehiclePlate || !recAddress) {
-      Alert.alert('Campos requeridos', 'Completa tipo de vehículo, modelo, placa y ubicación.');
+    if (!recPoliceReport) {
+      Alert.alert('Requerido', 'El número de denuncia policial es obligatorio.');
+      return;
+    }
+    if (!recVehicleType || !recVehicleModel || !recVehiclePlate) {
+      Alert.alert('Campos requeridos', 'Completa tipo de vehículo, modelo y placa.');
+      return;
+    }
+    if (recHasGps !== 'yes' && !recAddress) {
+      Alert.alert('Requerido', 'Ingresa la última ubicación vista.');
       return;
     }
     setIsLoading(true);
@@ -166,9 +174,11 @@ export default function NewServiceScreen() {
           vehicle_model: recVehicleModel,
           vehicle_plate: recVehiclePlate,
           service_metadata: {
-            stolen_datetime: recStolenDate && recStolenTime ? `${recStolenDate}T${recStolenTime}` : recStolenDate || null,
             has_gps: recHasGps,
-            gps_brand: recHasGps === 'yes' ? recGpsBrand : null,
+            vehicle_color: recVehicleColor || null,
+            distinctive_marks: recDistinctiveMarks || null,
+            police_report_number: recPoliceReport || null,
+          },
             vehicle_color: recVehicleColor || null,
             distinctive_marks: recDistinctiveMarks || null,
             police_report_number: recPoliceReport || null,
@@ -229,6 +239,20 @@ export default function NewServiceScreen() {
 
           <Text style={styles.sectionTitle}>Reportar Robo</Text>
 
+          {/* Police Report */}
+          <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#ef4444', marginBottom: 20 }}>
+            <Text style={[styles.inputLabel, { color: '#ef4444', marginBottom: 4 }]}>N° denuncia policial *</Text>
+            <Text style={{ color: '#fca5a5', fontSize: 11, marginBottom: 12 }}>⚠️ ¡Importante! Primero marca al 123 para realizar la denuncia.</Text>
+            <TextInput 
+              style={[styles.input, { borderColor: 'rgba(239, 68, 68, 0.5)', marginBottom: 0 }]} 
+              placeholder="Ej: 202500012345" 
+              placeholderTextColor="#ef444480" 
+              value={recPoliceReport} 
+              onChangeText={(text) => setRecPoliceReport(text.replace(/[^0-9]/g, ''))} 
+              keyboardType="number-pad"
+            />
+          </View>
+
           {/* Vehicle Type */}
           <Text style={styles.inputLabel}>Tipo de Vehículo *</Text>
           <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
@@ -258,13 +282,6 @@ export default function NewServiceScreen() {
           <Text style={styles.inputLabel}>Marcas distintivas</Text>
           <TextInput style={styles.input} placeholder="Stickers, rayas, modificaciones..." placeholderTextColor="#555872" value={recDistinctiveMarks} onChangeText={setRecDistinctiveMarks} />
 
-          {/* Stolen date/time */}
-          <Text style={styles.inputLabel}>Fecha del robo (YYYY-MM-DD)</Text>
-          <TextInput style={styles.input} placeholder="2025-03-20" placeholderTextColor="#555872" value={recStolenDate} onChangeText={setRecStolenDate} />
-
-          <Text style={styles.inputLabel}>Hora del robo (HH:MM)</Text>
-          <TextInput style={styles.input} placeholder="14:30" placeholderTextColor="#555872" value={recStolenTime} onChangeText={setRecStolenTime} />
-
           {/* Has GPS */}
           <Text style={styles.inputLabel}>¿Tiene GPS activo?</Text>
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
@@ -280,20 +297,35 @@ export default function NewServiceScreen() {
               </TouchableOpacity>
             ))}
           </View>
-          {recHasGps === 'yes' && (
-            <>
-              <Text style={styles.inputLabel}>Marca del GPS</Text>
-              <TextInput style={styles.input} placeholder="Ej: Tec360, Tracker" placeholderTextColor="#555872" value={recGpsBrand} onChangeText={setRecGpsBrand} />
-            </>
-          )}
 
           {/* Last seen location */}
-          <Text style={styles.inputLabel}>Última ubicación vista *</Text>
-          <TextInput style={styles.input} placeholder="Barrio, calle, referencia..." placeholderTextColor="#555872" value={recAddress} onChangeText={setRecAddress} />
-
-          {/* Police report */}
-          <Text style={styles.inputLabel}>N° denuncia policial (opcional)</Text>
-          <TextInput style={styles.input} placeholder="Ej: 202500012345" placeholderTextColor="#555872" value={recPoliceReport} onChangeText={setRecPoliceReport} />
+          {recHasGps !== 'yes' && (
+            <View style={{ backgroundColor: 'rgba(15,23,42,0.5)', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#334155', marginBottom: 16 }}>
+              <Text style={styles.inputLabel}>Última ubicación vista *</Text>
+              <TextInput style={[styles.input, { marginBottom: 8 }]} placeholder="Barrio, calle, referencia..." placeholderTextColor="#555872" value={recAddress} onChangeText={setRecAddress} />
+              
+              <TouchableOpacity 
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#555872', borderStyle: 'dashed' }}
+                onPress={async () => {
+                  try {
+                    const Location = require('expo-location');
+                    let { status } = await Location.requestForegroundPermissionsAsync();
+                    if (status !== 'granted') {
+                      Alert.alert('Permiso denegado', 'Ingresa la ubicación manualmente.');
+                      return;
+                    }
+                    let location = await Location.getCurrentPositionAsync({});
+                    setRecAddress('Ubicación obtenida por GPS');
+                  } catch (e) {
+                    Alert.alert('Aviso', 'Ingresa tu ubicación manualmente.');
+                  }
+                }}
+              >
+                <Ionicons name="location" size={18} color="#8b8fa3" />
+                <Text style={{ color: '#8b8fa3', fontSize: 13, fontWeight: '600', marginLeft: 8 }}>Obtener mi ubicación actual</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Notes */}
           <Text style={styles.inputLabel}>Información adicional (opcional)</Text>
