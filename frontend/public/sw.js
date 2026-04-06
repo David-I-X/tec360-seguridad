@@ -106,8 +106,8 @@ self.addEventListener("push", (event) => {
     const title = data.title || "Notificación de Tec360";
     const options = {
         body: data.message || data.body || "Tienes una nueva actualización",
-        icon: "/icons/icon-192x192.png", // Assuming this exists from PWA standard
-        badge: "/icons/icon-192x192.png",
+        icon: "/icons/icon.svg", 
+        badge: "/icons/icon.svg",
         data: data,
         vibrate: [100, 50, 100],
     };

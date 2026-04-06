@@ -54,6 +54,15 @@ export function PushAutoRegister() {
                 const token = localStorage.getItem("access_token")
                 if (!token) return
 
+                // Detect platform for more accurate logging/analytics in backend
+                let platform: "web_push" | "pwa_ios" | "pwa_android" = "web_push"
+                const ua = window.navigator.userAgent.toLowerCase()
+                if (/iphone|ipad|ipod/.test(ua)) {
+                    platform = "pwa_ios"
+                } else if (/android/.test(ua)) {
+                    platform = "pwa_android"
+                }
+
                 const subscriptionJson = subscription.toJSON()
                 const response = await fetch(`${API_URL}/users/me/push-tokens`, {
                     method: "POST",
@@ -63,7 +72,7 @@ export function PushAutoRegister() {
                     },
                     body: JSON.stringify({
                         token: JSON.stringify(subscriptionJson),
-                        platform: "web_push",
+                        platform: platform,
                     }),
                 })
 
