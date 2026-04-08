@@ -54,7 +54,10 @@ class PushNotificationService:
                     "body": body,
                     "data": data or {},
                     "sound": "default",
-                    "channelId": "services"
+                    "channelId": "services",
+                    "priority": "high",           # Critical for background delivery
+                    "badge": 1,
+                    "_displayInForeground": True,  # Show even if app is open
                 }
                 async with httpx.AsyncClient() as client:
                     response = await client.post(

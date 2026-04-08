@@ -179,6 +179,98 @@ async def update_service_status(
     )
 
 
+
+@router.get("/{service_id}/eta")
+async def get_service_eta(
+    service_id: str = Path(..., description="UUID del servicio"),
+    tech_lat: float = Query(..., description="Latitud actual del técnico"),
+    tech_lon: float = Query(..., description="Longitud actual del técnico"),
+    current_user: dict = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Calcula el ETA (tiempo estimado de llegada) del técnico al servicio usando Google Routes API.
+    Retorna: { eta_seconds, eta_minutes, eta_text, distance_meters, distance_text }
+    """
+    import httpx
+    from app.core.config import settings
+    from app.models.service import Service
+    from uuid import UUID as PyUUID
+
+    try:
+        service = session.get(Service, PyUUID(service_id))
+    except Exception:
+        service = None
+
+    if not service:
+        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+
+    # Extract destination coords from PostGIS geometry
+    dest_lat, dest_lon = None, None
+    if service.service_location:
+        try:
+            from geoalchemy2.shape import to_shape
+            point = to_shape(service.service_location)
+            dest_lon, dest_lat = point.x, point.y
+        except Exception:
+            pass
+
+    # Fallback to Bogotá center if no location stored
+    if dest_lat is None:
+        dest_lat, dest_lon = 4.6097, -74.0817
+
+    if not settings.GOOGLE_MAPS_API_KEY:
+        # Return generic estimate when no API key configured
+        return {"eta_seconds": 1200, "eta_minutes": 20, "eta_text": "~20 min", "distance_meters": None, "distance_text": None}
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            response = await client.post(
+                "https://routes.googleapis.com/directions/v2:computeRoutes",
+                headers={
+                    "X-Goog-Api-Key": settings.GOOGLE_MAPS_API_KEY,
+                    "X-Goog-FieldMask": "routes.duration,routes.distanceMeters",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "origin": {"location": {"latLng": {"latitude": tech_lat, "longitude": tech_lon}}},
+                    "destination": {"location": {"latLng": {"latitude": dest_lat, "longitude": dest_lon}}},
+                    "travelMode": "DRIVE",
+                    "routingPreference": "TRAFFIC_AWARE",
+                }
+            )
+
+        if response.status_code != 200:
+            raise ValueError(f"Google Routes error {response.status_code}")
+
+        routes = response.json().get("routes", [])
+        if not routes:
+            raise ValueError("No routes returned")
+
+        route = routes[0]
+        # duration comes as "NNNs" string
+        duration_str = route.get("duration", "1200s")
+        eta_seconds = int(duration_str.rstrip("s"))
+        distance_m = route.get("distanceMeters", 0)
+        eta_minutes = round(eta_seconds / 60)
+        eta_text = f"{eta_minutes} min" if eta_minutes > 0 else "Menos de 1 min"
+        dist_km = round(distance_m / 1000, 1)
+        distance_text = f"{dist_km} km"
+
+        return {
+            "eta_seconds": eta_seconds,
+            "eta_minutes": eta_minutes,
+            "eta_text": eta_text,
+            "distance_meters": distance_m,
+            "distance_text": distance_text,
+        }
+
+    except Exception as e:
+        import logging
+        logging.warning(f"[ETA] Google Routes API error: {e}")
+        return {"eta_seconds": 1200, "eta_minutes": 20, "eta_text": "~20 min", "distance_meters": None, "distance_text": None}
+
+
 @router.get("/{service_id}", response_model=ServiceResponse)
 async def get_service(
     service_id: str = Path(..., description="UUID del servicio"),

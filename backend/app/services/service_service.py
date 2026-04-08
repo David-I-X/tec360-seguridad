@@ -72,6 +72,7 @@ class ServiceService:
                     session=session,
                     service_id=db_service.id,
                     service_title=db_service.title,
+                    service_type=str(db_service.service_type.value) if db_service.service_type else "",
                     service_city=service_data.service_address.split(",")[-1].strip() if service_data.service_address else "Colombia"
                 )
             except Exception as notif_error:

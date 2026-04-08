@@ -1,14 +1,16 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  ScrollView, Image, Linking,
+  ScrollView, Image, Linking, Animated,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence } from 'react-native-reanimated';
+import AnimatedRn, {
+  useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence,
+} from 'react-native-reanimated';
 import { useAuth } from '@/lib/auth-context';
-import { getServiceById, getAuthToken, API_URL } from '@/lib/api';
+import { getServiceById, getAuthToken, API_URL, fetchWithAuth } from '@/lib/api';
 import { serviceWebSocket } from '@/lib/websocket';
 
 const STATUS_STEPS = [
@@ -19,12 +21,161 @@ const STATUS_STEPS = [
   { key: 'completed', label: 'Completado', emoji: '✅' },
 ];
 
+// ─── ETA Progress Bar ──────────────────────────────────────────────
+interface EtaData {
+  eta_seconds: number;
+  eta_minutes: number;
+  eta_text: string;
+  distance_text: string | null;
+}
+
+function EtaProgressBar({ serviceId, techLat, techLon, status }: {
+  serviceId: string;
+  techLat?: number;
+  techLon?: number;
+  status: string;
+}) {
+  const [eta, setEta] = useState<EtaData | null>(null);
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const startTimeRef = useRef<number>(Date.now());
+
+  // Fetch ETA from backend
+  const fetchEta = useCallback(async () => {
+    if (!techLat || !techLon) return;
+    try {
+      const res = await fetchWithAuth(
+        `/services/${serviceId}/eta?tech_lat=${techLat}&tech_lon=${techLon}`
+      );
+      if (res.ok) {
+        const data: EtaData = await res.json();
+        setEta(data);
+        startTimeRef.current = Date.now();
+        setElapsedSec(0);
+      }
+    } catch (e) { /* silent */ }
+  }, [serviceId, techLat, techLon]);
+
+  useEffect(() => {
+    if (status !== 'en_route') return;
+    fetchEta();
+    // Refresh ETA every 45 seconds as tech moves
+    const etaInterval = setInterval(fetchEta, 45000);
+    return () => clearInterval(etaInterval);
+  }, [status, fetchEta]);
+
+  // Tick elapsed seconds for smooth bar
+  useEffect(() => {
+    if (status !== 'en_route') return;
+    const tick = setInterval(() => {
+      setElapsedSec(Math.floor((Date.now() - startTimeRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [status]);
+
+  // Animate progress bar
+  useEffect(() => {
+    if (!eta) return;
+    const totalSec = eta.eta_seconds || 1200;
+    const progress = Math.min(elapsedSec / totalSec, 0.98); // never fully 100 until arrived
+    Animated.timing(progressAnim, {
+      toValue: progress,
+      duration: 1000,
+      useNativeDriver: false,
+    }).start();
+  }, [elapsedSec, eta]);
+
+  if (status === 'arrived') {
+    return (
+      <LinearGradient colors={['#064e3b', '#065f46']} style={styles.etaCard}>
+        <View style={styles.etaRow}>
+          <Ionicons name="location" size={22} color="#34d399" />
+          <Text style={styles.etaArrived}>¡El técnico llegó!</Text>
+        </View>
+        <View style={[styles.etaBarTrack]}>
+          <View style={[styles.etaBarFill, { width: '100%', backgroundColor: '#34d399' }]} />
+        </View>
+      </LinearGradient>
+    );
+  }
+
+  if (status !== 'en_route') return null;
+
+  const remainingMin = eta
+    ? Math.max(0, Math.ceil((eta.eta_seconds - elapsedSec) / 60))
+    : null;
+
+  return (
+    <LinearGradient colors={['#1e1b4b', '#1e3a5f']} style={styles.etaCard}>
+      {/* Top row */}
+      <View style={styles.etaRow}>
+        <View style={styles.etaCarIcon}>
+          <Ionicons name="car" size={18} color="#60a5fa" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.etaLabel}>Técnico en camino</Text>
+          {eta && (
+            <Text style={styles.etaTimeText}>
+              {remainingMin !== null
+                ? `~${remainingMin} min de espera`
+                : eta.eta_text}
+              {eta.distance_text ? ` · ${eta.distance_text}` : ''}
+            </Text>
+          )}
+          {!eta && <Text style={styles.etaLoading}>Calculando ruta...</Text>}
+        </View>
+        {eta && (
+          <View style={styles.etaBadge}>
+            <Text style={styles.etaBadgeText}>{eta.eta_text}</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Progress bar */}
+      <View style={styles.etaBarTrack}>
+        <Animated.View
+          style={[
+            styles.etaBarFill,
+            {
+              width: progressAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['0%', '100%'],
+              }),
+            },
+          ]}
+        />
+        {/* Animated car dot */}
+        <Animated.View
+          style={[
+            styles.etaCarDot,
+            {
+              left: progressAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['0%', '94%'],
+              }),
+            },
+          ]}
+        >
+          <Text style={{ fontSize: 12 }}>🚗</Text>
+        </Animated.View>
+      </View>
+
+      <View style={styles.etaFooter}>
+        <Text style={styles.etaFooterText}>📍 Origen</Text>
+        <Text style={styles.etaFooterText}>Destino 🏁</Text>
+      </View>
+    </LinearGradient>
+  );
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────
 export default function WaitingScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const [service, setService] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [techLocation, setTechLocation] = useState<{ lat: number; lon: number } | null>(null);
 
   // Pulse animation
   const pulse = useSharedValue(1);
@@ -62,9 +213,13 @@ export default function WaitingScreen() {
       unsubscribe = serviceWebSocket.onMessage((msg) => {
         if (msg.type === 'status_update') {
           setService((prev: any) => prev ? { ...prev, status: msg.data.status } : prev);
-          if (['en_route', 'in_progress'].includes(msg.data.status)) {
+          if (['in_progress'].includes(msg.data.status)) {
             router.push(`/(client)/service/${id}` as any);
           }
+        }
+        // Capture tech location from WebSocket
+        if (msg.type === 'location_update') {
+          setTechLocation({ lat: msg.data.lat, lon: msg.data.lon });
         }
       });
     })();
@@ -86,6 +241,8 @@ export default function WaitingScreen() {
   const tech = service?.technician;
   const currentStep = STATUS_STEPS.findIndex(s => s.key === service?.status);
   const staticUrl = API_URL.replace(/\/api\/?$/, '');
+  const isEnRoute = service?.status === 'en_route';
+  const isArrived = service?.status === 'arrived';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
@@ -100,18 +257,29 @@ export default function WaitingScreen() {
 
       {/* Radar animation */}
       <View style={styles.radarContainer}>
-        <Animated.View style={[styles.radarOuter, pulseStyle]}>
+        <AnimatedRn.View style={[styles.radarOuter, pulseStyle]}>
           <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.radarInner}>
-            <Text style={styles.radarEmoji}>🛡️</Text>
+            <Text style={styles.radarEmoji}>{isEnRoute ? '🚗' : isArrived ? '📍' : '🛡️'}</Text>
           </LinearGradient>
-        </Animated.View>
+        </AnimatedRn.View>
         <Text style={styles.radarText}>
           {service?.status === 'pending' ? 'Buscando técnicos disponibles...' :
-            service?.status === 'assigned' ? 'Técnico asignado' :
+            service?.status === 'assigned' ? 'Técnico asignado — preparándose' :
               service?.status === 'en_route' ? '¡Tu técnico viene en camino!' :
-                'Servicio en progreso'}
+                service?.status === 'arrived' ? '¡Tu técnico llegó al lugar!' :
+                  'Servicio en progreso'}
         </Text>
       </View>
+
+      {/* ⭐ ETA Bar — only when en_route or arrived */}
+      {(isEnRoute || isArrived) && (
+        <EtaProgressBar
+          serviceId={id!}
+          techLat={techLocation?.lat}
+          techLon={techLocation?.lon}
+          status={service?.status}
+        />
+      )}
 
       {/* Status Stepper */}
       <View style={styles.stepperCard}>
@@ -162,10 +330,7 @@ export default function WaitingScreen() {
               <Ionicons name="call" size={18} color="#22c55e" />
               <Text style={styles.callText}>Llamar</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.profileButton}
-              onPress={() => {/* TODO: Navigate to tech profile */}}
-            >
+            <TouchableOpacity style={styles.profileButton}>
               <Ionicons name="person" size={18} color="#8b5cf6" />
               <Text style={styles.profileText}>Ver Perfil</Text>
             </TouchableOpacity>
@@ -196,11 +361,48 @@ const styles = StyleSheet.create({
   centered: { flex: 1, backgroundColor: '#050810', justifyContent: 'center', alignItems: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16 },
   headerTitle: { color: '#f0f0f5', fontSize: 18, fontWeight: '700' },
+
   radarContainer: { alignItems: 'center', paddingVertical: 30 },
   radarOuter: { width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderColor: 'rgba(139,92,246,0.3)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   radarInner: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', shadowColor: '#8b5cf6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 10 },
   radarEmoji: { fontSize: 28 },
   radarText: { color: '#8b8fa3', fontSize: 15, fontWeight: '600' },
+
+  // ETA Card
+  etaCard: {
+    marginHorizontal: 20, borderRadius: 20, padding: 18, marginBottom: 16,
+    borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)',
+  },
+  etaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  etaCarIcon: {
+    width: 38, height: 38, borderRadius: 12,
+    backgroundColor: 'rgba(59,130,246,0.15)', justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(59,130,246,0.25)',
+  },
+  etaLabel: { color: '#93c5fd', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  etaTimeText: { color: '#f0f0f5', fontSize: 14, fontWeight: '600', marginTop: 2 },
+  etaLoading: { color: '#6b7280', fontSize: 13, marginTop: 2 },
+  etaBadge: {
+    backgroundColor: 'rgba(59,130,246,0.2)', borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(59,130,246,0.35)',
+  },
+  etaBadgeText: { color: '#60a5fa', fontSize: 13, fontWeight: '800' },
+
+  etaBarTrack: {
+    height: 10, backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 10, overflow: 'visible', position: 'relative',
+  },
+  etaBarFill: {
+    height: 10, borderRadius: 10,
+    backgroundColor: '#3b82f6',
+  },
+  etaCarDot: {
+    position: 'absolute', top: -8,
+  },
+  etaArrived: { color: '#34d399', fontSize: 16, fontWeight: '800', flex: 1 },
+  etaFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  etaFooterText: { color: '#4b5563', fontSize: 11 },
+
   stepperCard: { marginHorizontal: 20, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 20, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
   stepCircle: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(80,60,160,0.3)', borderWidth: 2, borderColor: 'rgba(80,60,160,0.4)' },
@@ -211,6 +413,7 @@ const styles = StyleSheet.create({
   stepTextActive: { color: '#f0f0f5' },
   stepLine: { position: 'absolute', left: 15, top: 34, width: 2, height: 14, backgroundColor: 'rgba(80,60,160,0.3)' },
   stepLineDone: { backgroundColor: '#22c55e' },
+
   techCard: { marginHorizontal: 20, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 20, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
   techSectionTitle: { color: '#555872', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 },
   techRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 },

@@ -124,12 +124,26 @@ class NotificationService:
         session: Session,
         service_id: UUID,
         service_title: str,
-        service_city: str
+        service_city: str,
+        service_type: str = ""
     ):
         """Notify all active technicians about a new service"""
         from app.models.user import User
         
-        # Get all technicians
+        # Human-readable service type labels
+        SERVICE_TYPE_LABELS = {
+            "gps_installation": "Instalación GPS",
+            "gps_maintenance": "Mantenimiento GPS",
+            "alarm_installation": "Instalación Alarma",
+            "alarm_maintenance": "Mantenimiento Alarma",
+            "camera_installation": "Instalación Dashcam",
+            "camera_maintenance": "Mantenimiento Dashcam",
+            "vehicle_recovery": "Recuperación de Vehículo",
+            "other": "Servicio Técnico",
+        }
+        type_label = SERVICE_TYPE_LABELS.get(service_type, service_title)
+        
+        # Get all active technicians
         query = select(User).where(
             User.role == "technician",
             User.is_active
@@ -141,8 +155,8 @@ class NotificationService:
                 session=session,
                 data=NotificationCreate(
                     user_id=tech.id,
-                    title="🔔 Nuevo servicio disponible",
-                    message=f"{service_title} en {service_city}",
+                    title=f"🔧 Nueva solicitud — {type_label}",
+                    message=f"Disponible en {service_city}. Toca para ver detalles y cotizar.",
                     notification_type="service",
                     service_id=service_id
                 )
