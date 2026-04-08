@@ -102,6 +102,7 @@ jobs:
           
           git add frontend/public/app/tec360-seguridad-latest.apk
           git commit -m "🤖 Auto-update APK from EAS build ${{ github.ref_name || 'manual' }}" || echo "No changes to commit"
+          git pull --rebase origin master
           git push origin HEAD:master
           
           echo "✅ APK actualizado en el repositorio"
