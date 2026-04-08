@@ -113,7 +113,18 @@ export default function NewServiceScreen() {
         }),
       });
 
-      if (!res.ok) throw new Error('Error al crear servicio');
+      if (!res.ok) {
+        let msg = 'Error al crear servicio';
+        try {
+          const errData = await res.json();
+          if (Array.isArray(errData.detail)) {
+             msg = errData.detail[0].msg; // e.g. String should have at least 10 characters
+          } else if (errData.detail) {
+             msg = errData.detail;
+          }
+        } catch(e){}
+        throw new Error(msg);
+      }
       const data = await res.json();
       const serviceId = data.id || data.service?.id;
 
