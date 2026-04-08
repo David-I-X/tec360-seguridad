@@ -88,10 +88,13 @@ export default function NewServiceScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!serviceType || !title || !address || !city) {
-      Alert.alert('Campos requeridos', 'Completa tipo, título, dirección y ciudad.');
+    if (!serviceType || !address || !city) {
+      Alert.alert('Campos requeridos', 'Completa el tipo de servicio, dirección y ciudad.');
       return;
     }
+
+    const selectedService = SERVICE_TYPES.find(t => t.key === serviceType);
+    const finalTitle = title || selectedService?.label || 'Servicio Técnico';
 
     setIsLoading(true);
     try {
@@ -100,7 +103,7 @@ export default function NewServiceScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           service_type: serviceType,
-          title,
+          title: finalTitle,
           description,
           service_address: address,
           service_city: city,
@@ -386,8 +389,6 @@ export default function NewServiceScreen() {
               ))}
             </View>
 
-            <Text style={styles.inputLabel}>Título del servicio</Text>
-            <TextInput style={styles.input} placeholder="Ej: Instalar GPS en camioneta" placeholderTextColor="#555872" value={title} onChangeText={setTitle} />
 
             <Text style={styles.inputLabel}>Descripción (opcional)</Text>
             <TextInput style={[styles.input, { height: 80, textAlignVertical: 'top' }]} placeholder="Describe lo que necesitas..." placeholderTextColor="#555872" value={description} onChangeText={setDescription} multiline />
