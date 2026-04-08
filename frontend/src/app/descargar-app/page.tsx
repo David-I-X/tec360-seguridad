@@ -14,8 +14,9 @@ export default function DescargarAppPage() {
         setIsDownloading(true)
         // Set a timeout to revert button state
         setTimeout(() => setIsDownloading(false), 3000)
-        // Here we link to the actual APK path in the public folder or wherever we host it later
-        window.location.href = "/app/tec360-seguridad-latest.apk"
+        // Use a cache-busting timestamp to ensure the absolute latest APK is downloaded, bypassing Cloudflare/Chrome cache.
+        const bust = new Date().getTime()
+        window.location.href = `/app/tec360-seguridad-latest.apk?v=${bust}`
     }
 
     const steps = [
