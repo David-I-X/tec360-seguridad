@@ -399,8 +399,19 @@ export default function NewServiceScreen() {
           <View style={styles.stepContent}>
             <Text style={styles.sectionTitle}>Información del vehículo</Text>
 
-            <Text style={styles.inputLabel}>Tipo de vehículo</Text>
-            <TextInput style={styles.input} placeholder="Ej: Camioneta, Sedan, Moto" placeholderTextColor="#555872" value={vehicleType} onChangeText={setVehicleType} />
+            <Text style={styles.inputLabel}>Tipo de vehículo *</Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+              {[{ value: 'motorcycle', label: 'Moto', emoji: '🏍️' }, { value: 'car', label: 'Carro', emoji: '🚗' }, { value: 'heavy_cargo', label: 'Carga', emoji: '🚚' }].map(vt => (
+                <TouchableOpacity
+                  key={vt.value}
+                  style={[styles.typeCard, { flex: 1 }, vehicleType === vt.value && styles.typeCardActive]}
+                  onPress={() => setVehicleType(vt.value)}
+                >
+                  <Text style={styles.typeEmoji}>{vt.emoji}</Text>
+                  <Text style={[styles.typeLabel, vehicleType === vt.value && styles.typeLabelActive]}>{vt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
             <Text style={styles.inputLabel}>Modelo</Text>
             <TextInput style={styles.input} placeholder="Ej: Toyota Hilux 2023" placeholderTextColor="#555872" value={vehicleModel} onChangeText={setVehicleModel} />
