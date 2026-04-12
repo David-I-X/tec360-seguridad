@@ -331,7 +331,7 @@ export function ServiceRequestForm() {
                 service_type: "vehicle_recovery",
                 title,
                 description: recDescription || "Solicitud de recuperación de vehículo robado",
-                service_address: recAddress,
+                service_address: recHasGps === "yes" && !recAddress ? "Seguimiento por GPS activo" : recAddress,
                 service_city: "Medellín",
                 service_lat: recLat || 6.2442,
                 service_lon: recLng || -75.5636,
@@ -339,13 +339,11 @@ export function ServiceRequestForm() {
                 vehicle_model: recVehicleModel,
                 vehicle_plate: recVehiclePlate,
                 service_metadata: {
-                service_metadata: {
                     has_gps: recHasGps,
                     vehicle_color: recVehicleColor || null,
                     distinctive_marks: recDistinctiveMarks || null,
                     police_report_number: recPoliceReport || null,
                     additional_phone: recAdditionalPhone || null,
-                },
                 },
             })
 

@@ -53,6 +53,9 @@ class ServiceService:
                 estimated_price=service_data.estimated_price,
                 status=ServiceStatus.pending,
                 service_metadata=service_data.service_metadata,
+                vehicle_type=service_data.vehicle_type,
+                vehicle_model=service_data.vehicle_model,
+                vehicle_plate=service_data.vehicle_plate,
             )
             
             # TODO: El modelo ServiceBase parece incompleto comparado con el Schema.
@@ -162,21 +165,27 @@ class ServiceService:
             
             total_pages = math.ceil(total / page_size) if total > 0 else 0
             
-            # Convertir a lista de schemas
-            # Nota: Necesitaríamos hacer join con User para nombres reales
+            # Convertir a lista de schemas — resolver nombres reales
             services_parsed = []
             for s in results:
+                client = session.get(User, s.client_id) if s.client_id else None
+                technician = session.get(User, s.technician_id) if s.technician_id else None
                 services_parsed.append(ServiceListResponse(
                     id=str(s.id),
                     service_type=s.service_type,
                     status=s.status,
                     title=s.title,
-                    service_city="Medellín", # Default por falta de campo en DB por ahora
+                    service_city="Medellín",
                     scheduled_date=s.scheduled_date,
                     estimated_price=s.estimated_price,
+                    vehicle_type=s.vehicle_type,
+                    vehicle_model=s.vehicle_model,
+                    vehicle_plate=s.vehicle_plate,
+                    vehicle_photo_url=s.vehicle_photo_url,
+                    service_metadata=s.service_metadata,
                     created_at=s.created_at,
-                    client_name="Cliente", # Placeholder hasta implementar joins
-                    technician_name="Técnico" if s.technician_id else None
+                    client_name=client.full_name if client else None,
+                    technician_name=technician.full_name if technician else None
                 ))
                 
             return {
@@ -223,6 +232,7 @@ class ServiceService:
             
             services_parsed = []
             for s in results:
+                client = session.get(User, s.client_id) if s.client_id else None
                 services_parsed.append(ServiceListResponse(
                     id=str(s.id),
                     service_type=s.service_type,
@@ -231,8 +241,13 @@ class ServiceService:
                     service_city="Medellín",
                     scheduled_date=s.scheduled_date,
                     estimated_price=s.estimated_price,
-                    metadata=s.metadata,
-                    created_at=s.created_at
+                    vehicle_type=s.vehicle_type,
+                    vehicle_model=s.vehicle_model,
+                    vehicle_plate=s.vehicle_plate,
+                    vehicle_photo_url=s.vehicle_photo_url,
+                    service_metadata=s.service_metadata,
+                    created_at=s.created_at,
+                    client_name=client.full_name if client else None,
                 ))
                 
             return {
@@ -489,6 +504,10 @@ class ServiceService:
             "scheduled_date": service.scheduled_date,
             "estimated_price": service.estimated_price,
             "service_metadata": service.service_metadata,
+            "vehicle_type": service.vehicle_type,
+            "vehicle_model": service.vehicle_model,
+            "vehicle_plate": service.vehicle_plate,
+            "vehicle_photo_url": service.vehicle_photo_url,
             "created_at": service.created_at,
             "updated_at": service.updated_at
         }
