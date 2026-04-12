@@ -180,7 +180,7 @@ export default function NewServiceScreen() {
           service_type: 'vehicle_recovery',
           title: recTitle,
           description: recDescription || 'Solicitud de recuperación de vehículo robado',
-          service_address: recAddress,
+          service_address: recHasGps === 'yes' && !recAddress ? 'Seguimiento por GPS activo' : recAddress,
           service_city: 'Colombia',
           service_lat: 4.6097,
           service_lon: -74.0817,
