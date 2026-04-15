@@ -262,6 +262,21 @@ class ServiceService:
 
     async def accept_service(self, session: Session, service_id: str, technician_id: str) -> ServiceResponse:
         try:
+            # 💰 Check if technician is blocked by unpaid commissions
+            try:
+                from app.services.commission_service import commission_service
+                is_blocked = await commission_service.is_technician_blocked(session, technician_id)
+                if is_blocked:
+                    raise HTTPException(
+                        status.HTTP_403_FORBIDDEN,
+                        "No puedes aceptar servicios hasta que pagues tus comisiones pendientes. "
+                        "Ve a tu perfil → Comisiones para más información."
+                    )
+            except HTTPException:
+                raise
+            except Exception:
+                pass  # Don't block if commission service fails
+
             service = session.exec(select(Service).where(Service.id == service_id)).first()
             if not service:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
@@ -386,6 +401,19 @@ class ServiceService:
             except Exception as notif_error:
                 import logging
                 logging.warning(f"Notification failed: {notif_error}")
+            
+            # 💰 Register commission when service is completed
+            if new_status == "completed":
+                try:
+                    from app.services.commission_service import commission_service
+                    await commission_service.register_commission(
+                        session=session,
+                        service=service,
+                        technician_id=service.technician_id,
+                    )
+                except Exception as comm_error:
+                    import logging
+                    logging.warning(f"Commission registration failed: {comm_error}")
             
             return {
                 "success": True,

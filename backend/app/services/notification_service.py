@@ -211,6 +211,30 @@ class NotificationService:
             )
         )
 
+    @staticmethod
+    async def send_to_user(
+        session: Session,
+        user_id: UUID,
+        title: str,
+        body: str,
+        notification_type: str = "system",
+        reference_id: str = None,
+    ):
+        """
+        Generic convenience method to send a notification to any user.
+        Used by commission_service, payment_service, etc.
+        """
+        await NotificationService.create_notification(
+            session=session,
+            data=NotificationCreate(
+                user_id=user_id,
+                title=title,
+                message=body,
+                notification_type=notification_type,
+                service_id=None,
+            )
+        )
+
 
 # Singleton instance for easy import
 notification_service = NotificationService()

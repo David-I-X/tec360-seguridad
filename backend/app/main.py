@@ -15,6 +15,7 @@ from app.api import location as location_router
 from app.api import notifications as notifications_router
 from app.api import quotations as quotations_router
 from app.api import payments as payments_router
+from app.api import commissions as commissions_router
 import os
 import logging
 import time
@@ -138,6 +139,9 @@ app.include_router(quotations_router.router)
 
 # Payments (feature-flagged via PAYMENTS_ENABLED)
 app.include_router(payments_router.router)
+
+# Commissions (technician commission tracking)
+app.include_router(commissions_router.router)
 
 # Simulation (development only — excluded in production)
 if settings.ENVIRONMENT != "production":
