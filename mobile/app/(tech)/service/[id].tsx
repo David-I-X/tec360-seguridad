@@ -69,6 +69,8 @@ export default function TechServiceScreen() {
   const [routeCoords, setRouteCoords] = useState<{ latitude: number; longitude: number }[]>([]);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [paymentInfo, setPaymentInfo] = useState<any>(null);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const mapRef = useRef<any>(null);
   const lastRouteFetch = useRef<{ lat: number; lng: number } | null>(null);
@@ -77,6 +79,11 @@ export default function TechServiceScreen() {
     try {
       const data = await getServiceById(id!);
       setService(data.service || data);
+      // Load payment info
+      try {
+        const payRes = await fetchWithAuth(`/payments/service/${id}`);
+        if (payRes.ok) setPaymentInfo(await payRes.json());
+      } catch (_) {}
     } catch (e) { console.error(e); }
     finally { setIsLoading(false); setRefreshing(false); }
   }, [id]);
@@ -400,6 +407,109 @@ export default function TechServiceScreen() {
             <Text style={{ color: '#22c55e', fontSize: 18, fontWeight: '700' }}>Servicio completado</Text>
           </View>
         )}
+
+        {/* Cash Payment Confirmation */}
+        {service?.status === 'completed' && !paymentInfo && (
+          <TouchableOpacity
+            style={[styles.actionBtn, confirmingPayment && { opacity: 0.6 }]}
+            disabled={confirmingPayment}
+            activeOpacity={0.8}
+            onPress={() => {
+              Alert.prompt
+                ? Alert.prompt(
+                    'Confirmar Pago en Efectivo',
+                    'Ingresa el monto recibido del cliente (COP)',
+                    async (amount) => {
+                      const num = parseFloat(amount);
+                      if (!num || num <= 0) { Alert.alert('Error', 'Monto inválido'); return; }
+                      setConfirmingPayment(true);
+                      try {
+                        const res = await fetchWithAuth('/payments/cash/confirm', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ service_id: id, amount: num }),
+                        });
+                        if (res.ok) {
+                          const data = await res.json();
+                          setPaymentInfo(data);
+                          Alert.alert('✅ Pago Registrado', `$${num.toLocaleString('es-CO')} COP confirmado.`);
+                        } else {
+                          const err = await res.json().catch(() => ({}));
+                          Alert.alert('Error', err.detail || 'No se pudo registrar');
+                        }
+                      } catch (e: any) { Alert.alert('Error', e.message); }
+                      finally { setConfirmingPayment(false); }
+                    },
+                    'plain-text',
+                    service?.estimated_price?.toString() || '',
+                    'numeric'
+                  )
+                : Alert.alert(
+                    'Confirmar Pago en Efectivo',
+                    `¿Confirmas que recibiste $${(service?.estimated_price || 0).toLocaleString('es-CO')} COP del cliente?`,
+                    [
+                      { text: 'Cancelar', style: 'cancel' },
+                      {
+                        text: 'Confirmar', onPress: async () => {
+                          const amount = service?.estimated_price || 0;
+                          if (!amount) { Alert.alert('Error', 'No hay precio estimado'); return; }
+                          setConfirmingPayment(true);
+                          try {
+                            const res = await fetchWithAuth('/payments/cash/confirm', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ service_id: id, amount }),
+                            });
+                            if (res.ok) {
+                              const data = await res.json();
+                              setPaymentInfo(data);
+                              Alert.alert('✅ Pago Registrado', `$${amount.toLocaleString('es-CO')} COP confirmado.`);
+                            } else {
+                              const err = await res.json().catch(() => ({}));
+                              Alert.alert('Error', err.detail || 'No se pudo registrar');
+                            }
+                          } catch (e: any) { Alert.alert('Error', e.message); }
+                          finally { setConfirmingPayment(false); }
+                        }
+                      },
+                    ]
+                  );
+            }}
+          >
+            <LinearGradient colors={['#f97316', '#ea580c']} style={styles.actionGradient}>
+              {confirmingPayment ? <ActivityIndicator color="#fff" /> : (
+                <>
+                  <Text style={styles.actionEmoji}>💵</Text>
+                  <Text style={styles.actionText}>Confirmar Pago en Efectivo</Text>
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+
+        {/* Payment Status */}
+        {paymentInfo && (
+          <View style={styles.paymentStatus}>
+            <View style={styles.paymentStatusHeader}>
+              <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+              <Text style={styles.paymentStatusTitle}>Pago Registrado</Text>
+            </View>
+            <View style={styles.paymentStatusRow}>
+              <Text style={styles.paymentStatusLabel}>Monto</Text>
+              <Text style={styles.paymentStatusValue}>${paymentInfo.amount?.toLocaleString('es-CO')} COP</Text>
+            </View>
+            <View style={styles.paymentStatusRow}>
+              <Text style={styles.paymentStatusLabel}>Método</Text>
+              <Text style={styles.paymentStatusValue}>{paymentInfo.payment_method === 'cash' ? 'Efectivo' : paymentInfo.payment_method}</Text>
+            </View>
+            <View style={styles.paymentStatusRow}>
+              <Text style={styles.paymentStatusLabel}>Estado</Text>
+              <Text style={[styles.paymentStatusValue, { color: paymentInfo.status === 'confirmed_by_admin' ? '#22c55e' : '#eab308' }]}>
+                {paymentInfo.status === 'confirmed_by_admin' ? '✅ Validado' : '⏳ Pendiente de validación'}
+              </Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -449,4 +559,10 @@ const styles = StyleSheet.create({
   actionEmoji: { fontSize: 22 },
   actionText: { color: '#fff', fontSize: 18, fontWeight: '800' },
   completedBanner: { alignItems: 'center', marginTop: 8, padding: 20, backgroundColor: 'rgba(34,197,94,0.1)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' },
+  paymentStatus: { backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 16, padding: 16, marginTop: 12, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' },
+  paymentStatusHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  paymentStatusTitle: { color: '#22c55e', fontSize: 15, fontWeight: '700' },
+  paymentStatusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
+  paymentStatusLabel: { color: '#555872', fontSize: 13 },
+  paymentStatusValue: { color: '#f0f0f5', fontSize: 14, fontWeight: '600' },
 });

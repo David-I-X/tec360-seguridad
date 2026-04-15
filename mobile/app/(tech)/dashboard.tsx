@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Switch, Image,
+  ActivityIndicator, RefreshControl, Switch, Image, Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,10 +58,26 @@ export default function TechDashboardScreen() {
 
   const handleAcceptService = async (serviceId: string) => {
     try {
-      await fetchWithAuth(`/services/${serviceId}/accept`, { method: 'POST' });
+      const res = await fetchWithAuth(`/services/${serviceId}/accept`, { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        if (res.status === 403 && err.detail?.includes('comisiones')) {
+          Alert.alert(
+            '⚠️ Comisiones Pendientes',
+            'No puedes aceptar servicios hasta que pagues tus comisiones pendientes.',
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              { text: 'Ver Comisiones', onPress: () => router.push('/(tech)/commissions' as any) },
+            ]
+          );
+          return;
+        }
+        Alert.alert('Error', err.detail || 'No se pudo aceptar el servicio');
+        return;
+      }
       load(); // Reload
     } catch (e: any) {
-      console.error(e);
+      Alert.alert('Error', e.message || 'Error de conexión');
     }
   };
 
