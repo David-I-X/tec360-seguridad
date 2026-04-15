@@ -21,6 +21,7 @@ export default function TechDashboardScreen() {
   const [availableServices, setAvailableServices] = useState<any[]>([]);
   const [myActiveService, setMyActiveService] = useState<any>(null);
   const [stats, setStats] = useState({ completed: 0, rating: 0 });
+  const [commissionBalance, setCommissionBalance] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -43,6 +44,12 @@ export default function TechDashboardScreen() {
       // Stats
       const completed = myServices.filter((s: any) => s.status === 'completed').length;
       setStats({ completed, rating: user?.average_rating || 0 });
+
+      // Load commission balance
+      try {
+        const commRes = await fetchWithAuth('/commissions/me/balance');
+        if (commRes.ok) setCommissionBalance(await commRes.json());
+      } catch (e) { /* optional */ }
     } catch (e) { console.error(e); }
     finally { setIsLoading(false); setRefreshing(false); }
   }, [user]);
@@ -122,6 +129,31 @@ export default function TechDashboardScreen() {
           <Text style={styles.statLabel}>Rating</Text>
         </View>
       </View>
+
+      {/* Commission Banner */}
+      {commissionBalance && (commissionBalance.pending_amount > 0 || commissionBalance.is_blocked) && (
+        <TouchableOpacity
+          style={[styles.commissionBanner, commissionBalance.is_blocked && { borderColor: 'rgba(239,68,68,0.4)' }]}
+          onPress={() => router.push('/(tech)/commissions' as any)}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={commissionBalance.is_blocked ? ['rgba(239,68,68,0.12)', 'rgba(220,38,38,0.06)'] : ['rgba(249,115,22,0.12)', 'rgba(234,88,12,0.06)']}
+            style={styles.commissionGradient}
+          >
+            <Ionicons name={commissionBalance.is_blocked ? 'warning' : 'cash'} size={20} color={commissionBalance.is_blocked ? '#ef4444' : '#f97316'} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.commissionText, commissionBalance.is_blocked && { color: '#ef4444' }]}>
+                {commissionBalance.is_blocked ? '⚠️ Cuenta bloqueada' : `💰 Comisión: $${commissionBalance.pending_amount.toLocaleString('es-CO')}`}
+              </Text>
+              <Text style={styles.commissionSubtext}>
+                {commissionBalance.is_blocked ? 'Paga para desbloquear' : 'Toca para ver detalles'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#555872" />
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
 
       {/* Active Service */}
       {myActiveService && (
@@ -236,4 +268,8 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyTitle: { color: '#f0f0f5', fontSize: 16, fontWeight: '700' },
   emptySubtitle: { color: '#555872', fontSize: 13, marginTop: 4, textAlign: 'center' },
+  commissionBanner: { marginHorizontal: 20, marginBottom: 16, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(249,115,22,0.3)' },
+  commissionGradient: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
+  commissionText: { color: '#f97316', fontSize: 14, fontWeight: '700' },
+  commissionSubtext: { color: '#555872', fontSize: 11, marginTop: 2 },
 });
