@@ -1,6 +1,11 @@
 "use client"
 
-import { ShieldCheck, Camera, Wifi, Radio, Lock, Eye, ArrowRight, Search, FileText, CheckCircle, Star, Clock, MapPin, BadgeCheck } from "lucide-react"
+import {
+  ShieldCheck, Camera, Wifi, Radio, Lock, Eye, ArrowRight,
+  Search, FileText, CheckCircle, Star, Clock, MapPin, BadgeCheck,
+  Car, Radar, Fingerprint, AlertTriangle, Siren, Crosshair,
+  Gauge, Cctv
+} from "lucide-react"
 import { motion, useInView } from "framer-motion"
 import { useRef } from "react"
 import Link from "next/link"
@@ -23,63 +28,149 @@ function Reveal({ children, className, delay = 0 }: { children: React.ReactNode;
 }
 
 /* ─── Section Label ────────────────────────────────── */
-function SectionLabel({ label, title, highlight }: { label: string; title: string; highlight: string }) {
+function SectionLabel({ label, title, highlight, neonColor = "purple" }: { label: string; title: string; highlight: string; neonColor?: "purple" | "blue" }) {
   return (
     <div className="mb-12 text-center">
-      <span className="text-xs font-semibold text-blue-400 uppercase tracking-[0.2em] font-mono">{label}</span>
-      <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
-        {title}{" "}<span className="gradient-text">{highlight}</span>
+      <span className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-[0.2em] font-mono">{label}</span>
+      <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl text-slate-900 dark:text-white">
+        {title}{" "}
+        <span
+          className={neonColor === "blue" ? "text-blue-600 dark:text-blue-500" : "text-violet-600 dark:text-violet-500"}
+          style={{ textShadow: neonColor === "blue" ? "0 0 15px rgba(59,130,246,0.2)" : "0 0 15px rgba(139,92,246,0.2)" }}
+        >
+          {highlight}
+        </span>
       </h2>
     </div>
   )
 }
 
 /* ════════════════════════════════════════════════════
-   SERVICES BENTO GRID
+   TWO PILLARS SECTION
    ════════════════════════════════════════════════════ */
-const services = [
-  { icon: Camera, title: "Dashcam HD", sub: "Cámara Vehicular 4K", desc: "Grabación continua con almacenamiento cloud. Evidencia siempre disponible.", color: "blue", span: "md:col-span-2 md:row-span-2", large: true, tags: ["4K", "24/7", "Cloud"] },
-  { icon: Radio, title: "GPS Tracker", sub: "Seguimiento en tiempo real", color: "purple", span: "md:col-span-1", large: false },
-  { icon: Lock, title: "Alarmas", sub: "Respuesta anti-intrusión", color: "emerald", span: "md:col-span-1", large: false },
-  { icon: Wifi, title: "Domótica", sub: "Control desde tu smartphone", color: "cyan", span: "md:col-span-1", large: false },
-  { icon: Eye, title: "Biometría", sub: "Acceso por huella o rostro", color: "amber", span: "md:col-span-1", large: false },
+
+const installationItems = [
+  { icon: Radar, label: "GPS Vehicular" },
+  { icon: Camera, label: "Dashcam HD" },
+  { icon: Siren, label: "Alarmas Vehiculares" },
+  { icon: Lock, label: "Bloqueo Remoto" },
 ]
 
-const palette: Record<string, { border: string; bg: string; text: string; iconBg: string }> = {
-  blue: { border: "border-blue-500/20", bg: "bg-blue-500/[0.04]", text: "text-blue-400", iconBg: "bg-blue-500/15" },
-  purple: { border: "border-purple-500/20", bg: "bg-purple-500/[0.04]", text: "text-purple-400", iconBg: "bg-purple-500/15" },
-  emerald: { border: "border-emerald-500/20", bg: "bg-emerald-500/[0.04]", text: "text-emerald-400", iconBg: "bg-emerald-500/15" },
-  cyan: { border: "border-cyan-500/20", bg: "bg-cyan-500/[0.04]", text: "text-cyan-400", iconBg: "bg-cyan-500/15" },
-  amber: { border: "border-amber-500/20", bg: "bg-amber-500/[0.04]", text: "text-amber-400", iconBg: "bg-amber-500/15" },
-}
+const recoveryItems = [
+  { icon: Crosshair, label: "Rastreo GPS 4G", color: "blue" },
+  { icon: MapPin, label: "Ubicación Activa", color: "blue" },
+  { icon: AlertTriangle, label: "Respuesta Rápida", color: "red" },
+  { icon: Gauge, label: "Corte de Motor", color: "blue" },
+]
 
-function BentoCard({ s, i }: { s: typeof services[0]; i: number }) {
-  const c = palette[s.color]
+function PillarsSection() {
   return (
-    <Reveal className={s.span} delay={i * 0.07}>
-      <motion.div
-        className={`group relative h-full min-h-[160px] overflow-hidden rounded-2xl border ${c.border} ${c.bg} backdrop-blur-md ${s.large ? "p-8 md:p-10" : "p-6"} transition-all duration-300 cursor-pointer`}
-        whileHover={{ scale: 1.02, y: -3 }}
-      >
-        <div className={`absolute -top-12 -right-12 w-32 h-32 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${c.bg}`} />
-        <div className="relative z-10">
-          <div className={`inline-flex items-center justify-center rounded-xl ${c.iconBg} ${c.text} ${s.large ? "h-14 w-14 mb-5" : "h-10 w-10 mb-3"}`}>
-            <s.icon className={s.large ? "h-7 w-7" : "h-5 w-5"} />
-          </div>
-          <h3 className={`font-bold ${s.large ? "text-2xl md:text-3xl mb-1" : "text-lg mb-1"}`}>{s.title}</h3>
-          <p className={`${c.text} font-medium ${s.large ? "text-sm" : "text-xs"}`}>{s.sub}</p>
-          {s.large && s.desc && <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{s.desc}</p>}
-          {s.large && s.tags && (
-            <div className="mt-5 flex gap-2">
-              {s.tags.map((tag) => (
-                <span key={tag} className="py-1 px-3 rounded-lg border border-blue-500/15 bg-blue-500/5 text-[11px] font-mono text-blue-400/80">{tag}</span>
-              ))}
-            </div>
-          )}
+    <section className="py-20 relative">
+      <div className="container mx-auto px-4">
+        <Reveal>
+          <SectionLabel label="Nuestros servicios" title="Dos Pilares." highlight="Protección Total." />
+        </Reveal>
+        <Reveal>
+          <p className="text-center text-slate-600 dark:text-slate-400 text-sm mb-12 -mt-8 max-w-2xl mx-auto">
+            Soluciones especializadas diseñadas para cubrir todas tus necesidades de seguridad vehicular.
+          </p>
+        </Reveal>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
+          {/* Pilar 1: Instalaciones Vehiculares */}
+          <Reveal delay={0}>
+            <motion.div
+              className="group relative h-full rounded-2xl p-8 flex flex-col gap-6 overflow-hidden transition-colors duration-500 bg-white/50 dark:bg-[#0a0a0a]/50 backdrop-blur-xl border border-slate-200 dark:border-violet-500/15 shadow-sm dark:shadow-none"
+              whileHover={{ borderColor: "rgba(139,92,246,0.4)" }}
+            >
+              {/* Gradient border overlay */}
+              <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ boxShadow: "inset 0 0 0 1px rgba(139,92,246,0.3)" }} />
+
+              <div className="flex items-start justify-between">
+                <div
+                  className="w-14 h-14 rounded-xl bg-violet-100 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/20 flex items-center justify-center transition-all"
+                >
+                  <Car className="w-7 h-7 text-violet-600 dark:text-violet-500" />
+                </div>
+                <span className="px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-600 dark:text-slate-300 font-medium">
+                  Motos · Carros · Carga Pesada
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-3 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                  Instalaciones Vehiculares
+                </h3>
+                <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-sm mb-6">
+                  Conecta con técnicos certificados para la instalación de dispositivos de seguridad en tu vehículo: GPS, dashcam, alarmas y más para motos, carros y carga pesada.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-auto">
+                {installationItems.map((item) => (
+                  <div
+                    key={item.label}
+                    className="bg-slate-50 dark:bg-[#0a0a0a]/50 border border-slate-200 dark:border-white/5 rounded-xl p-4 flex items-center gap-3"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-500/10 flex items-center justify-center flex-shrink-0">
+                      <item.icon className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                    </div>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </Reveal>
+
+          {/* Pilar 2: Recuperación */}
+          <Reveal delay={0.1}>
+            <motion.div
+              className="group relative h-full rounded-2xl p-8 flex flex-col gap-6 overflow-hidden transition-colors duration-500 bg-white/50 dark:bg-[#0a0a0a]/50 backdrop-blur-xl border border-slate-200 dark:border-blue-500/15 shadow-sm dark:shadow-none"
+              whileHover={{ borderColor: "rgba(59,130,246,0.4)" }}
+            >
+              <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ boxShadow: "inset 0 0 0 1px rgba(59,130,246,0.3)" }} />
+
+              <div className="flex items-start justify-between">
+                <div
+                  className="w-14 h-14 rounded-xl bg-blue-100 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-center transition-all"
+                >
+                  <Car className="w-7 h-7 text-blue-600 dark:text-blue-500" />
+                </div>
+                <span className="px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-600 dark:text-slate-300 font-medium">
+                  Flotas &amp; Particulares
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                  Recuperación de Vehículos
+                </h3>
+                <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-sm mb-6">
+                  Sistema avanzado de rastreo y protocolo de respuesta inmediata para garantizar la localización de tu vehículo en caso de siniestro.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-auto">
+                {recoveryItems.map((item) => {
+                  const isRed = item.color === "red"
+                  return (
+                    <div
+                      key={item.label}
+                      className="bg-slate-50 dark:bg-[#0a0a0a]/50 border border-slate-200 dark:border-white/5 rounded-xl p-4 flex items-center gap-3"
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isRed ? "bg-red-100 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20" : "bg-blue-100 dark:bg-blue-500/10"}`}>
+                        <item.icon className={`w-4 h-4 ${isRed ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"}`} />
+                      </div>
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{item.label}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </motion.div>
+          </Reveal>
         </div>
-        <div className="absolute inset-x-0 bottom-0 h-[2px] gradient-brand opacity-0 group-hover:opacity-100 transition-opacity" />
-      </motion.div>
-    </Reveal>
+      </div>
+    </section>
   )
 }
 
@@ -89,22 +180,22 @@ function BentoCard({ s, i }: { s: typeof services[0]; i: number }) {
 const whys = [
   {
     icon: BadgeCheck,
-    color: "text-blue-400",
-    bg: "bg-blue-500/10",
+    color: "text-blue-600 dark:text-blue-400",
+    bg: "bg-blue-100 dark:bg-blue-500/10",
     title: "Técnicos verificados",
     desc: "Cada técnico pasa por validación de identidad, certificación SENA y revisión de antecedentes antes de operar en la plataforma.",
   },
   {
     icon: Clock,
-    color: "text-amber-400",
-    bg: "bg-amber-500/10",
+    color: "text-amber-600 dark:text-amber-400",
+    bg: "bg-amber-100 dark:bg-amber-500/10",
     title: "Mismo día disponible",
     desc: "Servicios express disponibles hoy mismo. Sin esperas de días — un técnico llega en horas cuando lo necesitas.",
   },
   {
     icon: MapPin,
-    color: "text-emerald-400",
-    bg: "bg-emerald-500/10",
+    color: "text-emerald-600 dark:text-emerald-400",
+    bg: "bg-emerald-100 dark:bg-emerald-500/10",
     title: "Seguimiento en vivo",
     desc: "Sabe exactamente dónde está tu técnico en tiempo real. Rastreo GPS integrado durante todo el recorrido.",
   },
@@ -115,17 +206,17 @@ function WhySection() {
     <section className="py-20 relative">
       <div className="container mx-auto px-4">
         <Reveal>
-          <SectionLabel label="Por qué elegirnos" title="Expertos en instalación de" highlight="Sistemas de Seguridad" />
+          <SectionLabel label="Por qué elegirnos" title="Expertos en" highlight="Seguridad Integral" />
         </Reveal>
         <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {whys.map((w, i) => (
             <Reveal key={i} delay={i * 0.1}>
-              <div className={`group p-7 rounded-2xl border border-border/30 bg-white/[0.02] hover:bg-white/[0.04] transition-all duration-300`}>
+              <div className="group p-7 rounded-2xl border border-slate-200 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-all duration-300 shadow-sm dark:shadow-none">
                 <div className={`w-12 h-12 rounded-xl ${w.bg} flex items-center justify-center mb-5`}>
                   <w.icon className={`w-6 h-6 ${w.color}`} />
                 </div>
-                <h3 className="font-bold text-lg mb-2">{w.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{w.desc}</p>
+                <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white">{w.title}</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{w.desc}</p>
               </div>
             </Reveal>
           ))}
@@ -136,36 +227,104 @@ function WhySection() {
 }
 
 /* ════════════════════════════════════════════════════
-   STEPS
+   STEPS — SIDE BY SIDE (Instalación + Recuperación)
    ════════════════════════════════════════════════════ */
-const steps = [
-  { num: "01", icon: Search, title: "Elige tu servicio", desc: "Selecciona qué necesitas: dashcam, GPS, alarma o domótica. Ingresa tu dirección y la fecha.", visual: "📍" },
-  { num: "02", icon: FileText, title: "Un técnico acepta", desc: "En minutos un técnico certificado cerca de ti acepta el trabajo. Ves su perfil, calificación y precio.", visual: "🤝" },
-  { num: "03", icon: CheckCircle, title: "Llega y trabaja", desc: "El técnico llega a tu ubicación, toma fotos de evidencia y tú confirmas el trabajo completado.", visual: "🛡️" },
+const installSteps = [
+  { num: "01", title: "Elige tu servicio", desc: "Selecciona qué necesitas: dashcam, GPS o alarma vehicular. Ingresa tu dirección y la fecha.", visual: "📍" },
+  { num: "02", title: "Un técnico acepta", desc: "En minutos un técnico certificado cerca de ti acepta el trabajo. Ves su perfil, calificación y precio.", visual: "🤝" },
+  { num: "03", title: "Llega y trabaja", desc: "El técnico llega a tu ubicación, toma fotos de evidencia y tú confirmas el trabajo completado.", visual: "🛡️" },
 ]
 
-function Steps() {
+const recoverySteps = [
+  { num: "01", title: "Realiza la denuncia", desc: "Haz la denuncia formal ante las autoridades (Fiscalía / Policía). Este paso es obligatorio.", visual: "🚨", highlight: true },
+  { num: "02", title: "Notifica a Tec360", desc: "Reporta el siniestro en la plataforma. Adjunta el número de denuncia y los datos del vehículo.", visual: "📲" },
+  { num: "03", title: "Rastreo y localización", desc: "Activamos el rastreo GPS en tiempo real y coordinamos con las autoridades para ubicar tu vehículo.", visual: "📡" },
+  { num: "04", title: "Recuperación asistida", desc: "Se recupera el vehículo en coordinación con las autoridades. Recibes actualizaciones en tiempo real.", visual: "✅" },
+]
+
+function StepItem({ s, i, total, accentColor = "purple" }: { s: { num: string; title: string; desc: string; visual: string; highlight?: boolean }; i: number; total: number; accentColor?: "purple" | "blue" }) {
+  const isHighlight = s.highlight
+  return (
+    <Reveal delay={i * 0.1}>
+      <div className={`flex items-start gap-4 py-5 ${i < total - 1 ? "border-b border-slate-200 dark:border-white/5" : ""}`}>
+        <motion.div className="flex-shrink-0 relative" whileHover={{ scale: 1.06 }}>
+          <div className={`flex h-14 w-14 md:h-16 md:w-16 items-center justify-center rounded-xl border ${
+            isHighlight ? "border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/5" : "border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.03]"
+          }`}>
+            <span className="text-2xl md:text-3xl">{s.visual}</span>
+          </div>
+          <span className={`absolute -top-1.5 -left-1.5 flex h-5 w-5 items-center justify-center rounded-full text-white text-[9px] font-bold shadow-lg ${
+            isHighlight ? "bg-amber-500" : accentColor === "blue" ? "bg-gradient-to-r from-blue-500 to-indigo-600" : "gradient-brand"
+          }`}>{s.num}</span>
+        </motion.div>
+        <div className="flex-1 min-w-0 pt-1">
+          <h4 className={`text-base font-bold mb-1 ${isHighlight ? "text-amber-600 dark:text-amber-400" : "text-slate-900 dark:text-white"}`}>{s.title}</h4>
+          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{s.desc}</p>
+        </div>
+      </div>
+    </Reveal>
+  )
+}
+
+function ParallelSteps() {
   return (
     <section className="py-20 relative">
       <div className="container mx-auto px-4">
-        <Reveal><SectionLabel label="Proceso" title="Tan fácil como" highlight="pedir un taxi" /></Reveal>
-        <div className="max-w-3xl mx-auto">
-          {steps.map((s, i) => (
-            <Reveal key={i} delay={i * 0.1}>
-              <div className={`flex items-center gap-6 md:gap-10 py-8 ${i < steps.length - 1 ? "border-b border-border/20" : ""}`}>
-                <motion.div className="flex-shrink-0 relative" whileHover={{ scale: 1.06 }}>
-                  <div className="flex h-20 w-20 md:h-24 md:w-24 items-center justify-center rounded-2xl border border-border/30 bg-white/[0.03]">
-                    <span className="text-4xl md:text-5xl">{s.visual}</span>
-                  </div>
-                  <span className="absolute -top-2 -left-2 flex h-6 w-6 items-center justify-center rounded-full gradient-brand text-white text-[10px] font-bold shadow-lg">{s.num}</span>
-                </motion.div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-xl font-bold mb-1.5">{s.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
+        <Reveal>
+          <SectionLabel label="¿Cómo funciona?" title="Dos procesos," highlight="una sola plataforma" />
+        </Reveal>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
+          {/* Columna Izquierda — Instalación */}
+          <Reveal delay={0}>
+            <div
+              className="rounded-2xl p-6 md:p-8 h-full bg-white/50 dark:bg-[#0a0a0a]/50 backdrop-blur-xl border border-slate-200 dark:border-violet-500/15 shadow-sm dark:shadow-none"
+            >
+              {/* Header */}
+              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200 dark:border-white/5">
+                <div className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/20 flex items-center justify-center">
+                  <Car className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Instalación</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Tan fácil como pedir un taxi</p>
                 </div>
               </div>
-            </Reveal>
-          ))}
+              {/* Steps */}
+              {installSteps.map((s, i) => (
+                <StepItem key={i} s={s} i={i} total={installSteps.length} accentColor="purple" />
+              ))}
+            </div>
+          </Reveal>
+
+          {/* Columna Derecha — Recuperación */}
+          <Reveal delay={0.1}>
+            <div
+              className="rounded-2xl p-6 md:p-8 h-full bg-white/50 dark:bg-[#0a0a0a]/50 backdrop-blur-xl border border-slate-200 dark:border-blue-500/15 shadow-sm dark:shadow-none"
+            >
+              {/* Header */}
+              <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200 dark:border-white/5">
+                <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recuperación</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Protocolo de respuesta inmediata</p>
+                </div>
+              </div>
+              {/* Warning */}
+              <div className="mb-4 p-3 rounded-lg border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/5 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700 dark:text-amber-300/90 leading-relaxed">
+                  <strong className="text-amber-800 dark:text-amber-300">Obligatorio:</strong> Primero debes realizar la denuncia formal ante las autoridades.
+                </p>
+              </div>
+              {/* Steps */}
+              {recoverySteps.map((s, i) => (
+                <StepItem key={i} s={s} i={i} total={recoverySteps.length} accentColor="blue" />
+              ))}
+            </div>
+          </Reveal>
         </div>
       </div>
     </section>
@@ -205,7 +364,7 @@ const testimonials = [
 function Testimonials() {
   return (
     <section className="py-20 relative overflow-hidden">
-      <div className="absolute inset-0 opacity-[0.03]"
+      <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.03]"
         style={{ background: "radial-gradient(circle at 50% 50%, rgba(59,130,246,1) 0%, transparent 60%)" }}
       />
       <div className="container mx-auto px-4">
@@ -214,7 +373,7 @@ function Testimonials() {
           {testimonials.map((t, i) => (
             <Reveal key={i} delay={i * 0.1}>
               <motion.div
-                className="p-6 rounded-2xl border border-border/30 bg-white/[0.025] flex flex-col gap-4"
+                className="p-6 rounded-2xl border border-slate-200 dark:border-white/5 bg-white/60 dark:bg-white/[0.025] flex flex-col gap-4 shadow-sm dark:shadow-none"
                 whileHover={{ y: -3 }}
                 transition={{ duration: 0.2 }}
               >
@@ -225,15 +384,15 @@ function Testimonials() {
                   ))}
                 </div>
                 {/* Text */}
-                <p className="text-sm text-muted-foreground leading-relaxed flex-1">"{t.text}"</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed flex-1">&quot;{t.text}&quot;</p>
                 {/* Author */}
                 <div className="flex items-center gap-3">
                   <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${t.color} flex items-center justify-center text-xs font-bold text-white`}>
                     {t.initials}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold">{t.name}</p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{t.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
                       <MapPin className="w-2.5 h-2.5" />{t.location}
                     </p>
                   </div>
@@ -255,41 +414,32 @@ function CTA() {
     <section className="py-20 relative">
       <div className="container mx-auto px-4">
         <Reveal>
-          <div className="relative overflow-hidden rounded-3xl p-10 md:p-16 text-center">
-            <div className="absolute inset-0 rounded-3xl border border-blue-500/15 bg-white/[0.02]" />
-            <div className="absolute top-0 right-0 w-72 h-72 bg-blue-500/[0.05] rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-56 h-56 bg-purple-500/[0.05] rounded-full blur-3xl" />
+          <div
+            className="w-full relative rounded-3xl p-10 md:p-16 text-center overflow-hidden border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-black/60 backdrop-blur-xl shadow-lg dark:shadow-none"
+          >
+            {/* Big glow */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-violet-500/10 dark:bg-violet-500/30 rounded-full blur-[100px] pointer-events-none" />
 
-            <div className="relative z-10">
-              <motion.div
-                animate={{ boxShadow: ["0 0 20px rgba(59,130,246,0.2)", "0 0 45px rgba(59,130,246,0.4)", "0 0 20px rgba(59,130,246,0.2)"] }}
-                transition={{ duration: 3, repeat: Infinity }}
-                className="inline-flex items-center justify-center w-14 h-14 rounded-2xl gradient-brand mb-6"
+            <div className="relative z-10 flex flex-col items-center gap-6">
+              <div
+                className="w-20 h-20 bg-slate-100 dark:bg-white/5 rounded-2xl flex items-center justify-center border border-slate-200 dark:border-white/10 mb-2"
               >
-                <ShieldCheck className="h-7 w-7 text-white" />
-              </motion.div>
-
-              <h2 className="text-3xl md:text-4xl font-bold mb-3">
-                ¿Listo para proteger tu vehículo en Colombia?
+                <Lock className="h-9 w-9 text-slate-800 dark:text-white" />
+              </div>
+              <h2 className="text-3xl md:text-5xl font-bold text-slate-900 dark:text-white tracking-tight">
+                ¿Listo para la protección 360°?
               </h2>
-              <p className="text-muted-foreground mb-8 max-w-sm mx-auto text-sm leading-relaxed">
-                Más de 200 técnicos SENA están listos para instalar tu GPS, cámara o alarma.
-                Primer servicio con garantía total.
+              <p className="text-slate-600 dark:text-slate-400 text-lg max-w-lg mx-auto">
+                Únete a la red de seguridad tecnológica y monitoreo vehicular más confiable de Colombia.
               </p>
-
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <div className="flex flex-col sm:flex-row gap-4 mt-6 w-full justify-center">
                 <Link href="/register">
-                  <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
-                    className="w-full sm:w-auto px-8 py-3.5 gradient-brand text-white rounded-xl font-bold shadow-xl shadow-blue-500/25 hover:shadow-blue-500/40 transition-shadow"
+                  <motion.button
+                    whileHover={{ scale: 1.04, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                    className="bg-gradient-to-r from-violet-600 to-blue-500 hover:from-violet-500 hover:to-blue-400 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg shadow-violet-500/30"
                   >
-                    Comenzar gratis <ArrowRight className="inline ml-2 h-4 w-4" />
-                  </motion.button>
-                </Link>
-                <Link href="/login">
-                  <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
-                    className="w-full sm:w-auto px-8 py-3.5 border border-border/40 text-foreground rounded-xl font-medium hover:bg-white/[0.04] transition-all"
-                  >
-                    Ya tengo cuenta
+                    Crear Cuenta Gratis
                   </motion.button>
                 </Link>
               </div>
@@ -306,7 +456,7 @@ function CTA() {
    ════════════════════════════════════════════════════ */
 function Footer() {
   return (
-    <footer className="border-t border-border/20 py-14 bg-white/[0.01]">
+    <footer className="border-t border-slate-200 dark:border-white/5 py-14 bg-slate-50 dark:bg-[#0a0a0a]">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
           <div className="md:col-span-2">
@@ -314,27 +464,29 @@ function Footer() {
               <div className="flex h-9 w-9 items-center justify-center rounded-xl gradient-brand shadow-lg">
                 <ShieldCheck className="h-5 w-5 text-white" />
               </div>
-              <span className="text-lg font-bold">Tec360 Seguridad</span>
+              <span className="text-lg font-bold text-slate-900 dark:text-white">
+                Tec360 <span className="text-violet-600 dark:text-violet-500">Seguridad</span>
+              </span>
             </div>
-            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed mb-5">
-              Plataforma líder de servicios de seguridad técnica vehicular. Conectamos clientes con técnicos certificados en toda Colombia.
+            <p className="text-sm text-slate-600 dark:text-slate-400 max-w-xs leading-relaxed mb-5">
+              Plataforma líder de servicios de seguridad técnica. Conectamos clientes con técnicos certificados para instalaciones y recuperación vehicular en toda Colombia.
             </p>
             <div className="flex gap-2">
               {["SENA", "Créame", "2026"].map((tag) => (
-                <span key={tag} className="text-[10px] font-mono border border-border/30 px-2 py-1 rounded text-muted-foreground">{tag}</span>
+                <span key={tag} className="text-[10px] font-mono border border-slate-300 dark:border-white/10 px-2 py-1 rounded text-slate-500">{tag}</span>
               ))}
             </div>
           </div>
           <div>
-            <h4 className="font-semibold mb-4 text-sm">Plataforma</h4>
-            <ul className="space-y-2.5 text-sm text-muted-foreground">
+            <h4 className="font-semibold mb-4 text-sm text-slate-900 dark:text-white">Plataforma</h4>
+            <ul className="space-y-2.5 text-sm text-slate-600 dark:text-slate-400">
               {[
                 { label: "Servicios", href: "/servicios" },
                 { label: "Registrarse", href: "/register" },
                 { label: "Iniciar sesión", href: "/login" },
               ].map((link) => (
                 <li key={link.label}>
-                  <a href={link.href} className="hover:text-foreground transition-colors inline-flex items-center gap-1.5">
+                  <a href={link.href} className="hover:text-violet-600 dark:hover:text-white transition-colors inline-flex items-center gap-1.5">
                     <ArrowRight className="w-3 h-3 opacity-40" />
                     {link.label}
                   </a>
@@ -343,11 +495,11 @@ function Footer() {
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold mb-4 text-sm">Contacto</h4>
-            <ul className="space-y-2.5 text-sm text-muted-foreground">
+            <h4 className="font-semibold mb-4 text-sm text-slate-900 dark:text-white">Contacto</h4>
+            <ul className="space-y-2.5 text-sm text-slate-600 dark:text-slate-400">
               <li className="flex items-center gap-2">
                 <span className="text-base">📧</span>
-                <a href="mailto:oscarvasquezbroker@gmail.com" className="hover:text-foreground transition-colors truncate">
+                <a href="mailto:oscarvasquezbroker@gmail.com" className="hover:text-violet-600 dark:hover:text-white transition-colors truncate">
                   oscarvasquezbroker@gmail.com
                 </a>
               </li>
@@ -362,9 +514,9 @@ function Footer() {
             </ul>
           </div>
         </div>
-        <div className="border-t border-border/20 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-muted-foreground">© 2026 Tec360 Seguridad. Todos los derechos reservados.</p>
-          <p className="text-xs text-muted-foreground">Ruta del Emprendimiento — Créame Incubadora de Empresas</p>
+        <div className="border-t border-slate-200 dark:border-white/5 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-xs text-slate-500">© 2026 Tec360 Seguridad. Todos los derechos reservados.</p>
+          <p className="text-xs text-slate-500">Ruta del Emprendimiento — Créame Incubadora de Empresas</p>
         </div>
       </div>
     </footer>
@@ -377,25 +529,22 @@ function Footer() {
 export function Features() {
   return (
     <>
-      {/* Services Bento */}
-      <section className="py-20 relative">
-        <div className="container mx-auto px-4">
-          <Reveal><SectionLabel label="Servicios" title="Todo lo que tu vehículo" highlight="necesita" /></Reveal>
-          <Reveal>
-            <p className="text-center text-muted-foreground text-sm mb-10 -mt-8 max-w-lg mx-auto">
-              Desde cámaras hasta alarmas — instalación profesional garantizada
-            </p>
-          </Reveal>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 max-w-5xl mx-auto auto-rows-[180px]">
-            {services.map((s, i) => <BentoCard key={i} s={s} i={i} />)}
-          </div>
-        </div>
-      </section>
+      {/* Two Pillars */}
+      <PillarsSection />
 
+      {/* Why us */}
       <WhySection />
-      <Steps />
+
+      {/* Steps — Side by Side */}
+      <ParallelSteps />
+
+      {/* Testimonials */}
       <Testimonials />
+
+      {/* CTA */}
       <CTA />
+
+      {/* Footer */}
       <Footer />
     </>
   )

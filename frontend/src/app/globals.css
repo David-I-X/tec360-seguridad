@@ -352,3 +352,48 @@ html.transitioning *::after {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Landing page glassmorphism (Light & Dark) */
+.landing-glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+}
+
+.dark .landing-glass {
+  background: linear-gradient(145deg, rgba(30, 30, 30, 0.7) 0%, rgba(10, 10, 10, 0.9) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* Premium glass card with gradient border */
+.landing-glass-premium {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  position: relative;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+}
+
+.dark .landing-glass-premium {
+  background: linear-gradient(145deg, rgba(30, 30, 30, 0.6) 0%, rgba(10, 10, 10, 0.8) 100%);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+.landing-glass-premium::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  z-index: -1;
+  margin: -1px;
+  border-radius: inherit;
+  background: linear-gradient(45deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.15), rgba(0, 0, 0, 0.02));
+}
+
+.dark .landing-glass-premium::before {
+  background: linear-gradient(45deg, rgba(139, 92, 246, 0.3), rgba(59, 130, 246, 0.3), rgba(255, 255, 255, 0.05));
+}
+
