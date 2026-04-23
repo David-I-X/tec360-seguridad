@@ -170,6 +170,12 @@ export default function NewServiceScreen() {
       Alert.alert('Requerido', 'Ingresa la última ubicación vista.');
       return;
     }
+
+    // Build the address: when GPS is active and no manual address, use a default
+    const finalAddress = (recHasGps === 'yes' && !recAddress)
+      ? 'Seguimiento por GPS activo'
+      : recAddress;
+
     setIsLoading(true);
     try {
       const recTitle = `🚨 Recuperación - ${recVehicleType === 'motorcycle' ? 'Moto' : 'Carro'} ${recVehicleModel} (${recVehiclePlate})`;
@@ -180,7 +186,7 @@ export default function NewServiceScreen() {
           service_type: 'vehicle_recovery',
           title: recTitle,
           description: recDescription || 'Solicitud de recuperación de vehículo robado',
-          service_address: recHasGps === 'yes' && !recAddress ? 'Seguimiento por GPS activo' : recAddress,
+          service_address: finalAddress,
           service_city: 'Colombia',
           service_lat: 4.6097,
           service_lon: -74.0817,
@@ -189,13 +195,30 @@ export default function NewServiceScreen() {
           vehicle_plate: recVehiclePlate,
           service_metadata: {
             has_gps: recHasGps,
+            gps_brand: recGpsBrand || null,
             vehicle_color: recVehicleColor || null,
             distinctive_marks: recDistinctiveMarks || null,
             police_report_number: recPoliceReport || null,
           },
         }),
       });
-      if (!res.ok) throw new Error('Error al crear solicitud de recuperación');
+
+      if (!res.ok) {
+        // Parse backend validation errors properly (matching web behavior)
+        let msg = 'Error al crear solicitud de recuperación';
+        try {
+          const errData = await res.json();
+          if (Array.isArray(errData.detail)) {
+            msg = errData.detail.map((e: any) => e.msg).join(', ');
+          } else if (typeof errData.detail === 'string') {
+            msg = errData.detail;
+          } else if (errData.error) {
+            msg = errData.error;
+          }
+        } catch (_) {}
+        throw new Error(msg);
+      }
+
       const data = await res.json();
       const serviceId = data.id || data.service?.id;
       Alert.alert('🚨 Alerta Enviada', 'Tu solicitud fue enviada al equipo de reacción.', [
