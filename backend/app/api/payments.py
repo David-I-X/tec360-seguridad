@@ -13,7 +13,10 @@ from sqlmodel import Session
 from app.core.database import get_session
 from app.core.config import settings
 from app.core.security import get_current_user, require_roles
-from app.schemas.payment import CashPaymentConfirm, PaymentResponse, PaymentListResponse
+from app.schemas.payment import (
+    CashPaymentConfirm, PaymentResponse, PaymentListResponse,
+    TechnicianPaymentSummary,
+)
 from app.services.payment_service import payment_service
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -47,6 +50,36 @@ async def confirm_cash_payment(
         session=session,
         data=data,
         technician_id=current_user["id"],
+    )
+
+
+@router.get("/my-summary", response_model=TechnicianPaymentSummary)
+async def get_my_payment_summary(
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
+    session: Session = Depends(get_session),
+):
+    """Resumen de pagos para el técnico actual: total cobrado, pendientes, validados"""
+    _check_payments_enabled()
+    return await payment_service.get_technician_summary(
+        session=session,
+        technician_id=current_user["id"],
+    )
+
+
+@router.get("/my-history", response_model=PaymentListResponse)
+async def get_my_payment_history(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
+    session: Session = Depends(get_session),
+):
+    """Historial de pagos registrados por el técnico actual"""
+    _check_payments_enabled()
+    return await payment_service.get_technician_payments(
+        session=session,
+        technician_id=current_user["id"],
+        skip=skip,
+        limit=limit,
     )
 
 

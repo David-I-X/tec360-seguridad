@@ -21,6 +21,7 @@ export default function TechDashboardScreen() {
   const [availableServices, setAvailableServices] = useState<any[]>([]);
   const [myActiveService, setMyActiveService] = useState<any>(null);
   const [stats, setStats] = useState({ completed: 0, rating: 0 });
+  const [earnings, setEarnings] = useState({ total: 0, pending: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -43,6 +44,18 @@ export default function TechDashboardScreen() {
       // Stats
       const completed = myServices.filter((s: any) => s.status === 'completed').length;
       setStats({ completed, rating: user?.average_rating || 0 });
+
+      // Earnings (if payments enabled)
+      try {
+        const earningsRes = await fetchWithAuth('/payments/my-summary');
+        if (earningsRes.ok) {
+          const earningsData = await earningsRes.json();
+          setEarnings({
+            total: earningsData.total_collected || 0,
+            pending: earningsData.pending_validation || 0,
+          });
+        }
+      } catch (_) {}
     } catch (e) { console.error(e); }
     finally { setIsLoading(false); setRefreshing(false); }
   }, [user]);
@@ -120,6 +133,11 @@ export default function TechDashboardScreen() {
           <Ionicons name="star" size={20} color="#eab308" />
           <Text style={styles.statNumber}>{(stats.rating || 0).toFixed(1)}</Text>
           <Text style={styles.statLabel}>Rating</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Ionicons name="cash" size={20} color="#f59e0b" />
+          <Text style={[styles.statNumber, { fontSize: 16 }]}>${earnings.total.toLocaleString('es-CO')}</Text>
+          <Text style={styles.statLabel}>Cobrado</Text>
         </View>
       </View>
 

@@ -69,6 +69,8 @@ export default function TechServiceScreen() {
   const [routeCoords, setRouteCoords] = useState<{ latitude: number; longitude: number }[]>([]);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [paymentRegistered, setPaymentRegistered] = useState(false);
+  const [isRegisteringPayment, setIsRegisteringPayment] = useState(false);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const mapRef = useRef<any>(null);
   const lastRouteFetch = useRef<{ lat: number; lng: number } | null>(null);
@@ -217,6 +219,46 @@ export default function TechServiceScreen() {
     formData.append('service_id', id!);
     formData.append('stage', stage);
     await fetchWithAuth('/uploads/evidence', { method: 'POST', body: formData });
+  };
+
+  // Check if payment already registered for this service
+  useEffect(() => {
+    if (!service || service.status !== 'completed') return;
+    (async () => {
+      try {
+        const res = await fetchWithAuth(`/payments/service/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.id) setPaymentRegistered(true);
+        }
+      } catch (_) {}
+    })();
+  }, [service?.status, id]);
+
+  const registerCashPayment = async (amountStr: string) => {
+    const amount = parseFloat(amountStr);
+    if (!amount || amount <= 0) {
+      Alert.alert('Error', 'Ingresa un monto válido');
+      return;
+    }
+    setIsRegisteringPayment(true);
+    try {
+      const res = await fetchWithAuth('/payments/cash/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ service_id: id, amount }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Error al registrar pago');
+      }
+      setPaymentRegistered(true);
+      Alert.alert('✅ Pago registrado', `$${amount.toLocaleString('es-CO')} COP registrado exitosamente.`);
+    } catch (err: any) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setIsRegisteringPayment(false);
+    }
   };
 
   if (isLoading) {
@@ -398,6 +440,39 @@ export default function TechServiceScreen() {
           <View style={styles.completedBanner}>
             <Text style={{ fontSize: 36, marginBottom: 8 }}>🎉</Text>
             <Text style={{ color: '#22c55e', fontSize: 18, fontWeight: '700' }}>Servicio completado</Text>
+            {!paymentRegistered ? (
+              <TouchableOpacity
+                style={[styles.actionBtn, { marginTop: 16, width: '100%' }, isRegisteringPayment && { opacity: 0.6 }]}
+                disabled={isRegisteringPayment}
+                activeOpacity={0.8}
+                onPress={() => {
+                  const defaultAmount = service?.estimated_price ? String(service.estimated_price) : '';
+                  Alert.prompt
+                    ? Alert.prompt('💰 Registrar Cobro', 'Ingresa el monto recibido en COP:', [
+                        { text: 'Cancelar', style: 'cancel' },
+                        { text: 'Confirmar', onPress: (val) => registerCashPayment(val || defaultAmount) },
+                      ], 'plain-text', defaultAmount, 'number-pad')
+                    : Alert.alert('💰 Registrar Cobro', `¿Confirmar cobro de $${defaultAmount || '0'} COP?`, [
+                        { text: 'Cancelar', style: 'cancel' },
+                        { text: 'Confirmar', onPress: () => registerCashPayment(defaultAmount) },
+                      ]);
+                }}
+              >
+                <LinearGradient colors={['#f59e0b', '#d97706']} style={styles.actionGradient}>
+                  {isRegisteringPayment ? <ActivityIndicator color="#fff" /> : (
+                    <>
+                      <Text style={styles.actionEmoji}>💰</Text>
+                      <Text style={styles.actionText}>Registrar Cobro</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+                <Text style={{ color: '#22c55e', fontSize: 14, fontWeight: '600' }}>Pago registrado</Text>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
