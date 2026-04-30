@@ -7,6 +7,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fetchWithAuth, getServiceById } from '@/lib/api';
+import TechLevel, { getRankBorderColor } from '@/components/tech-level';
 
 export default function QuotationsScreen() {
   const router = useRouter();
@@ -81,53 +82,64 @@ export default function QuotationsScreen() {
           <Text style={styles.emptySubtitle}>Los técnicos están revisando tu solicitud</Text>
         </View>
       ) : (
-        quotations.map((q: any) => (
-          <View key={q.id} style={styles.quoteCard}>
-            <View style={styles.quoteHeader}>
-              <View style={styles.techRow}>
-                <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.techAvatar}>
-                  <Text style={styles.techInitial}>{q.technician?.full_name?.[0] || 'T'}</Text>
-                </LinearGradient>
-                <View>
-                  <Text style={styles.techName}>{q.technician?.full_name || 'Técnico'}</Text>
-                  <View style={styles.ratingRow}>
-                    <Ionicons name="star" size={12} color="#eab308" />
-                    <Text style={styles.ratingText}>{q.technician?.average_rating?.toFixed(1) || '—'}</Text>
+        quotations.map((q: any) => {
+          const rankColor = getRankBorderColor(q.technician_rank || q.technician?.rank);
+          return (
+            <View key={q.id} style={styles.quoteCard}>
+              <View style={styles.quoteHeader}>
+                <View style={styles.techRow}>
+                  {/* Avatar with rank-colored border */}
+                  <View style={[styles.techAvatarWrap, { borderColor: rankColor }]}>
+                    <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.techAvatar}>
+                      <Text style={styles.techInitial}>{(q.technician_name || q.technician?.full_name || 'T')[0]}</Text>
+                    </LinearGradient>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.techName}>{q.technician_name || q.technician?.full_name || 'Técnico'}</Text>
+                    {/* TechLevel component */}
+                    <TechLevel
+                      rank={q.technician_rank || q.technician?.rank || 'bronze'}
+                      points={q.technician_rank_points || q.technician?.rank_points || 0}
+                      rating={q.technician_rating || q.technician?.average_rating || 0}
+                      totalServices={q.technician_total_services || q.technician?.total_services || 0}
+                      size="sm"
+                      showPoints={true}
+                    />
                   </View>
                 </View>
+                <View>
+                  <Text style={styles.priceLabel}>Precio</Text>
+                  <Text style={styles.price}>${(q.amount || q.price)?.toLocaleString('es-CO')}</Text>
+                </View>
               </View>
-              <View>
-                <Text style={styles.priceLabel}>Precio</Text>
-                <Text style={styles.price}>${q.price?.toLocaleString('es-CO')}</Text>
+
+              {q.message && <Text style={styles.quoteMessage}>"{q.message}"</Text>}
+
+              <View style={styles.quoteMetaRow}>
+                <View style={styles.quoteMeta}>
+                  <Ionicons name="time" size={14} color="#555872" />
+                  <Text style={styles.quoteMetaText}>{q.estimated_time || 'Sin estimar'}</Text>
+                </View>
               </View>
+
+              <TouchableOpacity
+                style={[styles.acceptButton, accepting === q.id && { opacity: 0.6 }]}
+                onPress={() => handleAccept(q.id)}
+                disabled={!!accepting}
+                activeOpacity={0.8}
+              >
+                <LinearGradient colors={['#22c55e', '#16a34a']} style={styles.acceptGradient}>
+                  {accepting === q.id ? <ActivityIndicator color="#fff" /> : (
+                    <>
+                      <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                      <Text style={styles.acceptText}>Aceptar Cotización</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
-
-            {q.message && <Text style={styles.quoteMessage}>"{q.message}"</Text>}
-
-            <View style={styles.quoteMetaRow}>
-              <View style={styles.quoteMeta}>
-                <Ionicons name="time" size={14} color="#555872" />
-                <Text style={styles.quoteMetaText}>{q.estimated_time || 'Sin estimar'}</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.acceptButton, accepting === q.id && { opacity: 0.6 }]}
-              onPress={() => handleAccept(q.id)}
-              disabled={!!accepting}
-              activeOpacity={0.8}
-            >
-              <LinearGradient colors={['#22c55e', '#16a34a']} style={styles.acceptGradient}>
-                {accepting === q.id ? <ActivityIndicator color="#fff" /> : (
-                  <>
-                    <Ionicons name="checkmark-circle" size={18} color="#fff" />
-                    <Text style={styles.acceptText}>Aceptar Cotización</Text>
-                  </>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        ))
+          );
+        })
       )}
     </ScrollView>
   );
@@ -147,12 +159,11 @@ const styles = StyleSheet.create({
   emptySubtitle: { color: '#555872', fontSize: 14, marginTop: 4 },
   quoteCard: { marginHorizontal: 20, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 20, padding: 20, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
   quoteHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
-  techRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  techAvatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  techRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  techAvatarWrap: { width: 48, height: 48, borderRadius: 24, borderWidth: 2.5, padding: 2, justifyContent: 'center', alignItems: 'center' },
+  techAvatar: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   techInitial: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  techName: { color: '#f0f0f5', fontSize: 15, fontWeight: '700' },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  ratingText: { color: '#eab308', fontSize: 12, fontWeight: '600' },
+  techName: { color: '#f0f0f5', fontSize: 15, fontWeight: '700', marginBottom: 4 },
   priceLabel: { color: '#555872', fontSize: 11, textAlign: 'right' },
   price: { color: '#22c55e', fontSize: 20, fontWeight: '800' },
   quoteMessage: { color: '#8b8fa3', fontSize: 14, fontStyle: 'italic', marginBottom: 12, lineHeight: 20 },

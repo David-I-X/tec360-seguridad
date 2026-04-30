@@ -139,6 +139,11 @@ app.include_router(quotations_router.router)
 # Payments (feature-flagged via PAYMENTS_ENABLED)
 app.include_router(payments_router.router)
 
+# Reputation (public)
+from app.api import reputation as reputation_router
+app.include_router(reputation_router.router)
+
+
 # Simulation (development only — excluded in production)
 if settings.ENVIRONMENT != "production":
     from app.api import simulate as simulate_router

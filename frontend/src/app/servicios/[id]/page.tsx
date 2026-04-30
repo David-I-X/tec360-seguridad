@@ -330,22 +330,24 @@ function ServiceDetailContent() {
                     </GlassCard>
                 )}
 
-                {/* Rating prompt for confirmed services */}
-                {service.status === "confirmed" && user?.role === "client" && !hasRated && (
-                    <GlassCard className="p-6 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border-yellow-500/20">
-                        <div className="flex flex-col sm:flex-row items-center gap-4">
-                            <div className="text-4xl">⭐</div>
+                {/* Rating prompt — shown on BOTH completed and confirmed */}
+                {["completed", "confirmed"].includes(service.status) && user?.role === "client" && !hasRated && (
+                    <GlassCard className="p-6 bg-gradient-to-br from-yellow-500/15 via-orange-500/10 to-amber-500/15 border-yellow-500/30 shadow-[0_0_30px_rgba(234,179,8,0.1)]">
+                        <div className="flex flex-col sm:flex-row items-center gap-5">
+                            <div className="text-5xl animate-bounce">⭐</div>
                             <div className="flex-1 text-center sm:text-left">
-                                <h3 className="font-semibold text-lg">¿Cómo fue tu experiencia?</h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Tu opinión nos ayuda a mejorar
+                                <h3 className="font-bold text-xl text-yellow-500">¡Tu opinión vale mucho!</h3>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                    Califica al técnico y ayuda a otros clientes a elegir mejor.
+                                    Tu calificación impacta directamente el nivel del técnico.
                                 </p>
                             </div>
                             <Button
                                 onClick={() => setShowRatingModal(true)}
-                                className="bg-yellow-500 hover:bg-yellow-600 text-black"
+                                className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-black font-bold shadow-lg shadow-yellow-500/20 px-6"
+                                size="lg"
                             >
-                                Calificar Servicio
+                                ⭐ Calificar Servicio
                             </Button>
                         </div>
                     </GlassCard>
