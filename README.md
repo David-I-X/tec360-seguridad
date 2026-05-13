@@ -8,17 +8,16 @@ Plataforma de seguridad vehicular para conectar **clientes** con **técnicos cer
 ┌─────────────────────────────────────────────────┐
 │              Nginx (reverse proxy + SSL)         │
 │         tec-360.tech / Let's Encrypt             │
-├─────────────────┬───────────────────────────────┤
-│   Frontend      │      Backend API              │
-│   Next.js 14    │      FastAPI + SQLModel        │
-│   React 18      │      PostgreSQL + PostGIS      │
-│   TypeScript    │      Python 3.11               │
-│   Framer Motion │      JWT Auth + OTP (Twilio)   │
-│   Port :3000    │      Port :8000                │
-└─────────────────┴───────────────────────────────┘
-│                    Docker Compose                 │
-│                DigitalOcean Droplet               │
-└─────────────────────────────────────────────────┘
+├─────────────┬──────────────┬────────────────────┤
+│  Frontend   │  Backend API │    Mobile App      │
+│  Next.js 15 │  FastAPI     │    Expo / RN       │
+│  React 18   │  SQLModel    │    expo-router     │
+│  TypeScript │  PostgreSQL  │    TypeScript      │
+│  Port :3000 │  Port :8000  │    EAS Build       │
+└─────────────┴──────────────┴────────────────────┘
+│                 Docker Compose                    │
+│             DigitalOcean Droplet                  │
+└──────────────────────────────────────────────────┘
 ```
 
 ## 📋 Funcionalidades
@@ -26,9 +25,9 @@ Plataforma de seguridad vehicular para conectar **clientes** con **técnicos cer
 ### Roles
 | Rol | Descripción |
 |-----|-------------|
-| **Cliente** | Solicita servicios, confirma trabajos, califica técnicos |
-| **Técnico** | Acepta trabajos, envía cotizaciones, sube evidencias, califica clientes |
-| **Admin** | Gestión completa de usuarios y servicios |
+| **Cliente** | Solicita servicios, revisa cotizaciones, confirma trabajos, califica técnicos |
+| **Técnico** | Cotiza servicios, realiza instalaciones, sube evidencias, califica clientes |
+| **Admin** | Gestión completa de usuarios, servicios y finanzas |
 
 ### Servicios
 - 📍 **GPS Vehicular** — Instalación y mantenimiento de rastreadores
@@ -37,23 +36,29 @@ Plataforma de seguridad vehicular para conectar **clientes** con **técnicos cer
 - 🔧 **Mantenimiento** — Servicio técnico para todos los dispositivos
 
 ### Features principales
-- 📱 **PWA** — Instalable como app nativa
-- 🗺️ **Google Maps** — Tracking en tiempo real de técnicos
+- 📱 **App Móvil (Expo)** — Android/iOS nativa con React Native
+- 🌐 **PWA Web** — Panel web instalable como app
+- 🗺️ **Google Maps** — Tracking en tiempo real de técnicos vía WebSocket
 - ⭐ **Calificaciones bidireccionales** — Cliente ↔ Técnico
-- 🏅 **Rangos de técnicos** — Bronze → Silver → Gold (sistema de puntos)
+- 🏅 **Sistema de Puntos y Niveles** — Bronce → Plata → Oro → Élite (gamificación integral)
 - 📸 **Fotos de evidencia** — Inicio, proceso y fin del servicio
 - 💬 **Notificaciones** — SMS via Twilio + push notifications
-- 📄 **Sistema de cotizaciones** — Técnicos envían presupuestos, clientes aceptan/rechazan
-- 🔐 **Auth OTP** — Verificación por teléfono (mode dev/SMS real)
+- 📄 **Sistema de cotizaciones** — Presupuestos con contraoferta
+- 🔐 **Auth OTP** — Verificación por teléfono (modo dev/SMS real)
+- 💰 **Módulo de Pagos** — Registro de pagos en efectivo (Wompi en desarrollo)
+- ✅ **Verificación de Técnicos** — Documentos + Quiz de conocimiento + niveles progresivos
 
-### Sistema de Rangos
-| Rango | Puntos | Cómo se gana |
+### Sistema de Puntos y Niveles
+| Nivel | Puntos | Cómo se gana |
 |-------|--------|-------------|
-| 🥉 Bronze | 0–49 | Técnico nuevo |
-| 🥈 Silver | 50–149 | Experiencia + buenas calificaciones |
-| 🥇 Gold | 150+ | Experto verificado |
+| 🥉 Bronce | 0–49 | Técnico nuevo |
+| 🥈 Plata | 50–149 | Servicios completados + buenas calificaciones |
+| 🥇 Oro | 150–299 | Experiencia sólida + perfil completo |
+| 👑 Élite | 300+ | Top performer verificado |
 
-**Fórmula:** Servicios×5 + Meses_experiencia×2 + Certificados×15 + Rating×10 + SENA_verificado×20
+**Acciones que suman/restan puntos:**
+- Servicio completado: +10 | Rating 5⭐: +8 | Rating 1⭐: -10
+- Perfil completo: +15 | Certificación SENA: +25 | Especialización: +5/cada
 
 ## 🛠️ Tech Stack
 
@@ -64,15 +69,22 @@ Plataforma de seguridad vehicular para conectar **clientes** con **técnicos cer
 - **Alembic** — Migraciones de DB
 - **JWT** — Autenticación por tokens
 - **Twilio** — SMS para OTP
-- **python-multipart** — Upload de archivos
+- **WebSocket** — Tracking en vivo
+- **Locust** — Pruebas de estrés
 
 ### Frontend
-- **Next.js 14** (App Router)
+- **Next.js 15** (App Router)
 - **React 18** + **TypeScript**
+- **Tailwind CSS** + **shadcn/ui** — Componentes
 - **Framer Motion** — Animaciones
-- **shadcn/ui** — Componentes base
 - **Google Maps API** — Mapas y tracking
-- **Leaflet** — Selector de ubicación
+
+### Mobile
+- **React Native** + **Expo**
+- **expo-router** — Navegación file-based
+- **expo-linear-gradient** — UI premium
+- **react-native-maps** — Mapas nativos
+- **EAS Build** — Compilación de APK/IPA
 
 ### Infraestructura
 - **Docker + Docker Compose** — Containerización
@@ -87,22 +99,31 @@ Plataforma de seguridad vehicular para conectar **clientes** con **técnicos cer
 tec360-seguridad/
 ├── backend/
 │   ├── app/
-│   │   ├── api/           # Endpoints REST
-│   │   ├── core/          # Config, database, security
-│   │   ├── models/        # SQLModel (User, Service, Technician, etc.)
-│   │   ├── schemas/       # Pydantic validation schemas
+│   │   ├── api/           # Endpoints REST + WebSocket
+│   │   ├── core/          # Config, database, security, websocket_manager
+│   │   ├── models/        # SQLModel tables
+│   │   ├── schemas/       # Pydantic request/response schemas
 │   │   └── services/      # Business logic layer
 │   ├── migrations/        # Alembic migrations
 │   ├── tests/             # pytest
+│   ├── locustfile.py      # Pruebas de estrés
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
 │   │   ├── app/           # Next.js pages (App Router)
-│   │   ├── components/    # React components
+│   │   ├── components/    # React components (ui/, quotations/, ratings/, services/)
 │   │   └── lib/           # Utils, API client, auth context
 │   ├── public/            # Static assets + PWA manifest
 │   ├── Dockerfile
+│   └── package.json
+├── mobile/
+│   ├── app/               # Expo Router screens
+│   │   ├── (auth)/        # Login, onboarding
+│   │   ├── (client)/      # Screens de cliente
+│   │   └── (tech)/        # Screens de técnico
+│   ├── components/        # Componentes compartidos
+│   ├── lib/               # API client, storage utils
 │   └── package.json
 ├── nginx/
 │   └── nginx.conf         # Reverse proxy config
@@ -115,21 +136,22 @@ tec360-seguridad/
 
 ### Requisitos
 - Docker + Docker Compose
-- Node.js 18+ (para desarrollo frontend)
-- Python 3.11+ (para desarrollo backend)
+- Node.js 18+ (frontend + mobile)
+- Python 3.11+ (backend)
 
 ### Variables de Entorno
 
 ```bash
-# .env
+# .env (raíz del proyecto)
 DATABASE_URL=postgresql://tec360:password@db:5432/tec360
-JWT_SECRET_KEY=your_secret_key
+SECRET_KEY=your_secret_key
+SMS_ENABLED=false
 TWILIO_ACCOUNT_SID=your_twilio_sid
 TWILIO_AUTH_TOKEN=your_twilio_token
 TWILIO_PHONE_NUMBER=+1234567890
 GOOGLE_MAPS_API_KEY=your_maps_key
 NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_maps_key
+NEXT_PUBLIC_GOOGLE_MAPS_KEY=your_maps_key
 ```
 
 ### Desarrollo
@@ -137,7 +159,9 @@ NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_maps_key
 ```bash
 # Backend
 cd backend
+docker-compose up -d   # PostgreSQL + PostGIS
 pip install -r requirements.txt
+alembic upgrade head
 uvicorn app.main:app --reload
 
 # Frontend
@@ -145,8 +169,10 @@ cd frontend
 npm install
 npm run dev
 
-# Docker (producción local)
-docker compose -f docker-compose.prod.yml up --build
+# Mobile
+cd mobile
+npm install
+npx expo start
 ```
 
 ## 🚢 Deployment
@@ -160,31 +186,40 @@ git pull
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 ```
 
-Ver [deployment_guide.md] para instrucciones completas.
-
 ### Dominio & SSL
 - **Dominio**: `tec-360.tech`
 - **SSL**: Let's Encrypt (auto-renewal via Certbot)
 
-## ⚠️ Notas Futuras
+## 🧪 Pruebas de Estrés
 
-### Almacenamiento de Archivos (S3)
-Actualmente las fotos de perfil y evidencias de servicio se almacenan localmente en el servidor (`/opt/tec360-seguridad/uploads/`), servidas por Nginx.
+```bash
+cd backend
+pip install locust websocket-client
+locust -f locustfile.py
+# Abrir http://localhost:8089 → Configurar host y usuarios
+```
 
-**Para producción a escala** se debe evaluar:
-- **DigitalOcean Spaces** (compatible con S3, regional)
-- **AWS S3** + CloudFront (CDN global)
-- **Cloudflare R2** (sin egress fees)
+## 📌 Roadmap Actual
 
-> 📌 **TODO**: Migrar a almacenamiento de objetos externo antes de escalar a múltiples servidores o cuando el volumen de uploads supere 10GB.
+### 🔴 En progreso
+- [ ] **Verificación de técnicos** — Documentos + Quiz + niveles progresivos
+- [ ] **Pruebas de estrés** — Determinar capacidad máxima del servidor
+- [ ] **Refinamiento de app** — UX/UI polish general
 
-### Mejoras Planificadas
+### 🟡 Próximo
+- [ ] Integración de pagos con Wompi
 - [ ] Almacenamiento S3/Spaces para uploads
-- [ ] Notificaciones push nativas
-- [ ] Panel admin completo
-- [ ] Reportes y analytics
-- [ ] Pasarela de pagos
+- [ ] Reportes y analytics para admin
+
+### 🟢 Completado
+- [x] Sistema de puntos y niveles de técnico (Bronce → Élite)
+- [x] Módulo de pagos en efectivo (backend + mobile + admin)
+- [x] Sistema de cotizaciones con contraoferta
+- [x] Tracking GPS en vivo via WebSocket
+- [x] App móvil con Expo (Android APK)
+- [x] Calificaciones bidireccionales
+- [x] Auth OTP (dev + SMS real)
 
 ## 📄 Licencia
 
-Proyecto privado — Tec360 Seguridad © 2025
+Proyecto privado — Tec360 Seguridad © 2025-2026

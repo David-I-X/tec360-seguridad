@@ -1,50 +1,110 @@
-# Welcome to your Expo app 👋
+# 📱 Tec360 Seguridad — Mobile App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+App móvil construida con **React Native** + **Expo** + **expo-router**.
 
-## Get started
+---
 
-1. Install dependencies
+## 📦 Tech Stack
 
-   ```bash
-   npm install
-   ```
+- **React Native** — Framework móvil cross-platform
+- **Expo SDK** — Herramientas y APIs nativas
+- **expo-router** — File-based routing
+- **TypeScript** — Tipado estático
+- **expo-linear-gradient** — Gradientes para UI premium
+- **react-native-maps** — Mapas nativos (Google Maps)
+- **expo-secure-store** — Almacenamiento seguro de tokens
+- **expo-image-picker** — Captura de fotos de evidencia
+- **EAS Build** — Compilación de APK/IPA en la nube
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## 🚀 Setup
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+### 1. Instalar dependencias
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. Variables de entorno
+Crear `.env` en la raíz de `mobile/`:
+```env
+EXPO_PUBLIC_API_URL=http://localhost:8000
+```
 
-## Learn more
+### 3. Ejecutar
+```bash
+npx expo start
+```
+Escanea el QR con **Expo Go** (Android/iOS) o usa un emulador.
 
-To learn more about developing your project with Expo, look at the following resources:
+### 4. Build APK
+```bash
+npx eas build --platform android --profile preview
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+---
 
-## Join the community
+## 🗂️ Estructura
 
-Join our community of developers creating universal apps.
+```
+mobile/
+├── app/                    # Screens (expo-router file-based)
+│   ├── _layout.tsx         # Root layout + auth provider
+│   ├── index.tsx           # Splash / redirect
+│   ├── (auth)/             # Login & onboarding screens
+│   │   ├── login.tsx       # OTP phone verification
+│   │   └── onboarding.tsx  # Nombre, email, rol
+│   ├── (client)/           # Screens de cliente
+│   │   ├── dashboard.tsx   # Vista principal cliente
+│   │   ├── create-service.tsx
+│   │   ├── service/[id].tsx
+│   │   ├── quotations/[id].tsx  # Lista cotizaciones con TechLevel
+│   │   └── waiting/[id].tsx
+│   └── (tech)/             # Screens de técnico
+│       ├── dashboard.tsx   # Vista principal técnico + earnings
+│       ├── service/[id].tsx
+│       └── browse.tsx      # Buscar servicios pendientes
+├── components/             # Componentes compartidos
+│   ├── rating-modal.tsx    # Modal de calificación
+│   └── tech-level.tsx      # Badge de nivel del técnico (🥉🥈🥇👑)
+├── lib/
+│   ├── api.ts              # fetchWithAuth, endpoints
+│   └── auth.ts             # AuthContext, secure-store
+├── constants/
+│   └── Colors.ts
+├── assets/                 # Imágenes, iconos, splash
+├── app.config.js           # Expo config
+├── eas.json                # EAS Build profiles
+└── package.json
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+
+## 🎨 Convenciones
+
+- **Styling**: `StyleSheet.create()` estándar de React Native (NO Nativewind/Tailwind)
+- **Navegación**: `expo-router` con file-based routing
+- **Imágenes**: Usar `<Image>` de React Native
+- **Almacenamiento**: `expo-secure-store` para tokens, `AsyncStorage` para preferencias
+- **Mapas**: `react-native-maps` con provider Google
+- **Auth**: Todas las llamadas API usan `fetchWithAuth()` de `lib/api.ts`
+- **Colores**: Dark theme con fondo `#050810`, acentos violeta `#8b5cf6`
+
+---
+
+## 📌 Features Actuales
+
+- ✅ Login con OTP (teléfono)
+- ✅ Onboarding (selección de rol)
+- ✅ Dashboard cliente con lista de servicios
+- ✅ Crear solicitud de servicio con ubicación GPS
+- ✅ Ver y aceptar cotizaciones con **nivel del técnico visible**
+- ✅ Tracking en vivo del técnico (WebSocket + Maps)
+- ✅ Calificar servicio (modal con estrellas)
+- ✅ Dashboard técnico con resumen de ganancias
+- ✅ Registrar pago en efectivo
+- ✅ Componente `TechLevel` (badge + estrellas + puntos)
+
+---
+
+**Versión**: 0.8.0 | **Última actualización**: Mayo 2026
