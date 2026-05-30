@@ -45,6 +45,16 @@ async def on_startup():
     from app.api.uploads import ensure_upload_dirs
     ensure_upload_dirs()
     logger.info("Upload directories verified/created")
+    
+    # Start background scheduler
+    from app.core.scheduler import start_scheduler
+    start_scheduler()
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    # Stop background scheduler
+    from app.core.scheduler import shutdown_scheduler
+    shutdown_scheduler()
 
 
 
@@ -138,6 +148,10 @@ app.include_router(quotations_router.router)
 
 # Payments (feature-flagged via PAYMENTS_ENABLED)
 app.include_router(payments_router.router)
+
+# Credits (Sprint 1)
+from app.api import credits as credits_router
+app.include_router(credits_router.router)
 
 # Reputation (public)
 from app.api import reputation as reputation_router

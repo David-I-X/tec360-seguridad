@@ -43,6 +43,11 @@ class TechnicianBase(SQLModel):
     rank: str = Field(default="bronze")
     rank_points: int = Field(default=0)
     certifications_count: int = Field(default=0)
+    # ── Cancellation tracking ──
+    cancellation_count: int = Field(default=0)
+    cancellation_week_count: int = Field(default=0)  # Cancelaciones en últimos 7 días
+    last_cancellation_at: Optional[datetime] = Field(default=None)
+    suspended_until: Optional[datetime] = Field(default=None)
 
 class Technician(TechnicianBase, table=True):
     __tablename__ = "technicians"

@@ -2,9 +2,10 @@
 Servicio de reputación — recalcula puntos y rank de un técnico
 """
 from uuid import UUID
+from datetime import datetime
 from sqlmodel import Session, select, func
 from app.models.technician import (
-    Technician, calculate_rank_points, RANK_CONFIG, RATING_POINTS,
+    Technician, calculate_rank_points, RANK_CONFIG, RATING_POINTS, RANK_THRESHOLDS,
 )
 from app.models.extras import ServiceRating
 from app.models.service import Service
@@ -149,6 +150,87 @@ class ReputationService:
             average_rating=tech.average_rating,
             total_ratings=total_ratings,
         )
+
+    async def penalize_cancellation(
+        self, session: Session, technician_id: str
+    ) -> dict:
+        """
+        Penaliza al técnico por cancelar un servicio asignado.
+        - -15 puntos de reputación
+        - Si cancela 2+ veces en 7 días → suspensión 24h
+        """
+        from datetime import timedelta
+
+        tech = session.exec(
+            select(Technician).where(Technician.user_id == UUID(technician_id))
+        ).first()
+        if not tech:
+            return {"penalized": False, "reason": "Técnico no encontrado"}
+
+        now = datetime.utcnow()
+
+        # Deduct 15 points
+        tech.rank_points = max(0, tech.rank_points - 15)
+
+        # Recalculate rank
+        rank = "bronze"
+        for rank_name, threshold in RANK_THRESHOLDS:
+            if tech.rank_points >= threshold:
+                rank = rank_name
+        tech.rank = rank
+
+        # Update cancellation tracking
+        tech.cancellation_count += 1
+        tech.last_cancellation_at = now
+
+        # Check if within 7-day window
+        seven_days_ago = now - timedelta(days=7)
+        if tech.last_cancellation_at and tech.last_cancellation_at >= seven_days_ago:
+            tech.cancellation_week_count += 1
+        else:
+            tech.cancellation_week_count = 1
+
+        # Suspend if 2+ cancellations in 7 days
+        suspended = False
+        if tech.cancellation_week_count >= 2:
+            tech.suspended_until = now + timedelta(hours=24)
+            tech.is_available = False
+            suspended = True
+
+        session.add(tech)
+        session.commit()
+
+        return {
+            "penalized": True,
+            "points_deducted": 15,
+            "new_points": tech.rank_points,
+            "new_rank": tech.rank,
+            "suspended": suspended,
+            "suspended_until": tech.suspended_until.isoformat() if suspended else None,
+            "week_cancellations": tech.cancellation_week_count,
+        }
+
+    async def is_suspended(
+        self, session: Session, technician_id: str
+    ) -> bool:
+        """Check if the technician is currently suspended."""
+        tech = session.exec(
+            select(Technician).where(Technician.user_id == UUID(technician_id))
+        ).first()
+        if not tech or not tech.suspended_until:
+            return False
+
+        now = datetime.utcnow()
+        if now >= tech.suspended_until:
+            # Suspension expired — clear it
+            tech.suspended_until = None
+            tech.is_available = True
+            tech.cancellation_week_count = 0
+            session.add(tech)
+            session.commit()
+            return False
+
+        return True
 
 
 reputation_service = ReputationService()

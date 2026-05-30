@@ -359,7 +359,7 @@ async def find_nearby_technicians(
     )
 
 
-@router.delete("/{service_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{service_id}", status_code=status.HTTP_200_OK)
 async def cancel_service(
     service_id: str = Path(..., description="UUID del servicio"),
     current_user: dict = Depends(get_current_user),
@@ -367,22 +367,24 @@ async def cancel_service(
 ):
     """
     Cancela un servicio.
+    - Clientes: Cancela y reembolsa créditos al técnico (si aplica).
+    - Técnicos: Cancela y aplica penalización por cancelación (-15 pts, posible suspensión).
+    - Admins: Cancela sin penalizaciones.
     """
-    if current_user["role"] not in ["client", "admin"]:
+    if current_user["role"] not in ["client", "admin", "technician"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo clientes y admins pueden cancelar servicios"
+            detail="Rol no autorizado para cancelar servicios"
         )
     
-    await service_service.update_service(
+    result = await service_service.cancel_service(
         session=session,
         service_id=service_id,
-        service_data=ServiceUpdate(status="cancelled"),
         user_id=current_user["id"],
         user_role=current_user["role"]
     )
     
-    return None
+    return result
 
 
 # ============================================
