@@ -20,6 +20,8 @@ from sqlmodel import SQLModel
 from app.models.user import User
 from app.models.service import Service
 from app.models.push_token import PushToken
+from app.models.incident import IncidentReport
+from app.models.schedule import TechnicianSchedule
 
 target_metadata = SQLModel.metadata
 

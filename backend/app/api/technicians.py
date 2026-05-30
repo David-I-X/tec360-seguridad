@@ -360,3 +360,92 @@ async def get_top_rated_technicians(
         page=1,
         page_size=limit
     )
+
+# ============================================
+# HORARIOS (SCHEDULE)
+# ============================================
+
+from app.models.schedule import TechnicianSchedule
+from app.schemas.technician import TechnicianScheduleCreate, TechnicianScheduleResponse
+from datetime import datetime
+
+@router.post("/me/schedule", response_model=TechnicianScheduleResponse, status_code=status.HTTP_201_CREATED)
+async def create_my_schedule(
+    schedule_data: TechnicianScheduleCreate,
+    current_user: dict = Depends(require_roles("technician")),
+    session: Session = Depends(get_session)
+):
+    """Crea o actualiza un horario para un día específico."""
+    from sqlmodel import select
+    from uuid import UUID
+    
+    tech_id = UUID(current_user["id"])
+    
+    # Parse times
+    start_t = datetime.strptime(schedule_data.start_time, "%H:%M").time()
+    end_t = datetime.strptime(schedule_data.end_time, "%H:%M").time()
+    
+    # Check if schedule for that day already exists
+    existing = session.exec(
+        select(TechnicianSchedule).where(
+            TechnicianSchedule.technician_id == tech_id,
+            TechnicianSchedule.day_of_week == schedule_data.day_of_week
+        )
+    ).first()
+    
+    if existing:
+        existing.start_time = start_t
+        existing.end_time = end_t
+        existing.is_active = schedule_data.is_active
+        existing.updated_at = datetime.utcnow()
+        session.add(existing)
+        sched = existing
+    else:
+        sched = TechnicianSchedule(
+            technician_id=tech_id,
+            day_of_week=schedule_data.day_of_week,
+            start_time=start_t,
+            end_time=end_t,
+            is_active=schedule_data.is_active
+        )
+        session.add(sched)
+        
+    session.commit()
+    session.refresh(sched)
+    
+    # Formatear hora a string para la respuesta
+    return {
+        "id": str(sched.id),
+        "technician_id": str(sched.technician_id),
+        "day_of_week": sched.day_of_week,
+        "start_time": sched.start_time.strftime("%H:%M"),
+        "end_time": sched.end_time.strftime("%H:%M"),
+        "is_active": sched.is_active
+    }
+
+@router.get("/me/schedule", response_model=list[TechnicianScheduleResponse])
+async def get_my_schedule(
+    current_user: dict = Depends(require_roles("technician")),
+    session: Session = Depends(get_session)
+):
+    """Obtiene los horarios configurados del técnico."""
+    from sqlmodel import select
+    from uuid import UUID
+    
+    schedules = session.exec(
+        select(TechnicianSchedule).where(
+            TechnicianSchedule.technician_id == UUID(current_user["id"])
+        ).order_by(TechnicianSchedule.day_of_week)
+    ).all()
+    
+    return [
+        {
+            "id": str(s.id),
+            "technician_id": str(s.technician_id),
+            "day_of_week": s.day_of_week,
+            "start_time": s.start_time.strftime("%H:%M"),
+            "end_time": s.end_time.strftime("%H:%M"),
+            "is_active": s.is_active
+        }
+        for s in schedules
+    ]

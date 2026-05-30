@@ -14,6 +14,7 @@ class ServiceStatus(str, Enum):
     en_route = "en_route"      # Técnico en camino
     arrived = "arrived"        # Técnico llegó al lugar
     in_progress = "in_progress"
+    paused = "paused"          # Agregado para incidentes
     completed = "completed"
     confirmed = "confirmed"    # Cliente confirmó que vehículo funciona
     cancelled = "cancelled"

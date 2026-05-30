@@ -16,6 +16,8 @@ from app.schemas.service import (
     ServiceAssign,
     NearbyTechnicianResponse
 )
+from app.schemas.incident import IncidentCreate
+from app.models.incident import IncidentReport
 from app.services.service_service import service_service
 
 
@@ -384,6 +386,119 @@ async def cancel_service(
     
     return None
 
+@router.post("/{service_id}/incident", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def report_incident(
+    service_id: str,
+    incident_data: IncidentCreate,
+    current_user: dict = Depends(require_roles("technician")),
+    session: Session = Depends(get_session)
+):
+    """
+    Técnico reporta un incidente en campo.
+    - Pausa el servicio automáticamente
+    - Notifica al administrador
+    """
+    from uuid import UUID
+    
+    service = session.exec(select(Service).where(Service.id == UUID(service_id))).first()
+    if not service:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
+        
+    if str(service.technician_id) != current_user["id"]:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "No autorizado")
+        
+    # Crear reporte
+    incident = IncidentReport(
+        service_id=service.id,
+        technician_id=current_user["id"],
+        incident_type=incident_data.incident_type,
+        description=incident_data.description,
+        evidence_url=incident_data.evidence_url
+    )
+    session.add(incident)
+    
+    # Pausar servicio
+    service.status = ServiceStatus.PAUSED
+    session.add(service)
+    session.commit()
+    
+    # Notificar a Admin (idealmente con NotificationService)
+    try:
+        from app.services.notification_service import NotificationService
+        from app.schemas.notification import NotificationCreate
+        await NotificationService.create_notification(
+            session=session,
+            data=NotificationCreate(
+                user_id=service.client_id, # Enviar a admin en producción
+                title="🚨 Incidente Reportado",
+                message=f"El técnico reportó un incidente: {incident_data.incident_type.value}",
+                notification_type="system_alert",
+                service_id=service.id
+            )
+        )
+    except Exception as e:
+        import logging
+        logging.warning(f"Failed to notify incident: {e}")
+        
+    return {"success": True, "message": "Incidente reportado, servicio pausado"}
+
+@router.post("/{service_id}/price-adjustment", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def request_price_adjustment(
+    service_id: str,
+    amount: float,
+    description: str,
+    current_user: dict = Depends(require_roles("technician")),
+    session: Session = Depends(get_session)
+):
+    """
+    Técnico solicita un ajuste de precio en campo.
+    Crea una nueva cotización de tipo ajuste.
+    - Notifica al cliente para que la apruebe.
+    """
+    from uuid import UUID
+    from app.models.quotation import Quotation, QuotationStatus
+    
+    service = session.exec(select(Service).where(Service.id == UUID(service_id))).first()
+    if not service:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
+        
+    if str(service.technician_id) != current_user["id"]:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "No autorizado")
+        
+    if service.status != ServiceStatus.IN_PROGRESS:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Solo se pueden hacer ajustes si el servicio está en progreso")
+        
+    # Crear cotización de ajuste
+    quotation = Quotation(
+        service_id=service.id,
+        technician_id=current_user["id"],
+        amount=amount,
+        description=description,
+        is_adjustment=True,
+        status=QuotationStatus.pending
+    )
+    session.add(quotation)
+    session.commit()
+    
+    # Notificar al cliente
+    try:
+        from app.services.notification_service import NotificationService
+        from app.schemas.notification import NotificationCreate
+        await NotificationService.create_notification(
+            session=session,
+            data=NotificationCreate(
+                user_id=service.client_id,
+                title="Ajuste de precio requerido",
+                message=f"El técnico solicita un ajuste a ${amount:,.0f}. Motivo: {description}",
+                notification_type="price_adjustment",
+                service_id=service.id
+            )
+        )
+    except Exception as e:
+        import logging
+        logging.warning(f"Failed to notify price adjustment: {e}")
+        
+    return {"success": True, "message": "Solicitud de ajuste enviada al cliente"}
 
 # ============================================
 # ENDPOINTS PARA ESTADÍSTICAS (BONUS)
