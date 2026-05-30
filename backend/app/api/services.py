@@ -386,8 +386,20 @@ async def cancel_service(
         user_role=current_user["role"]
     )
     
+    # Client penalty
+    if current_user["role"] == "client":
+        from app.models.user import User
+        from sqlmodel import select
+        from uuid import UUID
+        client = session.exec(select(User).where(User.id == UUID(current_user["id"]))).first()
+        if client:
+            client.cancellation_count += 1
+            if client.cancellation_count >= 3:
+                client.flagged_for_review = True
+            session.add(client)
+            session.commit()
+    
     return result
-
 @router.post("/{service_id}/incident", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def report_incident(
     service_id: str,
@@ -501,7 +513,42 @@ async def request_price_adjustment(
         logging.warning(f"Failed to notify price adjustment: {e}")
         
     return {"success": True, "message": "Solicitud de ajuste enviada al cliente"}
+@router.get("/{service_id}/receipt")
+async def download_receipt(
+    service_id: str,
+    current_user: dict = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Descarga el recibo en PDF de un servicio completado/confirmado.
+    """
+    from app.models.service import Service, ServiceStatus
+    from app.models.user import User
+    from sqlmodel import select
+    from uuid import UUID
+    from fastapi.responses import Response
 
+    service = session.exec(select(Service).where(Service.id == UUID(service_id))).first()
+    if not service:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
+
+    if current_user["role"] == "client" and str(service.client_id) != current_user["id"]:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "No autorizado")
+
+    if service.status not in [ServiceStatus.COMPLETED, ServiceStatus.CONFIRMED]:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "El recibo solo está disponible para servicios completados")
+
+    client = session.exec(select(User).where(User.id == service.client_id)).first()
+    technician = session.exec(select(User).where(User.id == service.technician_id)).first()
+
+    from app.services.pdf_service import PDFService
+    pdf_bytes = PDFService.generate_receipt(
+        service=service,
+        client_name=client.full_name if client else "Cliente",
+        tech_name=technician.full_name if technician else "Técnico"
+    )
+
+    return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=recibo_{service.id}.pdf"})
 # ============================================
 # ENDPOINTS PARA ESTADÍSTICAS (BONUS)
 # ============================================

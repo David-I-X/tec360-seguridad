@@ -25,6 +25,7 @@ from app.models.quotation import Quotation
 from app.models.credit import TechnicianCredit, CreditTransaction
 from app.models.incident import IncidentReport
 from app.models.schedule import TechnicianSchedule
+from app.models.portfolio import PortfolioImage
 
 target_metadata = SQLModel.metadata
 
