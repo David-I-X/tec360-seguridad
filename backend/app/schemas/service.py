@@ -23,12 +23,15 @@ class ServiceType(str):
     OTHER = "other"
 
 
-class ServiceStatus(str):
-    """Estados del servicio"""
+class ServiceStatus(str, Enum):
     PENDING = "pending"
     ASSIGNED = "assigned"
+    EN_ROUTE = "en_route"
+    ARRIVED = "arrived"
     IN_PROGRESS = "in_progress"
+    PAUSED = "paused"
     COMPLETED = "completed"
+    CONFIRMED = "confirmed"
     CANCELLED = "cancelled"
 
 

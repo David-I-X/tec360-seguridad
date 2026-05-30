@@ -23,6 +23,8 @@ from app.models.push_token import PushToken
 from app.models.technician import Technician
 from app.models.quotation import Quotation
 from app.models.credit import TechnicianCredit, CreditTransaction
+from app.models.incident import IncidentReport
+from app.models.schedule import TechnicianSchedule
 
 target_metadata = SQLModel.metadata
 

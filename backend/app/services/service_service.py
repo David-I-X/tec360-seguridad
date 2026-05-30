@@ -333,7 +333,7 @@ class ServiceService:
         from uuid import UUID as UUIDType
         try:
             # Validar estado
-            valid_statuses = ["en_route", "arrived", "in_progress", "completed"]
+            valid_statuses = ["en_route", "arrived", "in_progress", "paused", "completed"]
             if new_status not in valid_statuses:
                 raise HTTPException(
                     status.HTTP_400_BAD_REQUEST, 
@@ -559,7 +559,28 @@ class ServiceService:
         return self._to_response(service)
 
     async def find_nearby_technicians(self, session: Session, service_id: str, max_distance_km: int = 20) -> List[NearbyTechnicianResponse]:
-        # Implementación Mock temporal hasta configurar PostGIS queries complejas en SQLModel
+        from app.models.technician import Technician
+        from app.models.schedule import TechnicianSchedule
+        from datetime import datetime
+        import logging
+        
+        # 1. Obtener día actual
+        current_day = datetime.utcnow().weekday() # 0 = Monday, 6 = Sunday
+        
+        # 2. Buscar técnicos disponibles y con horario activo hoy
+        # Falta implementar la consulta PostGIS real para distancia.
+        query = select(Technician).join(
+            TechnicianSchedule, Technician.user_id == TechnicianSchedule.technician_id
+        ).where(
+            Technician.is_available == True,
+            TechnicianSchedule.day_of_week == current_day,
+            TechnicianSchedule.is_active == True
+        )
+        
+        techs = session.exec(query).all()
+        logging.info(f"Técnicos encontrados con horario activo hoy: {len(techs)}")
+        
+        # Implementación Mock para distancia
         return []
 
     def _to_response(self, service: Service, client_name: str = None, client: User = None, technician: User = None) -> ServiceResponse:
