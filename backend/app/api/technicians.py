@@ -360,3 +360,70 @@ async def get_top_rated_technicians(
         page=1,
         page_size=limit
     )
+
+# ============================================
+# PORTAFOLIO (PORTFOLIO)
+# ============================================
+
+from app.models.portfolio import PortfolioImage
+from app.schemas.technician import PortfolioImageCreate, PortfolioImageResponse
+
+@router.post("/me/portfolio", response_model=PortfolioImageResponse, status_code=status.HTTP_201_CREATED)
+async def add_portfolio_image(
+    image_data: PortfolioImageCreate,
+    current_user: dict = Depends(require_roles("technician")),
+    session: Session = Depends(get_session)
+):
+    """Sube una imagen al portafolio del técnico."""
+    from uuid import UUID
+    
+    tech_id = UUID(current_user["id"])
+    
+    image = PortfolioImage(
+        technician_id=tech_id,
+        image_url=image_data.image_url,
+        description=image_data.description
+    )
+    session.add(image)
+    session.commit()
+    session.refresh(image)
+    
+    return image
+
+@router.get("/{user_id}/portfolio", response_model=list[PortfolioImageResponse])
+async def get_technician_portfolio(
+    user_id: str,
+    session: Session = Depends(get_session)
+):
+    """Obtiene el portafolio público de un técnico."""
+    from sqlmodel import select
+    from uuid import UUID
+    
+    images = session.exec(
+        select(PortfolioImage).where(
+            PortfolioImage.technician_id == UUID(user_id)
+        ).order_by(PortfolioImage.created_at.desc())
+    ).all()
+    
+    return images
+
+@router.delete("/me/portfolio/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_portfolio_image(
+    image_id: str,
+    current_user: dict = Depends(require_roles("technician")),
+    session: Session = Depends(get_session)
+):
+    """Elimina una imagen del portafolio del técnico."""
+    from sqlmodel import select
+    from uuid import UUID
+    
+    image = session.exec(select(PortfolioImage).where(PortfolioImage.id == UUID(image_id))).first()
+    if not image:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Imagen no encontrada")
+        
+    if str(image.technician_id) != current_user["id"]:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "No autorizado")
+        
+    session.delete(image)
+    session.commit()
+    return None

@@ -28,6 +28,10 @@ class User(UserBase, table=True):
         sa_column=Column(Geometry("POINT", srid=4326))
     )
     
+    # Client Trust / Penalties
+    cancellation_count: int = Field(default=0)
+    flagged_for_review: bool = Field(default=False)
+    
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

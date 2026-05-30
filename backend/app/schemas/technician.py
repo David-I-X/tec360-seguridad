@@ -396,3 +396,17 @@ class NearbyTechnicianResult(BaseModel):
                 "is_verified": True
             }
         }
+
+class PortfolioImageCreate(BaseModel):
+    image_url: str
+    description: Optional[str] = None
+
+class PortfolioImageResponse(BaseModel):
+    id: str
+    technician_id: str
+    image_url: str
+    description: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

@@ -20,6 +20,7 @@ from sqlmodel import SQLModel
 from app.models.user import User
 from app.models.service import Service
 from app.models.push_token import PushToken
+from app.models.portfolio import PortfolioImage
 
 target_metadata = SQLModel.metadata
 
