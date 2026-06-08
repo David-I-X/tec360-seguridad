@@ -247,6 +247,7 @@ const installSteps = [
   { num: "01", title: "Elige tu servicio", desc: "Selecciona qué necesitas: dashcam, GPS o alarma vehicular. Ingresa tu dirección y la fecha.", visual: "📍" },
   { num: "02", title: "Un técnico acepta", desc: "En minutos un técnico certificado cerca de ti acepta el trabajo. Ves su perfil, calificación y precio.", visual: "🤝" },
   { num: "03", title: "Llega y trabaja", desc: "El técnico llega a tu ubicación, toma fotos de evidencia y tú confirmas el trabajo completado.", visual: "🛡️" },
+  { num: "04", title: "Garantía y calificación", desc: "Revisa que todo funcione, califica al técnico y disfruta de tu instalación con nuestro respaldo garantizado.", visual: "⭐" },
 ]
 
 const recoverySteps = [
