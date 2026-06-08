@@ -88,17 +88,18 @@ class TechnicianService:
         include_user_info: bool = True
     ) -> TechnicianResponse:
         try:
-            # SQLModel doesn't support eager loading effortlessly without relationships defined in models properly (using Relationship attribute)
-            # We will fetch manually or rely on lazy loading if defined, but here models don't have Relationship fields yet except FKs.
-            # So, manual Join or 2 queries.
-            
-            tech = session.exec(select(Technician).where(Technician.user_id == user_id)).first()
+            # Check by user_id or technician_id since frontend might send either
+            tech = session.exec(
+                select(Technician).where(
+                    (Technician.user_id == user_id) | (Technician.id == user_id)
+                )
+            ).first()
             if not tech:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Perfil de técnico no encontrado")
             
             user_data = None
             if include_user_info:
-                user = session.get(User, user_id)
+                user = session.get(User, tech.user_id)
                 user_data = user
 
             return self._to_response(tech, user_data)

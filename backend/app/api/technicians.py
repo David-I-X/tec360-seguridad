@@ -143,19 +143,20 @@ async def get_technician_public_profile(
     # Voy a comentar esa parte o hacerla defensiva, o mejor,
     # Leeré el schema inmediatamente despues y arreglaré ambos.
     
+    # Usar .user que viene poblado desde _to_response en technician_service
+    user_info = technician.user
+    
     return TechnicianPublicProfile(
         user_id=technician.user_id,
-        # Hack temporal: Si technician no tiene user, poner None.
-        # Pero si technician es Pydantic model, getattr es seguro?
-        full_name=getattr(technician, "full_name", None), # Ojalá el response tenga estos campos planos
+        full_name=user_info.full_name if user_info else None,
         specializations=technician.specializations,
         experience_years=technician.experience_years,
         bio=technician.bio,
         service_radius_km=technician.service_radius_km,
         average_rating=technician.average_rating,
         total_services=technician.total_services,
-        city=getattr(technician, "city", None),
-        avatar_url=getattr(technician, "avatar_url", None),
+        city=user_info.city if user_info else None,
+        avatar_url=user_info.avatar_url if user_info else None,
         is_verified=technician.is_verified
     )
 
