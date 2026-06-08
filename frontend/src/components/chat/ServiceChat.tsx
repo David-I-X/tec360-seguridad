@@ -25,11 +25,16 @@ interface ServiceChatProps {
 }
 
 export function ServiceChat({ serviceId }: ServiceChatProps) {
-    const { user, token } = useAuth()
+    const { user } = useAuth()
+    const [token, setToken] = useState<string | null>(null)
     const [messages, setMessages] = useState<Message[]>([])
     const [inputText, setInputText] = useState("")
     const [isLoading, setIsLoading] = useState(true)
     const scrollRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        setToken(localStorage.getItem("access_token"))
+    }, [])
 
     // Scroll to bottom whenever messages change
     useEffect(() => {
