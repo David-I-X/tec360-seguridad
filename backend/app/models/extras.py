@@ -24,6 +24,7 @@ class ImageType(str, Enum):
     during = "during"
     after = "after"
     issue = "issue"
+    adjustment = "adjustment"
 
 class ServiceImage(SQLModel, table=True):
     __tablename__ = "service_images"

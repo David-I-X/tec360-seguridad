@@ -286,6 +286,50 @@ async def get_service_detail_admin(
     }
 
 
+@router.post("/services/{service_id}/force-close", summary="Force close a zombie service")
+async def force_close_service(
+    service_id: str,
+    reason: str = Query(..., description="Reason for forcing closure"),
+    current_user: dict = Depends(require_roles("admin")),
+    session: Session = Depends(get_session)
+):
+    from uuid import UUID
+    from app.services.notification_service import NotificationService
+    
+    try:
+        svc_uuid = UUID(service_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid service ID")
+        
+    service = session.get(Service, svc_uuid)
+    if not service:
+        raise HTTPException(status_code=404, detail="Service not found")
+        
+    if service.status in [ServiceStatus.cancelled, ServiceStatus.completed, ServiceStatus.confirmed]:
+        raise HTTPException(status_code=400, detail=f"Service already {service.status}")
+        
+    service.status = ServiceStatus.cancelled
+    service.service_metadata = service.service_metadata or {}
+    service.service_metadata["force_closed_reason"] = reason
+    service.service_metadata["force_closed_by"] = str(current_user["id"])
+    service.updated_at = datetime.utcnow()
+    
+    session.add(service)
+    session.commit()
+    
+    # Notify client and tech
+    await NotificationService.notify_client_service_update(
+        session=session,
+        client_id=service.client_id,
+        service_id=service.id,
+        status="cancelled",
+        technician_name="Sistema"
+    )
+    
+    return {"message": "Service force closed successfully", "service_id": service_id}
+
+
+
 # --- Estadísticas ---
 
 @router.get("/stats", summary="Platform wide statistics — real data")

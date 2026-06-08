@@ -31,7 +31,7 @@ class PendingTechnicianResponse(BaseModel):
     technician_id: UUID
     full_name: str
     phone: str
-    uploaded_at: datetime
+    uploaded_at: Optional[datetime] = None
     documents_count: int
 
 

@@ -48,6 +48,8 @@ class ServiceBase(SQLModel):
     vehicle_plate: Optional[str] = None
     vehicle_photo_url: Optional[str] = None
     client_confirmed_at: Optional[datetime] = None
+    payment_method: Optional[str] = Field(default=None, description="e.g. 'online' or 'cash'")
+    payment_status: Optional[str] = Field(default="pending", description="e.g. 'pending' or 'paid'")
     service_metadata: Optional[dict] = Field(default=None, sa_column=Column(JSONB))
 
 class Service(ServiceBase, table=True):

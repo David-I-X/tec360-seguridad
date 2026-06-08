@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { GlassCard } from "@/components/ui/glass-card"
 import { LiveTrackingView } from "@/components/services/live-tracking-view"
 import { RatingModal } from "@/components/ratings/rating-modal"
+import PaymentModal from "@/components/PaymentModal"
 import { TrackingSimulator } from "@/components/services/tracking-simulator"
 import { StarDisplay } from "@/components/ui/star-rating"
 import { getAvatarUrl } from "@/lib/utils"
@@ -63,6 +64,7 @@ function ServiceDetailContent() {
     const [hasRated, setHasRated] = useState(false)
     const [isCancelling, setIsCancelling] = useState(false)
     const [isConfirming, setIsConfirming] = useState(false)
+    const [showPaymentModal, setShowPaymentModal] = useState(false)
 
     const handleCancel = async () => {
         setIsCancelling(true)
@@ -76,11 +78,11 @@ function ServiceDetailContent() {
         }
     }
 
-    const handleConfirm = async () => {
+    const handleConfirm = async (method: string) => {
         setIsConfirming(true)
         try {
-            await confirmService(params.id as string)
-            setService((prev: any) => ({ ...prev, status: "confirmed" }))
+            await confirmService(params.id as string, method)
+            setService((prev: any) => ({ ...prev, status: "confirmed", payment_method: method }))
         } catch (err: any) {
             console.error("Confirm error:", err)
         } finally {
@@ -319,12 +321,12 @@ function ServiceDetailContent() {
                                 </p>
                             </div>
                             <Button
-                                onClick={handleConfirm}
+                                onClick={() => setShowPaymentModal(true)}
                                 disabled={isConfirming}
                                 className="bg-blue-600 hover:bg-blue-700 text-white"
                             >
                                 {isConfirming ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                {isConfirming ? "Confirmando..." : "Confirmar Trabajo"}
+                                {isConfirming ? "Confirmando..." : "Confirmar y Pagar"}
                             </Button>
                         </div>
                     </GlassCard>
@@ -367,6 +369,14 @@ function ServiceDetailContent() {
                 isOpen={showRatingModal}
                 onClose={() => setShowRatingModal(false)}
                 onSuccess={() => setHasRated(true)}
+            />
+
+            {/* Payment Modal */}
+            <PaymentModal
+                isOpen={showPaymentModal}
+                onClose={() => setShowPaymentModal(false)}
+                amount={service?.estimated_price || 0}
+                onConfirm={handleConfirm}
             />
         </>
     )

@@ -7,7 +7,7 @@ import { Locate, MapPin, Search, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 
 interface LocationPickerProps {
-    onLocationSelect: (lat: number, lng: number) => void
+    onLocationSelect: (lat: number, lng: number, address?: string) => void
     initialLat?: number
     initialLng?: number
 }
@@ -66,6 +66,18 @@ export default function LocationPicker({
         mapRef.current = null
     }, [])
 
+    const reverseGeocode = (lat: number, lng: number) => {
+        if (typeof google === "undefined") return
+        const geocoder = new google.maps.Geocoder()
+        geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+            if (status === "OK" && results && results[0]) {
+                onLocationSelect(lat, lng, results[0].formatted_address)
+            } else {
+                onLocationSelect(lat, lng)
+            }
+        })
+    }
+
     const handleCenterChanged = () => {
         if (!mapRef.current) return
         const newCenter = mapRef.current.getCenter()
@@ -77,6 +89,14 @@ export default function LocationPicker({
         }
     }
 
+    const handleDragEnd = () => {
+        if (!mapRef.current) return
+        const newCenter = mapRef.current.getCenter()
+        if (newCenter) {
+            reverseGeocode(newCenter.lat(), newCenter.lng())
+        }
+    }
+
     const onPlacesChanged = () => {
         const places = searchBoxRef.current?.getPlaces()
         if (places && places.length > 0) {
@@ -85,7 +105,7 @@ export default function LocationPicker({
                 const lat = place.geometry.location.lat()
                 const lng = place.geometry.location.lng()
                 setMapCenter({ lat, lng })
-                onLocationSelect(lat, lng)
+                onLocationSelect(lat, lng, place.formatted_address)
             }
         }
     }
@@ -104,7 +124,7 @@ export default function LocationPicker({
                         lng: position.coords.longitude,
                     }
                     setMapCenter(pos)
-                    onLocationSelect(pos.lat, pos.lng)
+                    reverseGeocode(pos.lat, pos.lng)
                     setIsLocating(false)
                 },
                 (e) => {
@@ -160,6 +180,7 @@ export default function LocationPicker({
                 onLoad={onLoad}
                 onUnmount={onUnmount}
                 onCenterChanged={handleCenterChanged}
+                onDragEnd={handleDragEnd}
                 options={{
                     disableDefaultUI: true,
                     zoomControl: true,

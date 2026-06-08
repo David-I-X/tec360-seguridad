@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Alert, Image, Dimensions, Linking, Platform, RefreshControl,
+  Modal, TextInput, KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +25,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { getServiceById, fetchWithAuth, getAuthToken, API_URL } from '@/lib/api';
 import { ServicePinMarker, MyLocationMarker } from '@/components/map-markers';
 import { serviceWebSocket } from '@/lib/websocket';
+import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -71,6 +73,12 @@ export default function TechServiceScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [paymentRegistered, setPaymentRegistered] = useState(false);
   const [isRegisteringPayment, setIsRegisteringPayment] = useState(false);
+  const [incidentModalVisible, setIncidentModalVisible] = useState(false);
+  const [incidentData, setIncidentData] = useState({ type: 'other', desc: '' });
+  const [isSubmittingIncident, setIsSubmittingIncident] = useState(false);
+  const [adjustmentModalVisible, setAdjustmentModalVisible] = useState(false);
+  const [adjustmentData, setAdjustmentData] = useState({ amount: '', desc: '' });
+  const [isSubmittingAdjustment, setIsSubmittingAdjustment] = useState(false);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const mapRef = useRef<any>(null);
   const lastRouteFetch = useRef<{ lat: number; lng: number } | null>(null);
@@ -258,6 +266,60 @@ export default function TechServiceScreen() {
       Alert.alert('Error', err.message);
     } finally {
       setIsRegisteringPayment(false);
+    }
+  };
+
+  const handleReportIncident = async () => {
+    if (!incidentData.desc || incidentData.desc.length < 10) {
+      Alert.alert('Error', 'La descripción debe tener al menos 10 caracteres');
+      return;
+    }
+    setIsSubmittingIncident(true);
+    try {
+      const res = await fetchWithAuth(`/services/${id}/incident`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          incident_type: incidentData.type,
+          description: incidentData.desc
+        })
+      });
+      if (!res.ok) throw new Error('Error al reportar incidente');
+      Alert.alert('Incidente reportado', 'El equipo de soporte ha sido notificado.');
+      setIncidentModalVisible(false);
+      setIncidentData({ type: 'other', desc: '' });
+      loadService();
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setIsSubmittingIncident(false);
+    }
+  };
+
+  const handlePriceAdjustment = async () => {
+    const amount = Number(adjustmentData.amount);
+    if (!amount || amount <= 0 || !adjustmentData.desc) {
+      Alert.alert('Error', 'Ingresa un monto válido y una descripción');
+      return;
+    }
+    setIsSubmittingAdjustment(true);
+    try {
+      const res = await fetchWithAuth(`/services/${id}/price-adjustment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount,
+          description: adjustmentData.desc
+        })
+      });
+      if (!res.ok) throw new Error('Error al solicitar ajuste');
+      Alert.alert('Solicitud enviada', 'El cliente debe aprobar este ajuste.');
+      setAdjustmentModalVisible(false);
+      setAdjustmentData({ amount: '', desc: '' });
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setIsSubmittingAdjustment(false);
     }
   };
 
@@ -475,7 +537,119 @@ export default function TechServiceScreen() {
             )}
           </View>
         )}
+
+        {/* Secondary Actions (Report Incident / Price Adjustment) */}
+        {service?.status !== 'completed' && service?.status !== 'cancelled' && (
+          <View style={styles.secondaryActionsContainer}>
+            <TouchableOpacity 
+              style={styles.secondaryBtn}
+              onPress={() => setIncidentModalVisible(true)}
+            >
+              <Ionicons name="warning-outline" size={20} color="#f59e0b" />
+              <Text style={styles.secondaryBtnText}>Reportar Incidente</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.secondaryBtn}
+              onPress={() => setAdjustmentModalVisible(true)}
+            >
+              <Ionicons name="pricetag-outline" size={20} color="#3b82f6" />
+              <Text style={styles.secondaryBtnText}>Ajuste de Monto</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
+
+      {/* Incident Modal */}
+      <Modal visible={incidentModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Reportar Incidente</Text>
+              <TouchableOpacity onPress={() => setIncidentModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#f0f0f5" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.incidentTypes}>
+              {[
+                { id: 'client_absent', label: 'Cliente ausente' },
+                { id: 'vehicle_mismatch', label: 'Vehículo diferente' },
+                { id: 'device_incompatible', label: 'Incompatible' },
+                { id: 'security_issue', label: 'Seguridad' },
+                { id: 'other', label: 'Otro' },
+              ].map(type => (
+                <TouchableOpacity
+                  key={type.id}
+                  style={[styles.typeBtn, incidentData.type === type.id && styles.typeBtnActive]}
+                  onPress={() => setIncidentData({ ...incidentData, type: type.id })}
+                >
+                  <Text style={[styles.typeText, incidentData.type === type.id && styles.typeTextActive]}>
+                    {type.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={styles.textArea}
+              placeholder="Describe el incidente (mínimo 10 caracteres)..."
+              placeholderTextColor="#555872"
+              multiline
+              value={incidentData.desc}
+              onChangeText={text => setIncidentData({ ...incidentData, desc: text })}
+            />
+            <TouchableOpacity 
+              style={[styles.submitBtn, { backgroundColor: '#f59e0b' }]} 
+              onPress={handleReportIncident}
+              disabled={isSubmittingIncident}
+            >
+              {isSubmittingIncident ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Reportar Incidente</Text>}
+            </TouchableOpacity>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      {/* Adjustment Modal */}
+      <Modal visible={adjustmentModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Ajuste de Monto</Text>
+              <TouchableOpacity onPress={() => setAdjustmentModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#f0f0f5" />
+              </TouchableOpacity>
+            </View>
+            <Text style={{ color: '#8b8fa3', fontSize: 13, marginBottom: 16 }}>
+              Solicita un pago extra por viáticos, materiales adicionales o tiempo extra.
+            </Text>
+            <View style={styles.inputWrap}>
+              <Text style={styles.currencySymbol}>$</Text>
+              <TextInput
+                style={styles.amountInput}
+                placeholder="Monto adicional"
+                placeholderTextColor="#555872"
+                keyboardType="numeric"
+                value={adjustmentData.amount}
+                onChangeText={text => setAdjustmentData({ ...adjustmentData, amount: text })}
+              />
+            </View>
+            <TextInput
+              style={[styles.textArea, { height: 80, marginTop: 12 }]}
+              placeholder="Razón del ajuste..."
+              placeholderTextColor="#555872"
+              multiline
+              value={adjustmentData.desc}
+              onChangeText={text => setAdjustmentData({ ...adjustmentData, desc: text })}
+            />
+            <TouchableOpacity 
+              style={[styles.submitBtn, { backgroundColor: '#3b82f6' }]} 
+              onPress={handlePriceAdjustment}
+              disabled={isSubmittingAdjustment}
+            >
+              {isSubmittingAdjustment ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Solicitar Ajuste</Text>}
+            </TouchableOpacity>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -489,39 +663,57 @@ const darkMapStyle = [
 ];
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#050810' },
-  centered: { flex: 1, backgroundColor: '#050810', justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  centered: { flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' },
   map: { width: SCREEN_WIDTH, height: 300 },
-  backBtn: { position: 'absolute', top: 56, left: 16, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(15,23,42,0.8)', justifyContent: 'center', alignItems: 'center', zIndex: 10 },
-  navBtn: { position: 'absolute', top: 56, right: 16, borderRadius: 20, overflow: 'hidden', zIndex: 10 },
-  navBtnGradient: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 },
-  navBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  etaOverlay: { position: 'absolute', top: 100, left: 16, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(10,14,28,0.92)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)', zIndex: 10 },
-  etaText: { color: '#f0f0f5', fontSize: 13, fontWeight: '700' },
-  etaDivider: { color: '#555872', fontSize: 13 },
-  etaDistance: { color: '#8b8fa3', fontSize: 12 },
-  sheet: { flex: 1, backgroundColor: '#050810', borderTopLeftRadius: 24, borderTopRightRadius: 24, marginTop: -24, paddingHorizontal: 20, paddingTop: 24 },
-  serviceTitle: { color: '#f0f0f5', fontSize: 22, fontWeight: '800', marginBottom: 14 },
-  infoGrid: { gap: 10, marginBottom: 14 },
-  infoCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(80,60,160,0.15)' },
-  infoIconBox: { width: 36, height: 36, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  infoLabel: { color: '#555872', fontSize: 11, fontWeight: '600', marginBottom: 2 },
-  infoValue: { color: '#f0f0f5', fontSize: 14, fontWeight: '700' },
-  infoSub: { color: '#8b8fa3', fontSize: 12, marginTop: 1 },
-  trackingBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(34,197,94,0.08)', borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)', borderRadius: 14, padding: 12, marginBottom: 14 },
-  trackingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#22c55e' },
-  trackingText: { color: '#22c55e', fontSize: 12, fontWeight: '600', flex: 1 },
-  clientCard: { backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 18, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
-  clientLabel: { color: '#555872', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 12 },
-  clientRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  backBtn: { position: 'absolute', top: 56, left: SPACING.md, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(15,23,42,0.8)', justifyContent: 'center', alignItems: 'center', zIndex: 10 },
+  navBtn: { position: 'absolute', top: 56, right: SPACING.md, borderRadius: 20, overflow: 'hidden', zIndex: 10 },
+  navBtnGradient: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.md, paddingVertical: 10, borderRadius: 20 },
+  navBtnText: { color: '#fff', fontSize: 13, fontWeight: FONTS.weights.bold },
+  etaOverlay: { position: 'absolute', top: 100, left: SPACING.md, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, backgroundColor: 'rgba(10,14,28,0.92)', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border, zIndex: 10 },
+  etaText: { color: COLORS.text, fontSize: 13, fontWeight: FONTS.weights.bold },
+  etaDivider: { color: COLORS.textMuted, fontSize: 13 },
+  etaDistance: { color: COLORS.textSecondary, fontSize: FONTS.sizes.xs },
+  sheet: { flex: 1, backgroundColor: COLORS.bg, borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl, marginTop: -SPACING.lg, paddingHorizontal: 20, paddingTop: SPACING.lg },
+  serviceTitle: { color: COLORS.text, fontSize: 22, fontWeight: '800', marginBottom: SPACING.md },
+  infoGrid: { gap: 12, marginBottom: SPACING.md },
+  infoCard: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: RADIUS.lg, padding: 20, borderWidth: 1, borderColor: COLORS.borderLight },
+  infoIconBox: { width: 36, height: 36, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center' },
+  infoLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: FONTS.weights.semibold, marginBottom: 2 },
+  infoValue: { color: COLORS.text, fontSize: FONTS.sizes.sm, fontWeight: FONTS.weights.bold },
+  infoSub: { color: COLORS.textSecondary, fontSize: FONTS.sizes.xs, marginTop: 1 },
+  trackingBanner: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, backgroundColor: 'rgba(34,197,94,0.08)', borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)', borderRadius: 14, padding: SPACING.md, marginBottom: SPACING.md },
+  trackingDot: { width: SPACING.sm, height: SPACING.sm, borderRadius: SPACING.xs, backgroundColor: COLORS.green },
+  trackingText: { color: COLORS.green, fontSize: FONTS.sizes.xs, fontWeight: FONTS.weights.semibold, flex: 1 },
+  clientCard: { backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 18, padding: 20, marginBottom: SPACING.md, borderWidth: 1, borderColor: COLORS.border },
+  clientLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: FONTS.weights.bold, letterSpacing: 1, marginBottom: SPACING.md },
+  clientRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   clientAvatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
-  clientInitial: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  clientName: { color: '#f0f0f5', fontSize: 16, fontWeight: '700' },
-  clientPhone: { color: '#8b8fa3', fontSize: 12, marginTop: 2 },
-  phoneBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(34,197,94,0.1)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' },
-  actionBtn: { borderRadius: 18, overflow: 'hidden', marginTop: 8, marginBottom: 16 },
-  actionGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 18, borderRadius: 18 },
+  clientInitial: { color: '#fff', fontSize: FONTS.sizes.md, fontWeight: '800' },
+  clientName: { color: COLORS.text, fontSize: FONTS.sizes.md, fontWeight: FONTS.weights.bold },
+  clientPhone: { color: COLORS.textSecondary, fontSize: FONTS.sizes.xs, marginTop: 2 },
+  phoneBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.greenMuted, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.greenBorder },
+  actionBtn: { borderRadius: 18, overflow: 'hidden', marginTop: SPACING.sm, marginBottom: SPACING.md },
+  actionGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 18, borderRadius: 18 },
   actionEmoji: { fontSize: 22 },
-  actionText: { color: '#fff', fontSize: 18, fontWeight: '800' },
-  completedBanner: { alignItems: 'center', marginTop: 8, padding: 20, backgroundColor: 'rgba(34,197,94,0.1)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' },
+  actionText: { color: '#fff', fontSize: FONTS.sizes.lg, fontWeight: '800' },
+  completedBanner: { alignItems: 'center', marginTop: SPACING.sm, padding: 20, backgroundColor: 'rgba(34,197,94,0.1)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' },
+  secondaryActionsContainer: { flexDirection: 'row', gap: SPACING.md, marginTop: SPACING.md },
+  secondaryBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, backgroundColor: 'rgba(10,14,28,0.8)', paddingVertical: SPACING.md, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.border },
+  secondaryBtnText: { color: COLORS.text, fontSize: 13, fontWeight: FONTS.weights.semibold },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#18181b', borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl, padding: SPACING.lg, paddingBottom: Platform.OS === 'ios' ? 40 : SPACING.lg },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  modalTitle: { color: COLORS.text, fontSize: FONTS.sizes.xl, fontWeight: '800' },
+  incidentTypes: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginBottom: SPACING.md },
+  typeBtn: { paddingHorizontal: 14, paddingVertical: SPACING.sm, borderRadius: RADIUS.md, backgroundColor: 'rgba(10,14,28,0.8)', borderWidth: 1, borderColor: COLORS.border },
+  typeBtnActive: { backgroundColor: 'rgba(245,158,11,0.15)', borderColor: '#f59e0b' },
+  typeText: { color: COLORS.textSecondary, fontSize: 13, fontWeight: FONTS.weights.semibold },
+  typeTextActive: { color: '#f59e0b' },
+  textArea: { backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: RADIUS.lg, padding: SPACING.md, color: COLORS.text, fontSize: FONTS.sizes.sm, height: 100, textAlignVertical: 'top', borderWidth: 1, borderColor: COLORS.border, marginBottom: 20 },
+  submitBtn: { paddingVertical: SPACING.md, borderRadius: RADIUS.lg, alignItems: 'center' },
+  submitBtnText: { color: '#fff', fontSize: FONTS.sizes.md, fontWeight: FONTS.weights.bold },
+  inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: RADIUS.lg, paddingHorizontal: SPACING.md, borderWidth: 1, borderColor: COLORS.border },
+  currencySymbol: { color: COLORS.textMuted, fontSize: FONTS.sizes.xl, fontWeight: FONTS.weights.bold, marginRight: SPACING.sm },
+  amountInput: { flex: 1, color: COLORS.text, fontSize: FONTS.sizes.xl, paddingVertical: SPACING.md, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
 });

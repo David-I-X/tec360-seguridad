@@ -42,6 +42,15 @@ export default function TechLayout() {
         }}
       />
       <Tabs.Screen
+        name="wallet"
+        options={{
+          title: 'Billetera',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="wallet-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Perfil',
@@ -57,6 +66,7 @@ export default function TechLayout() {
       <Tabs.Screen name="quotation/[id]/new" options={{ href: null }} />
       <Tabs.Screen name="edit-profile" options={{ href: null }} />
       <Tabs.Screen name="support" options={{ href: null }} />
+      <Tabs.Screen name="chat/[serviceId]" options={{ href: null }} />
     </Tabs>
   );
 }

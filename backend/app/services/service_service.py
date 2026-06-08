@@ -503,7 +503,7 @@ class ServiceService:
         except Exception as e:
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-    async def confirm_service(self, session: Session, service_id: str, client_id: str) -> ServiceResponse:
+    async def confirm_service(self, session: Session, service_id: str, client_id: str, payment_method: str = None) -> ServiceResponse:
         try:
             service = session.exec(select(Service).where(Service.id == service_id)).first()
             if not service:
@@ -518,6 +518,10 @@ class ServiceService:
             service.status = ServiceStatus.confirmed
             service.client_confirmed_at = datetime.utcnow()
             service.updated_at = datetime.utcnow()
+            
+            if payment_method:
+                service.payment_method = payment_method
+                service.payment_status = "paid" if payment_method == "online" else "pending"
             
             session.add(service)
             session.commit()
@@ -561,27 +565,74 @@ class ServiceService:
     async def find_nearby_technicians(self, session: Session, service_id: str, max_distance_km: int = 20) -> List[NearbyTechnicianResponse]:
         from app.models.technician import Technician
         from app.models.schedule import TechnicianSchedule
+        from geoalchemy2.functions import ST_DWithin, ST_Distance
+        from sqlalchemy import cast
+        from geoalchemy2 import Geography
+        from uuid import UUID
         from datetime import datetime
         import logging
         
+        try:
+            svc_uuid = UUID(service_id)
+        except ValueError:
+            return []
+            
+        service = session.get(Service, svc_uuid)
+        if not service or not service.service_location:
+            return []
+
         # 1. Obtener día actual
         current_day = datetime.utcnow().weekday() # 0 = Monday, 6 = Sunday
         
-        # 2. Buscar técnicos disponibles y con horario activo hoy
-        # Falta implementar la consulta PostGIS real para distancia.
-        query = select(Technician).join(
+        # 2. Buscar técnicos disponibles, con horario activo hoy, y dentro de la distancia
+        max_distance_meters = max_distance_km * 1000
+        
+        query = select(
+            Technician, 
+            User, 
+            ST_Distance(
+                cast(Technician.current_location, Geography), 
+                cast(service.service_location, Geography)
+            ).label("distance_meters")
+        ).join(
+            User, Technician.user_id == User.id
+        ).join(
             TechnicianSchedule, Technician.user_id == TechnicianSchedule.technician_id
         ).where(
             Technician.is_available == True,
+            User.is_active == True,
             TechnicianSchedule.day_of_week == current_day,
-            TechnicianSchedule.is_active == True
+            TechnicianSchedule.is_active == True,
+            Technician.current_location != None,
+            ST_DWithin(
+                cast(Technician.current_location, Geography), 
+                cast(service.service_location, Geography), 
+                max_distance_meters
+            )
         )
         
-        techs = session.exec(query).all()
-        logging.info(f"Técnicos encontrados con horario activo hoy: {len(techs)}")
+        results = session.exec(query).all()
+        logging.info(f"Técnicos cercanos encontrados: {len(results)}")
         
-        # Implementación Mock para distancia
-        return []
+        response_list = []
+        for tech, user, distance in results:
+            # Check if tech has capacity or within their own radius
+            if distance > (tech.service_radius_km * 1000):
+                continue
+                
+            response_list.append(NearbyTechnicianResponse(
+                id=str(user.id),
+                full_name=user.full_name,
+                distance_km=round(distance / 1000, 2),
+                rank=tech.rank,
+                average_rating=tech.average_rating,
+                total_services=tech.total_services
+            ))
+            
+        # Order by distance
+        response_list.sort(key=lambda x: x.distance_km)
+        
+        return response_list
 
     def _to_response(self, service: Service, client_name: str = None, client: User = None, technician: User = None) -> ServiceResponse:
         """Helper para convertir DB model a Response Schema"""

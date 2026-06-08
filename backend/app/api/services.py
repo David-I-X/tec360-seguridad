@@ -312,16 +312,19 @@ async def update_service(
 @router.patch("/{service_id}/confirm", response_model=ServiceResponse)
 async def confirm_service(
     service_id: str = Path(..., description="UUID del servicio"),
+    payment_method: str = Query(None, description="Método de pago (online/cash)"),
     current_user: dict = Depends(require_roles("client")),
     session: Session = Depends(get_session)
 ):
     """
     Permite al cliente confirmar que el servicio fue completado satisfactoriamente.
+    Opcionalmente registra el método de pago elegido.
     """
     return await service_service.confirm_service(
         session=session,
         service_id=service_id,
-        client_id=current_user["id"]
+        client_id=current_user["id"],
+        payment_method=payment_method
     )
 
 
@@ -456,11 +459,16 @@ async def report_incident(
         
     return {"success": True, "message": "Incidente reportado, servicio pausado"}
 
+from pydantic import BaseModel
+
+class PriceAdjustmentRequest(BaseModel):
+    amount: float
+    description: str
+
 @router.post("/{service_id}/price-adjustment", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def request_price_adjustment(
     service_id: str,
-    amount: float,
-    description: str,
+    payload: PriceAdjustmentRequest,
     current_user: dict = Depends(require_roles("technician")),
     session: Session = Depends(get_session)
 ):
@@ -486,12 +494,17 @@ async def request_price_adjustment(
     quotation = Quotation(
         service_id=service.id,
         technician_id=current_user["id"],
-        amount=amount,
-        description=description,
+        amount=payload.amount,
+        description=payload.description,
         is_adjustment=True,
         status=QuotationStatus.pending
     )
     session.add(quotation)
+    
+    # Pausar el servicio hasta que el cliente responda
+    service.status = ServiceStatus.paused
+    session.add(service)
+    
     session.commit()
     
     # Notificar al cliente
@@ -503,7 +516,7 @@ async def request_price_adjustment(
             data=NotificationCreate(
                 user_id=service.client_id,
                 title="Ajuste de precio requerido",
-                message=f"El técnico solicita un ajuste a ${amount:,.0f}. Motivo: {description}",
+                message=f"El técnico solicita un ajuste a ${payload.amount:,.0f}. Motivo: {payload.description}",
                 notification_type="price_adjustment",
                 service_id=service.id
             )

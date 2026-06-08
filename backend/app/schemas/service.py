@@ -6,6 +6,7 @@ from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel, Field, validator
 from decimal import Decimal
+from enum import Enum
 
 
 # ============================================

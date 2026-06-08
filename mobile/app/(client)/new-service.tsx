@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { fetchWithAuth, API_URL } from '@/lib/api';
+import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
 
 const SERVICE_TYPES = [
   { key: 'gps_installation', label: 'Instalación GPS', emoji: '📍' },
@@ -348,7 +349,23 @@ export default function NewServiceScreen() {
                       return;
                     }
                     let location = await Location.getCurrentPositionAsync({});
-                    setRecAddress('Ubicación obtenida por GPS');
+                    
+                    try {
+                      const geocodeResult = await Location.reverseGeocodeAsync({
+                        latitude: location.coords.latitude,
+                        longitude: location.coords.longitude
+                      });
+                      
+                      if (geocodeResult && geocodeResult.length > 0) {
+                        const addr = geocodeResult[0];
+                        const formattedAddr = [addr.street, addr.streetNumber, addr.city].filter(Boolean).join(', ');
+                        setRecAddress(formattedAddr || 'Ubicación obtenida por GPS');
+                      } else {
+                        setRecAddress('Ubicación obtenida por GPS');
+                      }
+                    } catch (geocerr) {
+                      setRecAddress('Ubicación obtenida por GPS');
+                    }
                   } catch (e) {
                     Alert.alert('Aviso', 'Ingresa tu ubicación manualmente.');
                   }
@@ -504,51 +521,51 @@ export default function NewServiceScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#050810' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16 },
-  headerTitle: { color: '#f0f0f5', fontSize: 18, fontWeight: '700' },
-  stepsRow: { flexDirection: 'row', justifyContent: 'center', gap: 32, paddingBottom: 20 },
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 60, paddingBottom: SPACING.md },
+  headerTitle: { color: COLORS.text, fontSize: FONTS.sizes.lg, fontWeight: FONTS.weights.bold },
+  stepsRow: { flexDirection: 'row', justifyContent: 'center', gap: SPACING.xl, paddingBottom: 20 },
   stepItem: { alignItems: 'center', gap: 6 },
   stepDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(80,60,160,0.4)' },
-  stepDotActive: { backgroundColor: '#8b5cf6' },
-  stepLabel: { color: '#555872', fontSize: 11, fontWeight: '600' },
-  stepLabelActive: { color: '#8b5cf6' },
+  stepDotActive: { backgroundColor: COLORS.primary },
+  stepLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: FONTS.weights.semibold },
+  stepLabelActive: { color: COLORS.primary },
   form: { flex: 1, paddingHorizontal: 20 },
   stepContent: {},
-  sectionTitle: { color: '#f0f0f5', fontSize: 20, fontWeight: '800', marginBottom: 20 },
-  typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
-  typeCard: { width: '47%' as any, backgroundColor: 'rgba(10,14,28,0.85)', borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 2, borderColor: 'rgba(80,60,160,0.2)' },
-  typeCardActive: { borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.1)' },
-  typeEmoji: { fontSize: 28, marginBottom: 8 },
-  typeLabel: { color: '#8b8fa3', fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  typeLabelActive: { color: '#8b5cf6' },
-  inputLabel: { color: '#8b8fa3', fontSize: 13, fontWeight: '600', marginBottom: 8, marginLeft: 4 },
-  input: { backgroundColor: 'rgba(15,23,42,0.8)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(80,60,160,0.4)', paddingVertical: 14, paddingHorizontal: 16, color: '#f0f0f5', fontSize: 15, marginBottom: 16 },
-  photoRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  photoButton: { flex: 1, backgroundColor: 'rgba(10,14,28,0.85)', borderRadius: 14, padding: 20, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(139,92,246,0.2)' },
-  photoButtonText: { color: '#8b5cf6', fontSize: 13, fontWeight: '600' },
-  photoPreview: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
-  photoPreviewText: { color: '#22c55e', fontSize: 13 },
-  bottomActions: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, paddingBottom: 36, paddingTop: 12, backgroundColor: '#050810', borderTopWidth: 1, borderTopColor: 'rgba(80,60,160,0.2)' },
+  sectionTitle: { color: COLORS.text, fontSize: FONTS.sizes.xl, fontWeight: '800', marginBottom: 20 },
+  typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: SPACING.lg },
+  typeCard: { width: '47%' as any, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 20, alignItems: 'center', borderWidth: 2, borderColor: COLORS.border },
+  typeCardActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryMuted },
+  typeEmoji: { fontSize: 28, marginBottom: SPACING.sm },
+  typeLabel: { color: COLORS.textSecondary, fontSize: 13, fontWeight: FONTS.weights.semibold, textAlign: 'center' },
+  typeLabelActive: { color: COLORS.primary },
+  inputLabel: { color: COLORS.textSecondary, fontSize: 13, fontWeight: FONTS.weights.semibold, marginBottom: SPACING.sm, marginLeft: SPACING.xs },
+  input: { backgroundColor: 'rgba(15,23,42,0.8)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(80,60,160,0.4)', paddingVertical: SPACING.md, paddingHorizontal: SPACING.md, color: COLORS.text, fontSize: 15, marginBottom: SPACING.md },
+  photoRow: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.md },
+  photoButton: { flex: 1, backgroundColor: COLORS.bgCard, borderRadius: 14, padding: 20, alignItems: 'center', gap: SPACING.sm, borderWidth: 1, borderColor: COLORS.primaryBorder },
+  photoButtonText: { color: COLORS.primary, fontSize: 13, fontWeight: FONTS.weights.semibold },
+  photoPreview: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: SPACING.sm },
+  photoPreviewText: { color: COLORS.green, fontSize: 13 },
+  bottomActions: { flexDirection: 'row', gap: SPACING.md, paddingHorizontal: 20, paddingBottom: 36, paddingTop: SPACING.md, backgroundColor: COLORS.bg, borderTopWidth: 1, borderTopColor: COLORS.border },
   backBtn: { justifyContent: 'center', paddingHorizontal: 20 },
-  backBtnText: { color: '#8b8fa3', fontSize: 15, fontWeight: '600' },
-  nextBtn: { flex: 1, borderRadius: 16, overflow: 'hidden' },
-  nextBtnGradient: { paddingVertical: 16, alignItems: 'center', borderRadius: 16 },
-  nextBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  backBtnText: { color: COLORS.textSecondary, fontSize: 15, fontWeight: FONTS.weights.semibold },
+  nextBtn: { flex: 1, borderRadius: RADIUS.lg, overflow: 'hidden' },
+  nextBtnGradient: { paddingVertical: SPACING.md, alignItems: 'center', borderRadius: RADIUS.lg },
+  nextBtnText: { color: '#fff', fontSize: FONTS.sizes.md, fontWeight: FONTS.weights.bold },
   // Mode selector
-  modeRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginBottom: 16 },
-  modeBtn: { flex: 1, backgroundColor: 'rgba(10,14,28,0.85)', borderRadius: 14, padding: 14, alignItems: 'center', borderWidth: 2, borderColor: 'rgba(80,60,160,0.2)', gap: 4 },
-  modeBtnActive: { borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.1)' },
-  modeBtnRecovery: { borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)' },
+  modeRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, marginBottom: SPACING.md },
+  modeBtn: { flex: 1, backgroundColor: COLORS.bgCard, borderRadius: 14, padding: 20, alignItems: 'center', borderWidth: 2, borderColor: COLORS.border, gap: SPACING.xs },
+  modeBtnActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryMuted },
+  modeBtnRecovery: { borderColor: COLORS.red, backgroundColor: COLORS.redMuted },
   modeEmoji: { fontSize: 22 },
-  modeBtnText: { color: '#8b8fa3', fontSize: 12, fontWeight: '700' },
-  modeBtnTextActive: { color: '#8b5cf6' },
-  modeBtnTextRecovery: { color: '#ef4444' },
+  modeBtnText: { color: COLORS.textSecondary, fontSize: FONTS.sizes.xs, fontWeight: FONTS.weights.bold },
+  modeBtnTextActive: { color: COLORS.primary },
+  modeBtnTextRecovery: { color: COLORS.red },
   // Recovery
-  recoveryBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: 6, backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginBottom: 16 },
-  recoveryBadgeText: { color: '#ef4444', fontSize: 12, fontWeight: '600' },
-  typeCardRecovery: { borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)' },
-  gpsOption: { flex: 1, backgroundColor: 'rgba(10,14,28,0.85)', borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 2, borderColor: 'rgba(80,60,160,0.2)' },
-  gpsOptionActive: { borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)' },
-  gpsOptionText: { color: '#8b8fa3', fontSize: 13, fontWeight: '600' },
+  recoveryBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: 6, backgroundColor: COLORS.redMuted, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', borderRadius: RADIUS.round, paddingHorizontal: SPACING.md, paddingVertical: 6, marginBottom: SPACING.md },
+  recoveryBadgeText: { color: COLORS.red, fontSize: FONTS.sizes.xs, fontWeight: FONTS.weights.semibold },
+  typeCardRecovery: { borderColor: COLORS.red, backgroundColor: COLORS.redMuted },
+  gpsOption: { flex: 1, backgroundColor: COLORS.bgCard, borderRadius: 10, padding: SPACING.md, alignItems: 'center', borderWidth: 2, borderColor: COLORS.border },
+  gpsOptionActive: { borderColor: COLORS.red, backgroundColor: COLORS.redMuted },
+  gpsOptionText: { color: COLORS.textSecondary, fontSize: 13, fontWeight: FONTS.weights.semibold },
 });

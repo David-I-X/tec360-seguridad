@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useAuth } from '@/lib/auth-context';
 import { fetchWithAuth, API_URL } from '@/lib/api';
+import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
 
 export default function TechProfileScreen() {
   const router = useRouter();
@@ -145,23 +146,23 @@ export default function TechProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#050810' },
+  container: { flex: 1, backgroundColor: COLORS.bg },
   header: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 10 },
-  headerTitle: { color: '#f0f0f5', fontSize: 24, fontWeight: '800' },
-  avatarContainer: { alignItems: 'center', paddingVertical: 24 },
+  headerTitle: { color: COLORS.text, fontSize: FONTS.sizes.xxl, fontWeight: '800' },
+  avatarContainer: { alignItems: 'center', paddingVertical: SPACING.lg },
   avatar: { width: 96, height: 96, borderRadius: 48, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
-  avatarText: { color: '#fff', fontSize: 32, fontWeight: '800' },
-  cameraIcon: { position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: '#8b5cf6', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#050810' },
-  name: { color: '#f0f0f5', fontSize: 22, fontWeight: '800', marginTop: 12 },
-  phone: { color: '#8b8fa3', fontSize: 14, marginTop: 4 },
-  email: { color: '#555872', fontSize: 13, marginTop: 2 },
-  statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginBottom: 24 },
-  statCard: { flex: 1, backgroundColor: 'rgba(10,14,28,0.85)', borderRadius: 16, padding: 16, alignItems: 'center', gap: 6, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
-  statNumber: { color: '#f0f0f5', fontSize: 20, fontWeight: '800' },
-  statLabel: { color: '#555872', fontSize: 11 },
-  menuSection: { marginHorizontal: 20, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 18, overflow: 'hidden', marginBottom: 24, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
-  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 18, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(80,60,160,0.15)' },
-  menuText: { flex: 1, color: '#f0f0f5', fontSize: 15, fontWeight: '600' },
-  logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 20, paddingVertical: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', backgroundColor: 'rgba(239,68,68,0.08)' },
-  logoutText: { color: '#ef4444', fontSize: 15, fontWeight: '700' },
+  avatarText: { color: '#fff', fontSize: FONTS.sizes.title, fontWeight: '800' },
+  cameraIcon: { position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.bg },
+  name: { color: COLORS.text, fontSize: 22, fontWeight: '800', marginTop: SPACING.md },
+  phone: { color: COLORS.textSecondary, fontSize: FONTS.sizes.sm, marginTop: SPACING.xs },
+  email: { color: COLORS.textMuted, fontSize: 13, marginTop: 2 },
+  statsRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, marginBottom: SPACING.lg },
+  statCard: { flex: 1, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 20, alignItems: 'center', gap: SPACING.sm, borderWidth: 1, borderColor: COLORS.border },
+  statNumber: { color: COLORS.text, fontSize: FONTS.sizes.xl, fontWeight: '800' },
+  statLabel: { color: COLORS.textMuted, fontSize: 11 },
+  menuSection: { marginHorizontal: 20, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 18, overflow: 'hidden', marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 20, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: COLORS.borderLight },
+  menuText: { flex: 1, color: COLORS.text, fontSize: 15, fontWeight: FONTS.weights.semibold },
+  logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, marginHorizontal: 20, paddingVertical: SPACING.md, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', backgroundColor: 'rgba(239,68,68,0.08)' },
+  logoutText: { color: COLORS.red, fontSize: 15, fontWeight: FONTS.weights.bold },
 });

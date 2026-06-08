@@ -76,10 +76,46 @@ async def check_zombie_services():
     except Exception as e:
         logger.error(f"Error in check_zombie_services: {e}")
 
+async def check_pending_services():
+    """
+    Se ejecuta cada 15 minutos.
+    Revisa servicios pendientes:
+    - > 2 horas: Alerta al cliente para expandir búsqueda o reprogramar
+    """
+    logger.info("Running check_pending_services task...")
+    try:
+        with SessionLocal() as session:
+            now = datetime.utcnow()
+            two_hours_ago = now - timedelta(hours=2)
+
+            pending = session.exec(
+                select(Service).where(Service.status == ServiceStatus.pending)
+            ).all()
+
+            from app.services.notification_service import NotificationService
+            from app.schemas.notification import NotificationCreate
+
+            for service in pending:
+                if service.created_at <= two_hours_ago:
+                    # Notify client about delay
+                    await NotificationService.create_notification(
+                        session=session,
+                        data=NotificationCreate(
+                            user_id=service.client_id,
+                            title="Demora en asignación",
+                            message="Tu servicio lleva más de 2 horas sin ser asignado. Intentaremos buscar en un área más amplia.",
+                            notification_type="system_alert",
+                            service_id=service.id
+                        )
+                    )
+            session.commit()
+    except Exception as e:
+        logger.error(f"Error in check_pending_services: {e}")
+
 def start_scheduler():
     """Inicia el scheduler y registra las tareas."""
-    # Ejecutar check_zombie_services cada 30 minutos
     scheduler.add_job(check_zombie_services, "interval", minutes=30, id="zombie_check", replace_existing=True)
+    scheduler.add_job(check_pending_services, "interval", minutes=15, id="pending_check", replace_existing=True)
     scheduler.start()
     logger.info("APScheduler started with jobs: %s", scheduler.get_jobs())
 

@@ -23,19 +23,22 @@ from app.services.verification_service import verification_service
 router = APIRouter(prefix="/verification", tags=["Verification"])
 
 
-def get_current_technician(current_user: User = Depends(get_current_user), session: Session = Depends(get_session)) -> Technician:
-    if current_user.role != "technician":
+def get_current_technician(current_user: dict = Depends(get_current_user), session: Session = Depends(get_session)) -> Technician:
+    if current_user["role"] != "technician":
         raise HTTPException(status_code=403, detail="Not a technician")
-    tech = session.exec(select(Technician).where(Technician.user_id == current_user.id)).first()
+    tech = session.exec(select(Technician).where(Technician.user_id == UUID(current_user["id"]))).first()
     if not tech:
         raise HTTPException(status_code=404, detail="Technician profile not found")
     return tech
 
 
-def get_current_admin(current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
+def get_current_admin(current_user: dict = Depends(get_current_user), session: Session = Depends(get_session)):
+    if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Requires admin role")
-    return current_user
+    user = session.get(User, UUID(current_user["id"]))
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
 
 
 # --- Technician Endpoints ---
@@ -104,7 +107,7 @@ def get_pending_verifications(
         response.append(
             PendingTechnicianResponse(
                 technician_id=tech.id,
-                full_name=f"{user.first_name} {user.last_name}".strip(),
+                full_name=user.full_name or "Sin nombre",
                 phone=user.phone,
                 uploaded_at=docs[0].uploaded_at if docs else None,
                 documents_count=len(docs)
