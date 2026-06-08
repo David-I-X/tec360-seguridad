@@ -15,6 +15,10 @@ from app.api import location as location_router
 from app.api import notifications as notifications_router
 from app.api import quotations as quotations_router
 from app.api import payments as payments_router
+from app.api import credits as credits_router
+from app.api import reputation as reputation_router
+from app.api import chat as chat_router
+from app.api import verification as verification_router
 import os
 import logging
 import time
@@ -160,19 +164,15 @@ app.include_router(quotations_router.router)
 app.include_router(payments_router.router)
 
 # Credits (Sprint 1)
-from app.api import credits as credits_router
 app.include_router(credits_router.router)
 
 # Reputation (public)
-from app.api import reputation as reputation_router
 app.include_router(reputation_router.router)
 
 # Chat (messages REST endpoints for service chat)
-from app.api import chat as chat_router
 app.include_router(chat_router.router)
 
 # Verification (technician documents + quiz)
-from app.api import verification as verification_router
 app.include_router(verification_router.router)
 
 # Simulation (development only — excluded in production)

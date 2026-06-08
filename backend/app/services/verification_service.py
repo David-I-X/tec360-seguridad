@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Tuple
+from typing import List
 from fastapi import HTTPException
 from sqlmodel import Session, select
 from datetime import datetime, timedelta
@@ -7,7 +7,7 @@ import random
 import logging
 
 from app.models.technician import Technician
-from app.models.user import User
+
 from app.models.verification import (
     VerificationStatus,
     DocumentStatus,
@@ -131,7 +131,7 @@ class VerificationService:
             select(QuizAttempt).where(
                 QuizAttempt.technician_id == technician_id,
                 QuizAttempt.specialization == specialization,
-                QuizAttempt.passed == False
+                QuizAttempt.passed.is_(False)
             ).order_by(QuizAttempt.started_at.desc())
         ).first()
         
@@ -141,7 +141,7 @@ class VerificationService:
         questions = session.exec(
             select(QuizQuestion).where(
                 QuizQuestion.specialization == specialization,
-                QuizQuestion.is_active == True
+                QuizQuestion.is_active
             )
         ).all()
         

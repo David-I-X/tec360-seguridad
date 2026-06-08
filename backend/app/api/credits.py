@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from app.core.database import get_session
-from app.core.security import get_current_user, require_roles
+from app.core.security import require_roles
 from app.services.credit_service import credit_service
 from app.models.service import Service
 

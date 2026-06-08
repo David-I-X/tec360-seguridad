@@ -16,8 +16,15 @@ from app.schemas.technician import (
     TechnicianPublicProfile,
     TechnicianStatsResponse,
     TechnicianLocationUpdate,
-    TechnicianAvailabilityUpdate
+    TechnicianAvailabilityUpdate,
+    TechnicianScheduleCreate,
+    TechnicianScheduleResponse,
+    PortfolioImageCreate,
+    PortfolioImageResponse
 )
+from app.models.schedule import TechnicianSchedule
+from app.models.portfolio import PortfolioImage
+from datetime import datetime
 from app.services.technician_service import technician_service
 
 
@@ -365,9 +372,6 @@ async def get_top_rated_technicians(
 # HORARIOS (SCHEDULE)
 # ============================================
 
-from app.models.schedule import TechnicianSchedule
-from app.schemas.technician import TechnicianScheduleCreate, TechnicianScheduleResponse
-from datetime import datetime
 
 @router.post("/me/schedule", response_model=TechnicianScheduleResponse, status_code=status.HTTP_201_CREATED)
 async def create_my_schedule(
@@ -454,8 +458,6 @@ async def get_my_schedule(
 # PORTAFOLIO (PORTFOLIO)
 # ============================================
 
-from app.models.portfolio import PortfolioImage
-from app.schemas.technician import PortfolioImageCreate, PortfolioImageResponse
 
 @router.post("/me/portfolio", response_model=PortfolioImageResponse, status_code=status.HTTP_201_CREATED)
 async def add_portfolio_image(

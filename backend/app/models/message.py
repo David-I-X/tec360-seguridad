@@ -1,7 +1,6 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 from sqlmodel import Field, SQLModel
-from typing import Optional
 
 class Message(SQLModel, table=True):
     __tablename__ = "messages"

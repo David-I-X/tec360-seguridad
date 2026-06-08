@@ -19,7 +19,11 @@ from app.schemas.service import (
 from app.schemas.incident import IncidentCreate
 from app.models.incident import IncidentReport
 from app.services.service_service import service_service
+from pydantic import BaseModel
 
+class PriceAdjustmentRequest(BaseModel):
+    amount: float
+    description: str
 
 router = APIRouter(prefix="/services", tags=["Services"])
 
@@ -416,6 +420,8 @@ async def report_incident(
     - Notifica al administrador
     """
     from uuid import UUID
+    from sqlmodel import select
+    from app.models.service import Service, ServiceStatus
     
     service = session.exec(select(Service).where(Service.id == UUID(service_id))).first()
     if not service:
@@ -435,7 +441,7 @@ async def report_incident(
     session.add(incident)
     
     # Pausar servicio
-    service.status = ServiceStatus.PAUSED
+    service.status = ServiceStatus.paused
     session.add(service)
     session.commit()
     
@@ -459,12 +465,6 @@ async def report_incident(
         
     return {"success": True, "message": "Incidente reportado, servicio pausado"}
 
-from pydantic import BaseModel
-
-class PriceAdjustmentRequest(BaseModel):
-    amount: float
-    description: str
-
 @router.post("/{service_id}/price-adjustment", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def request_price_adjustment(
     service_id: str,
@@ -479,6 +479,8 @@ async def request_price_adjustment(
     """
     from uuid import UUID
     from app.models.quotation import Quotation, QuotationStatus
+    from sqlmodel import select
+    from app.models.service import Service, ServiceStatus
     
     service = session.exec(select(Service).where(Service.id == UUID(service_id))).first()
     if not service:
@@ -487,7 +489,7 @@ async def request_price_adjustment(
     if str(service.technician_id) != current_user["id"]:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "No autorizado")
         
-    if service.status != ServiceStatus.IN_PROGRESS:
+    if service.status != ServiceStatus.in_progress:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Solo se pueden hacer ajustes si el servicio está en progreso")
         
     # Crear cotización de ajuste

@@ -10,7 +10,6 @@ from sqlalchemy.orm import sessionmaker
 
 from app.core.database import engine
 from app.models.service import Service, ServiceStatus
-from app.models.user import User
 
 logger = logging.getLogger(__name__)
 

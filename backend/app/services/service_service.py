@@ -599,11 +599,11 @@ class ServiceService:
         ).join(
             TechnicianSchedule, Technician.user_id == TechnicianSchedule.technician_id
         ).where(
-            Technician.is_available == True,
-            User.is_active == True,
+            Technician.is_available,
+            User.is_active,
             TechnicianSchedule.day_of_week == current_day,
-            TechnicianSchedule.is_active == True,
-            Technician.current_location != None,
+            TechnicianSchedule.is_active,
+            Technician.current_location.is_not(None),
             ST_DWithin(
                 cast(Technician.current_location, Geography), 
                 cast(service.service_location, Geography), 

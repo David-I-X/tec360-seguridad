@@ -20,7 +20,6 @@ from app.models.credit import (
     COMMISSION_RATE,
     FREE_SERVICES_LIMIT,
 )
-from app.models.service import Service
 
 
 class CreditService:
