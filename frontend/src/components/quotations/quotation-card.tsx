@@ -3,11 +3,12 @@
 import { motion } from "framer-motion"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Star, Clock, Check, X, MessageSquare, DollarSign, User } from "lucide-react"
+import { Clock, Check, X, MessageSquare, DollarSign, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Badge } from "@/components/ui/badge"
+import { TechLevel, getRankGlowClass } from "@/components/ui/tech-level"
 import { Quotation } from "@/lib/quotations"
 
 interface QuotationCardProps {
@@ -37,6 +38,9 @@ export function QuotationCard({
     isProcessing = false,
 }: QuotationCardProps) {
     const status = statusConfig[quotation.status] || statusConfig.pending
+    const techRank = (quotation as any).technician_rank || "bronze"
+    const techRankPoints = (quotation as any).technician_rank_points || 0
+    const glowClass = getRankGlowClass(techRank)
 
     return (
         <motion.div
@@ -48,22 +52,21 @@ export function QuotationCard({
                 {/* Header */}
                 <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <div className={`w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center ring-2 ${glowClass}`}>
                             <User className="h-5 w-5 text-primary" />
                         </div>
-                        <div>
-                            <p className="font-medium">
+                        <div className="space-y-1">
+                            <p className="font-semibold leading-none">
                                 {quotation.technician_name || "Técnico"}
                             </p>
-                            {quotation.technician_rating && (
-                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                                    <span>{quotation.technician_rating.toFixed(1)}</span>
-                                    {quotation.technician_total_services && (
-                                        <span>• {quotation.technician_total_services} servicios</span>
-                                    )}
-                                </div>
-                            )}
+                            <TechLevel
+                                rank={techRank}
+                                points={techRankPoints}
+                                rating={quotation.technician_rating || 0}
+                                totalServices={quotation.technician_total_services || 0}
+                                size="sm"
+                                showPoints={true}
+                            />
                         </div>
                     </div>
                     <Badge className={`${status.color} text-white flex items-center gap-1`}>

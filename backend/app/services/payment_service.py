@@ -163,5 +163,70 @@ class PaymentService:
             service_title=service.title if service else None,
         )
 
+    async def get_technician_summary(
+        self,
+        session: Session,
+        technician_id: str,
+    ):
+        """Get payment summary stats for a technician"""
+        from app.schemas.payment import TechnicianPaymentSummary
+
+        tech_uuid = UUID(technician_id)
+
+        # Total collected (confirmed_by_technician + confirmed_by_admin)
+        total_collected = session.exec(
+            select(func.coalesce(func.sum(Payment.amount), 0)).where(
+                Payment.technician_id == tech_uuid,
+                Payment.status.in_(["confirmed_by_technician", "confirmed_by_admin"]),
+            )
+        ).one()
+
+        payments_count = session.exec(
+            select(func.count()).where(
+                Payment.technician_id == tech_uuid,
+                Payment.status.in_(["confirmed_by_technician", "confirmed_by_admin"]),
+            )
+        ).one()
+
+        pending_validation = session.exec(
+            select(func.count()).where(
+                Payment.technician_id == tech_uuid,
+                Payment.status == "confirmed_by_technician",
+            )
+        ).one()
+
+        validated = session.exec(
+            select(func.count()).where(
+                Payment.technician_id == tech_uuid,
+                Payment.status == "confirmed_by_admin",
+            )
+        ).one()
+
+        return TechnicianPaymentSummary(
+            total_collected=float(total_collected),
+            payments_count=payments_count,
+            pending_validation=pending_validation,
+            validated=validated,
+        )
+
+    async def get_technician_payments(
+        self,
+        session: Session,
+        technician_id: str,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> PaymentListResponse:
+        """List payments registered by a specific technician"""
+        tech_uuid = UUID(technician_id)
+        query = select(Payment).where(Payment.technician_id == tech_uuid)
+
+        total = session.exec(select(func.count()).select_from(query.subquery())).one()
+        payments = session.exec(
+            query.order_by(Payment.created_at.desc()).offset(skip).limit(limit)
+        ).all()
+
+        items = [self._to_response(p, session) for p in payments]
+        return PaymentListResponse(items=items, total=total)
+
 
 payment_service = PaymentService()

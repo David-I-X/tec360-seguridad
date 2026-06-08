@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { GlassCard } from "@/components/ui/glass-card"
 import { LiveTrackingView } from "@/components/services/live-tracking-view"
 import { RatingModal } from "@/components/ratings/rating-modal"
+import PaymentModal from "@/components/PaymentModal"
 import { TrackingSimulator } from "@/components/services/tracking-simulator"
 import { StarDisplay } from "@/components/ui/star-rating"
 import { getAvatarUrl } from "@/lib/utils"
@@ -63,6 +64,7 @@ function ServiceDetailContent() {
     const [hasRated, setHasRated] = useState(false)
     const [isCancelling, setIsCancelling] = useState(false)
     const [isConfirming, setIsConfirming] = useState(false)
+    const [showPaymentModal, setShowPaymentModal] = useState(false)
 
     const handleCancel = async () => {
         setIsCancelling(true)
@@ -76,11 +78,11 @@ function ServiceDetailContent() {
         }
     }
 
-    const handleConfirm = async () => {
+    const handleConfirm = async (method: string) => {
         setIsConfirming(true)
         try {
-            await confirmService(params.id as string)
-            setService((prev: any) => ({ ...prev, status: "confirmed" }))
+            await confirmService(params.id as string, method)
+            setService((prev: any) => ({ ...prev, status: "confirmed", payment_method: method }))
         } catch (err: any) {
             console.error("Confirm error:", err)
         } finally {
@@ -319,33 +321,35 @@ function ServiceDetailContent() {
                                 </p>
                             </div>
                             <Button
-                                onClick={handleConfirm}
+                                onClick={() => setShowPaymentModal(true)}
                                 disabled={isConfirming}
                                 className="bg-blue-600 hover:bg-blue-700 text-white"
                             >
                                 {isConfirming ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                {isConfirming ? "Confirmando..." : "Confirmar Trabajo"}
+                                {isConfirming ? "Confirmando..." : "Confirmar y Pagar"}
                             </Button>
                         </div>
                     </GlassCard>
                 )}
 
-                {/* Rating prompt for confirmed services */}
-                {service.status === "confirmed" && user?.role === "client" && !hasRated && (
-                    <GlassCard className="p-6 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border-yellow-500/20">
-                        <div className="flex flex-col sm:flex-row items-center gap-4">
-                            <div className="text-4xl">⭐</div>
+                {/* Rating prompt — shown on BOTH completed and confirmed */}
+                {["completed", "confirmed"].includes(service.status) && user?.role === "client" && !hasRated && (
+                    <GlassCard className="p-6 bg-gradient-to-br from-yellow-500/15 via-orange-500/10 to-amber-500/15 border-yellow-500/30 shadow-[0_0_30px_rgba(234,179,8,0.1)]">
+                        <div className="flex flex-col sm:flex-row items-center gap-5">
+                            <div className="text-5xl animate-bounce">⭐</div>
                             <div className="flex-1 text-center sm:text-left">
-                                <h3 className="font-semibold text-lg">¿Cómo fue tu experiencia?</h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Tu opinión nos ayuda a mejorar
+                                <h3 className="font-bold text-xl text-yellow-500">¡Tu opinión vale mucho!</h3>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                    Califica al técnico y ayuda a otros clientes a elegir mejor.
+                                    Tu calificación impacta directamente el nivel del técnico.
                                 </p>
                             </div>
                             <Button
                                 onClick={() => setShowRatingModal(true)}
-                                className="bg-yellow-500 hover:bg-yellow-600 text-black"
+                                className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-black font-bold shadow-lg shadow-yellow-500/20 px-6"
+                                size="lg"
                             >
-                                Calificar Servicio
+                                ⭐ Calificar Servicio
                             </Button>
                         </div>
                     </GlassCard>
@@ -365,6 +369,14 @@ function ServiceDetailContent() {
                 isOpen={showRatingModal}
                 onClose={() => setShowRatingModal(false)}
                 onSuccess={() => setHasRated(true)}
+            />
+
+            {/* Payment Modal */}
+            <PaymentModal
+                isOpen={showPaymentModal}
+                onClose={() => setShowPaymentModal(false)}
+                amount={service?.estimated_price || 0}
+                onConfirm={handleConfirm}
             />
         </>
     )

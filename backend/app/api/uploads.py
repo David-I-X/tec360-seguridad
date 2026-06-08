@@ -18,10 +18,11 @@ UPLOAD_DIR = "/opt/tec360-seguridad/uploads"
 AVATAR_DIR = os.path.join(UPLOAD_DIR, "avatars")
 SERVICE_PHOTO_DIR = os.path.join(UPLOAD_DIR, "service-photos")
 VEHICLE_PHOTO_DIR = os.path.join(UPLOAD_DIR, "vehicle-photos")
+PORTFOLIO_PHOTO_DIR = os.path.join(UPLOAD_DIR, "portfolio-photos")
 
 def ensure_upload_dirs():
     """Create upload directories. Call on app startup after volumes are mounted."""
-    for d in [AVATAR_DIR, SERVICE_PHOTO_DIR, VEHICLE_PHOTO_DIR]:
+    for d in [AVATAR_DIR, SERVICE_PHOTO_DIR, VEHICLE_PHOTO_DIR, PORTFOLIO_PHOTO_DIR]:
         os.makedirs(d, exist_ok=True)
 
 # Also call at import time as fallback (works in dev without Docker volumes)
@@ -90,7 +91,7 @@ async def upload_service_photo(
     ext = _validate_image(file)
     
     # Validate image_type
-    valid_types = ["before", "during", "after", "issue"]
+    valid_types = ["before", "during", "after", "issue", "adjustment"]
     if image_type not in valid_types:
         raise HTTPException(status_code=400, detail=f"image_type must be one of: {valid_types}")
     
@@ -130,7 +131,7 @@ async def upload_service_photo(
     }
 
 
-@router.get("/service-photos/{service_id}", summary="Get service evidence photos")
+@router.get("/{service_id}/photos", summary="Get service evidence photos")
 async def get_service_photos(
     service_id: str,
     current_user: dict = Depends(get_current_user),
@@ -194,4 +195,33 @@ async def upload_vehicle_photo(
     return {
         "image_url": image_url,
         "message": "Foto del vehículo subida exitosamente"
+    }
+
+
+@router.post("/portfolio-photo", summary="Upload portfolio image")
+async def upload_portfolio_photo(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Upload an image for the technician's portfolio.
+    Returns the URL to be used in POST /technicians/me/portfolio
+    """
+    ext = _validate_image(file)
+    
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+        
+    filename = f"{current_user['id']}_portfolio_{uuid.uuid4().hex[:8]}{ext}"
+    filepath = os.path.join(PORTFOLIO_PHOTO_DIR, filename)
+    
+    with open(filepath, "wb") as f:
+        f.write(content)
+        
+    url = f"/uploads/portfolio-photos/{filename}"
+    
+    return {
+        "url": url,
+        "message": "Imagen de portafolio subida correctamente"
     }

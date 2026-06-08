@@ -51,6 +51,15 @@ export default function ClientLayout() {
         }}
       />
       <Tabs.Screen
+        name="history"
+        options={{
+          title: 'Historial',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="time-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: 'Ajustes',
@@ -68,6 +77,7 @@ export default function ClientLayout() {
       <Tabs.Screen name="support" options={{ href: null }} />
       <Tabs.Screen name="privacy" options={{ href: null }} />
       <Tabs.Screen name="tech-profile/[techId]" options={{ href: null }} />
+      <Tabs.Screen name="chat/[serviceId]" options={{ href: null }} />
     </Tabs>
   );
 }

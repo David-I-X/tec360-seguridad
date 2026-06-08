@@ -396,3 +396,31 @@ class NearbyTechnicianResult(BaseModel):
                 "is_verified": True
             }
         }
+
+class TechnicianScheduleCreate(BaseModel):
+    day_of_week: int = Field(ge=0, le=6, description="0=Monday, 6=Sunday")
+    start_time: str = Field(description="Hora inicio HH:MM")
+    end_time: str = Field(description="Hora fin HH:MM")
+    is_active: bool = True
+
+class TechnicianScheduleResponse(BaseModel):
+    id: str
+    technician_id: str
+    day_of_week: int
+    start_time: str
+    end_time: str
+    is_active: bool
+
+class PortfolioImageCreate(BaseModel):
+    image_url: str
+    description: Optional[str] = None
+
+class PortfolioImageResponse(BaseModel):
+    id: str
+    technician_id: str
+    image_url: str
+    description: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

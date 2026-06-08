@@ -118,7 +118,6 @@ class RatingService:
     async def _update_technician_average(self, session: Session, technician_user_id: str):
         """Recalculate technician average rating AND rank points"""
         from uuid import UUID as UUIDType
-        from app.models.technician import calculate_rank_points
         import logging
         
         try:
@@ -137,21 +136,12 @@ class RatingService:
             tech = session.exec(select(Technician).where(Technician.user_id == tech_uuid)).first()
             if tech:
                 tech.average_rating = float(avg)
-                tech.total_services = len(ratings)
-                
-                # Recalculate rank
-                points, rank = calculate_rank_points(
-                    total_services=tech.total_services,
-                    experience_years=tech.experience_years,
-                    certifications_count=tech.certifications_count,
-                    average_rating=tech.average_rating,
-                    is_verified=tech.is_verified
-                )
-                tech.rank_points = points
-                tech.rank = rank
-                
                 session.add(tech)
                 session.commit()
+                
+                # Recalculate full reputation points
+                from app.services.reputation_service import reputation_service
+                await reputation_service.recalculate(session, technician_user_id)
         except Exception as e:
             logging.warning(f"Failed to update technician average/rank: {e}")
 

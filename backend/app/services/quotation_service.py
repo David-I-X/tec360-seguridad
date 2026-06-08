@@ -132,7 +132,9 @@ class QuotationService:
             updated_at=new_quotation.updated_at,
             technician_name=technician.full_name if technician else None,
             technician_rating=tech_profile.average_rating if tech_profile else None,
-            technician_total_services=tech_profile.total_services if tech_profile else None
+            technician_total_services=tech_profile.total_services if tech_profile else None,
+            technician_rank=tech_profile.rank if tech_profile else None,
+            technician_rank_points=tech_profile.rank_points if tech_profile else None
         )
     
     async def get_service_quotations(
@@ -188,7 +190,9 @@ class QuotationService:
                 responded_at=q.responded_at,
                 technician_name=tech.full_name if tech else None,
                 technician_rating=tech_profile.average_rating if tech_profile else None,
-                technician_total_services=tech_profile.total_services if tech_profile else None
+                technician_total_services=tech_profile.total_services if tech_profile else None,
+                technician_rank=tech_profile.rank if tech_profile else None,
+                technician_rank_points=tech_profile.rank_points if tech_profile else None
             ))
         
         return result
@@ -231,6 +235,31 @@ class QuotationService:
         quotation.responded_at = datetime.utcnow()
         quotation.updated_at = datetime.utcnow()
         session.add(quotation)
+        
+        # 3.5 Verificar y descontar créditos del técnico
+        try:
+            from app.services.credit_service import credit_service
+            service_amount = quotation.amount or 0
+            check = await credit_service.can_accept_service(
+                session, str(quotation.technician_id), service_amount
+            )
+            if not check["can_accept"]:
+                raise HTTPException(
+                    status.HTTP_402_PAYMENT_REQUIRED,
+                    f"El técnico no tiene créditos suficientes: {check['reason']}"
+                )
+            # Descontar créditos
+            await credit_service.deduct_for_service(
+                session=session,
+                technician_id=str(quotation.technician_id),
+                service_id=str(quotation.service_id),
+                service_amount=service_amount,
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            import logging
+            logging.warning(f"Credit check skipped (service will proceed): {e}")
         
         # 4. Asignar técnico al servicio
         service.technician_id = quotation.technician_id

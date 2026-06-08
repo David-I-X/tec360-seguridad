@@ -720,9 +720,12 @@ export function ServiceRequestForm() {
                                     <LocationPicker
                                         initialLat={form.getValues("lat")}
                                         initialLng={form.getValues("lng")}
-                                        onLocationSelect={(lat, lng) => {
+                                        onLocationSelect={(lat, lng, address) => {
                                             form.setValue("lat", lat)
                                             form.setValue("lng", lng)
+                                            if (address) {
+                                                form.setValue("address", address, { shouldValidate: true })
+                                            }
                                         }}
                                     />
 
@@ -895,7 +898,8 @@ export function ServiceRequestForm() {
                                                             className="pl-8 h-12 text-xl font-bold tracking-tight"
                                                             placeholder="30.000"
                                                             {...field}
-                                                            onChange={(e) => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))}
+                                                            value={field.value || ""}
+                                                            onChange={(e) => field.onChange(e.target.value === "" ? 0 : parseFloat(e.target.value))}
                                                         />
                                                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">COP</span>
                                                     </div>

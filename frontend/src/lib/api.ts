@@ -443,8 +443,9 @@ export async function cancelService(serviceId: string): Promise<void> {
 /**
  * Confirm a completed service (client)
  */
-export async function confirmService(serviceId: string): Promise<any> {
-  const response = await fetchWithAuth(`/services/${serviceId}/confirm`, {
+export async function confirmService(serviceId: string, paymentMethod?: string): Promise<any> {
+  const url = paymentMethod ? `/services/${serviceId}/confirm?payment_method=${paymentMethod}` : `/services/${serviceId}/confirm`
+  const response = await fetchWithAuth(url, {
     method: "PATCH",
   })
   if (!response.ok) {
@@ -465,6 +466,64 @@ export async function getAvailableServicesFiltered(params?: {
   if (params?.radius) qs.set("radius", String(params.radius))
   const url = `/services/available${qs.toString() ? "?" + qs.toString() : ""}`
   const response = await fetchWithAuth(url, { method: "GET" })
+  if (!response.ok) await handleAPIError(response)
+  return response.json()
+}
+
+// ============================================
+// CREDIT SYSTEM ENDPOINTS
+// ============================================
+
+export interface BalanceData {
+  balance: number
+  total_recharged: number
+  total_consumed: number
+  free_services_remaining: number
+  can_accept_services: boolean
+  commission_rate: number
+}
+
+export interface CreditTransaction {
+  id: string
+  technician_id: string
+  transaction_type: string
+  amount: number
+  balance_after: number
+  service_id: string | null
+  description: string
+  external_reference: string | null
+  created_at: string
+}
+
+/**
+ * Obtiene el saldo del técnico autenticado
+ */
+export async function getCreditBalance(): Promise<BalanceData> {
+  const response = await fetchWithAuth("/credits/balance", { method: "GET" })
+  if (!response.ok) await handleAPIError(response)
+  return response.json()
+}
+
+/**
+ * Obtiene el historial de transacciones del técnico
+ */
+export async function getCreditTransactions(skip = 0, limit = 50): Promise<CreditTransaction[]> {
+  const response = await fetchWithAuth(`/credits/transactions?skip=${skip}&limit=${limit}`, {
+    method: "GET",
+  })
+  if (!response.ok) await handleAPIError(response)
+  return response.json()
+}
+
+/**
+ * Recarga créditos (simulada por ahora)
+ */
+export async function rechargeCredits(amount: number, externalReference?: string): Promise<CreditTransaction> {
+  const response = await fetchWithAuth("/credits/recharge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount, external_reference: externalReference }),
+  })
   if (!response.ok) await handleAPIError(response)
   return response.json()
 }

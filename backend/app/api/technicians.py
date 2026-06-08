@@ -16,8 +16,15 @@ from app.schemas.technician import (
     TechnicianPublicProfile,
     TechnicianStatsResponse,
     TechnicianLocationUpdate,
-    TechnicianAvailabilityUpdate
+    TechnicianAvailabilityUpdate,
+    TechnicianScheduleCreate,
+    TechnicianScheduleResponse,
+    PortfolioImageCreate,
+    PortfolioImageResponse
 )
+from app.models.schedule import TechnicianSchedule
+from app.models.portfolio import PortfolioImage
+from datetime import datetime
 from app.services.technician_service import technician_service
 
 
@@ -360,3 +367,154 @@ async def get_top_rated_technicians(
         page=1,
         page_size=limit
     )
+
+# ============================================
+# HORARIOS (SCHEDULE)
+# ============================================
+
+
+@router.post("/me/schedule", response_model=TechnicianScheduleResponse, status_code=status.HTTP_201_CREATED)
+async def create_my_schedule(
+    schedule_data: TechnicianScheduleCreate,
+    current_user: dict = Depends(require_roles("technician")),
+    session: Session = Depends(get_session)
+):
+    """Crea o actualiza un horario para un día específico."""
+    from sqlmodel import select
+    from uuid import UUID
+    
+    tech_id = UUID(current_user["id"])
+    
+    # Parse times
+    start_t = datetime.strptime(schedule_data.start_time, "%H:%M").time()
+    end_t = datetime.strptime(schedule_data.end_time, "%H:%M").time()
+    
+    # Check if schedule for that day already exists
+    existing = session.exec(
+        select(TechnicianSchedule).where(
+            TechnicianSchedule.technician_id == tech_id,
+            TechnicianSchedule.day_of_week == schedule_data.day_of_week
+        )
+    ).first()
+    
+    if existing:
+        existing.start_time = start_t
+        existing.end_time = end_t
+        existing.is_active = schedule_data.is_active
+        existing.updated_at = datetime.utcnow()
+        session.add(existing)
+        sched = existing
+    else:
+        sched = TechnicianSchedule(
+            technician_id=tech_id,
+            day_of_week=schedule_data.day_of_week,
+            start_time=start_t,
+            end_time=end_t,
+            is_active=schedule_data.is_active
+        )
+        session.add(sched)
+        
+    session.commit()
+    session.refresh(sched)
+    
+    # Formatear hora a string para la respuesta
+    return {
+        "id": str(sched.id),
+        "technician_id": str(sched.technician_id),
+        "day_of_week": sched.day_of_week,
+        "start_time": sched.start_time.strftime("%H:%M"),
+        "end_time": sched.end_time.strftime("%H:%M"),
+        "is_active": sched.is_active
+    }
+
+@router.get("/me/schedule", response_model=list[TechnicianScheduleResponse])
+async def get_my_schedule(
+    current_user: dict = Depends(require_roles("technician")),
+    session: Session = Depends(get_session)
+):
+    """Obtiene los horarios configurados del técnico."""
+    from sqlmodel import select
+    from uuid import UUID
+    
+    schedules = session.exec(
+        select(TechnicianSchedule).where(
+            TechnicianSchedule.technician_id == UUID(current_user["id"])
+        ).order_by(TechnicianSchedule.day_of_week)
+    ).all()
+    
+    return [
+        {
+            "id": str(s.id),
+            "technician_id": str(s.technician_id),
+            "day_of_week": s.day_of_week,
+            "start_time": s.start_time.strftime("%H:%M"),
+            "end_time": s.end_time.strftime("%H:%M"),
+            "is_active": s.is_active
+        }
+        for s in schedules
+    ]
+
+# ============================================
+# PORTAFOLIO (PORTFOLIO)
+# ============================================
+
+
+@router.post("/me/portfolio", response_model=PortfolioImageResponse, status_code=status.HTTP_201_CREATED)
+async def add_portfolio_image(
+    image_data: PortfolioImageCreate,
+    current_user: dict = Depends(require_roles("technician")),
+    session: Session = Depends(get_session)
+):
+    """Sube una imagen al portafolio del técnico."""
+    from uuid import UUID
+    
+    tech_id = UUID(current_user["id"])
+    
+    image = PortfolioImage(
+        technician_id=tech_id,
+        image_url=image_data.image_url,
+        description=image_data.description
+    )
+    session.add(image)
+    session.commit()
+    session.refresh(image)
+    
+    return image
+
+@router.get("/{user_id}/portfolio", response_model=list[PortfolioImageResponse])
+async def get_technician_portfolio(
+    user_id: str,
+    session: Session = Depends(get_session)
+):
+    """Obtiene el portafolio público de un técnico."""
+    from sqlmodel import select
+    from uuid import UUID
+    
+    images = session.exec(
+        select(PortfolioImage).where(
+            PortfolioImage.technician_id == UUID(user_id)
+        ).order_by(PortfolioImage.created_at.desc())
+    ).all()
+    
+    return images
+
+@router.delete("/me/portfolio/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_portfolio_image(
+    image_id: str,
+    current_user: dict = Depends(require_roles("technician")),
+    session: Session = Depends(get_session)
+):
+    """Elimina una imagen del portafolio del técnico."""
+    from sqlmodel import select
+    from uuid import UUID
+    
+    image = session.exec(select(PortfolioImage).where(PortfolioImage.id == UUID(image_id))).first()
+    if not image:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Imagen no encontrada")
+        
+    if str(image.technician_id) != current_user["id"]:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "No autorizado")
+        
+    session.delete(image)
+    session.commit()
+    return None

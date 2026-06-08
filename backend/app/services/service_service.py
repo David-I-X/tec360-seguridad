@@ -333,7 +333,7 @@ class ServiceService:
         from uuid import UUID as UUIDType
         try:
             # Validar estado
-            valid_statuses = ["en_route", "arrived", "in_progress", "completed"]
+            valid_statuses = ["en_route", "arrived", "in_progress", "paused", "completed"]
             if new_status not in valid_statuses:
                 raise HTTPException(
                     status.HTTP_400_BAD_REQUEST, 
@@ -427,7 +427,83 @@ class ServiceService:
         except Exception as e:
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-    async def confirm_service(self, session: Session, service_id: str, client_id: str) -> ServiceResponse:
+    async def cancel_service(
+        self, session: Session, service_id: str, user_id: str, user_role: str
+    ) -> dict:
+        """Lógica centralizada para cancelar un servicio y aplicar penalizaciones/reembolsos."""
+        from uuid import UUID as UUIDType
+        
+        try:
+            service = session.exec(select(Service).where(Service.id == UUIDType(service_id))).first()
+            if not service:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
+            
+            # Check if it's already cancelled or completed
+            if service.status in ["cancelled", "completed", "confirmed"]:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, f"El servicio ya está {service.status}")
+                
+            # Validar permisos
+            if user_role == "client" and str(service.client_id) != user_id:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "No autorizado")
+            if user_role == "technician" and str(service.technician_id) != user_id:
+                 raise HTTPException(status.HTTP_403_FORBIDDEN, "No autorizado")
+            
+            prev_status = service.status
+            service.status = ServiceStatus.cancelled
+            service.updated_at = datetime.utcnow()
+            session.add(service)
+            
+            penalty_applied = False
+            refund_applied = False
+            
+            # Si el servicio ya tenía un técnico asignado
+            if service.technician_id and prev_status in ["assigned", "en_route"]:
+                if user_role == "technician":
+                    # Penalización al técnico
+                    try:
+                        from app.services.reputation_service import reputation_service
+                        await reputation_service.penalize_cancellation(session, str(service.technician_id))
+                        penalty_applied = True
+                    except Exception as e:
+                        import logging
+                        logging.warning(f"Failed to penalize technician: {e}")
+                
+                elif user_role == "client":
+                    # Reembolso de créditos al técnico
+                    try:
+                        from app.services.credit_service import credit_service
+                        await credit_service.refund_for_service(
+                            session=session,
+                            technician_id=str(service.technician_id),
+                            service_id=str(service.id),
+                            reason="Cliente canceló el servicio"
+                        )
+                        refund_applied = True
+                        
+                        # (Task 10 hook) Penalización al cliente (por hacer en Sprint 3)
+                        # user = session.get(User, service.client_id)
+                        # user.cancellation_count += 1
+                        # if user.cancellation_count >= 3:
+                        #     user.flagged_for_review = True
+                        # session.add(user)
+                    except Exception as e:
+                        import logging
+                        logging.warning(f"Failed to refund technician credits: {e}")
+            
+            session.commit()
+            
+            return {
+                "success": True, 
+                "service_id": str(service.id), 
+                "penalty_applied": penalty_applied,
+                "refund_applied": refund_applied
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+    async def confirm_service(self, session: Session, service_id: str, client_id: str, payment_method: str = None) -> ServiceResponse:
         try:
             service = session.exec(select(Service).where(Service.id == service_id)).first()
             if not service:
@@ -442,6 +518,10 @@ class ServiceService:
             service.status = ServiceStatus.confirmed
             service.client_confirmed_at = datetime.utcnow()
             service.updated_at = datetime.utcnow()
+            
+            if payment_method:
+                service.payment_method = payment_method
+                service.payment_status = "paid" if payment_method == "online" else "pending"
             
             session.add(service)
             session.commit()
@@ -483,8 +563,76 @@ class ServiceService:
         return self._to_response(service)
 
     async def find_nearby_technicians(self, session: Session, service_id: str, max_distance_km: int = 20) -> List[NearbyTechnicianResponse]:
-        # Implementación Mock temporal hasta configurar PostGIS queries complejas en SQLModel
-        return []
+        from app.models.technician import Technician
+        from app.models.schedule import TechnicianSchedule
+        from geoalchemy2.functions import ST_DWithin, ST_Distance
+        from sqlalchemy import cast
+        from geoalchemy2 import Geography
+        from uuid import UUID
+        from datetime import datetime
+        import logging
+        
+        try:
+            svc_uuid = UUID(service_id)
+        except ValueError:
+            return []
+            
+        service = session.get(Service, svc_uuid)
+        if not service or not service.service_location:
+            return []
+
+        # 1. Obtener día actual
+        current_day = datetime.utcnow().weekday() # 0 = Monday, 6 = Sunday
+        
+        # 2. Buscar técnicos disponibles, con horario activo hoy, y dentro de la distancia
+        max_distance_meters = max_distance_km * 1000
+        
+        query = select(
+            Technician, 
+            User, 
+            ST_Distance(
+                cast(Technician.current_location, Geography), 
+                cast(service.service_location, Geography)
+            ).label("distance_meters")
+        ).join(
+            User, Technician.user_id == User.id
+        ).join(
+            TechnicianSchedule, Technician.user_id == TechnicianSchedule.technician_id
+        ).where(
+            Technician.is_available,
+            User.is_active,
+            TechnicianSchedule.day_of_week == current_day,
+            TechnicianSchedule.is_active,
+            Technician.current_location.is_not(None),
+            ST_DWithin(
+                cast(Technician.current_location, Geography), 
+                cast(service.service_location, Geography), 
+                max_distance_meters
+            )
+        )
+        
+        results = session.exec(query).all()
+        logging.info(f"Técnicos cercanos encontrados: {len(results)}")
+        
+        response_list = []
+        for tech, user, distance in results:
+            # Check if tech has capacity or within their own radius
+            if distance > (tech.service_radius_km * 1000):
+                continue
+                
+            response_list.append(NearbyTechnicianResponse(
+                id=str(user.id),
+                full_name=user.full_name,
+                distance_km=round(distance / 1000, 2),
+                rank=tech.rank,
+                average_rating=tech.average_rating,
+                total_services=tech.total_services
+            ))
+            
+        # Order by distance
+        response_list.sort(key=lambda x: x.distance_km)
+        
+        return response_list
 
     def _to_response(self, service: Service, client_name: str = None, client: User = None, technician: User = None) -> ServiceResponse:
         """Helper para convertir DB model a Response Schema"""

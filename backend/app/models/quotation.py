@@ -42,6 +42,9 @@ class Quotation(SQLModel, table=True):
     # Expiración (opcional)
     expires_at: Optional[datetime] = Field(default=None)
     
+    # Flags adicionales
+    is_adjustment: bool = Field(default=False)  # Verdadero si es ajuste en campo
+    
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

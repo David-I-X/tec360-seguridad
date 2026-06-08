@@ -74,6 +74,53 @@ async def websocket_service_room(
                     technician_id=user_id
                 )
             
+            # Chat messages — persist to DB and broadcast to room
+            elif message.get("type") == "chat_message":
+                chat_data = message.get("data", {})
+                text = chat_data.get("text", "").strip()
+                if text:
+                    from sqlmodel import Session as DbSession
+                    from app.core.database import engine
+                    from app.models.message import Message as ChatMessage
+                    from uuid import UUID as PyUUID, uuid4
+                    import datetime as dt
+
+                    msg_id = uuid4()
+                    now = dt.datetime.now(dt.timezone.utc)
+                    
+                    # Persist to database
+                    try:
+                        with DbSession(engine) as db:
+                            new_msg = ChatMessage(
+                                id=msg_id,
+                                service_id=PyUUID(service_id),
+                                sender_id=PyUUID(user_id),
+                                text=text[:2000],
+                                created_at=now,
+                                is_read=False,
+                            )
+                            db.add(new_msg)
+                            db.commit()
+                    except Exception as e:
+                        import logging
+                        logging.getLogger(__name__).error(f"Failed to persist chat message: {e}")
+
+                    # Broadcast to all connected clients in this service room
+                    await ws_manager.broadcast_to_service(
+                        service_id=service_id,
+                        message={
+                            "type": "chat_message",
+                            "data": {
+                                "id": str(msg_id),
+                                "service_id": service_id,
+                                "sender_id": user_id,
+                                "text": text[:2000],
+                                "created_at": now.isoformat(),
+                                "is_read": False,
+                            }
+                        }
+                    )
+
             # Ping/Pong para mantener conexión
             elif message.get("type") == "ping":
                 await websocket.send_json({"type": "pong"})

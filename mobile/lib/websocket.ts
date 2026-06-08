@@ -104,6 +104,13 @@ class ServiceWebSocket {
     });
   }
 
+  sendChatMessage(text: string) {
+    this.send({
+      type: "chat_message",
+      data: { text },
+    });
+  }
+
   onMessage(handler: MessageHandler) {
     this.handlers.add(handler);
     return () => this.handlers.delete(handler);

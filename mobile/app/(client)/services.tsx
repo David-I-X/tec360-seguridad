@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/lib/auth-context';
 import { fetchWithAuth } from '@/lib/api';
+import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   pending:     { label: 'Pendiente',    color: '#eab308', bg: 'rgba(234,179,8,0.15)' },
@@ -107,7 +108,7 @@ export default function ServicesScreen() {
           <View style={[styles.statusBadge, { backgroundColor: cfg.bg }]}>
             <Text style={[styles.statusText, { color: cfg.color }]}>{cfg.label}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color="#555872" />
+          <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
         </View>
       </TouchableOpacity>
     );
@@ -116,7 +117,7 @@ export default function ServicesScreen() {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Cargando servicios...</Text>
       </View>
     );
@@ -146,18 +147,18 @@ export default function ServicesScreen() {
           <Text style={styles.statNumber}>{services.length}</Text>
           <Text style={styles.statLabel}>Total</Text>
         </View>
-        <View style={[styles.statCard, { borderColor: 'rgba(139,92,246,0.3)' }]}>
-          <Text style={[styles.statNumber, { color: '#8b5cf6' }]}>{activeCount}</Text>
+        <View style={[styles.statCard, { borderColor: COLORS.primaryBorder }]}>
+          <Text style={[styles.statNumber, { color: COLORS.primary }]}>{activeCount}</Text>
           <Text style={styles.statLabel}>Activos</Text>
         </View>
-        <View style={[styles.statCard, { borderColor: 'rgba(34,197,94,0.3)' }]}>
-          <Text style={[styles.statNumber, { color: '#22c55e' }]}>{completedCount}</Text>
+        <View style={[styles.statCard, { borderColor: COLORS.greenBorder }]}>
+          <Text style={[styles.statNumber, { color: COLORS.green }]}>{completedCount}</Text>
           <Text style={styles.statLabel}>Hechos</Text>
         </View>
       </View>
 
       {/* Filters */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ gap: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ gap: SPACING.sm }}>
         {filters.map(f => (
           <TouchableOpacity
             key={f.key}
@@ -174,8 +175,8 @@ export default function ServicesScreen() {
         data={filtered}
         renderItem={renderServiceCard}
         keyExtractor={item => item.id?.toString()}
-        contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 16 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8b5cf6" />}
+        contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: SPACING.md }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyEmoji}>📋</Text>
@@ -195,40 +196,40 @@ export default function ServicesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#050810', paddingTop: 60 },
-  centered: { flex: 1, backgroundColor: '#050810', justifyContent: 'center', alignItems: 'center' },
-  loadingText: { color: '#8b8fa3', marginTop: 12, fontSize: 14 },
+  container: { flex: 1, backgroundColor: COLORS.bg, paddingTop: 60 },
+  centered: { flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { color: COLORS.textSecondary, marginTop: RADIUS.md, fontSize: FONTS.sizes.sm },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 },
-  greeting: { color: '#8b8fa3', fontSize: 14 },
-  headerTitle: { color: '#f0f0f5', fontSize: 28, fontWeight: '800', marginTop: 2 },
-  newButton: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center', shadowColor: '#8b5cf6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
-  statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginBottom: 16 },
-  statCard: { flex: 1, backgroundColor: 'rgba(10,14,28,0.85)', borderRadius: 16, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
-  statNumber: { color: '#f0f0f5', fontSize: 22, fontWeight: '800' },
-  statLabel: { color: '#555872', fontSize: 11, marginTop: 2 },
-  filterRow: { paddingHorizontal: 20, marginBottom: 12, maxHeight: 40 },
-  filterChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(10,14,28,0.85)', borderWidth: 1, borderColor: 'rgba(80,60,160,0.3)' },
-  filterChipActive: { backgroundColor: 'rgba(139,92,246,0.15)', borderColor: '#8b5cf6' },
-  filterText: { color: '#555872', fontSize: 13, fontWeight: '600' },
-  filterTextActive: { color: '#8b5cf6' },
-  serviceCard: { backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
-  serviceCardLive: { borderColor: 'rgba(34,197,94,0.3)', backgroundColor: 'rgba(34,197,94,0.05)' },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  greeting: { color: COLORS.textSecondary, fontSize: FONTS.sizes.sm },
+  headerTitle: { color: COLORS.text, fontSize: 28, fontWeight: '800', marginTop: 2 },
+  newButton: { width: SPACING.xxl, height: SPACING.xxl, borderRadius: RADIUS.lg, justifyContent: 'center', alignItems: 'center', shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: SPACING.sm, elevation: 8 },
+  statsRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, marginBottom: SPACING.md },
+  statCard: { flex: 1, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
+  statNumber: { color: COLORS.text, fontSize: 22, fontWeight: '800' },
+  statLabel: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
+  filterRow: { paddingHorizontal: 20, marginBottom: RADIUS.md, maxHeight: 40 },
+  filterChip: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: 20, backgroundColor: COLORS.bgCard, borderWidth: 1, borderColor: 'rgba(80,60,160,0.3)' },
+  filterChipActive: { backgroundColor: COLORS.primaryMuted, borderColor: COLORS.primary },
+  filterText: { color: COLORS.textMuted, fontSize: 13, fontWeight: '600' },
+  filterTextActive: { color: COLORS.primary },
+  serviceCard: { backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: RADIUS.lg, padding: 20, marginBottom: SPACING.md, borderWidth: 1, borderColor: COLORS.border },
+  serviceCardLive: { borderColor: COLORS.greenBorder, backgroundColor: 'rgba(34,197,94,0.05)' },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: RADIUS.md },
   dot: { width: 10, height: 10, borderRadius: 5 },
   cardContent: { flex: 1 },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  cardTitle: { color: '#f0f0f5', fontSize: 15, fontWeight: '700', flex: 1 },
-  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(34,197,94,0.1)', borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#22c55e' },
-  liveText: { color: '#22c55e', fontSize: 9, fontWeight: '800' },
-  cardMeta: { flexDirection: 'row', gap: 12 },
-  metaText: { color: '#555872', fontSize: 12 },
-  statusBadge: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.xs },
+  cardTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700', flex: 1 },
+  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, backgroundColor: COLORS.greenMuted, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)', borderRadius: 10, paddingHorizontal: SPACING.sm, paddingVertical: 2 },
+  liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: COLORS.green },
+  liveText: { color: COLORS.green, fontSize: 9, fontWeight: '800' },
+  cardMeta: { flexDirection: 'row', gap: RADIUS.md },
+  metaText: { color: COLORS.textMuted, fontSize: FONTS.sizes.xs },
+  statusBadge: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: SPACING.xs },
   statusText: { fontSize: 11, fontWeight: '700' },
   emptyContainer: { alignItems: 'center', paddingTop: 60 },
-  emptyEmoji: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: { color: '#f0f0f5', fontSize: 18, fontWeight: '700' },
-  emptySubtitle: { color: '#555872', fontSize: 14, marginTop: 4, marginBottom: 24 },
-  emptyButton: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 16 },
+  emptyEmoji: { fontSize: 48, marginBottom: SPACING.md },
+  emptyTitle: { color: COLORS.text, fontSize: FONTS.sizes.lg, fontWeight: '700' },
+  emptySubtitle: { color: COLORS.textMuted, fontSize: FONTS.sizes.sm, marginTop: SPACING.xs, marginBottom: SPACING.lg },
+  emptyButton: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.lg, paddingVertical: 14, borderRadius: RADIUS.lg },
   emptyButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });

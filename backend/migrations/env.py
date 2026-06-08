@@ -20,6 +20,13 @@ from sqlmodel import SQLModel
 from app.models.user import User
 from app.models.service import Service
 from app.models.push_token import PushToken
+from app.models.technician import Technician
+from app.models.quotation import Quotation
+from app.models.credit import TechnicianCredit, CreditTransaction
+from app.models.incident import IncidentReport
+from app.models.schedule import TechnicianSchedule
+from app.models.portfolio import PortfolioImage
+from app.models.extras import ServiceImage
 
 target_metadata = SQLModel.metadata
 

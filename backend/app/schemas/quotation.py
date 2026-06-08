@@ -83,6 +83,8 @@ class QuotationResponse(BaseModel):
     technician_name: Optional[str] = None
     technician_rating: Optional[float] = None
     technician_total_services: Optional[int] = None
+    technician_rank: Optional[str] = None
+    technician_rank_points: Optional[int] = None
     
     class Config:
         from_attributes = True

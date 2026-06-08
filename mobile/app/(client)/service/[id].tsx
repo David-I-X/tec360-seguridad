@@ -6,6 +6,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
 
 let MapView: any = View;
 let Marker: any = View;
@@ -23,6 +24,7 @@ import { getServiceById, getAuthToken, API_URL, fetchWithAuth } from '@/lib/api'
 import { serviceWebSocket } from '@/lib/websocket';
 import { ServicePinMarker, TechnicianPinMarker } from '@/components/map-markers';
 import RatingModal from '@/components/rating-modal';
+import PaymentModal from '@/components/payment-modal';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -79,8 +81,24 @@ export default function ServiceDetailScreen() {
   const [showRating, setShowRating] = useState(false);
   const [canRate, setCanRate] = useState(false);
   const [alreadyRated, setAlreadyRated] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const lastRouteFetchRef = React.useRef<{ lat: number; lng: number } | null>(null);
+
+  const handleConfirmPayment = async (method: string) => {
+    try {
+      await fetchWithAuth(`/services/${id}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payment_method: method })
+      });
+      setService((prev: any) => ({ ...prev, status: 'confirmed' }));
+      // Update canRate to allow rating if applicable
+      setCanRate(true);
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'No se pudo confirmar el servicio');
+    }
+  };
 
   const loadService = useCallback(async () => {
     try {
@@ -462,7 +480,27 @@ export default function ServiceDetailScreen() {
           <View style={styles.completedBanner}>
             <Text style={{ fontSize: 40, marginBottom: 8 }}>🎉</Text>
             <Text style={{ color: '#22c55e', fontSize: 18, fontWeight: '800' }}>¡Servicio completado!</Text>
-            <Text style={{ color: '#8b8fa3', fontSize: 13, textAlign: 'center', marginTop: 4 }}>Tu técnico ha finalizado el trabajo.</Text>
+            <Text style={{ color: '#8b8fa3', fontSize: 13, textAlign: 'center', marginTop: 4 }}>
+              El técnico ha indicado que terminó el trabajo. Por favor, confirma que todo quedó bien.
+            </Text>
+            <TouchableOpacity onPress={() => setShowPaymentModal(true)} activeOpacity={0.8} style={{ marginTop: 16, width: '100%' }}>
+              <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.actionButton}>
+                <Ionicons name="card" size={18} color="#fff" />
+                <Text style={styles.actionText}>Confirmar y Pagar</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {['completed', 'confirmed'].includes(service?.status) && (
+          <View style={[styles.completedBanner, { marginTop: service?.status === 'completed' ? 16 : 0, backgroundColor: 'rgba(234,179,8,0.05)', borderColor: 'rgba(234,179,8,0.2)' }]}>
+            {service?.status === 'confirmed' && (
+              <>
+                <Text style={{ fontSize: 40, marginBottom: 8 }}>✅</Text>
+                <Text style={{ color: '#22c55e', fontSize: 18, fontWeight: '800' }}>¡Servicio Confirmado!</Text>
+                <Text style={{ color: '#8b8fa3', fontSize: 13, textAlign: 'center', marginTop: 4 }}>Gracias por usar Tec360.</Text>
+              </>
+            )}
             {canRate && (
               <TouchableOpacity onPress={() => setShowRating(true)} activeOpacity={0.8} style={{ marginTop: 16, width: '100%' }}>
                 <LinearGradient colors={['#eab308', '#ca8a04']} style={styles.actionButton}>
@@ -496,6 +534,14 @@ export default function ServiceDetailScreen() {
             setAlreadyRated(true);
             Alert.alert('¡Gracias! 🌟', 'Tu calificación ha sido enviada.');
           }}
+        />
+
+        {/* Payment Modal */}
+        <PaymentModal
+          visible={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          amount={service?.estimated_price || 0}
+          onConfirm={(method) => handleConfirmPayment(method)}
         />
       </ScrollView>
     </View>
@@ -567,69 +613,69 @@ const darkMapStyle = [
 ];
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#050810' },
-  centered: { flex: 1, backgroundColor: '#050810', justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  centered: { flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' },
   map: { width: SCREEN_WIDTH, height: 280 },
-  backButton: { position: 'absolute', top: 56, left: 16, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(15,23,42,0.8)', justifyContent: 'center', alignItems: 'center', zIndex: 10 },
-  mapsBtn: { position: 'absolute', top: 56, right: 16, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(139,92,246,0.9)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, zIndex: 10 },
-  mapsBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  etaOverlay: { position: 'absolute', top: 100, left: 16, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(10,14,28,0.92)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)', zIndex: 10 },
-  etaText: { color: '#f0f0f5', fontSize: 13, fontWeight: '700' },
-  etaDivider: { color: '#555872', fontSize: 13 },
-  etaDistance: { color: '#8b8fa3', fontSize: 12 },
-  legendOverlay: { position: 'absolute', top: 240, left: 16, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: 'rgba(10,14,28,0.9)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)', zIndex: 10 },
+  backButton: { position: 'absolute', top: 56, left: SPACING.md, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(15,23,42,0.8)', justifyContent: 'center', alignItems: 'center', zIndex: 10 },
+  mapsBtn: { position: 'absolute', top: 56, right: SPACING.md, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(139,92,246,0.9)', paddingHorizontal: 14, paddingVertical: SPACING.sm, borderRadius: RADIUS.round, zIndex: 10 },
+  mapsBtnText: { color: '#fff', fontSize: FONTS.sizes.xs, fontWeight: FONTS.weights.bold },
+  etaOverlay: { position: 'absolute', top: 100, left: SPACING.md, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, backgroundColor: 'rgba(10,14,28,0.92)', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border, zIndex: 10 },
+  etaText: { color: COLORS.text, fontSize: 13, fontWeight: FONTS.weights.bold },
+  etaDivider: { color: COLORS.textMuted, fontSize: 13 },
+  etaDistance: { color: COLORS.textSecondary, fontSize: FONTS.sizes.xs },
+  legendOverlay: { position: 'absolute', top: 240, left: SPACING.md, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: COLORS.bgOverlay, paddingHorizontal: SPACING.md, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, zIndex: 10 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { color: '#8b8fa3', fontSize: 11 },
-  sheet: { flex: 1, backgroundColor: '#050810', borderTopLeftRadius: 24, borderTopRightRadius: 24, marginTop: -24, paddingHorizontal: 20, paddingTop: 24 },
+  legendDot: { width: SPACING.sm, height: SPACING.sm, borderRadius: SPACING.xs },
+  legendText: { color: COLORS.textSecondary, fontSize: 11 },
+  sheet: { flex: 1, backgroundColor: COLORS.bg, borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl, marginTop: -SPACING.lg, paddingHorizontal: 20, paddingTop: SPACING.lg },
 
-  techCard: { backgroundColor: 'rgba(10,14,28,0.85)', borderRadius: 22, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)', overflow: 'hidden' },
-  techGradientBar: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, backgroundColor: '#8b5cf6' },
-  techCardLabel: { color: '#555872', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 14 },
-  techRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  techAvatar: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 2, borderColor: 'rgba(139,92,246,0.3)' },
-  techInitial: { color: '#fff', fontSize: 20, fontWeight: '800' },
-  techName: { color: '#f0f0f5', fontSize: 17, fontWeight: '800', marginBottom: 6 },
-  badgesRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  ratingBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(234,179,8,0.1)', borderWidth: 1, borderColor: 'rgba(234,179,8,0.2)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
-  ratingText: { color: '#eab308', fontSize: 11, fontWeight: '700' },
-  verifiedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  verifiedText: { color: '#8b8fa3', fontSize: 11 },
-  techActions: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  techCard: { backgroundColor: COLORS.bgCard, borderRadius: 22, padding: 20, marginBottom: SPACING.md, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
+  techGradientBar: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, backgroundColor: COLORS.primary },
+  techCardLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: FONTS.weights.bold, letterSpacing: 1.5, marginBottom: SPACING.md },
+  techRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
+  techAvatar: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 2, borderColor: COLORS.primaryBorder },
+  techInitial: { color: '#fff', fontSize: FONTS.sizes.xl, fontWeight: '800' },
+  techName: { color: COLORS.text, fontSize: 17, fontWeight: '800', marginBottom: 6 },
+  badgesRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexWrap: 'wrap' },
+  ratingBadge: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, backgroundColor: 'rgba(234,179,8,0.1)', borderWidth: 1, borderColor: 'rgba(234,179,8,0.2)', borderRadius: RADIUS.round, paddingHorizontal: SPACING.sm, paddingVertical: 3 },
+  ratingText: { color: COLORS.yellow, fontSize: 11, fontWeight: FONTS.weights.bold },
+  verifiedBadge: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
+  verifiedText: { color: COLORS.textSecondary, fontSize: 11 },
+  techActions: { flexDirection: 'row', gap: 12, marginTop: SPACING.md },
   profileBtn: { flex: 1, borderWidth: 1, borderColor: 'rgba(59,130,246,0.3)', borderRadius: 14, paddingVertical: 12, alignItems: 'center' },
-  profileBtnText: { color: '#3b82f6', fontSize: 13, fontWeight: '600' },
+  profileBtnText: { color: '#3b82f6', fontSize: 13, fontWeight: FONTS.weights.semibold },
   callBtnFull: { flex: 1, borderRadius: 14, overflow: 'hidden' },
-  callBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 14 },
-  callBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  callBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, paddingVertical: 12, borderRadius: 14 },
+  callBtnText: { color: '#fff', fontSize: 13, fontWeight: FONTS.weights.bold },
 
   timelineContainer: { marginBottom: 20 },
-  activeStepBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(59,130,246,0.1)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.2)', borderRadius: 18, padding: 14, marginBottom: 14 },
-  activeStepLabel: { color: '#f0f0f5', fontSize: 14, fontWeight: '700' },
-  activeStepDetail: { color: '#8b8fa3', fontSize: 12, marginTop: 2 },
-  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
+  activeStepBanner: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, backgroundColor: 'rgba(59,130,246,0.1)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.2)', borderRadius: 18, padding: 20, marginBottom: SPACING.md },
+  activeStepLabel: { color: COLORS.text, fontSize: FONTS.sizes.sm, fontWeight: FONTS.weights.bold },
+  activeStepDetail: { color: COLORS.textSecondary, fontSize: FONTS.sizes.xs, marginTop: 2 },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, marginBottom: SPACING.sm },
   stepCircle: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
-  stepLabel: { fontSize: 13, fontWeight: '600', flex: 1 },
-  activeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#3b82f6' },
+  stepLabel: { fontSize: 13, fontWeight: FONTS.weights.semibold, flex: 1 },
+  activeDot: { width: 7, height: 7, borderRadius: SPACING.xs, backgroundColor: '#3b82f6' },
 
-  statusBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 14, borderWidth: 1, marginBottom: 16 },
-  statusBannerLabel: { fontSize: 15, fontWeight: '700' },
+  statusBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, padding: 20, borderWidth: 1, marginBottom: SPACING.md },
+  statusBannerLabel: { fontSize: 15, fontWeight: FONTS.weights.bold },
 
-  title: { color: '#f0f0f5', fontSize: 22, fontWeight: '800', marginBottom: 6 },
-  description: { color: '#8b8fa3', fontSize: 14, fontStyle: 'italic', lineHeight: 20, marginBottom: 16, borderLeftWidth: 2, borderLeftColor: 'rgba(139,92,246,0.3)', paddingLeft: 10 },
-  infoGrid: { gap: 10, marginBottom: 16 },
-  infoRowSplit: { flexDirection: 'row', gap: 10 },
-  infoCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(80,60,160,0.15)' },
-  infoIconBox: { width: 36, height: 36, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  infoLabel: { color: '#555872', fontSize: 11, fontWeight: '600', marginBottom: 2 },
-  infoValue: { color: '#f0f0f5', fontSize: 14, fontWeight: '700' },
-  infoSub: { color: '#8b8fa3', fontSize: 12, marginTop: 1 },
-  vehiclePhoto: { width: '100%', height: 180, borderRadius: 16, marginBottom: 16 },
-  actionButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: 16, paddingVertical: 16, marginBottom: 16 },
-  actionText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  trackingOverlay: { position: 'absolute', top: 240, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(10,14,28,0.92)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(234,179,8,0.3)', zIndex: 10 },
-  trackingOverlayText: { color: '#eab308', fontSize: 12, fontWeight: '600' },
-  liveTrackingBadge: { position: 'absolute', top: 240, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(34,197,94,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(34,197,94,0.3)', zIndex: 10 },
-  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#22c55e' },
-  liveTrackingText: { color: '#22c55e', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
-  completedBanner: { alignItems: 'center', padding: 24, backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' },
+  title: { color: COLORS.text, fontSize: 22, fontWeight: '800', marginBottom: 6 },
+  description: { color: COLORS.textSecondary, fontSize: FONTS.sizes.sm, fontStyle: 'italic', lineHeight: 20, marginBottom: SPACING.md, borderLeftWidth: 2, borderLeftColor: COLORS.primaryBorder, paddingLeft: 10 },
+  infoGrid: { gap: 12, marginBottom: SPACING.md },
+  infoRowSplit: { flexDirection: 'row', gap: 12 },
+  infoCard: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: RADIUS.lg, padding: 20, borderWidth: 1, borderColor: COLORS.borderLight },
+  infoIconBox: { width: 36, height: 36, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center' },
+  infoLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: FONTS.weights.semibold, marginBottom: 2 },
+  infoValue: { color: COLORS.text, fontSize: FONTS.sizes.sm, fontWeight: FONTS.weights.bold },
+  infoSub: { color: COLORS.textSecondary, fontSize: FONTS.sizes.xs, marginTop: 1 },
+  vehiclePhoto: { width: '100%', height: 180, borderRadius: RADIUS.lg, marginBottom: SPACING.md },
+  actionButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, borderRadius: RADIUS.lg, paddingVertical: SPACING.md, marginBottom: SPACING.md },
+  actionText: { color: '#fff', fontSize: FONTS.sizes.md, fontWeight: FONTS.weights.bold },
+  trackingOverlay: { position: 'absolute', top: 240, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, backgroundColor: 'rgba(10,14,28,0.92)', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.md, borderWidth: 1, borderColor: 'rgba(234,179,8,0.3)', zIndex: 10 },
+  trackingOverlayText: { color: COLORS.yellow, fontSize: FONTS.sizes.xs, fontWeight: FONTS.weights.semibold },
+  liveTrackingBadge: { position: 'absolute', top: 240, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.greenMuted, paddingHorizontal: SPACING.md, paddingVertical: 6, borderRadius: RADIUS.round, borderWidth: 1, borderColor: COLORS.greenBorder, zIndex: 10 },
+  liveDot: { width: 7, height: 7, borderRadius: SPACING.xs, backgroundColor: COLORS.green },
+  liveTrackingText: { color: COLORS.green, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  completedBanner: { alignItems: 'center', padding: SPACING.lg, backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' },
 });

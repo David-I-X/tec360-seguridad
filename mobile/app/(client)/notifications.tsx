@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { fetchWithAuth } from '@/lib/api';
+import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
 
 interface Notification {
   id: string;
@@ -191,7 +192,7 @@ export default function NotificationsScreen() {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
@@ -236,12 +237,12 @@ export default function NotificationsScreen() {
           <NotifCard item={item} onPress={() => handlePress(item)} index={index} />
         )}
         keyExtractor={item => item.id}
-        contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 16, paddingTop: 8 }}
+        contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: SPACING.md, paddingTop: SPACING.sm }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => { setRefreshing(true); fetchNotifications(); }}
-            tintColor="#8b5cf6"
+            tintColor={COLORS.primary}
           />
         }
         ListEmptyComponent={
@@ -260,74 +261,74 @@ export default function NotificationsScreen() {
 
 // ────────────────────────── styles ──────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#050810' },
-  centered: { flex: 1, backgroundColor: '#050810', justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  centered: { flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16,
-    borderBottomWidth: 1, borderBottomColor: 'rgba(80,60,160,0.15)',
+    paddingHorizontal: 20, paddingTop: 60, paddingBottom: SPACING.md,
+    borderBottomWidth: 1, borderBottomColor: COLORS.borderLight,
   },
-  headerTitle: { color: '#f0f0f5', fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
-  headerSub: { color: '#8b5cf6', fontSize: 12, fontWeight: '600', marginTop: 2 },
+  headerTitle: { color: COLORS.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+  headerSub: { color: COLORS.primary, fontSize: FONTS.sizes.xs, fontWeight: '600', marginTop: 2 },
   markAllBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: 'rgba(139,92,246,0.12)', borderRadius: 20,
-    paddingHorizontal: 14, paddingVertical: 8,
-    borderWidth: 1, borderColor: 'rgba(139,92,246,0.25)',
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
+    borderWidth: 1, borderColor: COLORS.primaryBorder,
   },
-  markAllText: { color: '#8b5cf6', fontSize: 11, fontWeight: '700' },
+  markAllText: { color: COLORS.primary, fontSize: 11, fontWeight: '700' },
 
   unreadBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    marginHorizontal: 16, marginTop: 12, marginBottom: 4,
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9,
+    marginHorizontal: SPACING.md, marginTop: RADIUS.md, marginBottom: SPACING.xs,
+    borderRadius: RADIUS.md, paddingHorizontal: SPACING.md, paddingVertical: 9,
     borderWidth: 1, borderColor: 'rgba(139,92,246,0.2)',
   },
-  unreadBannerText: { color: '#a78bfa', fontSize: 12, fontWeight: '600' },
+  unreadBannerText: { color: COLORS.primaryLight, fontSize: FONTS.sizes.xs, fontWeight: '600' },
 
   // Card
   card: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(10,14,28,0.85)',
-    borderRadius: 18, marginBottom: 10,
+    backgroundColor: COLORS.bgCard,
+    borderRadius: 18, marginBottom: SPACING.md,
     borderWidth: 1, borderColor: 'rgba(50,45,90,0.4)',
-    paddingRight: 14, paddingVertical: 14,
+    paddingRight: SPACING.md, paddingVertical: SPACING.md,
     overflow: 'hidden',
   },
   cardUnread: {
     backgroundColor: 'rgba(16,12,36,0.95)',
-    borderColor: 'rgba(139,92,246,0.3)',
+    borderColor: COLORS.primaryBorder,
   },
   accentBar: {
-    width: 3, alignSelf: 'stretch', borderRadius: 4, marginRight: 12, marginLeft: 0,
+    width: 3, alignSelf: 'stretch', borderRadius: SPACING.xs, marginRight: RADIUS.md, marginLeft: 0,
   },
   iconCircle: {
     width: 42, height: 42, borderRadius: 14,
     justifyContent: 'center', alignItems: 'center',
-    marginRight: 12, flexShrink: 0,
+    marginRight: RADIUS.md, flexShrink: 0,
   },
   dot: {
-    width: 8, height: 8, borderRadius: 4, marginLeft: 6, flexShrink: 0,
+    width: SPACING.sm, height: SPACING.sm, borderRadius: SPACING.xs, marginLeft: 6, flexShrink: 0,
   },
   cardContent: { flex: 1 },
-  cardRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 3 },
-  cardTitle: { color: '#b0b4cc', fontSize: 14, fontWeight: '600', flex: 1 },
-  cardTitleUnread: { color: '#f0f0f5', fontWeight: '700' },
-  cardMessage: { color: '#6e7491', fontSize: 13, lineHeight: 18, marginBottom: 7 },
+  cardRow: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.xs },
+  cardTitle: { color: '#b0b4cc', fontSize: FONTS.sizes.sm, fontWeight: '600', flex: 1 },
+  cardTitleUnread: { color: COLORS.text, fontWeight: '700' },
+  cardMessage: { color: '#6e7491', fontSize: 13, lineHeight: FONTS.sizes.lg, marginBottom: SPACING.sm },
   cardMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   typePill: {
-    borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 20, paddingHorizontal: SPACING.sm, paddingVertical: 3,
   },
   typePillText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
   cardTime: { color: '#3a3f5c', fontSize: 11, fontWeight: '500' },
 
   // Empty
-  emptyState: { alignItems: 'center', paddingTop: 80, gap: 12 },
+  emptyState: { alignItems: 'center', paddingTop: 80, gap: SPACING.md },
   emptyIcon: {
-    width: 80, height: 80, borderRadius: 24,
+    width: 80, height: 80, borderRadius: RADIUS.xl,
     justifyContent: 'center', alignItems: 'center',
   },
-  emptyTitle: { color: '#8b8fa3', fontSize: 17, fontWeight: '700' },
+  emptyTitle: { color: COLORS.textSecondary, fontSize: 17, fontWeight: '700' },
   emptyText: { color: '#3a3f5c', fontSize: 13, textAlign: 'center', maxWidth: 240, lineHeight: 20 },
 });

@@ -15,6 +15,10 @@ from app.api import location as location_router
 from app.api import notifications as notifications_router
 from app.api import quotations as quotations_router
 from app.api import payments as payments_router
+from app.api import credits as credits_router
+from app.api import reputation as reputation_router
+from app.api import chat as chat_router
+from app.api import verification as verification_router
 import os
 import logging
 import time
@@ -45,6 +49,26 @@ async def on_startup():
     from app.api.uploads import ensure_upload_dirs
     ensure_upload_dirs()
     logger.info("Upload directories verified/created")
+
+    # Seed quiz questions if not already present
+    try:
+        from app.services.quiz_seed import seed_quiz_questions
+        from sqlmodel import Session
+        from app.core.database import engine
+        with Session(engine) as session:
+            seed_quiz_questions(session)
+    except Exception as e:
+        logger.warning(f"Could not seed quiz questions: {e}")
+    
+    # Start background scheduler
+    from app.core.scheduler import start_scheduler
+    start_scheduler()
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    # Stop background scheduler
+    from app.core.scheduler import shutdown_scheduler
+    shutdown_scheduler()
 
 
 
@@ -139,6 +163,18 @@ app.include_router(quotations_router.router)
 # Payments (feature-flagged via PAYMENTS_ENABLED)
 app.include_router(payments_router.router)
 
+# Credits (Sprint 1)
+app.include_router(credits_router.router)
+
+# Reputation (public)
+app.include_router(reputation_router.router)
+
+# Chat (messages REST endpoints for service chat)
+app.include_router(chat_router.router)
+
+# Verification (technician documents + quiz)
+app.include_router(verification_router.router)
+
 # Simulation (development only — excluded in production)
 if settings.ENVIRONMENT != "production":
     from app.api import simulate as simulate_router
@@ -204,17 +240,17 @@ async def health():
 @app.on_event("startup")
 async def startup_event():
     print("\n" + "=" * 50)
-    print("🚀 Tec360 Seguridad API iniciada")
+    print(" Tec360 Seguridad API iniciada")
     print("=" * 50)
-    print(f"📍 Entorno: {settings.ENVIRONMENT}")
-    print(f"🗄️  Database: {'configurada' if settings.DATABASE_URL else '❌ no configurada'}")
-    print(f"📱 Twilio: {'✅' if settings.TWILIO_ACCOUNT_SID else '❌'}")
-    print(f"🗺️  Google Maps: {'✅' if settings.GOOGLE_MAPS_API_KEY else '❌'}")
-    print(f"🌐 CORS origins: {', '.join(settings.ALLOWED_ORIGINS)}")
+    print(f" Entorno: {settings.ENVIRONMENT}")
+    print(f" Database: {'configurada' if settings.DATABASE_URL else ' no configurada'}")
+    print(f" Twilio: {'OK' if settings.TWILIO_ACCOUNT_SID else 'Falta'}")
+    print(f" Google Maps: {'OK' if settings.GOOGLE_MAPS_API_KEY else 'Falta'}")
+    print(f" CORS origins: {', '.join(settings.ALLOWED_ORIGINS)}")
     if docs_url:
-        print(f"📚 Docs: http://{settings.HOST}:{settings.PORT}{docs_url}")
+        print(f" Docs: http://{settings.HOST}:{settings.PORT}{docs_url}")
     else:
-        print("📚 Docs: deshabilitados (producción)")
+        print(" Docs: deshabilitados (producción)")
     print("=" * 50 + "\n")
 
     # Limpiar OTPs expirados al iniciar
@@ -229,7 +265,7 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    print("\n👋 Cerrando Tec360 Seguridad API\n")
+    print("\n Cerrando Tec360 Seguridad API\n")
 
 
 if __name__ == "__main__":

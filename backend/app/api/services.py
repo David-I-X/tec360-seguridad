@@ -16,8 +16,14 @@ from app.schemas.service import (
     ServiceAssign,
     NearbyTechnicianResponse
 )
+from app.schemas.incident import IncidentCreate
+from app.models.incident import IncidentReport
 from app.services.service_service import service_service
+from pydantic import BaseModel
 
+class PriceAdjustmentRequest(BaseModel):
+    amount: float
+    description: str
 
 router = APIRouter(prefix="/services", tags=["Services"])
 
@@ -310,16 +316,19 @@ async def update_service(
 @router.patch("/{service_id}/confirm", response_model=ServiceResponse)
 async def confirm_service(
     service_id: str = Path(..., description="UUID del servicio"),
+    payment_method: str = Query(None, description="Método de pago (online/cash)"),
     current_user: dict = Depends(require_roles("client")),
     session: Session = Depends(get_session)
 ):
     """
     Permite al cliente confirmar que el servicio fue completado satisfactoriamente.
+    Opcionalmente registra el método de pago elegido.
     """
     return await service_service.confirm_service(
         session=session,
         service_id=service_id,
-        client_id=current_user["id"]
+        client_id=current_user["id"],
+        payment_method=payment_method
     )
 
 
@@ -359,7 +368,7 @@ async def find_nearby_technicians(
     )
 
 
-@router.delete("/{service_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{service_id}", status_code=status.HTTP_200_OK)
 async def cancel_service(
     service_id: str = Path(..., description="UUID del servicio"),
     current_user: dict = Depends(get_current_user),
@@ -367,24 +376,194 @@ async def cancel_service(
 ):
     """
     Cancela un servicio.
+    - Clientes: Cancela y reembolsa créditos al técnico (si aplica).
+    - Técnicos: Cancela y aplica penalización por cancelación (-15 pts, posible suspensión).
+    - Admins: Cancela sin penalizaciones.
     """
-    if current_user["role"] not in ["client", "admin"]:
+    if current_user["role"] not in ["client", "admin", "technician"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo clientes y admins pueden cancelar servicios"
+            detail="Rol no autorizado para cancelar servicios"
         )
     
-    await service_service.update_service(
+    result = await service_service.cancel_service(
         session=session,
         service_id=service_id,
-        service_data=ServiceUpdate(status="cancelled"),
         user_id=current_user["id"],
         user_role=current_user["role"]
     )
     
-    return None
+    # Client penalty
+    if current_user["role"] == "client":
+        from app.models.user import User
+        from sqlmodel import select
+        from uuid import UUID
+        client = session.exec(select(User).where(User.id == UUID(current_user["id"]))).first()
+        if client:
+            client.cancellation_count += 1
+            if client.cancellation_count >= 3:
+                client.flagged_for_review = True
+            session.add(client)
+            session.commit()
+    
+    return result
+@router.post("/{service_id}/incident", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def report_incident(
+    service_id: str,
+    incident_data: IncidentCreate,
+    current_user: dict = Depends(require_roles("technician")),
+    session: Session = Depends(get_session)
+):
+    """
+    Técnico reporta un incidente en campo.
+    - Pausa el servicio automáticamente
+    - Notifica al administrador
+    """
+    from uuid import UUID
+    from sqlmodel import select
+    from app.models.service import Service, ServiceStatus
+    
+    service = session.exec(select(Service).where(Service.id == UUID(service_id))).first()
+    if not service:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
+        
+    if str(service.technician_id) != current_user["id"]:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "No autorizado")
+        
+    # Crear reporte
+    incident = IncidentReport(
+        service_id=service.id,
+        technician_id=current_user["id"],
+        incident_type=incident_data.incident_type,
+        description=incident_data.description,
+        evidence_url=incident_data.evidence_url
+    )
+    session.add(incident)
+    
+    # Pausar servicio
+    service.status = ServiceStatus.paused
+    session.add(service)
+    session.commit()
+    
+    # Notificar a Admin (idealmente con NotificationService)
+    try:
+        from app.services.notification_service import NotificationService
+        from app.schemas.notification import NotificationCreate
+        await NotificationService.create_notification(
+            session=session,
+            data=NotificationCreate(
+                user_id=service.client_id, # Enviar a admin en producción
+                title="🚨 Incidente Reportado",
+                message=f"El técnico reportó un incidente: {incident_data.incident_type.value}",
+                notification_type="system_alert",
+                service_id=service.id
+            )
+        )
+    except Exception as e:
+        import logging
+        logging.warning(f"Failed to notify incident: {e}")
+        
+    return {"success": True, "message": "Incidente reportado, servicio pausado"}
 
+@router.post("/{service_id}/price-adjustment", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def request_price_adjustment(
+    service_id: str,
+    payload: PriceAdjustmentRequest,
+    current_user: dict = Depends(require_roles("technician")),
+    session: Session = Depends(get_session)
+):
+    """
+    Técnico solicita un ajuste de precio en campo.
+    Crea una nueva cotización de tipo ajuste.
+    - Notifica al cliente para que la apruebe.
+    """
+    from uuid import UUID
+    from app.models.quotation import Quotation, QuotationStatus
+    from sqlmodel import select
+    from app.models.service import Service, ServiceStatus
+    
+    service = session.exec(select(Service).where(Service.id == UUID(service_id))).first()
+    if not service:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
+        
+    if str(service.technician_id) != current_user["id"]:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "No autorizado")
+        
+    if service.status != ServiceStatus.in_progress:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Solo se pueden hacer ajustes si el servicio está en progreso")
+        
+    # Crear cotización de ajuste
+    quotation = Quotation(
+        service_id=service.id,
+        technician_id=current_user["id"],
+        amount=payload.amount,
+        description=payload.description,
+        is_adjustment=True,
+        status=QuotationStatus.pending
+    )
+    session.add(quotation)
+    
+    # Pausar el servicio hasta que el cliente responda
+    service.status = ServiceStatus.paused
+    session.add(service)
+    
+    session.commit()
+    
+    # Notificar al cliente
+    try:
+        from app.services.notification_service import NotificationService
+        from app.schemas.notification import NotificationCreate
+        await NotificationService.create_notification(
+            session=session,
+            data=NotificationCreate(
+                user_id=service.client_id,
+                title="Ajuste de precio requerido",
+                message=f"El técnico solicita un ajuste a ${payload.amount:,.0f}. Motivo: {payload.description}",
+                notification_type="price_adjustment",
+                service_id=service.id
+            )
+        )
+    except Exception as e:
+        import logging
+        logging.warning(f"Failed to notify price adjustment: {e}")
+        
+    return {"success": True, "message": "Solicitud de ajuste enviada al cliente"}
+@router.get("/{service_id}/receipt")
+async def download_receipt(
+    service_id: str,
+    current_user: dict = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Descarga el recibo en PDF de un servicio completado/confirmado.
+    """
+    from app.models.service import Service, ServiceStatus
+    from app.models.user import User
+    from sqlmodel import select
+    from uuid import UUID
+    from fastapi.responses import Response
 
+    service = session.exec(select(Service).where(Service.id == UUID(service_id))).first()
+    if not service:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
+
+    if current_user["role"] == "client" and str(service.client_id) != current_user["id"]:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "No autorizado")
+
+    if service.status not in [ServiceStatus.COMPLETED, ServiceStatus.CONFIRMED]:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "El recibo solo está disponible para servicios completados")
+
+    client = session.exec(select(User).where(User.id == service.client_id)).first()
+    technician = session.exec(select(User).where(User.id == service.technician_id)).first()
+
+    from app.services.pdf_service import PDFService
+    pdf_bytes = PDFService.generate_receipt(
+        service=service,
+        client_name=client.full_name if client else "Cliente",
+        tech_name=technician.full_name if technician else "Técnico"
+    )
+
+    return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=recibo_{service.id}.pdf"})
 # ============================================
 # ENDPOINTS PARA ESTADÍSTICAS (BONUS)
 # ============================================

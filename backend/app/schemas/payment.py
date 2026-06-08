@@ -39,3 +39,11 @@ class PaymentResponse(BaseModel):
 class PaymentListResponse(BaseModel):
     items: List[PaymentResponse]
     total: int
+
+
+class TechnicianPaymentSummary(BaseModel):
+    """Resumen financiero para el técnico"""
+    total_collected: float = Field(0, description="Total cobrado en COP")
+    payments_count: int = Field(0, description="Cantidad de pagos registrados")
+    pending_validation: int = Field(0, description="Pagos pendientes de validar por admin")
+    validated: int = Field(0, description="Pagos ya validados por admin")

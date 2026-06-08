@@ -8,7 +8,8 @@ import { es } from "date-fns/locale"
 import { motion, AnimatePresence } from "framer-motion"
 import {
     ArrowLeft, MapPin, Calendar, Phone, Navigation,
-    Loader2, CheckCircle, Camera, X, AlertCircle, Car
+    Loader2, CheckCircle, Camera, X, AlertCircle, Car,
+    ReceiptText
 } from "lucide-react"
 
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
@@ -48,14 +49,20 @@ function PhotoRequiredModal({
     const inputRef = useRef<HTMLInputElement>(null)
     const [isUploading, setIsUploading] = useState(false)
     const [preview, setPreview] = useState<string | null>(null)
+    const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
-    const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
         setPreview(URL.createObjectURL(file))
+        setSelectedFile(file)
+    }
+
+    const handleConfirm = async () => {
+        if (!selectedFile) return
         setIsUploading(true)
         try {
-            await onCapture(file)
+            await onCapture(selectedFile)
         } finally {
             setIsUploading(false)
         }
@@ -66,14 +73,14 @@ function PhotoRequiredModal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end"
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end justify-center sm:items-center"
         >
             <motion.div
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 28, stiffness: 300 }}
-                className="w-full bg-background border-t border-border/40 rounded-t-3xl px-6 pt-5 pb-10"
+                className="w-full max-w-md bg-background border-t border-border/40 sm:border sm:rounded-2xl rounded-t-3xl px-6 pt-5 pb-10 sm:pb-6 shadow-2xl"
             >
                 {/* Handle */}
                 <div className="w-10 h-1 rounded-full bg-border/60 mx-auto mb-5" />
@@ -95,8 +102,8 @@ function PhotoRequiredModal({
 
                 {/* Preview */}
                 {preview && (
-                    <div className="relative w-full aspect-video rounded-2xl overflow-hidden mb-4 border border-border/30">
-                        <img src={preview} alt="preview" className="w-full h-full object-cover" />
+                    <div className="relative w-full aspect-video max-h-48 rounded-2xl overflow-hidden mb-4 border border-border/30 bg-muted/10">
+                        <img src={preview} alt="preview" className="w-full h-full object-contain" />
                         {isUploading && (
                             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                                 <Loader2 className="w-8 h-8 animate-spin text-white" />
@@ -115,15 +122,38 @@ function PhotoRequiredModal({
                     onChange={handleFile}
                 />
 
-                <Button
-                    onClick={() => inputRef.current?.click()}
-                    disabled={isUploading}
-                    size="lg"
-                    className="w-full gradient-brand text-white h-14 text-base font-semibold shadow-lg shadow-blue-500/20"
-                >
-                    <Camera className="w-5 h-5 mr-2" />
-                    {isUploading ? "Subiendo foto..." : preview ? "Tomar de nuevo" : "Abrir cámara"}
-                </Button>
+                {!selectedFile ? (
+                    <Button
+                        onClick={() => inputRef.current?.click()}
+                        disabled={isUploading}
+                        size="lg"
+                        className="w-full gradient-brand text-white h-14 text-base font-semibold shadow-lg shadow-blue-500/20"
+                    >
+                        <Camera className="w-5 h-5 mr-2" />
+                        Abrir cámara o galería
+                    </Button>
+                ) : (
+                    <div className="flex gap-3">
+                        <Button
+                            onClick={() => inputRef.current?.click()}
+                            disabled={isUploading}
+                            variant="outline"
+                            size="lg"
+                            className="flex-1 h-14"
+                        >
+                            Cambiar foto
+                        </Button>
+                        <Button
+                            onClick={handleConfirm}
+                            disabled={isUploading}
+                            size="lg"
+                            className="flex-1 bg-green-600 hover:bg-green-700 text-white h-14 text-base font-semibold shadow-lg shadow-green-500/20"
+                        >
+                            {isUploading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <CheckCircle className="w-5 h-5 mr-2" />}
+                            {isUploading ? "Subiendo..." : "Confirmar y Subir"}
+                        </Button>
+                    </div>
+                )}
             </motion.div>
         </motion.div>
     )
@@ -245,7 +275,7 @@ function TechnicianServiceContent() {
         async function fetchExistingPhotos() {
             if (!token) return
             try {
-                const res = await fetch(`${API_URL}/uploads/service-photos/${params.id}`, {
+                const res = await fetch(`${API_URL}/uploads/${params.id}/photos`, {
                     headers: { Authorization: `Bearer ${token}` },
                 })
                 if (res.ok) {
@@ -724,6 +754,30 @@ function TechnicianServiceContent() {
                                 <CheckCircle className="mr-2 h-5 w-5" />
                                 {isUpdating ? "Completando..." : confirmComplete ? "✅ Sí, marcar como completado" : "Marcar como Completado"}
                                 {!photos.after && <span className="ml-2 text-xs opacity-70">(requiere foto)</span>}
+                            </Button>
+                        </div>
+                    )}
+
+                    {["arrived", "in_progress"].includes(service.status) && (
+                        <div className="pt-4 border-t border-border/20 mt-4 space-y-3">
+                            <Button 
+                                onClick={() => router.push(`/tecnicos/servicio/${service.id}/ajuste`)} 
+                                variant="outline" 
+                                size="lg" 
+                                className="w-full border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300"
+                            >
+                                <ReceiptText className="mr-2 h-5 w-5" />
+                                Ajuste de Monto
+                            </Button>
+                            
+                            <Button 
+                                onClick={() => router.push(`/tecnicos/servicio/${service.id}/incidente`)} 
+                                variant="outline" 
+                                size="lg" 
+                                className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                            >
+                                <AlertCircle className="mr-2 h-5 w-5" />
+                                Reportar Incidente
                             </Button>
                         </div>
                     )}

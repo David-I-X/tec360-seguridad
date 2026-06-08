@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Moon, Sun, LogOut, User, Menu, X, Shield, Wrench, FileText, Bell, Home, ClipboardList, Settings, Download } from "lucide-react"
+import { Moon, Sun, LogOut, User, Menu, X, Shield, Wrench, FileText, Bell, Home, ClipboardList, Settings, Download, Wallet } from "lucide-react"
 import { useTheme } from "next-themes"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
@@ -60,6 +60,7 @@ export function Navbar() {
       return [
         { href: "/tecnicos/dashboard", label: "Dashboard", icon: Wrench },
         { href: "/tecnicos/mis-cotizaciones", label: "Cotizaciones", icon: FileText },
+        { href: "/tecnicos/billetera", label: "Billetera", icon: Wallet },
         { href: "/descargar-app", label: "Descargar App", icon: Download },
         { href: "/configuracion", label: "Configuración", icon: Settings },
       ]
@@ -217,6 +218,12 @@ export function Navbar() {
                         <Link href="/tecnicos/mis-cotizaciones" className="cursor-pointer">
                           <FileText className="mr-2 h-4 w-4" />
                           Mis Cotizaciones
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/tecnicos/billetera" className="cursor-pointer">
+                          <Wallet className="mr-2 h-4 w-4" />
+                          Billetera
                         </Link>
                       </DropdownMenuItem>
                     </>
