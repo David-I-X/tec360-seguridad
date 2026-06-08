@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import dynamic from "next/dynamic"
-import { ArrowLeft, Calendar, MapPin, User, Wrench, Clock, Loader2, FileText, XCircle } from "lucide-react"
+import { ArrowLeft, Calendar, MapPin, User, Wrench, Clock, Loader2, FileText, XCircle, MessageSquare } from "lucide-react"
 
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
 import { getServiceById, cancelService, confirmService } from "@/lib/api"
@@ -30,6 +30,8 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { ServiceChat } from "@/components/chat/ServiceChat"
 
 const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
     pending: { label: "Pendiente", variant: "secondary" },
@@ -305,7 +307,33 @@ function ServiceDetailContent() {
                                 </div>
                             </GlassCard>
                         )}
-
+                        
+                        {/* FAB for Chat - visible when technician is assigned */}
+                        {service.technician && token && (
+                            <div className="fixed bottom-6 right-6 z-50">
+                                <Sheet>
+                                    <SheetTrigger asChild>
+                                        <Button className="h-14 w-14 rounded-full shadow-xl bg-brand hover:bg-brand-dark p-0 flex items-center justify-center group relative">
+                                            <MessageSquare className="h-6 w-6 text-white" />
+                                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold h-5 min-w-[20px] px-1.5 flex items-center justify-center rounded-full border-2 border-white dark:border-slate-900 hidden group-hover:flex">
+                                                Chat
+                                            </span>
+                                        </Button>
+                                    </SheetTrigger>
+                                    <SheetContent className="w-full sm:max-w-md p-0 flex flex-col h-[100dvh]">
+                                        <SheetHeader className="p-4 border-b bg-white dark:bg-slate-950">
+                                            <SheetTitle className="flex items-center gap-2">
+                                                <MessageSquare className="h-5 w-5 text-brand" />
+                                                Chat del Servicio
+                                            </SheetTitle>
+                                        </SheetHeader>
+                                        <div className="flex-1 overflow-hidden">
+                                            <ServiceChat serviceId={service.id} />
+                                        </div>
+                                    </SheetContent>
+                                </Sheet>
+                            </div>
+                        )}
                     </>
                 )}
 

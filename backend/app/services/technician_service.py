@@ -340,6 +340,7 @@ class TechnicianService:
             average_rating=tech.average_rating,
             created_at=tech.created_at,
             updated_at=tech.updated_at,
+            user=user
         )
 
 technician_service = TechnicianService()

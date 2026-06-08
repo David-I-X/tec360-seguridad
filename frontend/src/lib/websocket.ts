@@ -16,6 +16,7 @@ export type WebSocketMessage =
     | { type: "connected"; data: { service_id?: string; user_id: string } }
     | { type: "status_update"; data: { service_id: string; status: string; technician?: any } }
     | { type: "location_update"; data: { technician_id: string; lat: number; lng: number; timestamp: number } }
+    | { type: "chat_message"; data: { id: string; service_id: string; sender_id: string; text: string; created_at: string; is_read: boolean } }
     | { type: "pong" }
 
 type MessageHandler = (message: WebSocketMessage) => void
@@ -142,6 +143,16 @@ class ServiceWebSocket {
         this.send({
             type: "location_update",
             data: { lat, lng }
+        })
+    }
+
+    /**
+     * Send chat message
+     */
+    sendChatMessage(text: string) {
+        this.send({
+            type: "chat_message",
+            data: { text }
         })
     }
 

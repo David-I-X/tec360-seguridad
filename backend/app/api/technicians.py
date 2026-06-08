@@ -71,94 +71,48 @@ async def get_technician_public_profile(
     Obtiene el perfil público de un técnico.
     **Endpoint público**
     """
-    technician = await technician_service.get_technician_by_user_id(
-        session=session,
-        user_id=user_id,
-        include_user_info=True
-    )
-    
-    # El usuario debería estar cargado si la service lo maneja bien (lo hace manual)
-    # TechnicianResponse tiene campos completos, pero aquí retornamos subset
-    # Necesitamos asegurar que el usuario relacionado vino (sí, include_user_info=True)
-    # Pero el TechnicianResponse no tiene el objeto user anidado, sino campos aplanados?
-    # No, TechnicianResponse es el Pydantic que definimos antes.
-    # Espera, mi refactor service devolvió un TechnicianResponse.
-    # Pero TechnicianResponse NO tiene nested 'user' object en la definicion que vi?
-    # Viendo schema... no lo vi completo. Asumamos que el service retorna lo correcto para el schema.
-    # Pero TechnicianPublicProfile aqui abajo usa .user.full_name etc.
-    # Si TechnicianResponse no tiene .user, esto fallará.
-    # En el service refactorizado, estoy devolviendo TechnicianResponse.
-    # TechnicianResponse probablemente tiene los campos a nivel raíz o un campo user.
-    # REVISAR SCHEMA luega si falla. Asumo que TechnicianResponse tiene user_id.
-    # PERO, TechnicianResponse no tiene 'user' attribute si es un Pydantic model plano.
-    # Aquí en public profile se accede a technician.user.
-    # Si TechnicianResponse no tiene 'user', esto explota.
-    
-    # FIX: El service retorna TechnicianResponse.
-    # TechnicianResponse (visto en file view) NO TIENE campo 'user'.
-    # TIENE: id, user_id, sena...
-    # NO TIENE: full_name, city, avatar_url. NO TIENE objeto usuario.
-    # ENTONCES public profile fallará porque intenta acceder a technician.user.full_name
-    
-    # REVISAR MI REFACTOR DE SERVICE:
-    # return TechnicianResponse(..., user_id=..., )
-    # NO pasé full_name ni avatar ni city al TechnicianResponse!
-    # El schema TechnicianResponse (que no vi completo, solo models/technician.py)
-    # models/technician.py define TechnicianBase y Technician table.
-    # schemas/technician.py define TechnicianResponse. NO LO LEÍ. LEÍ services/technician_service.py.
-    # Y `app/schemas/technician.py` estaba importado pero no leí su contenido.
-    # ERROR POTENCIAL: Asumir campos de respuesta.
-    
-    # Sin embargo, `technician_service.py` ORIGINAL usaba:
-    # tech.get("user", {}) para sacar nombres.
-    # Y retornaba TechnicianResponse.
-    
-    # Voy a asumir que TechnicianResponse TIENE campos de usuario o un objeto usuario.
-    # Si no, fallará Pydantic validation o attribute error.
-    # Dado que no leí el schema, lo mejor es abrirlo antes de seguir escribiendo este archivo incorrectamente.
-    # CANCELAR ESCRITURA? No puedo.
-    
-    # Voy a escribir esto como mejor esfuerzo y LUEGO verificar schema.
-    # Si TechnicianResponse tiene los campos planos, debo asignarlos.
-    # Si tiene objeto user, debo asignarlo.
-    
-    # Viendo el código original de `api/technicians.py`:
-    # technician.user.full_name
-    # Esto implica que technician tiene un atributo .user.
-    
-    # En mi refactor service, devolví TechnicianResponse(...).
-    # Si TechnicianResponse es un Pydantic model, y le pasé argumentos...
-    # NO LE PASÉ 'user'.
-    # Así que .user será None o error.
-    
-    # PAUSA: Necesito leer app/schemas/technician.py.
-    # Pero ya estoy en medio de write_to_file.
-    # Completaré este archivo asumiendo que el service retorna lo necesario,
-    # y luego corregiré el service si es necesario tras leer el schema.
-    
-    # Pero espera, este código es `api/technicians.py`.
-    # Aquí accedo a `technician.user`.
-    # Si `technician` (que viene del service) no tiene .user, fallará aquí.
-    
-    # Voy a comentar esa parte o hacerla defensiva, o mejor,
-    # Leeré el schema inmediatamente despues y arreglaré ambos.
-    
-    # Usar .user que viene poblado desde _to_response en technician_service
-    user_info = technician.user
-    
-    return TechnicianPublicProfile(
-        user_id=technician.user_id,
-        full_name=user_info.full_name if user_info else None,
-        specializations=technician.specializations,
-        experience_years=technician.experience_years,
-        bio=technician.bio,
-        service_radius_km=technician.service_radius_km,
-        average_rating=technician.average_rating,
-        total_services=technician.total_services,
-        city=user_info.city if user_info else None,
-        avatar_url=user_info.avatar_url if user_info else None,
-        is_verified=technician.is_verified
-    )
+    try:
+        technician = await technician_service.get_technician_by_user_id(
+            session=session,
+            user_id=user_id,
+            include_user_info=True
+        )
+        
+        user_info = technician.user
+        
+        return TechnicianPublicProfile(
+            user_id=technician.user_id,
+            full_name=user_info.full_name if user_info else None,
+            specializations=technician.specializations,
+            experience_years=technician.experience_years,
+            bio=technician.bio,
+            service_radius_km=technician.service_radius_km,
+            average_rating=technician.average_rating,
+            total_services=technician.total_services,
+            city=user_info.city if user_info else None,
+            avatar_url=user_info.avatar_url if user_info else None,
+            is_verified=technician.is_verified
+        )
+    except HTTPException as e:
+        if e.status_code == 404:
+            # Fallback: check if User exists to show basic info
+            from app.models.user import User
+            user = session.get(User, user_id)
+            if user:
+                return TechnicianPublicProfile(
+                    user_id=str(user.id),
+                    full_name=user.full_name,
+                    specializations=["No disponible"],
+                    experience_years=0,
+                    bio="Perfil de técnico no completado",
+                    service_radius_km=0,
+                    average_rating=0.0,
+                    total_services=0,
+                    city=user.city,
+                    avatar_url=user.avatar_url,
+                    is_verified=False
+                )
+        raise
 
 
 # ============================================
