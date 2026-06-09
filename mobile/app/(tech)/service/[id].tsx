@@ -512,7 +512,7 @@ export default function TechServiceScreen() {
                   Alert.prompt
                     ? Alert.prompt('💰 Registrar Cobro', 'Ingresa el monto recibido en COP:', [
                         { text: 'Cancelar', style: 'cancel' },
-                        { text: 'Confirmar', onPress: (val) => registerCashPayment(val || defaultAmount) },
+                        { text: 'Confirmar', onPress: (val?: string) => registerCashPayment(val || defaultAmount) },
                       ], 'plain-text', defaultAmount, 'number-pad')
                     : Alert.alert('💰 Registrar Cobro', `¿Confirmar cobro de $${defaultAmount || '0'} COP?`, [
                         { text: 'Cancelar', style: 'cancel' },
@@ -650,6 +650,20 @@ export default function TechServiceScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+
+      {/* Floating Action Button for Chat */}
+      {service && ['assigned', 'en_route', 'arrived', 'in_progress'].includes(service.status) && (
+        <TouchableOpacity 
+          style={styles.chatFab}
+          onPress={() => router.push(`/(tech)/chat/${id}` as any)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="chatbubble-ellipses" size={26} color="#fff" />
+          <View style={styles.chatFabBadge}>
+            <Text style={styles.chatFabBadgeText}>Chat</Text>
+          </View>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -716,4 +730,7 @@ const styles = StyleSheet.create({
   inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: RADIUS.lg, paddingHorizontal: SPACING.md, borderWidth: 1, borderColor: COLORS.border },
   currencySymbol: { color: COLORS.textMuted, fontSize: FONTS.sizes.xl, fontWeight: FONTS.weights.bold, marginRight: SPACING.sm },
   amountInput: { flex: 1, color: COLORS.text, fontSize: FONTS.sizes.xl, paddingVertical: SPACING.md, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  chatFab: { position: 'absolute', bottom: Platform.OS === 'ios' ? 40 : 30, right: 20, width: 64, height: 64, borderRadius: 32, backgroundColor: '#8b5cf6', justifyContent: 'center', alignItems: 'center', shadowColor: '#8b5cf6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8, zIndex: 100 },
+  chatFabBadge: { position: 'absolute', top: 0, right: 0, backgroundColor: '#ef4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, borderWidth: 2, borderColor: COLORS.bg },
+  chatFabBadgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
 });
