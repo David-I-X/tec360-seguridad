@@ -9,8 +9,11 @@ import { motion, AnimatePresence } from "framer-motion"
 import {
     ArrowLeft, MapPin, Calendar, Phone, Navigation,
     Loader2, CheckCircle, Camera, X, AlertCircle, Car,
-    ReceiptText
+    ReceiptText, MessageSquare
 } from "lucide-react"
+
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { ServiceChat } from "@/components/chat/ServiceChat"
 
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
 import { getServiceById } from "@/lib/api"
@@ -242,7 +245,7 @@ function TechnicianServiceContent() {
     const pendingStatusRef = useRef<string | null>(null)
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
-    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
+    const [token, setToken] = useState<string | null>(null)
 
     const isActiveService = service && ["assigned", "en_route", "arrived", "in_progress"].includes(service.status)
 
@@ -257,6 +260,10 @@ function TechnicianServiceContent() {
     }, [trackingError, toast])
 
     useEffect(() => {
+        if (typeof window !== "undefined") {
+            setToken(localStorage.getItem("access_token"))
+        }
+        
         async function fetchService() {
             try {
                 const data = await getServiceById(params.id as string)
@@ -784,6 +791,33 @@ function TechnicianServiceContent() {
 
                 </div>
             </div>
+
+            {/* FAB for Chat - visible for active services */}
+            {token && (
+                <div className="fixed bottom-6 right-6 z-50">
+                    <Sheet>
+                        <SheetTrigger asChild>
+                            <Button className="h-14 w-14 rounded-full shadow-xl bg-brand hover:bg-brand-dark p-0 flex items-center justify-center group relative">
+                                <MessageSquare className="h-6 w-6 text-white" />
+                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold h-5 min-w-[20px] px-1.5 flex items-center justify-center rounded-full border-2 border-white dark:border-slate-900 hidden group-hover:flex">
+                                    Chat
+                                </span>
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent className="w-full sm:max-w-md p-0 flex flex-col h-[100dvh]">
+                            <SheetHeader className="p-4 border-b bg-white dark:bg-slate-950">
+                                <SheetTitle className="flex items-center gap-2">
+                                    <MessageSquare className="h-5 w-5 text-brand" />
+                                    Chat con el Cliente
+                                </SheetTitle>
+                            </SheetHeader>
+                            <div className="flex-1 overflow-hidden">
+                                <ServiceChat serviceId={service.id} />
+                            </div>
+                        </SheetContent>
+                    </Sheet>
+                </div>
+            )}
         </>
     )
 }
