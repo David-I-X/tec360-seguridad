@@ -552,7 +552,7 @@ export default function ServiceDetailScreen() {
           onPress={() => router.push(`/(client)/chat/${id}` as any)}
           activeOpacity={0.8}
         >
-          <Ionicons name="chatbubble-ellipses" size={26} color="#fff" />
+          <Ionicons name="chatbubbles" size={26} color="#fff" />
           <View style={styles.chatFabBadge}>
             <Text style={styles.chatFabBadgeText}>Chat</Text>
           </View>
@@ -692,7 +692,7 @@ const styles = StyleSheet.create({
   liveDot: { width: 7, height: 7, borderRadius: SPACING.xs, backgroundColor: COLORS.green },
   liveTrackingText: { color: COLORS.green, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   completedBanner: { alignItems: 'center', padding: SPACING.lg, backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' },
-  chatFab: { position: 'absolute', bottom: Platform.OS === 'ios' ? 40 : 30, right: 20, width: 64, height: 64, borderRadius: 32, backgroundColor: '#8b5cf6', justifyContent: 'center', alignItems: 'center', shadowColor: '#8b5cf6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8, zIndex: 100 },
+  chatFab: { position: 'absolute', bottom: Platform.OS === 'ios' ? 100 : 90, right: 20, width: 64, height: 64, borderRadius: 32, backgroundColor: '#8b5cf6', justifyContent: 'center', alignItems: 'center', shadowColor: '#8b5cf6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8, zIndex: 100 },
   chatFabBadge: { position: 'absolute', top: 0, right: 0, backgroundColor: '#ef4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, borderWidth: 2, borderColor: COLORS.bg },
   chatFabBadgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
 });
