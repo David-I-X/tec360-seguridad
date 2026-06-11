@@ -543,21 +543,21 @@ export default function ServiceDetailScreen() {
           amount={service?.estimated_price || 0}
           onConfirm={(method) => handleConfirmPayment(method)}
         />
-      </ScrollView>
 
-      {/* Floating Action Button for Chat */}
-      {service && ['assigned', 'en_route', 'arrived', 'in_progress'].includes(service.status) && (
-        <TouchableOpacity 
-          style={styles.chatFab}
-          onPress={() => router.push(`/(client)/chat/${id}` as any)}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="chatbubbles" size={26} color="#fff" />
-          <View style={styles.chatFabBadge}>
-            <Text style={styles.chatFabBadgeText}>Chat</Text>
-          </View>
-        </TouchableOpacity>
-      )}
+        {/* Chat Button */}
+        {service?.status !== 'completed' && service?.status !== 'cancelled' && service?.status !== 'pending' && (
+          <TouchableOpacity
+            style={styles.chatInlineBtn}
+            onPress={() => router.push(`/(client)/chat/${id}` as any)}
+            activeOpacity={0.8}
+          >
+            <LinearGradient colors={['#8b5cf6', '#7c3aed']} style={styles.chatInlineGradient}>
+              <Ionicons name="chatbubbles" size={22} color="#fff" />
+              <Text style={styles.chatInlineText}>Chat con Técnico</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -692,7 +692,7 @@ const styles = StyleSheet.create({
   liveDot: { width: 7, height: 7, borderRadius: SPACING.xs, backgroundColor: COLORS.green },
   liveTrackingText: { color: COLORS.green, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   completedBanner: { alignItems: 'center', padding: SPACING.lg, backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' },
-  chatFab: { position: 'absolute', bottom: Platform.OS === 'ios' ? 100 : 90, right: 20, width: 64, height: 64, borderRadius: 32, backgroundColor: '#8b5cf6', justifyContent: 'center', alignItems: 'center', shadowColor: '#8b5cf6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8, zIndex: 100 },
-  chatFabBadge: { position: 'absolute', top: 0, right: 0, backgroundColor: '#ef4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, borderWidth: 2, borderColor: COLORS.bg },
-  chatFabBadgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
+  chatInlineBtn: { borderRadius: 18, overflow: 'hidden', marginTop: SPACING.lg, marginBottom: SPACING.md },
+  chatInlineGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 16, borderRadius: 18 },
+  chatInlineText: { color: '#fff', fontSize: FONTS.sizes.md, fontWeight: '800' },
 });
