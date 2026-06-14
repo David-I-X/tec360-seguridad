@@ -335,7 +335,33 @@ export default function WaitingScreen() {
               <Text style={styles.profileText}>Ver Perfil</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Chat Button */}
+          <TouchableOpacity
+            style={styles.chatButton}
+            onPress={() => router.push(`/(client)/chat/${id}` as any)}
+            activeOpacity={0.8}
+          >
+            <LinearGradient colors={['#8b5cf6', '#7c3aed']} style={styles.chatButtonGradient}>
+              <Ionicons name="chatbubbles" size={20} color="#fff" />
+              <Text style={styles.chatButtonText}>Chat con Técnico</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
+      )}
+
+      {/* Chat Button (standalone, if no tech card) */}
+      {!tech && service?.status !== 'pending' && (
+        <TouchableOpacity
+          style={styles.chatButtonStandalone}
+          onPress={() => router.push(`/(client)/chat/${id}` as any)}
+          activeOpacity={0.8}
+        >
+          <LinearGradient colors={['#8b5cf6', '#7c3aed']} style={styles.chatButtonGradient}>
+            <Ionicons name="chatbubbles" size={20} color="#fff" />
+            <Text style={styles.chatButtonText}>Chat con Técnico</Text>
+          </LinearGradient>
+        </TouchableOpacity>
       )}
 
       {/* Service Info */}
@@ -432,4 +458,8 @@ const styles = StyleSheet.create({
   infoTitle: { color: '#f0f0f5', fontSize: 17, fontWeight: '700', marginBottom: 12 },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   infoText: { color: '#8b8fa3', fontSize: 14 },
+  chatButton: { marginTop: 14, borderRadius: 14, overflow: 'hidden' },
+  chatButtonStandalone: { marginHorizontal: 20, marginBottom: 16, borderRadius: 14, overflow: 'hidden' },
+  chatButtonGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, borderRadius: 14 },
+  chatButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });
