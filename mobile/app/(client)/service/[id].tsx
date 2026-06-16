@@ -344,24 +344,22 @@ export default function ServiceDetailScreen() {
 
             <View style={styles.techActions}>
               <TouchableOpacity style={styles.profileBtn} activeOpacity={0.7} onPress={() => router.push(`/(client)/tech-profile/${tech.id || service?.technician_id}` as any)}>
-                <Text style={styles.profileBtnText}>Ver perfil completo</Text>
+                <Text style={styles.profileBtnText}>Ver perfil</Text>
               </TouchableOpacity>
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                {tech.phone && (
-                  <TouchableOpacity style={[styles.callBtnFull, { flex: 1 }]} onPress={() => Linking.openURL(`tel:${tech.phone}`)} activeOpacity={0.7}>
-                    <LinearGradient colors={['#22c55e', '#16a34a']} style={styles.callBtnGradient}>
-                      <Ionicons name="call" size={16} color="#fff" />
-                      <Text style={styles.callBtnText}>Llamar</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity style={{ flex: 1 }} onPress={() => router.push(`/(client)/chat/${id}` as any)} activeOpacity={0.7}>
-                  <LinearGradient colors={['#8b5cf6', '#7c3aed']} style={styles.callBtnGradient}>
-                    <Ionicons name="chatbubbles" size={16} color="#fff" />
-                    <Text style={styles.callBtnText}>Chat</Text>
+              {tech.phone && (
+                <TouchableOpacity style={styles.callBtnFull} onPress={() => Linking.openURL(`tel:${tech.phone}`)} activeOpacity={0.7}>
+                  <LinearGradient colors={['#22c55e', '#16a34a']} style={styles.callBtnGradient}>
+                    <Ionicons name="call" size={16} color="#fff" />
+                    <Text style={styles.callBtnText}>Llamar</Text>
                   </LinearGradient>
                 </TouchableOpacity>
-              </View>
+              )}
+              <TouchableOpacity style={styles.callBtnFull} onPress={() => router.push(`/(client)/chat/${id}` as any)} activeOpacity={0.7}>
+                <LinearGradient colors={['#8b5cf6', '#7c3aed']} style={styles.callBtnGradient}>
+                  <Ionicons name="chatbubbles" size={16} color="#fff" />
+                  <Text style={styles.callBtnText}>Chat</Text>
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
           </View>
         )}
