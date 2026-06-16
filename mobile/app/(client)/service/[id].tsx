@@ -346,14 +346,22 @@ export default function ServiceDetailScreen() {
               <TouchableOpacity style={styles.profileBtn} activeOpacity={0.7} onPress={() => router.push(`/(client)/tech-profile/${tech.id || service?.technician_id}` as any)}>
                 <Text style={styles.profileBtnText}>Ver perfil completo</Text>
               </TouchableOpacity>
-              {tech.phone && (
-                <TouchableOpacity style={styles.callBtnFull} onPress={() => Linking.openURL(`tel:${tech.phone}`)} activeOpacity={0.7}>
-                  <LinearGradient colors={['#22c55e', '#16a34a']} style={styles.callBtnGradient}>
-                    <Ionicons name="call" size={16} color="#fff" />
-                    <Text style={styles.callBtnText}>Llamar</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                {tech.phone && (
+                  <TouchableOpacity style={[styles.callBtnFull, { flex: 1 }]} onPress={() => Linking.openURL(`tel:${tech.phone}`)} activeOpacity={0.7}>
+                    <LinearGradient colors={['#22c55e', '#16a34a']} style={styles.callBtnGradient}>
+                      <Ionicons name="call" size={16} color="#fff" />
+                      <Text style={styles.callBtnText}>Llamar</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={{ flex: 1 }} onPress={() => router.push(`/(client)/chat/${id}` as any)} activeOpacity={0.7}>
+                  <LinearGradient colors={['#8b5cf6', '#7c3aed']} style={styles.callBtnGradient}>
+                    <Ionicons name="chatbubbles" size={16} color="#fff" />
+                    <Text style={styles.callBtnText}>Chat</Text>
                   </LinearGradient>
                 </TouchableOpacity>
-              )}
+              </View>
             </View>
           </View>
         )}
@@ -544,19 +552,7 @@ export default function ServiceDetailScreen() {
           onConfirm={(method) => handleConfirmPayment(method)}
         />
 
-        {/* Chat Button */}
-        {service?.status !== 'completed' && service?.status !== 'cancelled' && service?.status !== 'pending' && (
-          <TouchableOpacity
-            style={styles.chatInlineBtn}
-            onPress={() => router.push(`/(client)/chat/${id}` as any)}
-            activeOpacity={0.8}
-          >
-            <LinearGradient colors={['#8b5cf6', '#7c3aed']} style={styles.chatInlineGradient}>
-              <Ionicons name="chatbubbles" size={22} color="#fff" />
-              <Text style={styles.chatInlineText}>Chat con Técnico</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
+        {/* Chat button is now inside the technician card above */}
       </ScrollView>
     </View>
   );

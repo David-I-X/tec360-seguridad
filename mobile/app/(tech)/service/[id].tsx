@@ -458,6 +458,9 @@ export default function TechServiceScreen() {
                 <Text style={styles.clientName}>{client.full_name}</Text>
                 {client.phone && <Text style={styles.clientPhone}>{client.phone}</Text>}
               </View>
+              <TouchableOpacity style={styles.phoneBtn} onPress={() => router.push(`/(tech)/chat/${id}` as any)}>
+                <Ionicons name="chatbubbles" size={18} color="#8b5cf6" />
+              </TouchableOpacity>
               {client.phone && (
                 <TouchableOpacity style={styles.phoneBtn} onPress={() => Linking.openURL(`tel:${client.phone}`)}>
                   <Ionicons name="call" size={18} color="#22c55e" />
@@ -559,19 +562,7 @@ export default function TechServiceScreen() {
           </View>
         )}
 
-        {/* Chat Button */}
-        {service?.status !== 'completed' && service?.status !== 'cancelled' && (
-          <TouchableOpacity
-            style={styles.chatInlineBtn}
-            onPress={() => router.push(`/(tech)/chat/${id}` as any)}
-            activeOpacity={0.8}
-          >
-            <LinearGradient colors={['#8b5cf6', '#7c3aed']} style={styles.chatInlineGradient}>
-              <Ionicons name="chatbubbles" size={22} color="#fff" />
-              <Text style={styles.chatInlineText}>Chat con Cliente</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
+        {/* Chat button is now inside the client card above */}
       </ScrollView>
 
       {/* Incident Modal */}
