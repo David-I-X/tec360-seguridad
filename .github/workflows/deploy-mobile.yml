@@ -104,6 +104,9 @@ jobs:
           # Save the APK to a temp location before switching branches
           cp frontend/public/app/tec360-seguridad-latest.apk /tmp/tec360-seguridad-latest.apk
           
+          # Discard all local changes so we can switch branches cleanly
+          git checkout -- .
+          
           # Fetch and checkout the latest master branch
           git fetch origin master
           git checkout master
