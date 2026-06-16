@@ -32,6 +32,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: 🏗 Setup Node
         uses: actions/setup-node@v4
@@ -100,10 +101,28 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
+          # Save the APK to a temp location before switching branches
+          cp frontend/public/app/tec360-seguridad-latest.apk /tmp/tec360-seguridad-latest.apk
+          
+          # Fetch and checkout the latest master branch
+          git fetch origin master
+          git checkout master
+          git pull origin master --ff-only || git reset --hard origin/master
+          
+          # Copy APK back and commit
+          mkdir -p frontend/public/app
+          cp /tmp/tec360-seguridad-latest.apk frontend/public/app/tec360-seguridad-latest.apk
+          
           git add frontend/public/app/tec360-seguridad-latest.apk
           git commit -m "🤖 Auto-update APK from EAS build ${{ github.ref_name || 'manual' }}" || echo "No changes to commit"
-          git pull --rebase origin master
-          git push origin HEAD:master
+          
+          # Push with retry (in case of race condition with another workflow)
+          for i in 1 2 3; do
+            git push origin master && break
+            echo "⚠️ Push failed, retrying ($i/3)..."
+            git pull --rebase origin master || git rebase --skip
+            sleep 5
+          done
           
           echo "✅ APK actualizado en el repositorio"
           echo "🌐 Disponible en: https://tec-360.tech/descargar-app"
