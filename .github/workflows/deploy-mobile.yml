@@ -73,27 +73,74 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.type == 'build'
         working-directory: ./mobile
         run: |
-          echo "📋 Obteniendo URL del último build..."
-          BUILD_URL=$(eas build:list --platform android --status finished --limit 1 --json --non-interactive | jq -r '.[0].artifacts.buildUrl')
+          echo "📋 Obteniendo info del último build..."
+          BUILD_JSON=$(eas build:list --platform android --status finished --limit 1 --json --non-interactive)
+          
+          BUILD_URL=$(echo "$BUILD_JSON" | jq -r '.[0].artifacts.buildUrl')
+          BUILD_ID=$(echo "$BUILD_JSON" | jq -r '.[0].id')
+          BUILD_APP_VERSION=$(echo "$BUILD_JSON" | jq -r '.[0].appVersion // "unknown"')
+          BUILD_SDK_VERSION=$(echo "$BUILD_JSON" | jq -r '.[0].sdkVersion // "unknown"')
+          BUILD_CREATED=$(echo "$BUILD_JSON" | jq -r '.[0].createdAt // "unknown"')
+          
+          echo "══════════════════════════════════════════"
+          echo "📦 EAS Build Info:"
+          echo "   Build ID:     $BUILD_ID"
+          echo "   App Version:  $BUILD_APP_VERSION"
+          echo "   SDK Version:  $BUILD_SDK_VERSION"
+          echo "   Created:      $BUILD_CREATED"
+          echo "   Artifact URL: $BUILD_URL"
+          echo "══════════════════════════════════════════"
           
           if [ -z "$BUILD_URL" ] || [ "$BUILD_URL" = "null" ]; then
             echo "❌ No se pudo obtener la URL del build"
             exit 1
           fi
           
-          echo "⬇️ Descargando APK desde: $BUILD_URL"
+          echo "⬇️ Descargando APK..."
           mkdir -p ../frontend/public/app
           curl -L -o ../frontend/public/app/tec360-seguridad-latest.apk "$BUILD_URL"
           
           FILE_SIZE=$(stat -c%s "../frontend/public/app/tec360-seguridad-latest.apk" 2>/dev/null || echo "0")
-          echo "📦 APK descargado: ${FILE_SIZE} bytes"
+          FILE_MD5=$(md5sum "../frontend/public/app/tec360-seguridad-latest.apk" | cut -d' ' -f1)
+          
+          echo "══════════════════════════════════════════"
+          echo "📦 APK descargado:"
+          echo "   Tamaño: ${FILE_SIZE} bytes ($(( FILE_SIZE / 1048576 )) MB)"
+          echo "   MD5:    $FILE_MD5"
+          echo "══════════════════════════════════════════"
           
           if [ "$FILE_SIZE" -lt 1000000 ]; then
             echo "⚠️ El archivo es muy pequeño, posible error de descarga"
             exit 1
           fi
           
-          echo "✅ APK listo para subir al repositorio"
+          # Generate version.json for traceability
+          COMMIT_SHA="${{ github.sha }}"
+          TAG_NAME="${{ github.ref_name }}"
+          BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
+          cat > ../frontend/public/app/version.json << VERSIONEOF
+          {
+            "tag": "${TAG_NAME}",
+            "commit": "${COMMIT_SHA:0:7}",
+            "commitFull": "${COMMIT_SHA}",
+            "buildDate": "${BUILD_DATE}",
+            "easBuildId": "${BUILD_ID}",
+            "easAppVersion": "${BUILD_APP_VERSION}",
+            "easCreatedAt": "${BUILD_CREATED}",
+            "apkSizeBytes": ${FILE_SIZE},
+            "apkSizeMB": "$(( FILE_SIZE / 1048576 )) MB",
+            "apkMd5": "${FILE_MD5}"
+          }
+          VERSIONEOF
+          
+          # Remove leading whitespace from heredoc
+          sed -i 's/^          //' ../frontend/public/app/version.json
+          
+          echo "📄 version.json generado:"
+          cat ../frontend/public/app/version.json
+          
+          echo "✅ APK y version.json listos para subir"
 
       - name: 📤 Subir APK al repositorio
         if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.type == 'build'
@@ -101,8 +148,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Save the APK to a temp location before switching branches
+          # Save files to temp before switching branches
           cp frontend/public/app/tec360-seguridad-latest.apk /tmp/tec360-seguridad-latest.apk
+          cp frontend/public/app/version.json /tmp/version.json
           
           # Discard all local changes so we can switch branches cleanly
           git checkout -- .
@@ -112,14 +160,25 @@ jobs:
           git checkout master
           git pull origin master --ff-only || git reset --hard origin/master
           
-          # Copy APK back and commit
+          echo "📍 Master está en: $(git log --oneline -1)"
+          
+          # Copy files back and commit
           mkdir -p frontend/public/app
           cp /tmp/tec360-seguridad-latest.apk frontend/public/app/tec360-seguridad-latest.apk
+          cp /tmp/version.json frontend/public/app/version.json
           
-          git add frontend/public/app/tec360-seguridad-latest.apk
+          # Verify files are in place
+          APK_SIZE=$(stat -c%s "frontend/public/app/tec360-seguridad-latest.apk" 2>/dev/null || echo "0")
+          echo "📦 APK en repo: ${APK_SIZE} bytes"
+          echo "📄 version.json en repo:"
+          cat frontend/public/app/version.json
+          
+          git add frontend/public/app/tec360-seguridad-latest.apk frontend/public/app/version.json
           git commit -m "🤖 Auto-update APK from EAS build ${{ github.ref_name || 'manual' }}" || echo "No changes to commit"
           
-          # Push with retry (in case of race condition with another workflow)
+          echo "📍 Nuevo commit: $(git log --oneline -1)"
+          
+          # Push with retry
           for i in 1 2 3; do
             git push origin master && break
             echo "⚠️ Push failed, retrying ($i/3)..."
@@ -127,8 +186,7 @@ jobs:
             sleep 5
           done
           
-          echo "✅ APK actualizado en el repositorio"
-          echo "🌐 Disponible en: https://tec-360.tech/descargar-app"
+          echo "✅ APK y version.json subidos al repositorio"
 
       - name: 🚀 Update Server with new APK
         if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.type == 'build'
@@ -138,7 +196,23 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            echo "📥 Descargando nuevo APK al servidor..."
+            echo "📥 Actualizando APK en el servidor..."
             cd /opt/tec360-seguridad
+            
+            echo "📍 Antes del pull: $(git log --oneline -1)"
             git pull origin master --ff-only || true
-            echo "✅ El APK ya está disponible en el Next.js server por el nuevo volumen."
+            echo "📍 Después del pull: $(git log --oneline -1)"
+            
+            # Verify the APK and version.json are present
+            if [ -f "frontend/public/app/version.json" ]; then
+              echo "══════════════════════════════════════════"
+              echo "✅ Versión en el servidor:"
+              cat frontend/public/app/version.json
+              echo ""
+              echo "══════════════════════════════════════════"
+            else
+              echo "⚠️ version.json NO encontrado en el servidor"
+            fi
+            
+            APK_SIZE=$(stat -c%s "frontend/public/app/tec360-seguridad-latest.apk" 2>/dev/null || echo "0")
+            echo "📦 APK en servidor: ${APK_SIZE} bytes ($(( APK_SIZE / 1048576 )) MB)"

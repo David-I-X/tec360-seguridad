@@ -1,14 +1,32 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { Download, AlertTriangle, ShieldCheck, Smartphone, Settings, ArrowRight, ArrowLeft, CheckCircle2 } from "lucide-react"
+import { Download, AlertTriangle, ShieldCheck, Smartphone, Settings, ArrowRight, ArrowLeft, CheckCircle2, Info } from "lucide-react"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 
+interface VersionInfo {
+    tag: string
+    commit: string
+    buildDate: string
+    easBuildId: string
+    easAppVersion: string
+    apkSizeMB: string
+    apkMd5: string
+}
+
 export default function DescargarAppPage() {
     const [isDownloading, setIsDownloading] = useState(false)
+    const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null)
+
+    useEffect(() => {
+        fetch(`/app/version.json?t=${Date.now()}`)
+            .then(res => res.ok ? res.json() : null)
+            .then(data => data && setVersionInfo(data))
+            .catch(() => {})
+    }, [])
 
     const handleDownload = () => {
         setIsDownloading(true)
@@ -108,6 +126,18 @@ export default function DescargarAppPage() {
                             <ShieldCheck className="w-4 h-4 text-green-500/70" /> 
                             Verificado libre de Malware
                         </p>
+                        {versionInfo && (
+                            <div className="mt-4 inline-flex items-center gap-3 bg-slate-800/60 px-4 py-2.5 rounded-xl border border-slate-700/50 text-xs text-slate-400">
+                                <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                                <span>
+                                    <span className="font-bold text-white">{versionInfo.tag}</span>
+                                    <span className="mx-1.5 text-slate-600">•</span>
+                                    {new Date(versionInfo.buildDate).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                    <span className="mx-1.5 text-slate-600">•</span>
+                                    {versionInfo.apkSizeMB}
+                                </span>
+                            </div>
+                        )}
                     </motion.div>
                 </div>
 
