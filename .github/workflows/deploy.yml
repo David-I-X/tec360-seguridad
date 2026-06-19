@@ -10,6 +10,7 @@ on:
   push:
     tags:
       - "v*"
+      - "!v*-mobile"  # Mobile builds have their own workflow
 
 env:
   REGISTRY: ghcr.io

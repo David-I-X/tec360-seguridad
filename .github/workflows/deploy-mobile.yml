@@ -188,7 +188,18 @@ jobs:
           
           echo "✅ APK y version.json subidos al repositorio"
 
-      - name: 🚀 Update Server with new APK
+      - name: 📤 Copiar APK al servidor (SCP directo)
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.type == 'build'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "frontend/public/app/tec360-seguridad-latest.apk,frontend/public/app/version.json"
+          target: "/opt/tec360-seguridad/"
+          overwrite: true
+
+      - name: ✅ Verificar APK en el servidor
         if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.type == 'build'
         uses: appleboy/ssh-action@v1
         with:
@@ -196,23 +207,37 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            echo "📥 Actualizando APK en el servidor..."
-            cd /opt/tec360-seguridad
+            echo "🔍 Verificando APK en el servidor..."
             
-            echo "📍 Antes del pull: $(git log --oneline -1)"
-            git pull origin master --ff-only || true
-            echo "📍 Después del pull: $(git log --oneline -1)"
+            APK_PATH="/opt/tec360-seguridad/frontend/public/app/tec360-seguridad-latest.apk"
+            VERSION_PATH="/opt/tec360-seguridad/frontend/public/app/version.json"
             
-            # Verify the APK and version.json are present
-            if [ -f "frontend/public/app/version.json" ]; then
-              echo "══════════════════════════════════════════"
-              echo "✅ Versión en el servidor:"
-              cat frontend/public/app/version.json
-              echo ""
-              echo "══════════════════════════════════════════"
-            else
-              echo "⚠️ version.json NO encontrado en el servidor"
+            if [ ! -f "$APK_PATH" ]; then
+              echo "❌ ERROR: APK no encontrado en $APK_PATH"
+              exit 1
             fi
             
-            APK_SIZE=$(stat -c%s "frontend/public/app/tec360-seguridad-latest.apk" 2>/dev/null || echo "0")
-            echo "📦 APK en servidor: ${APK_SIZE} bytes ($(( APK_SIZE / 1048576 )) MB)"
+            APK_SIZE=$(stat -c%s "$APK_PATH")
+            APK_MD5=$(md5sum "$APK_PATH" | cut -d' ' -f1)
+            
+            echo "══════════════════════════════════════════"
+            echo "📦 APK en servidor:"
+            echo "   Tamaño: ${APK_SIZE} bytes ($(( APK_SIZE / 1048576 )) MB)"
+            echo "   MD5:    ${APK_MD5}"
+            echo "══════════════════════════════════════════"
+            
+            if [ -f "$VERSION_PATH" ]; then
+              echo "📄 version.json:"
+              cat "$VERSION_PATH"
+              echo ""
+            else
+              echo "⚠️ version.json no encontrado"
+            fi
+            
+            if [ "$APK_SIZE" -lt 1000000 ]; then
+              echo "❌ ERROR: APK demasiado pequeño, posible archivo corrupto"
+              exit 1
+            fi
+            
+            echo "✅ APK verificado correctamente en el servidor"
+
