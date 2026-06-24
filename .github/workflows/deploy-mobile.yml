@@ -65,6 +65,7 @@ jobs:
         env:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: |
+          set -o pipefail
           echo "🔨 Iniciando build en EAS (esto toma ~25-30 min)..."
           eas build --platform android --profile preview --non-interactive 2>&1 | tee build_output.txt
           echo "✅ Build completado"
