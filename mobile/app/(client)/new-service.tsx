@@ -8,6 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as Location from 'expo-location';
+import MapView, { Marker, Region } from 'react-native-maps';
 import { fetchWithAuth, API_URL } from '@/lib/api';
 import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
 
@@ -33,6 +35,8 @@ export default function NewServiceScreen() {
   const [description, setDescription] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
+  const [lat, setLat] = useState(6.2442); // Default to Medellín
+  const [lng, setLng] = useState(-75.5636);
   const [vehicleType, setVehicleType] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
   const [vehiclePlate, setVehiclePlate] = useState('');
@@ -51,6 +55,38 @@ export default function NewServiceScreen() {
   const [recAddress, setRecAddress] = useState('');
   const [recPoliceReport, setRecPoliceReport] = useState('');
   const [recDescription, setRecDescription] = useState('');
+
+  const getLocationAndGeocode = async (setAddrFn: (val: string) => void, setCityFn?: (val: string) => void) => {
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permiso denegado', 'Ingresa la ubicación manualmente en el mapa o texto.');
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      setLat(location.coords.latitude);
+      setLng(location.coords.longitude);
+      
+      try {
+        const geocodeResult = await Location.reverseGeocodeAsync({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude
+        });
+        if (geocodeResult && geocodeResult.length > 0) {
+          const addr = geocodeResult[0];
+          const formattedAddr = [addr.street, addr.streetNumber, addr.subregion || addr.district].filter(Boolean).join(', ');
+          setAddrFn(formattedAddr || 'Ubicación obtenida por GPS');
+          if (setCityFn && addr.city) {
+            setCityFn(addr.city);
+          }
+        }
+      } catch (geocerr) {
+        // Ignorar error de geocoding
+      }
+    } catch (e) {
+      Alert.alert('Aviso', 'No se pudo obtener la ubicación.');
+    }
+  };
 
   const pickVehiclePhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -107,9 +143,9 @@ export default function NewServiceScreen() {
           title: finalTitle,
           description,
           service_address: address,
-          service_city: city,
-          service_lat: 4.6097,  // TODO: Use real GPS
-          service_lon: -74.0817,
+          service_city: city || 'Medellín',
+          service_lat: lat,
+          service_lon: lng,
           scheduled_date: new Date().toISOString(),
           vehicle_type: vehicleType || undefined,
           vehicle_model: vehicleModel || undefined,
@@ -188,9 +224,9 @@ export default function NewServiceScreen() {
           title: recTitle,
           description: recDescription || 'Solicitud de recuperación de vehículo robado',
           service_address: finalAddress,
-          service_city: 'Colombia',
-          service_lat: 4.6097,
-          service_lon: -74.0817,
+          service_city: city || 'Medellín',
+          service_lat: lat,
+          service_lon: lng,
           vehicle_type: recVehicleType,
           vehicle_model: recVehicleModel,
           vehicle_plate: recVehiclePlate,
@@ -340,36 +376,7 @@ export default function NewServiceScreen() {
               
               <TouchableOpacity 
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#555872', borderStyle: 'dashed' }}
-                onPress={async () => {
-                  try {
-                    const Location = require('expo-location');
-                    let { status } = await Location.requestForegroundPermissionsAsync();
-                    if (status !== 'granted') {
-                      Alert.alert('Permiso denegado', 'Ingresa la ubicación manualmente.');
-                      return;
-                    }
-                    let location = await Location.getCurrentPositionAsync({});
-                    
-                    try {
-                      const geocodeResult = await Location.reverseGeocodeAsync({
-                        latitude: location.coords.latitude,
-                        longitude: location.coords.longitude
-                      });
-                      
-                      if (geocodeResult && geocodeResult.length > 0) {
-                        const addr = geocodeResult[0];
-                        const formattedAddr = [addr.street, addr.streetNumber, addr.city].filter(Boolean).join(', ');
-                        setRecAddress(formattedAddr || 'Ubicación obtenida por GPS');
-                      } else {
-                        setRecAddress('Ubicación obtenida por GPS');
-                      }
-                    } catch (geocerr) {
-                      setRecAddress('Ubicación obtenida por GPS');
-                    }
-                  } catch (e) {
-                    Alert.alert('Aviso', 'Ingresa tu ubicación manualmente.');
-                  }
-                }}
+                onPress={() => getLocationAndGeocode(setRecAddress)}
               >
                 <Ionicons name="location" size={18} color="#8b8fa3" />
                 <Text style={{ color: '#8b8fa3', fontSize: 13, fontWeight: '600', marginLeft: 8 }}>Obtener mi ubicación actual</Text>
@@ -485,11 +492,44 @@ export default function NewServiceScreen() {
           <View style={styles.stepContent}>
             <Text style={styles.sectionTitle}>¿Dónde necesitas el servicio?</Text>
 
+            <TouchableOpacity 
+              style={[styles.gpsOption, { flexDirection: 'row', justifyContent: 'center', paddingVertical: 12, marginBottom: 8 }]}
+              onPress={() => getLocationAndGeocode(setAddress, setCity)}
+            >
+              <Ionicons name="location" size={20} color={COLORS.primary} />
+              <Text style={[styles.gpsOptionText, { marginLeft: 8, color: COLORS.primary, fontSize: 15 }]}>Usar mi ubicación actual</Text>
+            </TouchableOpacity>
+
+            <View style={{ height: 250, marginVertical: 16, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border }}>
+              <MapView
+                style={{ flex: 1 }}
+                region={{
+                  latitude: lat,
+                  longitude: lng,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }}
+                onRegionChangeComplete={async (region) => {
+                  setLat(region.latitude);
+                  setLng(region.longitude);
+                  // Optional reverse geocode when dragging map manually
+                  try {
+                    const res = await Location.reverseGeocodeAsync({ latitude: region.latitude, longitude: region.longitude });
+                    if (res && res.length > 0) {
+                      const addr = res[0];
+                      const formatted = [addr.street, addr.streetNumber, addr.subregion || addr.district].filter(Boolean).join(', ');
+                      if (formatted) setAddress(formatted);
+                      if (addr.city) setCity(addr.city);
+                    }
+                  } catch (e) {}
+                }}
+              >
+                <Marker coordinate={{ latitude: lat, longitude: lng }} />
+              </MapView>
+            </View>
+
             <Text style={styles.inputLabel}>Dirección</Text>
             <TextInput style={styles.input} placeholder="Calle, número, barrio" placeholderTextColor="#555872" value={address} onChangeText={setAddress} />
-
-            <Text style={styles.inputLabel}>Ciudad</Text>
-            <TextInput style={styles.input} placeholder="Ej: Bogotá" placeholderTextColor="#555872" value={city} onChangeText={setCity} />
           </View>
         )}
       </ScrollView>
