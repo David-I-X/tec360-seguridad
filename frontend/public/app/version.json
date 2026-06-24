@@ -1,8 +1,8 @@
 {
-  "tag": "v2.3.7-mobile",
-  "commit": "f795de0",
-  "commitFull": "f795de0eb737e1ca62d2e312fddff16b09dfe61a",
-  "buildDate": "2026-06-19T01:32:00Z",
+  "tag": "v2.3.8-mobile",
+  "commit": "8b85fcd",
+  "commitFull": "8b85fcdc4f1ced728a94a6cdebca8b6c44273ccc",
+  "buildDate": "2026-06-24T15:23:24Z",
   "easBuildId": "1a7ee5d8-eef5-4bd7-8163-3153552abb00",
   "easAppVersion": "1.0.0",
   "easCreatedAt": "2026-06-19T01:17:37.756Z",
