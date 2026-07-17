@@ -15,6 +15,7 @@ class UserBase(SQLModel):
     address: Optional[str] = None
     city: str = Field(default="Medellín")
     notification_preferences: dict = Field(default={}, sa_column=Column(JSON))
+    sas_contact_id: Optional[str] = Field(default=None, description="External ID for SaaS Vertical CRM")
 
 class User(UserBase, table=True):
     __tablename__ = "users"

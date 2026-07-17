@@ -62,7 +62,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
-      - run: pytest tests/ -v --tb=short || true
+      - run: pytest tests/ -v --tb=short
 
   backend-build:
     name: Backend Docker Build
@@ -87,7 +87,7 @@ jobs:
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npx next lint || true
+      - run: npx next lint
 
   frontend-build:
     name: Frontend Docker Build

@@ -28,8 +28,24 @@ async def websocket_service_room(
         if not user_id:
             await websocket.close(code=4001, reason="Token inválido")
             return
+        
+        # Validar autorización del servicio
+        from app.core.database import engine
+        from sqlmodel import Session as SqlSession
+        from app.models.service import Service
+        with SqlSession(engine) as session:
+            service = session.get(Service, service_id)
+            if not service:
+                await websocket.close(code=4004, reason="Servicio no encontrado")
+                return
+            if str(service.client_id) != str(user_id) and str(service.technician_id) != str(user_id):
+                # Also allow admins to join? For now just client and technician
+                if payload.get("role") not in ["admin", "reaction_team"]:
+                    await websocket.close(code=4003, reason="No autorizado para este servicio")
+                    return
+                
     except Exception:
-        await websocket.close(code=4001, reason="Token inválido")
+        await websocket.close(code=4001, reason="Token inválido o error de autorización")
         return
     
     # Conectar

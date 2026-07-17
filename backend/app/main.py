@@ -19,6 +19,7 @@ from app.api import credits as credits_router
 from app.api import reputation as reputation_router
 from app.api import chat as chat_router
 from app.api import verification as verification_router
+from app.api import webhooks as webhooks_router
 import os
 import logging
 import time
@@ -34,6 +35,10 @@ logger = logging.getLogger(__name__)
 docs_url = "/docs" if settings.ENVIRONMENT != "production" else None
 redoc_url = "/redoc" if settings.ENVIRONMENT != "production" else None
 
+from slowapi.errors import RateLimitExceeded
+from app.core.rate_limit import limiter
+from slowapi import _rate_limit_exceeded_handler
+
 # Inicializar FastAPI
 app = FastAPI(
     title=settings.APP_NAME,
@@ -42,6 +47,10 @@ app = FastAPI(
     docs_url=docs_url,
     redoc_url=redoc_url,
 )
+
+# Inicializar Rate Limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.on_event("startup")
 async def on_startup():
@@ -175,6 +184,9 @@ app.include_router(chat_router.router)
 # Verification (technician documents + quiz)
 app.include_router(verification_router.router)
 
+# External Webhooks (SaaS Vertical etc.)
+app.include_router(webhooks_router.router, prefix="/api/webhooks", tags=["Webhooks"])
+
 # Simulation (development only — excluded in production)
 if settings.ENVIRONMENT != "production":
     from app.api import simulate as simulate_router
@@ -201,7 +213,13 @@ async def serve_local_upload(folder: str, filename: str):
     from fastapi.responses import FileResponse
     from fastapi import HTTPException
     
-    file_path = os.path.join("/opt/tec360-seguridad/uploads", folder, filename)
+    base_dir = os.path.abspath("/opt/tec360-seguridad/uploads")
+    # Prevent path traversal by securing the final path
+    file_path = os.path.abspath(os.path.join(base_dir, folder, filename))
+    
+    if not file_path.startswith(base_dir):
+        raise HTTPException(status_code=403, detail="Access denied")
+        
     if os.path.isfile(file_path):
         return FileResponse(file_path)
     raise HTTPException(status_code=404, detail="File not found")

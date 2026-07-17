@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     GOOGLE_MAPS_API_KEY: str = os.getenv(
         "GOOGLE_MAPS_API_KEY", os.getenv("GOOGLE_API_KEY", "")
     )
+    SAS_VERTICAL_API_KEY: str = os.getenv("SAS_VERTICAL_API_KEY", "")
+    SAS_BASE_URL: str = os.getenv("SAS_BASE_URL", "http://127.0.0.1:8000/api/v1")
 
     # Twilio - SMS/OTP
     TWILIO_ACCOUNT_SID: str = os.getenv("TWILIO_ACCOUNT_SID", "")

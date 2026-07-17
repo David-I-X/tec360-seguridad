@@ -92,8 +92,8 @@ function ServiceDetailContent() {
         }
     }
 
-    // Get token for WebSocket
-    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
+    // Get token for WebSocket and chat
+    const [token, setToken] = useState<string | null>(null)
 
     useEffect(() => {
         async function fetchService() {
@@ -107,6 +107,11 @@ function ServiceDetailContent() {
             }
         }
         fetchService()
+        
+        // Load token on client-side
+        if (typeof window !== "undefined") {
+            setToken(localStorage.getItem("access_token"))
+        }
     }, [params.id])
 
     if (isLoading) {

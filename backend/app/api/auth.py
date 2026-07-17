@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from app.core.database import get_session
@@ -6,6 +6,8 @@ from app.models.user import User
 from app.core.auth_utils import create_access_token, create_refresh_token
 from app.core.config import settings
 from app.core.security import get_current_user
+from app.services.sas_service import sync_contact_to_sas
+from app.core.rate_limit import limiter
 from datetime import timedelta, datetime
 import random
 import logging
@@ -39,7 +41,8 @@ class RefreshTokenRequest(BaseModel):
 # --- ENDPOINTS ---
 
 @router.post("/request-otp")
-async def request_otp(data: OTPRequest):
+@limiter.limit("3/minute")
+async def request_otp(data: OTPRequest, request: Request):
     if settings.SMS_ENABLED:
         # Real SMS mode: generate random code and send via Twilio
         from app.services.sms_service import sms_service
@@ -77,7 +80,8 @@ async def request_otp(data: OTPRequest):
 
 
 @router.post("/verify-otp")
-async def verify_otp(data: OTPVerify, session: Session = Depends(get_session)):
+@limiter.limit("5/minute")
+async def verify_otp(data: OTPVerify, request: Request, session: Session = Depends(get_session)):
     # Check OTP from store
     stored = _otp_store.get(data.phone)
     
@@ -147,6 +151,7 @@ async def verify_otp(data: OTPVerify, session: Session = Depends(get_session)):
 @router.post("/onboarding")
 async def complete_onboarding(
     data: OnboardingRequest, 
+    background_tasks: BackgroundTasks,
     current_user_data: dict = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
@@ -167,6 +172,21 @@ async def complete_onboarding(
     session.add(user)
     session.commit()
     session.refresh(user)
+    
+    # Background task for CRM sync
+    async def sync_and_save(uid: str):
+        from app.core.database import engine
+        from sqlmodel import Session as SqlSession
+        with SqlSession(engine) as bg_session:
+            bg_user = bg_session.get(User, uid)
+            if bg_user:
+                sas_id = await sync_contact_to_sas(bg_user)
+                if sas_id:
+                    bg_user.sas_contact_id = sas_id
+                    bg_session.add(bg_user)
+                    bg_session.commit()
+
+    background_tasks.add_task(sync_and_save, user.id)
     
     return {
         "success": True,
