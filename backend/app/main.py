@@ -5,6 +5,9 @@ FastAPI application entry point
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+from app.core.rate_limit import limiter
+from slowapi import _rate_limit_exceeded_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -35,9 +38,7 @@ logger = logging.getLogger(__name__)
 docs_url = "/docs" if settings.ENVIRONMENT != "production" else None
 redoc_url = "/redoc" if settings.ENVIRONMENT != "production" else None
 
-from slowapi.errors import RateLimitExceeded
-from app.core.rate_limit import limiter
-from slowapi import _rate_limit_exceeded_handler
+
 
 # Inicializar FastAPI
 app = FastAPI(

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, BackgroundTasks
+from fastapi import APIRouter, Request
 import logging
 
 logger = logging.getLogger(__name__)
