@@ -56,8 +56,11 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 @app.on_event("startup")
 async def on_startup():
     """Ensure upload directories exist after Docker volumes are mounted."""
-    from app.api.uploads import ensure_upload_dirs
-    ensure_upload_dirs()
+    try:
+        from app.api.uploads import ensure_upload_dirs
+        ensure_upload_dirs()
+    except Exception as e:
+        logger.warning(f"Failed to create upload dirs on startup: {e}")
     logger.info("Upload directories verified/created")
 
     # Seed quiz questions if not already present
