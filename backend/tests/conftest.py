@@ -9,7 +9,7 @@ os.environ["SKIP_CONFIG_VALIDATION"] = "true"
 os.environ["DEBUG"] = "False"
 os.environ["DATABASE_URL"] = os.getenv(
     "TEST_DATABASE_URL",
-    "postgresql://admin:password123@127.0.0.1:5432/tec360"
+    os.getenv("DATABASE_URL", "postgresql://admin:password123@127.0.0.1:5432/tec360")
 )
 
 import pytest

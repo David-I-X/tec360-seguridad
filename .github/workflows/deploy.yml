@@ -85,6 +85,10 @@ jobs:
 
             # Pull fresh images from GHCR and restart
             docker compose -f docker-compose.prod.yml --env-file .env.production pull backend frontend
+
+            # Run database migrations before starting the app
+            docker compose -f docker-compose.prod.yml --env-file .env.production run --rm backend alembic upgrade head
+
             docker compose -f docker-compose.prod.yml --env-file .env.production up -d --no-deps backend frontend nginx
 
             # Cleanup dangling images
