@@ -67,19 +67,10 @@ class PaymentService:
         session.commit()
         session.refresh(payment)
 
-        # Trigger DIAN invoice creation asynchronously
-        import asyncio
-        from app.services.sas_service import create_dian_invoice
-        from app.core.database import engine
-        from sqlmodel import Session as SqlSession
-        
-        async def _trigger_invoice(uid, svc, pmt):
-            with SqlSession(engine) as session_bg:
-                client_user = session_bg.get(User, uid)
-                if client_user and client_user.sas_contact_id:
-                    await create_dian_invoice(client_user.sas_contact_id, svc, pmt)
-        
-        asyncio.create_task(_trigger_invoice(service.client_id, service, payment))
+        # TODO: Re-enable DIAN invoice trigger when SaaS integration is properly set up
+        # import asyncio
+        # from app.services.sas_service import create_dian_invoice
+        # asyncio.create_task(_trigger_invoice(service.client_id, service, payment))
 
         return self._to_response(payment, session)
 
