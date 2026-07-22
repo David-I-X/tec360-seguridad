@@ -3,7 +3,7 @@ import random
 import re
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -13,6 +13,7 @@ from app.core.database import get_session
 from app.core.rate_limit import limiter
 from app.core.security import get_current_user
 from app.models.user import User
+from app.services.sas_service import sync_contact_to_sas
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +170,7 @@ async def verify_otp(data: OTPVerify, request: Request, session: Session = Depen
 @router.post("/onboarding")
 async def complete_onboarding(
     data: OnboardingRequest, 
+    background_tasks: BackgroundTasks,
     current_user_data: dict = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
@@ -189,6 +191,21 @@ async def complete_onboarding(
     session.add(user)
     session.commit()
     session.refresh(user)
+    
+    # Background task for CRM sync
+    async def sync_and_save(uid: str):
+        from app.core.database import engine
+        from sqlmodel import Session as SqlSession
+        with SqlSession(engine) as bg_session:
+            bg_user = bg_session.get(User, uid)
+            if bg_user:
+                sas_id = await sync_contact_to_sas(bg_user)
+                if sas_id:
+                    bg_user.sas_contact_id = sas_id
+                    bg_session.add(bg_user)
+                    bg_session.commit()
+
+    background_tasks.add_task(sync_and_save, user.id)
     
     return {
         "success": True,
