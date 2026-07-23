@@ -106,10 +106,18 @@ function ServiceDetailDrawer({
             try {
                 const [detailRes, photoRes] = await Promise.allSettled([
                     api.get(`/admin/services/${serviceId}`),
-                    api.get(`/uploads/service-photos/${serviceId}`),
+                    api.get(`/images/services/${serviceId}`),
                 ])
                 if (detailRes.status === "fulfilled") setDetail(detailRes.value.data)
-                if (photoRes.status === "fulfilled") setPhotos(photoRes.value.data.photos || [])
+                if (photoRes.status === "fulfilled") {
+                    const rawImages = photoRes.value.data.images || photoRes.value.data.photos || []
+                    setPhotos(rawImages.map((img: any) => ({
+                        id: img.id,
+                        image_url: img.public_url || img.image_url,
+                        image_type: img.image_type,
+                        created_at: img.created_at,
+                    })))
+                }
             } catch {
                 toast.error("Error cargando detalle")
             } finally {
