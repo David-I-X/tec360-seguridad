@@ -259,15 +259,24 @@ function TechnicianServiceContent() {
         if (trackingError) toast({ title: "Error de ubicación", description: trackingError, variant: "destructive" })
     }, [trackingError, toast])
 
+    const [paymentInfo, setPaymentInfo] = useState<any>(null)
+    const [showPaymentModal, setShowPaymentModal] = useState(false)
+    const [paymentAmount, setPaymentAmount] = useState<string>("")
+    const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
+
     useEffect(() => {
-        if (typeof window !== "undefined") {
-            setToken(localStorage.getItem("access_token"))
+        const activeToken = token || (typeof window !== "undefined" ? localStorage.getItem("access_token") : null)
+        if (activeToken && !token) {
+            setToken(activeToken)
         }
         
         async function fetchService() {
             try {
                 const data = await getServiceById(params.id as string)
                 setService(data)
+                if (data.estimated_price) {
+                    setPaymentAmount(String(data.estimated_price))
+                }
                 if (["assigned", "en_route", "arrived", "in_progress"].includes(data.status)) {
                     setIsTracking(true)
                 }
@@ -278,19 +287,18 @@ function TechnicianServiceContent() {
             }
         }
 
-        // Bug #1: Load already-uploaded photos so the modal doesn't re-block
         async function fetchExistingPhotos() {
-            if (!token) return
+            const currentToken = activeToken || token
+            if (!currentToken) return
             try {
                 const res = await fetch(`${API_URL}/uploads/${params.id}/photos`, {
-                    headers: { Authorization: `Bearer ${token}` },
+                    headers: { Authorization: `Bearer ${currentToken}` },
                 })
                 if (res.ok) {
                     const data = await res.json()
                     const photoMap: Record<PhotoStage, string | null> = { before: null, during: null, after: null }
                     for (const photo of (data.photos || [])) {
                         if (photo.image_type in photoMap) {
-                            // image_url is like /uploads/service-photos/file.jpg
                             photoMap[photo.image_type as PhotoStage] = getImageUrl(photo.image_url) || null
                         }
                     }
@@ -299,10 +307,26 @@ function TechnicianServiceContent() {
             } catch { /* non-critical */ }
         }
 
+        async function fetchPaymentInfo() {
+            const currentToken = activeToken || token
+            if (!currentToken || !params.id) return
+            try {
+                const res = await fetch(`${API_URL}/payments/service/${params.id}`, {
+                    headers: { Authorization: `Bearer ${currentToken}` },
+                })
+                if (res.ok) {
+                    const data = await res.json()
+                    if (data && data.id) {
+                        setPaymentInfo(data)
+                    }
+                }
+            } catch { /* non-critical */ }
+        }
 
         fetchService()
         fetchExistingPhotos()
-    }, [params.id])
+        fetchPaymentInfo()
+    }, [params.id, token, API_URL])
 
     // Bug #2: Auto-resume tracking when user returns to the tab/PWA
     useEffect(() => {
@@ -343,11 +367,50 @@ function TechnicianServiceContent() {
                 completed: "✅ ¡Servicio completado!",
             }
             toast({ title: msgs[newStatus] || "Estado actualizado" })
-            if (newStatus === "completed") setTimeout(() => router.push("/tecnicos/dashboard"), 1500)
+            if (newStatus === "completed" && !paymentInfo) {
+                setShowPaymentModal(true)
+            }
         } catch (err: any) {
             toast({ title: "Error", description: err.message, variant: "destructive" })
         } finally {
             setIsUpdating(false)
+        }
+    }
+
+    const handleConfirmCashPayment = async () => {
+        const activeToken = token || (typeof window !== "undefined" ? localStorage.getItem("access_token") : null)
+        if (!activeToken) return
+        const amt = parseFloat(paymentAmount || String(service?.estimated_price || 0))
+        if (!amt || amt <= 0) {
+            toast({ title: "Monto inválido", description: "Ingresa un monto en COP válido", variant: "destructive" })
+            return
+        }
+        setIsSubmittingPayment(true)
+        try {
+            const res = await fetch(`${API_URL}/payments/cash/confirm`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${activeToken}`,
+                },
+                body: JSON.stringify({
+                    service_id: params.id,
+                    amount: amt,
+                    notes: "Pago recibido en efectivo por técnico"
+                }),
+            })
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}))
+                throw new Error(errData.detail || "Error al registrar pago")
+            }
+            const data = await res.json()
+            setPaymentInfo(data)
+            setShowPaymentModal(false)
+            toast({ title: "💰 Pago registrado", description: `$${amt.toLocaleString("es-CO")} COP recibido en efectivo.` })
+        } catch (err: any) {
+            toast({ title: "Error en pago", description: err.message, variant: "destructive" })
+        } finally {
+            setIsSubmittingPayment(false)
         }
     }
 
@@ -722,6 +785,99 @@ function TechnicianServiceContent() {
                         </p>
                     )}
                 </GlassCard>
+
+                {/* ─── Payment panel for Technician ──────────────── */}
+                {(service.status === "completed" || service.status === "confirmed" || paymentInfo) && (
+                    <GlassCard className="p-5 border-emerald-500/30 bg-emerald-500/5">
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="font-semibold text-sm flex items-center gap-2 text-emerald-400">
+                                💳 Estado del Pago
+                            </h3>
+                            <Badge className={paymentInfo ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"}>
+                                {paymentInfo ? (paymentInfo.status === "confirmed_by_admin" ? "Validado por Admin" : "Confirmado por Técnico") : "Pago Pendiente"}
+                            </Badge>
+                        </div>
+
+                        {paymentInfo ? (
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between items-center bg-background/50 p-3 rounded-xl border border-border/40">
+                                    <span className="text-muted-foreground text-xs">Monto Recibido</span>
+                                    <span className="font-bold text-lg text-emerald-400">${paymentInfo.amount.toLocaleString()} COP</span>
+                                </div>
+                                <div className="flex justify-between items-center text-xs text-muted-foreground px-1">
+                                    <span>Método: {paymentInfo.payment_method === 'cash' ? 'Efectivo 💵' : paymentInfo.payment_method}</span>
+                                    <span>{new Date(paymentInfo.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                <p className="text-xs text-muted-foreground">
+                                    El servicio ha finalizado. Registra el cobro realizado en efectivo al cliente.
+                                </p>
+                                <Button 
+                                    onClick={() => setShowPaymentModal(true)} 
+                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                                >
+                                    💰 Registrar Cobro en Efectivo
+                                </Button>
+                            </div>
+                        )}
+                    </GlassCard>
+                )}
+
+                {/* ─── Cash Payment Modal ──────────────── */}
+                <AnimatePresence>
+                    {showPaymentModal && (
+                        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="w-full max-w-md bg-background border border-border/60 rounded-2xl p-6 shadow-2xl space-y-4"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-bold flex items-center gap-2">
+                                        💵 Confirmar Pago en Efectivo
+                                    </h3>
+                                    <button onClick={() => setShowPaymentModal(false)} className="text-muted-foreground hover:text-foreground">
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+
+                                <p className="text-xs text-muted-foreground">
+                                    Ingresa el monto cobrado al cliente. Al confirmar, el pago quedará registrado en el sistema para validación administrativa.
+                                </p>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-semibold text-muted-foreground">Monto Recibido (COP)</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">$</span>
+                                        <input
+                                            type="number"
+                                            value={paymentAmount}
+                                            onChange={(e) => setPaymentAmount(e.target.value)}
+                                            placeholder="150000"
+                                            className="w-full pl-8 pr-4 py-3 bg-muted/20 border border-border/50 rounded-xl font-bold text-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 pt-2">
+                                    <Button variant="outline" onClick={() => setShowPaymentModal(false)} className="flex-1">
+                                        Cancelar
+                                    </Button>
+                                    <Button 
+                                        onClick={handleConfirmCashPayment} 
+                                        disabled={isSubmittingPayment}
+                                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                                    >
+                                        {isSubmittingPayment ? "Registrando..." : "Confirmar Cobro"}
+                                    </Button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
 
                 {/* ─── Action buttons ─────────────────────────────── */}
                 <div className="space-y-3 pb-4">

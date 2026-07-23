@@ -225,8 +225,8 @@ export default function TechServiceScreen() {
     const formData = new FormData();
     formData.append('file', { uri, name: `${stage}.jpg`, type: 'image/jpeg' } as any);
     formData.append('service_id', id!);
-    formData.append('stage', stage);
-    await fetchWithAuth('/uploads/evidence', { method: 'POST', body: formData });
+    formData.append('image_type', stage);
+    await fetchWithAuth('/uploads/service-photo', { method: 'POST', body: formData });
   };
 
   // Check if payment already registered for this service
