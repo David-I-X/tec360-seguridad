@@ -63,6 +63,8 @@ class PaymentService:
             confirmed_by=UUID(technician_id),
         )
 
+        service.payment_status = "paid"
+        session.add(service)
         session.add(payment)
         session.commit()
         session.refresh(payment)

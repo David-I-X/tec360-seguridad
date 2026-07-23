@@ -48,9 +48,9 @@ class RatingService:
             if service.client_id != client_uuid:
                 raise HTTPException(status.HTTP_403_FORBIDDEN, "No tienes permiso para calificar este servicio")
             
-            # 3. Verificar estado completed
-            if service.status != ServiceStatus.completed:
-                raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Solo servicios completados. Estado: {service.status}")
+            # 3. Verificar estado completed o confirmed
+            if service.status not in (ServiceStatus.completed, ServiceStatus.confirmed):
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Solo servicios completados o confirmados. Estado: {service.status}")
             
             # 4. Verificar technician asignado
             if not service.technician_id:
@@ -359,7 +359,7 @@ class RatingService:
             if str(service.client_id) != client_id:
                  return {"can_rate": False, "reason": "Not owner", "service_status": service.status}
                  
-            if service.status != ServiceStatus.completed:
+            if service.status not in (ServiceStatus.completed, ServiceStatus.confirmed):
                  return {"can_rate": False, "reason": "Not completed", "service_status": service.status}
                  
             existing = session.exec(select(ServiceRating).where(ServiceRating.service_id == service_id)).first()
