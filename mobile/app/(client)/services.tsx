@@ -74,8 +74,10 @@ export default function ServicesScreen() {
 
   const renderServiceCard = ({ item }: { item: any }) => {
     const isLive = ['en_route', 'arrived', 'in_progress'].includes(item.status);
-    const cfg = statusConfig[item.status] || statusConfig.pending;
-    const date = item.created_at ? new Date(item.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) : '';
+    const dateObj = item.scheduled_date || item.requested_date || item.created_at;
+    const dateStr = dateObj
+      ? `${new Date(dateObj).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })} ${new Date(dateObj).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}`
+      : '';
 
     return (
       <TouchableOpacity
@@ -102,7 +104,7 @@ export default function ServicesScreen() {
               <Text style={styles.metaText}>
                 {typeEmoji[item.service_type] || '🔧'} {item.service_city || 'Sin ubicación'}
               </Text>
-              <Text style={styles.metaText}>📅 {date}</Text>
+              <Text style={styles.metaText}>📅 {dateStr}</Text>
             </View>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: cfg.bg }]}>

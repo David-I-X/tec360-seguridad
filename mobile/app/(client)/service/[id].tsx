@@ -188,8 +188,9 @@ export default function ServiceDetailScreen() {
   const serviceLng = hasServiceCoords ? service.service_lon : -75.5636;
   const si = statusInfo[service?.status] || statusInfo.pending;
 
-  const formattedDate = service?.scheduled_date
-    ? new Date(service.scheduled_date).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
+  const serviceDateObj = service?.scheduled_date || service?.requested_date || service?.created_at;
+  const formattedDate = serviceDateObj
+    ? `${new Date(serviceDateObj).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })} · ${new Date(serviceDateObj).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}`
     : null;
   const formattedPrice = service?.estimated_price
     ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(service.estimated_price)
@@ -401,7 +402,7 @@ export default function ServiceDetailScreen() {
                   <Ionicons name="calendar" size={18} color="#a855f7" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.infoLabel}>Fecha</Text>
+                  <Text style={styles.infoLabel}>Fecha y Hora</Text>
                   <Text style={styles.infoValue} numberOfLines={1}>{formattedDate}</Text>
                 </View>
               </View>

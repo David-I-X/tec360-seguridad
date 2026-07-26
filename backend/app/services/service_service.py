@@ -269,6 +269,9 @@ class ServiceService:
             if service.status != ServiceStatus.pending:
                 raise HTTPException(status.HTTP_409_CONFLICT, "Servicio no disponible")
             
+            # Validar que el técnico no tenga conflicto de horario (bloque de 2 horas)
+            self._check_technician_schedule_conflict(session, technician_id, service)
+            
             # Obtener info del técnico para enviar al cliente
             technician = session.exec(select(User).where(User.id == technician_id)).first()
                 
@@ -555,6 +558,9 @@ class ServiceService:
         if not service:
              raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
              
+        # Validar que el técnico no tenga conflicto de horario (bloque de 2 horas)
+        self._check_technician_schedule_conflict(session, technician_id, service)
+
         service.technician_id = technician_id
         service.status = ServiceStatus.assigned
         session.add(service)
@@ -682,5 +688,55 @@ class ServiceService:
             )
             
         return ServiceResponse(**response_kwargs)
+
+    def _check_technician_schedule_conflict(
+        self, session: Session, technician_id: str, target_service: Service
+    ) -> None:
+        """
+        Verifica si el técnico ya tiene un servicio activo en una ventana de 2 horas.
+        Cada servicio requiere un bloque de 2 horas.
+        """
+        from uuid import UUID as UUIDType
+        
+        target_time = target_service.scheduled_date or target_service.requested_date or target_service.created_at
+        if not target_time:
+            return
+
+        active_statuses = [
+            ServiceStatus.assigned,
+            ServiceStatus.en_route,
+            ServiceStatus.arrived,
+            ServiceStatus.in_progress,
+            ServiceStatus.paused
+        ]
+
+        try:
+            tech_uuid = UUIDType(str(technician_id))
+        except ValueError:
+            return
+
+        existing_services = session.exec(
+            select(Service).where(
+                Service.technician_id == tech_uuid,
+                Service.status.in_(active_statuses),
+                Service.id != target_service.id
+            )
+        ).all()
+
+        target_time_naive = target_time.replace(tzinfo=None)
+
+        for existing in existing_services:
+            existing_time = existing.scheduled_date or existing.requested_date or existing.created_at
+            if not existing_time:
+                continue
+
+            existing_time_naive = existing_time.replace(tzinfo=None)
+            time_diff = abs((target_time_naive - existing_time_naive).total_seconds())
+
+            if time_diff < 7200:  # 2 horas en segundos (7200s)
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="El técnico ya tiene un servicio asignado en esa franja horaria. Cada servicio requiere una ventana de 2 horas."
+                )
 
 service_service = ServiceService()

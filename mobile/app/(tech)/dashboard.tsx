@@ -188,6 +188,15 @@ export default function TechDashboardScreen() {
                 <View style={styles.cardMeta}>
                   <Ionicons name="location-outline" size={13} color="#555872" />
                   <Text style={styles.cardMetaText}>{item.service_city || 'Sin ubicación'}</Text>
+                  {(item.scheduled_date || item.requested_date || item.created_at) && (
+                    <>
+                      <Text style={{ color: '#555872' }}>·</Text>
+                      <Ionicons name="time-outline" size={13} color="#555872" />
+                      <Text style={styles.cardMetaText}>
+                        {new Date(item.scheduled_date || item.requested_date || item.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      </Text>
+                    </>
+                  )}
                 </View>
               </View>
               {item.estimated_price && (

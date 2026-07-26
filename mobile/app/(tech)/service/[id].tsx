@@ -423,6 +423,27 @@ export default function TechServiceScreen() {
             </View>
           </View>
 
+          {(service?.scheduled_date || service?.requested_date || service?.created_at) && (
+            <View style={styles.infoCard}>
+              <View style={[styles.infoIconBox, { backgroundColor: 'rgba(234,179,8,0.15)' }]}>
+                <Ionicons name="time" size={18} color="#eab308" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.infoLabel}>Fecha y Hora (Ventana 2h)</Text>
+                <Text style={styles.infoValue}>
+                  {new Date(service.scheduled_date || service.requested_date || service.created_at).toLocaleDateString('es-CO', {
+                    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
+                  })}
+                </Text>
+                <Text style={styles.infoSub}>
+                  🕒 {new Date(service.scheduled_date || service.requested_date || service.created_at).toLocaleTimeString('es-CO', {
+                    hour: '2-digit', minute: '2-digit', hour12: true
+                  })}
+                </Text>
+              </View>
+            </View>
+          )}
+
           {service?.vehicle_plate && (
             <View style={styles.infoCard}>
               <View style={[styles.infoIconBox, { backgroundColor: 'rgba(59,130,246,0.15)' }]}>

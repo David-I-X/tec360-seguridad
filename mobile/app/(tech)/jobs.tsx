@@ -54,7 +54,10 @@ export default function TechJobsScreen() {
         renderItem={({ item }) => {
           const cfg = statusConfig[item.status] || statusConfig.pending;
           const isActive = ['assigned', 'en_route', 'arrived', 'in_progress'].includes(item.status);
-          const date = item.created_at ? new Date(item.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) : '';
+          const dateObj = item.scheduled_date || item.requested_date || item.created_at;
+          const dateStr = dateObj
+            ? `${new Date(dateObj).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })} · ${new Date(dateObj).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}`
+            : '';
 
           return (
             <TouchableOpacity
@@ -68,7 +71,7 @@ export default function TechJobsScreen() {
                 <View style={[styles.dot, { backgroundColor: cfg.color }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-                  <Text style={styles.cardMeta}>{item.service_city} · {date}</Text>
+                  <Text style={styles.cardMeta}>{item.service_city} · {dateStr}</Text>
                 </View>
                 <View style={[styles.badge, { backgroundColor: `${cfg.color}20` }]}>
                   <Text style={[styles.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
