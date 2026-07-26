@@ -1,15 +1,16 @@
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel import Session, select, func, or_
-from pydantic import BaseModel
 from datetime import datetime, timedelta
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import text
+from sqlmodel import Session, func, or_, select
 
 from app.core.database import get_session
 from app.core.security import require_roles
-from app.models.user import User
-from app.models.technician import Technician, calculate_rank_points
 from app.models.service import Service, ServiceStatus
+from app.models.technician import Technician, calculate_rank_points
+from app.models.user import User
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
