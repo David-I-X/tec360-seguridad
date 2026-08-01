@@ -1,163 +1,232 @@
-# 🔧 Tec360 Seguridad — Backend
+# 🐍 Tec360 Seguridad — Backend API
 
-API REST construida con **FastAPI** + **SQLModel** + **PostgreSQL/PostGIS**.
+API REST y WebSocket para la plataforma de seguridad vehicular Tec360.
 
----
-
-## ⚠️ Funcionalidad Pendiente
-
-> **Sistema de Pagos (C2) NO implementado.** No existe integración con Wompi/Stripe.
-> El flujo termina con la aprobación de cotización y asignación del técnico.
+> 📡 Producción: `https://tec-360.tech/api`
+> 📖 Docs interactivos: `https://tec-360.tech/api/docs`
 
 ---
 
-## 📦 Tech Stack
+## 🛠️ Stack
 
-- **FastAPI** — Framework web async
-- **SQLModel** — ORM (SQLAlchemy + Pydantic)
-- **PostgreSQL 15 + PostGIS** — BD con soporte geoespacial
-- **Alembic** — Migraciones de BD
-- **Pydantic v2** — Validación de datos
-- **JWT + bcrypt** — Autenticación
-- **WebSocket** — Tracking en vivo
+| Tecnología | Versión | Uso |
+|-----------|---------|-----|
+| FastAPI | 0.115 | Framework API REST + WebSocket |
+| SQLModel | 0.22 | ORM (SQLAlchemy + Pydantic) |
+| PostgreSQL | 15 | Base de datos relacional |
+| PostGIS | — | Extensión geoespacial (coords técnicos) |
+| Alembic | — | Migraciones de base de datos |
+| JWT | — | Autenticación con tokens |
+| SlowAPI | — | Rate limiting (30 req/min) |
+| Twilio | — | Envío de SMS para OTP |
+| WebSockets | — | Chat en tiempo real + GPS streaming |
 
 ---
 
-## 🚀 Instalación
+## 📡 Módulos de la API
 
-### 1. PostgreSQL con Docker
+La API está organizada en **21 routers** dentro de `app/api/`:
+
+| Router | Archivo | Endpoints principales |
+|--------|---------|----------------------|
+| 🔐 **Auth** | `auth.py` | OTP envío/verificación, onboarding, refresh tokens |
+| 🔧 **Services** | `services.py` | CRUD de servicios, ciclo de vida, transiciones de estado, técnicos cercanos, evidencia, reportes PDF |
+| 📋 **Quotations** | `quotations.py` | Crear cotización, contra-oferta, aceptar/rechazar |
+| ⭐ **Ratings** | `ratings.py` | Crear calificación, estadísticas, reseñas de técnicos |
+| 🏆 **Reputation** | `reputation.py` | Score, rango, historial de reputación |
+| 👨‍🔧 **Technicians** | `technicians.py` | Perfil, disponibilidad, documentos, quiz, horarios |
+| 💰 **Payments** | `payments.py` | Confirmación efectivo, pagos de servicio, validación admin |
+| 💳 **Credits** | `credits.py` | Wallet: saldo, historial, compra, asignación admin |
+| 🛡️ **Admin** | `admin.py` | Gestión usuarios, servicios, estadísticas, dashboard |
+| 💬 **Chat** | `chat.py` | Mensajes de servicio en tiempo real |
+| 🔔 **Notifications** | `notifications.py` | Suscripción push, listar, marcar leído |
+| 📸 **Uploads** | `uploads.py` | Fotos de servicio, avatares |
+| 📤 **Images** | `images.py` | Servir imágenes estáticas |
+| 📍 **Location** | `location.py` | Tracking GPS, ubicación del técnico |
+| 🗺️ **Maps** | `maps.py` | Integración Google Maps, geocoding |
+| 🔗 **Webhooks** | `webhooks.py` | Callbacks SaaS vertical |
+| 🧪 **Simulate** | `simulate.py` | Endpoints de testing para desarrollo |
+| 👤 **Users** | `users.py` | Gestión de perfiles de usuario |
+| ✅ **Verification** | `verification.py` | Verificación de técnicos y documentos |
+| 🌐 **WebSocket** | `ws.py` | Manager WebSocket (chat + GPS) |
+| 📄 **Example** | `example.py` | Endpoints de ejemplo/referencia |
+
+---
+
+## 🗄️ Modelos de Base de Datos
+
+Se encuentran en `app/models/` — **14 archivos de modelos**:
+
+| Modelo | Archivo | Descripción |
+|--------|---------|-------------|
+| `User` | `user.py` | Usuarios (clientes, técnicos, admin) |
+| `Technician` | `technician.py` | Perfil extendido del técnico (nivel, documentos, GPS) |
+| `Service` | `service.py` | Servicios solicitados (GPS, alarma, dashcam, etc.) |
+| `Quotation` | `quotation.py` | Cotizaciones y contra-ofertas |
+| `Payment` | `payment.py` | Registro de pagos (efectivo, transferencia) |
+| `Credit` | `credit.py` | Wallet de créditos del técnico |
+| `Message` | `message.py` | Mensajes del chat por servicio |
+| `Notification` | `notification.py` | Notificaciones push/in-app |
+| `PushToken` | `push_token.py` | Tokens de dispositivo para push |
+| `Incident` | `incident.py` | Reportes de incidentes |
+| `Schedule` | `schedule.py` | Horarios de disponibilidad |
+| `Portfolio` | `portfolio.py` | Portafolio de trabajos del técnico |
+| `Verification` | `verification.py` | Documentos y estado de verificación |
+| `Extras` | `extras.py` | Modelos auxiliares (metadatos de servicio, etc.) |
+
+---
+
+## ⚙️ Capa de Servicios
+
+Lógica de negocio en `app/services/` — **17 archivos**:
+
+| Servicio | Archivo | Responsabilidad |
+|----------|---------|-----------------|
+| 📲 OTP | `otp_service.py` | Generación y validación de códigos OTP |
+| 📱 SMS | `sms_service.py` | Envío de SMS vía Twilio |
+| 🔧 Servicios | `service_service.py` | Ciclo de vida completo del servicio |
+| 📋 Cotizaciones | `quotation_service.py` | Lógica de cotización y contra-oferta |
+| ⭐ Calificaciones | `rating_service.py` | Calificaciones bidireccionales |
+| 🏆 Reputación | `reputation_service.py` | Cálculo de score y niveles |
+| 👨‍🔧 Técnicos | `technician_service.py` | Perfil, disponibilidad, búsqueda cercana |
+| ✅ Verificación | `verification_service.py` | Validación de documentos y quiz |
+| 💰 Pagos | `payment_service.py` | Procesamiento de pagos |
+| 💳 Créditos | `credit_service.py` | Wallet, compra y asignación de créditos |
+| 🔔 Notificaciones | `notification_service.py` | Creación y envío de notificaciones |
+| 📤 Push | `push_service.py` | Envío de push notifications (VAPID + Expo) |
+| 🖼️ Imágenes | `image_service.py` | Upload y procesamiento de imágenes |
+| 📄 PDF | `pdf_service.py` | Generación de reportes PDF |
+| 🗺️ Maps | `maps_service.py` | Integración Google Maps, geocoding, rutas |
+| 🔗 SaaS | `sas_service.py` | Integración con servicios SaaS externos |
+| 📝 Quiz Seed | `quiz_seed.py` | Datos semilla para el quiz de técnicos |
+
+---
+
+## 🗃️ Migraciones
+
+**17 migraciones** gestionadas con Alembic en `migrations/versions/`:
+
 ```bash
-docker-compose up -d
-```
+# Ver estado actual
+alembic current
 
-### 2. Entorno virtual
-```bash
-python -m venv venv
-venv\Scripts\activate        # Windows
-pip install -r requirements.txt
-```
-
-### 3. Variables de entorno
-Crear `.env` en la raíz del proyecto:
-```env
-ENVIRONMENT=development
-DEBUG=True
-SECRET_KEY=tu-secret-key
-
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/tec360
-GOOGLE_MAPS_API_KEY=tu-google-api-key
-```
-
-### 4. Migraciones
-```bash
+# Aplicar todas las migraciones pendientes
 alembic upgrade head
-```
 
-### 5. Ejecutar
-```bash
-uvicorn app.main:app --reload
-```
-- API: http://localhost:8000
-- Swagger: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-
----
-
-## 🗂️ Estructura
-
-```
-app/
-├── main.py              # Entrada, CORS, routers
-├── api/                 # Endpoints
-│   ├── auth.py          # /auth — registro, login, onboarding
-│   ├── services.py      # /services — CRUD de servicios
-│   ├── quotations.py    # /quotations — cotizaciones + contraofertas
-│   ├── ratings.py       # /ratings — calificaciones
-│   ├── notifications.py # /notifications — sistema de notificaciones
-│   ├── technicians.py   # /technicians — perfiles, búsqueda
-│   ├── location.py      # /location — tracking de ubicación
-│   ├── maps.py          # /maps — proxy Google Maps API
-│   ├── images.py        # /images — subida de imágenes
-│   └── ws.py            # WebSocket — tracking en vivo
-├── core/
-│   ├── config.py        # Settings (Pydantic)
-│   ├── database.py      # Sesión SQLModel
-│   └── security.py      # JWT, roles, middleware
-├── models/              # Tablas (SQLModel)
-│   ├── user.py
-│   ├── service.py
-│   ├── technician.py
-│   ├── quotation.py
-│   ├── notification.py
-│   └── extras.py        # ServiceImage, ServiceRating
-├── schemas/             # Request/Response schemas
-│   ├── service.py
-│   └── quotation.py
-└── services/            # Lógica de negocio
-    ├── quotation_service.py
-    ├── rating_service.py
-    └── notification_service.py
-```
-
----
-
-## 📡 Endpoints Principales
-
-### Auth
-- `POST /auth/register` — Registro
-- `POST /auth/login` — Login
-- `POST /auth/onboarding` — Completar perfil
-- `GET /auth/me` — Usuario actual
-
-### Servicios
-- `POST /services` — Crear servicio (client)
-- `GET /services` — Listar (filtrado por rol)
-- `GET /services/{id}` — Detalle
-- `PATCH /services/{id}/status` — Cambiar estado (technician)
-- `POST /services/{id}/accept` — Aceptar (technician)
-
-### Cotizaciones
-- `POST /quotations/service/{id}` — Enviar cotización (technician)
-- `GET /quotations/me` — Mis cotizaciones (technician)
-- `GET /quotations/service/{id}` — Ver cotizaciones
-- `PATCH /quotations/{id}/approve` — Aprobar (client)
-- `PATCH /quotations/{id}/reject` — Rechazar (client)
-- `PATCH /quotations/{id}/counter` — Contraoferta (client)
-- `PATCH /quotations/{id}/accept-counter` — Aceptar contraoferta (technician)
-- `PATCH /quotations/{id}/reject-counter` — Rechazar contraoferta (technician)
-
-### Rating & Notificaciones
-- `POST /ratings/service/{id}` — Calificar
-- `GET /notifications` — Listar notificaciones
-- `GET /notifications/unread-count` — No leídas
-
-### WebSocket
-- `ws://host/ws/tracking/{service_id}` — Tracking en vivo
-
----
-
-## 🧪 Tests
-
-```bash
-pytest tests/ -v
-pytest --cov=app --cov-report=html
-```
-
----
-
-## 📋 Migraciones
-
-```bash
 # Crear nueva migración
-alembic revision --autogenerate -m "descripcion"
+alembic revision --autogenerate -m "descripción del cambio"
 
-# Aplicar migraciones
-alembic upgrade head
-
-# Revertir última
+# Revertir última migración
 alembic downgrade -1
 ```
 
 ---
 
-**Versión**: 0.5.0 | **Última actualización**: Febrero 2026
+## 🚀 Setup Local
+
+### 1️⃣ Levantar PostgreSQL + PostGIS
+
+```bash
+docker-compose up -d
+```
+
+> Esto levanta un contenedor PostgreSQL 15 con PostGIS habilitado.
+
+### 2️⃣ Instalar dependencias
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3️⃣ Ejecutar migraciones
+
+```bash
+alembic upgrade head
+```
+
+### 4️⃣ Iniciar servidor
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+> 📖 Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
+> 📖 ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+
+---
+
+## 🧪 Testing y Linting
+
+```bash
+# Lint con ruff
+ruff check app/
+
+# Ejecutar tests
+pytest tests/ -v --tb=short
+
+# Coverage
+pytest tests/ --cov=app --cov-report=html
+```
+
+---
+
+## 🐳 Docker
+
+### Build
+
+```bash
+docker build -t tec360-backend .
+```
+
+### Run
+
+```bash
+docker run -p 8000:8000 --env-file .env tec360-backend
+```
+
+> ⚠️ El Dockerfile usa un usuario **non-root** por seguridad.
+
+---
+
+## 🔒 Seguridad
+
+| Medida | Detalle |
+|--------|---------|
+| 🚦 Rate Limiting | 30 req/min por IP (SlowAPI) |
+| 🛡️ Security Headers | CORS, CSP, X-Frame-Options configurados |
+| 🚫 Path Traversal | Protección contra ataques de traversal en uploads |
+| 🐳 Non-root Docker | El contenedor corre sin privilegios de root |
+| 🔑 JWT | Tokens de acceso + refresh con expiración configurable |
+| 📡 WebSocket Auth | Autenticación por token en conexiones WebSocket |
+
+---
+
+## 📁 Estructura del Directorio
+
+```
+backend/
+├── app/
+│   ├── api/             # 21 routers (endpoints)
+│   ├── core/            # Config, seguridad, dependencias
+│   ├── models/          # 14 modelos SQLModel
+│   ├── schemas/         # Schemas Pydantic (request/response)
+│   ├── services/        # 17 servicios (lógica de negocio)
+│   └── main.py          # Punto de entrada FastAPI
+├── migrations/
+│   └── versions/        # 17 migraciones Alembic
+├── tests/               # Tests pytest
+├── static/              # Archivos estáticos (uploads)
+├── Dockerfile
+├── docker-compose.yml   # PostgreSQL + PostGIS local
+├── requirements.txt
+├── alembic.ini
+└── pyproject.toml
+```
+
+---
+
+## 🔗 Enlaces
+
+- ⬆️ [README principal](../README.md)
+- ⚛️ [Frontend README](../frontend/README.md)
+- 📱 [Mobile README](../mobile/README.md)

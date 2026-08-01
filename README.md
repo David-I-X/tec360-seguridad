@@ -1,190 +1,245 @@
-# Tec360 Seguridad 🔐
+# 🛡️ Tec360 Seguridad
 
-Plataforma de seguridad vehicular para conectar **clientes** con **técnicos certificados SENA** para instalación y mantenimiento de dispositivos de seguridad.
+**Plataforma de seguridad vehicular** que conecta clientes con técnicos certificados por el SENA para instalación de GPS, alarmas, dashcams y mantenimiento de dispositivos.
 
-## 🚀 Arquitectura
+> 🌐 Producción: [https://tec-360.tech](https://tec-360.tech)
 
+---
+
+## 🏗️ Arquitectura
+
+```mermaid
+graph TB
+    subgraph Internet
+        U["👤 Usuario Web"]
+        M["📱 App Móvil"]
+    end
+
+    subgraph DigitalOcean["☁️ DigitalOcean Droplet"]
+        NGINX["🔀 Nginx\nReverse Proxy + SSL\ntec-360.tech"]
+
+        subgraph Backend["🐍 Backend"]
+            API["FastAPI\nPuerto 8000"]
+            WS["WebSocket Manager\nChat + GPS"]
+        end
+
+        subgraph Frontend["⚛️ Frontend"]
+            NEXT["Next.js 15\nPuerto 3000"]
+        end
+
+        subgraph Database["🗄️ Base de Datos"]
+            PG["PostgreSQL 15\n+ PostGIS"]
+        end
+    end
+
+    subgraph External["🌍 Servicios Externos"]
+        TWILIO["📲 Twilio SMS"]
+        GMAPS["🗺️ Google Maps API"]
+        GHCR["📦 GHCR"]
+    end
+
+    U -->|HTTPS| NGINX
+    M -->|HTTPS/WSS| NGINX
+    NGINX -->|/api/*| API
+    NGINX -->|/ws/*| WS
+    NGINX -->|/*| NEXT
+    API --> PG
+    WS --> PG
+    API --> TWILIO
+    API --> GMAPS
+    NEXT --> API
 ```
-┌─────────────────────────────────────────────────┐
-│              Nginx (reverse proxy + SSL)         │
-│         tec-360.tech / Let's Encrypt             │
-├─────────────────┬───────────────────────────────┤
-│   Frontend      │      Backend API              │
-│   Next.js 14    │      FastAPI + SQLModel        │
-│   React 18      │      PostgreSQL + PostGIS      │
-│   TypeScript    │      Python 3.11               │
-│   Framer Motion │      JWT Auth + OTP (Twilio)   │
-│   Port :3000    │      Port :8000                │
-└─────────────────┴───────────────────────────────┘
-│                    Docker Compose                 │
-│                DigitalOcean Droplet               │
-└─────────────────────────────────────────────────┘
-```
 
-## 📋 Funcionalidades
+---
 
-### Roles
-| Rol | Descripción |
-|-----|-------------|
-| **Cliente** | Solicita servicios, confirma trabajos, califica técnicos |
-| **Técnico** | Acepta trabajos, envía cotizaciones, sube evidencias, califica clientes |
-| **Admin** | Gestión completa de usuarios y servicios |
+## 🛠️ Stack Tecnológico
 
-### Servicios
-- 📍 **GPS Vehicular** — Instalación y mantenimiento de rastreadores
-- 🚨 **Alarmas** — Sistemas de alertas vehiculares
-- 📹 **Dashcam** — Cámaras vehiculares HD
-- 🔧 **Mantenimiento** — Servicio técnico para todos los dispositivos
+| Capa | Tecnologías |
+|------|------------|
+| **Backend** | FastAPI 0.115 · SQLModel 0.22 · PostgreSQL 15/PostGIS · Alembic · JWT · WebSockets · SlowAPI |
+| **Frontend** | Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · Framer Motion · Google Maps · shadcn/ui |
+| **Mobile** | React Native 0.81 · Expo SDK 54 · expo-router · react-native-maps · expo-secure-store |
+| **DevOps** | Docker Compose · GitHub Actions CI/CD · Nginx · Let's Encrypt SSL · EAS (Expo) |
 
-### Features principales
-- 📱 **PWA** — Instalable como app nativa
-- 🗺️ **Google Maps** — Tracking en tiempo real de técnicos
-- ⭐ **Calificaciones bidireccionales** — Cliente ↔ Técnico
-- 🏅 **Rangos de técnicos** — Bronze → Silver → Gold (sistema de puntos)
-- 📸 **Fotos de evidencia** — Inicio, proceso y fin del servicio
-- 💬 **Notificaciones** — SMS via Twilio + push notifications
-- 📄 **Sistema de cotizaciones** — Técnicos envían presupuestos, clientes aceptan/rechazan
-- 🔐 **Auth OTP** — Verificación por teléfono (mode dev/SMS real)
+---
 
-### Sistema de Rangos
-| Rango | Puntos | Cómo se gana |
-|-------|--------|-------------|
-| 🥉 Bronze | 0–49 | Técnico nuevo |
-| 🥈 Silver | 50–149 | Experiencia + buenas calificaciones |
-| 🥇 Gold | 150+ | Experto verificado |
+## ✨ Funcionalidades Principales
 
-**Fórmula:** Servicios×5 + Meses_experiencia×2 + Certificados×15 + Rating×10 + SENA_verificado×20
+| # | Funcionalidad | Descripción |
+|---|--------------|-------------|
+| 🔐 | **Autenticación OTP** | Login por teléfono con código SMS vía Twilio |
+| 📍 | **Rastreo GPS en tiempo real** | Ubicación de técnicos con WebSocket + Google Maps |
+| 💬 | **Chat en tiempo real** | Comunicación directa cliente ↔ técnico |
+| 📋 | **Sistema de cotizaciones** | Cotizaciones con contra-ofertas y negociación |
+| ⭐ | **Calificaciones bidireccionales** | Clientes y técnicos se califican mutuamente |
+| 🏆 | **Gamificación de técnicos** | Niveles Bronce → Plata → Oro → Elite |
+| 📸 | **Evidencia fotográfica** | Fotos antes / durante / después del servicio |
+| 💰 | **Sistema de pagos** | Efectivo, transferencia bancaria |
+| 📊 | **Panel de administración** | Dashboard con analíticas y gestión completa |
+| 🔔 | **Notificaciones push** | Web (VAPID) + Expo Push Notifications |
+| 📱 | **App móvil Android** | APK generado vía EAS Build |
+| 🌐 | **PWA con soporte offline** | Progressive Web App con service worker |
 
-## 🛠️ Tech Stack
+---
 
-### Backend
-- **FastAPI** — API REST async
-- **SQLModel** — ORM (SQLAlchemy + Pydantic)
-- **PostgreSQL 15** + **PostGIS** — Base de datos con soporte geoespacial
-- **Alembic** — Migraciones de DB
-- **JWT** — Autenticación por tokens
-- **Twilio** — SMS para OTP
-- **python-multipart** — Upload de archivos
-
-### Frontend
-- **Next.js 14** (App Router)
-- **React 18** + **TypeScript**
-- **Framer Motion** — Animaciones
-- **shadcn/ui** — Componentes base
-- **Google Maps API** — Mapas y tracking
-- **Leaflet** — Selector de ubicación
-
-### Infraestructura
-- **Docker + Docker Compose** — Containerización
-- **Nginx** — Reverse proxy + SSL
-- **Let's Encrypt** — Certificados HTTPS automáticos
-- **DigitalOcean Droplet** — Servidor de producción
-- **GitHub Actions** — CI/CD
-
-## 📂 Estructura del Proyecto
+## 📁 Estructura del Monorepo
 
 ```
 tec360-seguridad/
-├── backend/
-│   ├── app/
-│   │   ├── api/           # Endpoints REST
-│   │   ├── core/          # Config, database, security
-│   │   ├── models/        # SQLModel (User, Service, Technician, etc.)
-│   │   ├── schemas/       # Pydantic validation schemas
-│   │   └── services/      # Business logic layer
-│   ├── migrations/        # Alembic migrations
-│   ├── tests/             # pytest
-│   ├── Dockerfile
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── app/           # Next.js pages (App Router)
-│   │   ├── components/    # React components
-│   │   └── lib/           # Utils, API client, auth context
-│   ├── public/            # Static assets + PWA manifest
-│   ├── Dockerfile
-│   └── package.json
-├── nginx/
-│   └── nginx.conf         # Reverse proxy config
-├── docker-compose.prod.yml
-├── .github/workflows/     # CI/CD
-└── .env                   # Environment variables
+├── 📂 backend/          # API FastAPI + modelos + migraciones
+├── 📂 frontend/         # Next.js 15 App Router
+├── 📂 mobile/           # React Native + Expo SDK 54
+├── 📂 nginx/            # Configuración Nginx (reverse proxy + SSL)
+├── 📂 .github/          # Workflows CI/CD (GitHub Actions)
+├── 📂 docs/             # Documentación adicional
+├── 📄 docker-compose.prod.yml
+├── 📄 .env.production.example
+├── 📄 AGENTS.md
+└── 📄 README.md         # ← Este archivo
 ```
 
-## ⚡ Setup Local
+---
 
-### Requisitos
-- Docker + Docker Compose
-- Node.js 18+ (para desarrollo frontend)
-- Python 3.11+ (para desarrollo backend)
+## 📋 Requisitos Previos
 
-### Variables de Entorno
+| Herramienta | Versión mínima |
+|-------------|---------------|
+| Node.js | 20+ |
+| Python | 3.11+ |
+| Docker & Docker Compose | Última estable |
+| PostgreSQL + PostGIS | 15+ |
+
+---
+
+## 🚀 Inicio Rápido
+
+### 1️⃣ Clonar el repositorio
 
 ```bash
-# .env
-DATABASE_URL=postgresql://tec360:password@db:5432/tec360
-JWT_SECRET_KEY=your_secret_key
-TWILIO_ACCOUNT_SID=your_twilio_sid
-TWILIO_AUTH_TOKEN=your_twilio_token
-TWILIO_PHONE_NUMBER=+1234567890
-GOOGLE_MAPS_API_KEY=your_maps_key
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_maps_key
+git clone https://github.com/David-I-X/tec360-seguridad.git
+cd tec360-seguridad
 ```
 
-### Desarrollo
+### 2️⃣ Configurar variables de entorno
 
 ```bash
-# Backend
+cp .env.production.example .env.production
+# Editar .env.production con tus credenciales (Twilio, Google Maps, JWT, etc.)
+```
+
+### 3️⃣ Backend
+
+```bash
 cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
 
-# Frontend
+# Levantar PostgreSQL + PostGIS con Docker
+docker-compose up -d
+
+# Instalar dependencias Python
+pip install -r requirements.txt
+
+# Ejecutar migraciones
+alembic upgrade head
+
+# Iniciar servidor de desarrollo
+uvicorn app.main:app --reload --port 8000
+```
+
+> 📡 API disponible en `http://localhost:8000/docs`
+
+### 4️⃣ Frontend
+
+```bash
 cd frontend
 npm install
 npm run dev
-
-# Docker (producción local)
-docker compose -f docker-compose.prod.yml up --build
 ```
 
-## 🚢 Deployment
+> 🌐 Web disponible en `http://localhost:3000`
 
-El proyecto se despliega en **DigitalOcean** usando Docker Compose:
+### 5️⃣ Mobile
 
 ```bash
-ssh root@<server-ip>
-cd /opt/tec360-seguridad
-git pull
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+cd mobile
+npm install
+npx expo start
 ```
 
-Ver [deployment_guide.md] para instrucciones completas.
+> 📱 Escanear QR con Expo Go o usar emulador Android
 
-### Dominio & SSL
-- **Dominio**: `tec-360.tech`
-- **SSL**: Let's Encrypt (auto-renewal via Certbot)
+---
 
-## ⚠️ Notas Futuras
+## 🚢 Despliegue
 
-### Almacenamiento de Archivos (S3)
-Actualmente las fotos de perfil y evidencias de servicio se almacenan localmente en el servidor (`/opt/tec360-seguridad/uploads/`), servidas por Nginx.
+### Web (Backend + Frontend)
 
-**Para producción a escala** se debe evaluar:
-- **DigitalOcean Spaces** (compatible con S3, regional)
-- **AWS S3** + CloudFront (CDN global)
-- **Cloudflare R2** (sin egress fees)
+```mermaid
+graph LR
+    A["🔀 Push a master"] --> B["🧪 CI\nci.yml"]
+    B --> C["🚀 Deploy\ndeploy.yml"]
+    C --> D["🐳 Build Docker"]
+    D --> E["📦 Push GHCR"]
+    E --> F["⬇️ Pull en servidor"]
+    F --> G["🗄️ Alembic migrations"]
+    G --> H["♻️ Restart servicios"]
+```
 
-> 📌 **TODO**: Migrar a almacenamiento de objetos externo antes de escalar a múltiples servidores o cuando el volumen de uploads supere 10GB.
+1. Push a `master` dispara el workflow de CI (`ci.yml`)
+2. Si CI pasa, se ejecuta el deploy (`deploy.yml`)
+3. Se construyen las imágenes Docker del backend y frontend
+4. Las imágenes se suben a GitHub Container Registry (GHCR)
+5. El servidor de DigitalOcean descarga las imágenes nuevas
+6. Se ejecutan las migraciones de Alembic automáticamente
+7. Los contenedores se reinician con las nuevas versiones
 
-### Mejoras Planificadas
-- [ ] Almacenamiento S3/Spaces para uploads
-- [ ] Notificaciones push nativas
-- [ ] Panel admin completo
-- [ ] Reportes y analytics
-- [ ] Pasarela de pagos
+### Mobile
+
+- **Build completo:** Tag `v*-mobile` → dispara EAS Build (`deploy-mobile.yml`)
+- **OTA update:** Se pueden enviar actualizaciones sin rebuild con `eas update`
+
+---
+
+## 🔑 Variables de Entorno
+
+Todas las variables requeridas están documentadas en `.env.production.example`:
+
+| Variable | Descripción |
+|----------|-------------|
+| `DATABASE_URL` | Conexión PostgreSQL con PostGIS |
+| `JWT_SECRET_KEY` | Clave secreta para tokens JWT |
+| `TWILIO_ACCOUNT_SID` | Credencial Twilio para OTP |
+| `TWILIO_AUTH_TOKEN` | Token Twilio |
+| `TWILIO_PHONE_NUMBER` | Número Twilio para enviar SMS |
+| `GOOGLE_MAPS_API_KEY` | API key de Google Maps |
+| `VAPID_*` | Claves para push notifications web |
+| `GHCR_TOKEN` | Token para GitHub Container Registry |
+
+> 📝 Ver archivo [.env.production.example](.env.production.example) para la lista completa.
+
+---
+
+## ⚙️ CI/CD — GitHub Actions
+
+| Workflow | Archivo | Trigger | Descripción |
+|----------|---------|---------|-------------|
+| 🧪 **CI** | `ci.yml` | Push/PR a `master` | Lint (ruff), tests, type check, build frontend |
+| 🚀 **Deploy Web** | `deploy.yml` | Después de CI exitoso | Build Docker → GHCR → deploy en servidor |
+| 📱 **Deploy Mobile** | `deploy-mobile.yml` | Tag `v*-mobile` | EAS Build (APK) u OTA update |
+| 🗄️ **DB Admin** | `db-admin.yml` | Manual (`workflow_dispatch`) | Operaciones administrativas sobre la base de datos |
+
+---
+
+## 📚 Documentación por Módulo
+
+| Módulo | README |
+|--------|--------|
+| 🐍 Backend API | [backend/README.md](backend/README.md) |
+| ⚛️ Frontend Web | [frontend/README.md](frontend/README.md) |
+| 📱 App Móvil | [mobile/README.md](mobile/README.md) |
+| 🤖 Agentes IA | [AGENTS.md](AGENTS.md) |
+
+---
 
 ## 📄 Licencia
 
-Proyecto privado — Tec360 Seguridad © 2025
+Proyecto privado — © 2026 Tec360 Seguridad. Todos los derechos reservados.

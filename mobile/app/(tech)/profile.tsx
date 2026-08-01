@@ -147,7 +147,7 @@ export default function TechProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
-  header: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 10 },
+  header: { paddingTop: 60, paddingHorizontal: SPACING.lg, paddingBottom: 10 },
   headerTitle: { color: COLORS.text, fontSize: FONTS.sizes.xxl, fontWeight: '800' },
   avatarContainer: { alignItems: 'center', paddingVertical: SPACING.lg },
   avatar: { width: 96, height: 96, borderRadius: 48, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
@@ -156,13 +156,13 @@ const styles = StyleSheet.create({
   name: { color: COLORS.text, fontSize: 22, fontWeight: '800', marginTop: SPACING.md },
   phone: { color: COLORS.textSecondary, fontSize: FONTS.sizes.sm, marginTop: SPACING.xs },
   email: { color: COLORS.textMuted, fontSize: 13, marginTop: 2 },
-  statsRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, marginBottom: SPACING.lg },
-  statCard: { flex: 1, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 20, alignItems: 'center', gap: SPACING.sm, borderWidth: 1, borderColor: COLORS.border },
+  statsRow: { flexDirection: 'row', gap: SPACING.md, paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg },
+  statCard: { flex: 1, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: SPACING.lg, alignItems: 'center', gap: SPACING.sm, borderWidth: 1, borderColor: COLORS.border },
   statNumber: { color: COLORS.text, fontSize: FONTS.sizes.xl, fontWeight: '800' },
   statLabel: { color: COLORS.textMuted, fontSize: 11 },
-  menuSection: { marginHorizontal: 20, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 18, overflow: 'hidden', marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border },
-  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 20, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: COLORS.borderLight },
+  menuSection: { marginHorizontal: SPACING.lg, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 18, overflow: 'hidden', marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingHorizontal: SPACING.lg, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: COLORS.borderLight },
   menuText: { flex: 1, color: COLORS.text, fontSize: 15, fontWeight: FONTS.weights.semibold },
-  logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, marginHorizontal: 20, paddingVertical: SPACING.md, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', backgroundColor: 'rgba(239,68,68,0.08)' },
+  logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, marginHorizontal: SPACING.lg, paddingVertical: SPACING.md, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', backgroundColor: 'rgba(239,68,68,0.08)' },
   logoutText: { color: COLORS.red, fontSize: 15, fontWeight: FONTS.weights.bold },
 });

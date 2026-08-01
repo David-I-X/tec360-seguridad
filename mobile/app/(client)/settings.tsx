@@ -141,9 +141,9 @@ export default function ClientSettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
-  header: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 10 },
+  header: { paddingTop: 60, paddingHorizontal: SPACING.lg, paddingBottom: 10 },
   headerTitle: { color: COLORS.text, fontSize: FONTS.sizes.xxl, fontWeight: '800' },
-  profileCard: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, marginHorizontal: 20, backgroundColor: COLORS.bgCard, borderRadius: 20, padding: 20, marginTop: 10, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border },
+  profileCard: { flexDirection: 'row', alignItems: 'center', gap: SPACING.lg, marginHorizontal: SPACING.lg, backgroundColor: COLORS.bgCard, borderRadius: 20, padding: SPACING.lg, marginTop: 10, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border },
   avatar: { width: 64, height: 64, borderRadius: RADIUS.round, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   avatarText: { color: '#fff', fontSize: 22, fontWeight: '800' },
   cameraIcon: { position: 'absolute', bottom: -2, right: -2, width: 26, height: 26, borderRadius: 13, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.bg },
@@ -152,10 +152,10 @@ const styles = StyleSheet.create({
   profilePhone: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
   profileEmail: { color: COLORS.textMuted, fontSize: FONTS.sizes.xs, marginTop: 2 },
   sectionTitle: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1.5, paddingHorizontal: SPACING.lg, marginBottom: SPACING.sm, marginTop: SPACING.sm },
-  menuSection: { marginHorizontal: 20, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 18, overflow: 'hidden', marginBottom: 20, borderWidth: 1, borderColor: COLORS.border },
-  menuItem: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingHorizontal: 20, paddingVertical: SPACING.md, borderBottomWidth: 1, borderBottomColor: COLORS.borderLight },
+  menuSection: { marginHorizontal: SPACING.lg, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 18, overflow: 'hidden', marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingHorizontal: SPACING.lg, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: COLORS.borderLight },
   menuText: { flex: 1, color: COLORS.text, fontSize: 15, fontWeight: '600' },
-  logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, marginHorizontal: 20, paddingVertical: SPACING.md, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', backgroundColor: COLORS.redMuted, marginTop: SPACING.sm },
+  logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, marginHorizontal: SPACING.lg, paddingVertical: SPACING.md, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', backgroundColor: COLORS.redMuted, marginTop: SPACING.sm },
   logoutText: { color: COLORS.red, fontSize: 15, fontWeight: '700' },
   version: { textAlign: 'center', color: '#334155', fontSize: FONTS.sizes.xs, marginTop: SPACING.lg },
 });

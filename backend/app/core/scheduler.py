@@ -111,10 +111,38 @@ async def check_pending_services():
     except Exception as e:
         logger.error(f"Error in check_pending_services: {e}")
 
+async def clear_expired_suspensions():
+    """Clear expired technician suspensions every hour."""
+    logger.info("Running clear_expired_suspensions task...")
+    try:
+        with SessionLocal() as session:
+            from app.models.technician import Technician
+            now = datetime.utcnow()
+            suspended = session.exec(
+                select(Technician).where(
+                    Technician.suspended_until.is_not(None),
+                    Technician.suspended_until <= now
+                )
+            ).all()
+            
+            for tech in suspended:
+                tech.suspended_until = None
+                tech.is_available = True
+                tech.cancellation_week_count = 0
+                session.add(tech)
+                logger.info(f"Cleared suspension for technician {tech.user_id}")
+            
+            if suspended:
+                session.commit()
+                logger.info(f"Cleared {len(suspended)} expired suspensions")
+    except Exception as e:
+        logger.error(f"Error in clear_expired_suspensions: {e}")
+
 def start_scheduler():
     """Inicia el scheduler y registra las tareas."""
     scheduler.add_job(check_zombie_services, "interval", minutes=30, id="zombie_check", replace_existing=True)
     scheduler.add_job(check_pending_services, "interval", minutes=15, id="pending_check", replace_existing=True)
+    scheduler.add_job(clear_expired_suspensions, "interval", hours=1, id="suspension_cleanup", replace_existing=True)
     scheduler.start()
     logger.info("APScheduler started with jobs: %s", scheduler.get_jobs())
 

@@ -237,7 +237,7 @@ export default function NotificationsScreen() {
           <NotifCard item={item} onPress={() => handlePress(item)} index={index} />
         )}
         keyExtractor={item => item.id}
-        contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: SPACING.md, paddingTop: SPACING.sm }}
+        contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 60, paddingBottom: SPACING.md,
+    paddingHorizontal: SPACING.lg, paddingTop: 60, paddingBottom: SPACING.md,
     borderBottomWidth: 1, borderBottomColor: COLORS.borderLight,
   },
   headerTitle: { color: COLORS.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
 
   unreadBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    marginHorizontal: SPACING.md, marginTop: RADIUS.md, marginBottom: SPACING.xs,
+    marginHorizontal: SPACING.lg, marginTop: RADIUS.md, marginBottom: SPACING.xs,
     borderRadius: RADIUS.md, paddingHorizontal: SPACING.md, paddingVertical: 9,
     borderWidth: 1, borderColor: 'rgba(139,92,246,0.2)',
   },
@@ -291,9 +291,9 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: COLORS.bgCard,
-    borderRadius: 18, marginBottom: SPACING.md,
+    borderRadius: 18, marginBottom: SPACING.lg,
     borderWidth: 1, borderColor: 'rgba(50,45,90,0.4)',
-    paddingRight: SPACING.md, paddingVertical: SPACING.md,
+    paddingRight: SPACING.md, paddingLeft: SPACING.md, paddingVertical: SPACING.md,
     overflow: 'hidden',
   },
   cardUnread: {
@@ -301,12 +301,12 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primaryBorder,
   },
   accentBar: {
-    width: 3, alignSelf: 'stretch', borderRadius: SPACING.xs, marginRight: RADIUS.md, marginLeft: 0,
+    width: 3, alignSelf: 'stretch', borderRadius: SPACING.xs, marginRight: SPACING.md, marginLeft: 0,
   },
   iconCircle: {
     width: 42, height: 42, borderRadius: 14,
     justifyContent: 'center', alignItems: 'center',
-    marginRight: RADIUS.md, flexShrink: 0,
+    marginRight: SPACING.md, flexShrink: 0,
   },
   dot: {
     width: SPACING.sm, height: SPACING.sm, borderRadius: SPACING.xs, marginLeft: 6, flexShrink: 0,

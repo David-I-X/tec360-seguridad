@@ -272,6 +272,17 @@ class ServiceService:
             # Validar que el técnico no tenga conflicto de horario (bloque de 2 horas)
             self._check_technician_schedule_conflict(session, technician_id, service)
             
+            # Check if technician is suspended
+            from app.services.reputation_service import reputation_service
+            from app.models.technician import Technician
+            is_suspended = await reputation_service.is_suspended(session, technician_id)
+            if is_suspended:
+                tech = session.exec(select(Technician).where(Technician.user_id == technician_id)).first()
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Tu cuenta está suspendida hasta {tech.suspended_until.strftime('%d/%m/%Y %H:%M') if tech and tech.suspended_until else 'pronto'}. No puedes aceptar servicios durante la suspensión."
+                )
+            
             # Obtener info del técnico para enviar al cliente
             technician = session.exec(select(User).where(User.id == technician_id)).first()
                 
@@ -465,8 +476,29 @@ class ServiceService:
                     # Penalización al técnico
                     try:
                         from app.services.reputation_service import reputation_service
-                        await reputation_service.penalize_cancellation(session, str(service.technician_id))
+                        penalty_result = await reputation_service.penalize_cancellation(session, str(service.technician_id))
                         penalty_applied = True
+                        
+                        # Notify technician about penalty
+                        try:
+                            from app.services.notification_service import NotificationService
+                            penalty_msg = "Se te han descontado 15 puntos de reputación por cancelar un servicio asignado."
+                            if penalty_result.get("suspended"):
+                                penalty_msg += " Tu cuenta ha sido suspendida por 24 horas."
+                            await NotificationService.create_notification(
+                                session=session,
+                                data={
+                                    "user_id": str(service.technician_id),
+                                    "title": "⚠️ Penalización por cancelación",
+                                    "message": penalty_msg,
+                                    "notification_type": "system_alert",
+                                    "service_id": str(service.id)
+                                }
+                            )
+                        except Exception as notif_err:
+                            import logging
+                            logging.warning(f"Failed to notify technician about penalty: {notif_err}")
+                            
                     except Exception as e:
                         import logging
                         logging.warning(f"Failed to penalize technician: {e}")

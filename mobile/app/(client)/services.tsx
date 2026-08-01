@@ -178,7 +178,7 @@ export default function ServicesScreen() {
         data={filtered}
         renderItem={renderServiceCard}
         keyExtractor={item => item.id?.toString()}
-        contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: SPACING.md }}
+        contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: SPACING.lg }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -202,22 +202,22 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg, paddingTop: 60 },
   centered: { flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' },
   loadingText: { color: COLORS.textSecondary, marginTop: RADIUS.md, fontSize: FONTS.sizes.sm },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.lg, marginBottom: 20 },
   greeting: { color: COLORS.textSecondary, fontSize: FONTS.sizes.sm },
   headerTitle: { color: COLORS.text, fontSize: 28, fontWeight: '800', marginTop: 2 },
   newButton: { width: SPACING.xxl, height: SPACING.xxl, borderRadius: RADIUS.lg, justifyContent: 'center', alignItems: 'center', shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: SPACING.sm, elevation: 8 },
-  statsRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, marginBottom: SPACING.md },
-  statCard: { flex: 1, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
+  statsRow: { flexDirection: 'row', gap: SPACING.md, paddingHorizontal: SPACING.lg, marginBottom: SPACING.md },
+  statCard: { flex: 1, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: SPACING.lg, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
   statNumber: { color: COLORS.text, fontSize: 22, fontWeight: '800' },
   statLabel: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
-  filterRow: { paddingHorizontal: 20, marginBottom: RADIUS.md, maxHeight: 40 },
+  filterRow: { paddingHorizontal: SPACING.lg, marginBottom: RADIUS.md, maxHeight: 44 },
   filterChip: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: 20, backgroundColor: COLORS.bgCard, borderWidth: 1, borderColor: 'rgba(80,60,160,0.3)' },
   filterChipActive: { backgroundColor: COLORS.primaryMuted, borderColor: COLORS.primary },
   filterText: { color: COLORS.textMuted, fontSize: 13, fontWeight: '600' },
   filterTextActive: { color: COLORS.primary },
-  serviceCard: { backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: RADIUS.lg, padding: 20, marginBottom: SPACING.md, borderWidth: 1, borderColor: COLORS.border },
+  serviceCard: { backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: RADIUS.lg, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border },
   serviceCardLive: { borderColor: COLORS.greenBorder, backgroundColor: 'rgba(34,197,94,0.05)' },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: RADIUS.md },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   dot: { width: 10, height: 10, borderRadius: 5 },
   cardContent: { flex: 1 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.xs },
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, backgroundColor: COLORS.greenMuted, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)', borderRadius: 10, paddingHorizontal: SPACING.sm, paddingVertical: 2 },
   liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: COLORS.green },
   liveText: { color: COLORS.green, fontSize: 9, fontWeight: '800' },
-  cardMeta: { flexDirection: 'row', gap: RADIUS.md },
+  cardMeta: { flexDirection: 'row', gap: SPACING.md },
   metaText: { color: COLORS.textMuted, fontSize: FONTS.sizes.xs },
   statusBadge: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: SPACING.xs },
   statusText: { fontSize: 11, fontWeight: '700' },
