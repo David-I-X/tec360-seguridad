@@ -39,6 +39,7 @@ def override_get_session():
 
 
 app.dependency_overrides[get_session] = override_get_session
+app.state.limiter.enabled = False
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -90,8 +91,11 @@ def test_client_user(session: Session):
     yield user, token
 
     # Cleanup
-    session.delete(user)
-    session.commit()
+    try:
+        session.delete(user)
+        session.commit()
+    except Exception:
+        session.rollback()
 
 
 @pytest.fixture()
@@ -129,9 +133,12 @@ def test_tech_user(session: Session):
     yield user, token
 
     # Cleanup
-    session.delete(tech)
-    session.delete(user)
-    session.commit()
+    try:
+        session.delete(tech)
+        session.delete(user)
+        session.commit()
+    except Exception:
+        session.rollback()
 
 
 def auth_header(token: str) -> dict:

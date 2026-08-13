@@ -78,20 +78,26 @@ async def get_technician_public_profile(
             include_user_info=True
         )
         
-        user_info = technician.user
-        
+        is_dict = isinstance(technician, dict)
+        user_info = technician.get("user") if is_dict else getattr(technician, "user", None)
+        user_is_dict = isinstance(user_info, dict) if user_info else False
+
+        full_name = (user_info.get("full_name") if user_is_dict else getattr(user_info, "full_name", None)) if user_info else None
+        city = (user_info.get("city") if user_is_dict else getattr(user_info, "city", None)) if user_info else None
+        avatar_url = (user_info.get("avatar_url") if user_is_dict else getattr(user_info, "avatar_url", None)) if user_info else None
+
         return TechnicianPublicProfile(
-            user_id=technician.user_id,
-            full_name=user_info.full_name if user_info else None,
-            specializations=technician.specializations,
-            experience_years=technician.experience_years,
-            bio=technician.bio,
-            service_radius_km=technician.service_radius_km,
-            average_rating=technician.average_rating,
-            total_services=technician.total_services,
-            city=user_info.city if user_info else None,
-            avatar_url=user_info.avatar_url if user_info else None,
-            is_verified=technician.is_verified
+            user_id=technician.get("user_id") if is_dict else technician.user_id,
+            full_name=full_name,
+            specializations=technician.get("specializations", []) if is_dict else technician.specializations,
+            experience_years=technician.get("experience_years", 0) if is_dict else technician.experience_years,
+            bio=technician.get("bio") if is_dict else technician.bio,
+            service_radius_km=technician.get("service_radius_km", 20) if is_dict else technician.service_radius_km,
+            average_rating=technician.get("average_rating", 0) if is_dict else technician.average_rating,
+            total_services=technician.get("total_services", 0) if is_dict else technician.total_services,
+            city=city,
+            avatar_url=avatar_url,
+            is_verified=technician.get("is_verified", False) if is_dict else technician.is_verified
         )
     except HTTPException as e:
         if e.status_code == 404:
@@ -214,6 +220,43 @@ async def get_my_stats(
 
 
 # ============================================
+# ENDPOINTS PÚBLICOS DE BÚSQUEDA
+# ============================================
+
+@router.get("/search/specializations", response_model=dict)
+async def get_available_specializations():
+    """Endpoint público"""
+    return {
+        "specializations": [
+            {"value": "gps_installation", "label": "Instalación de GPS", "icon": "📍"},
+            {"value": "gps_maintenance", "label": "Mantenimiento de GPS", "icon": "🔧"},
+            {"value": "alarm_installation", "label": "Instalación de Alarmas", "icon": "🚨"},
+            {"value": "alarm_maintenance", "label": "Mantenimiento de Alarmas", "icon": "🔧"},
+            {"value": "camera_installation", "label": "Instalación Dashcam", "icon": "📹"},
+            {"value": "camera_maintenance", "label": "Mantenimiento Dashcam", "icon": "🔧"},
+            {"value": "other", "label": "Otros", "icon": "🛠️"}
+        ]
+    }
+
+
+@router.get("/top-rated", response_model=TechnicianListResponse)
+async def get_top_rated_technicians(
+    limit: int = Query(10, ge=1, le=50),
+    city: Optional[str] = Query(None),
+    session: Session = Depends(get_session)
+):
+    """Endpoint público"""
+    return await technician_service.list_technicians(
+        session=session,
+        city=city,
+        min_rating=4.0,
+        verified_only=True,
+        page=1,
+        page_size=limit
+    )
+
+
+# ============================================
 # ENDPOINTS ADMIN
 # ============================================
 
@@ -290,38 +333,6 @@ async def delete_technician_profile(
     
     return None
 
-
-@router.get("/search/specializations", response_model=dict)
-async def get_available_specializations():
-    """Endpoint público"""
-    return {
-        "specializations": [
-            {"value": "gps_installation", "label": "Instalación de GPS", "icon": "📍"},
-            {"value": "gps_maintenance", "label": "Mantenimiento de GPS", "icon": "🔧"},
-            {"value": "alarm_installation", "label": "Instalación de Alarmas", "icon": "🚨"},
-            {"value": "alarm_maintenance", "label": "Mantenimiento de Alarmas", "icon": "🔧"},
-            {"value": "camera_installation", "label": "Instalación Dashcam", "icon": "📹"},
-            {"value": "camera_maintenance", "label": "Mantenimiento Dashcam", "icon": "🔧"},
-            {"value": "other", "label": "Otros", "icon": "🛠️"}
-        ]
-    }
-
-
-@router.get("/top-rated", response_model=TechnicianListResponse)
-async def get_top_rated_technicians(
-    limit: int = Query(10, ge=1, le=50),
-    city: Optional[str] = Query(None),
-    session: Session = Depends(get_session)
-):
-    """Endpoint público"""
-    return await technician_service.list_technicians(
-        session=session,
-        city=city,
-        min_rating=4.0,
-        verified_only=True,
-        page=1,
-        page_size=limit
-    )
 
 # ============================================
 # HORARIOS (SCHEDULE)

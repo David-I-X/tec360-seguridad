@@ -50,6 +50,7 @@ export default function RootLayout() {
       <AuthProvider>
         <NotificationSetup />
         <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(client)" />
           <Stack.Screen name="(tech)" />

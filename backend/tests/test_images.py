@@ -16,6 +16,11 @@ from app.services.image_service import image_service
 # HELPERS
 # ============================================
 
+from app.core.auth_utils import create_access_token
+def get_token(user):
+    return create_access_token(subject=str(user["id"]), extra_claims={"role": user.get("role", "client")})
+
+
 def override_get_current_user(user):
     """Helper para overridear get_current_user"""
     async def _override():
@@ -56,7 +61,7 @@ def app():
 def mock_technician_user():
     """Mock de usuario técnico"""
     return {
-        "id": "tech-uuid-123",
+        "id": "11111111-1111-1111-1111-111111111111",
         "email": "tecnico@tec360.com",
         "role": "technician",
         "full_name": "Carlos Rodríguez"
@@ -67,7 +72,7 @@ def mock_technician_user():
 def mock_client_user():
     """Mock de usuario cliente"""
     return {
-        "id": "client-uuid-456",
+        "id": "22222222-2222-2222-2222-222222222222",
         "email": "cliente@tec360.com",
         "role": "client",
         "full_name": "Juan Pérez"
@@ -78,7 +83,7 @@ def mock_client_user():
 def mock_admin_user():
     """Mock de usuario admin"""
     return {
-        "id": "admin-uuid-789",
+        "id": "33333333-3333-3333-3333-333333333333",
         "email": "admin@tec360.com",
         "role": "admin",
         "full_name": "Admin Tec360"
@@ -89,12 +94,12 @@ def mock_admin_user():
 def mock_image_response():
     """Mock de imagen subida"""
     return {
-        "id": "image-uuid-111",
-        "service_id": "service-uuid-222",
-        "uploaded_by": "tech-uuid-123",
+        "id": "55555555-5555-5555-5555-555555555555",
+        "service_id": "44444444-4444-4444-4444-444444444444",
+        "uploaded_by": "11111111-1111-1111-1111-111111111111",
         "image_type": "after",
         "description": "GPS instalado correctamente",
-        "file_path": "services/service-uuid-222/after_1234567890.jpg",
+        "file_path": "services/44444444-4444-4444-4444-444444444444/after_1234567890.jpg",
         "file_size": 2048576,
         "mime_type": "image/jpeg",
         "public_url": "https://storage.supabase.co/object/public/service-images/...",
@@ -128,7 +133,7 @@ def mock_image_list():
             }
         ],
         "total": 2,
-        "service_id": "service-uuid-222"
+        "service_id": "44444444-4444-4444-4444-444444444444"
     }
 
 
@@ -149,7 +154,7 @@ class TestUploadImage:
         """Test técnico sube imagen exitosamente"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_upload(file, metadata, user_id, user_role):
+        async def mock_upload(*args, **kwargs):
             return mock_image_response
         
         monkeypatch.setattr(image_service, "upload_image", mock_upload)
@@ -159,7 +164,7 @@ class TestUploadImage:
         # Crear archivo mock
         files = {"file": ("test.jpg", b"fake image content", "image/jpeg")}
         data = {
-            "service_id": "service-uuid-222",
+            "service_id": "44444444-4444-4444-4444-444444444444",
             "image_type": "after",
             "description": "GPS instalado"
         }
@@ -168,13 +173,13 @@ class TestUploadImage:
             "/images/upload",
             files=files,
             data=data,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 201
         result = response.json()
         assert result["success"] is True
-        assert result["image"]["id"] == "image-uuid-111"
+        assert result["image"]["id"] == "55555555-5555-5555-5555-555555555555"
         
         app.dependency_overrides.clear()
     
@@ -188,7 +193,7 @@ class TestUploadImage:
         """Test servicio no encontrado"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_upload(file, metadata, user_id, user_role):
+        async def mock_upload(*args, **kwargs):
             raise HTTPException(status_code=404, detail="Servicio no encontrado")
         
         monkeypatch.setattr(image_service, "upload_image", mock_upload)
@@ -197,7 +202,7 @@ class TestUploadImage:
         
         files = {"file": ("test.jpg", b"fake image", "image/jpeg")}
         data = {
-            "service_id": "nonexistent-uuid",
+            "service_id": "00000000-0000-0000-0000-000000000000",
             "image_type": "after"
         }
         
@@ -205,7 +210,7 @@ class TestUploadImage:
             "/images/upload",
             files=files,
             data=data,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 404
@@ -222,7 +227,7 @@ class TestUploadImage:
         """Test cliente no puede subir imagen de servicio de otro"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
         
-        async def mock_upload(file, metadata, user_id, user_role):
+        async def mock_upload(*args, **kwargs):
             raise HTTPException(
                 status_code=403,
                 detail="No tienes permiso para subir imágenes a este servicio"
@@ -234,7 +239,7 @@ class TestUploadImage:
         
         files = {"file": ("test.jpg", b"fake image", "image/jpeg")}
         data = {
-            "service_id": "other-service-uuid",
+            "service_id": "44444444-9999-9999-9999-444444444444",
             "image_type": "after"
         }
         
@@ -242,7 +247,7 @@ class TestUploadImage:
             "/images/upload",
             files=files,
             data=data,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
         )
         
         assert response.status_code == 403
@@ -259,7 +264,7 @@ class TestUploadImage:
         """Test tipo de archivo inválido"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_upload(file, metadata, user_id, user_role):
+        async def mock_upload(*args, **kwargs):
             raise HTTPException(
                 status_code=400,
                 detail="Tipo de archivo no permitido"
@@ -271,7 +276,7 @@ class TestUploadImage:
         
         files = {"file": ("test.pdf", b"fake pdf", "application/pdf")}
         data = {
-            "service_id": "service-uuid-222",
+            "service_id": "44444444-4444-4444-4444-444444444444",
             "image_type": "after"
         }
         
@@ -279,7 +284,7 @@ class TestUploadImage:
             "/images/upload",
             files=files,
             data=data,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 400
@@ -296,7 +301,7 @@ class TestUploadImage:
         """Test archivo muy grande"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_upload(file, metadata, user_id, user_role):
+        async def mock_upload(*args, **kwargs):
             raise HTTPException(
                 status_code=400,
                 detail="Archivo muy grande. Máximo: 5MB"
@@ -310,7 +315,7 @@ class TestUploadImage:
         large_content = b"x" * (6 * 1024 * 1024)  # 6MB
         files = {"file": ("large.jpg", large_content, "image/jpeg")}
         data = {
-            "service_id": "service-uuid-222",
+            "service_id": "44444444-4444-4444-4444-444444444444",
             "image_type": "after"
         }
         
@@ -318,7 +323,7 @@ class TestUploadImage:
             "/images/upload",
             files=files,
             data=data,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 400
@@ -343,15 +348,15 @@ class TestListServiceImages:
         """Test listar imágenes exitosamente"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_list(service_id, user_id, user_role):
+        async def mock_list(*args, **kwargs):
             return mock_image_list
         
         monkeypatch.setattr(image_service, "list_service_images", mock_list)
         
         client = TestClient(app)
         response = client.get(
-            "/images/services/service-uuid-222",
-            headers={"Authorization": "Bearer fake_token"}
+            "/images/services/44444444-4444-4444-4444-444444444444",
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 200
@@ -371,19 +376,19 @@ class TestListServiceImages:
         """Test servicio sin imágenes"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_list(service_id, user_id, user_role):
+        async def mock_list(*args, **kwargs):
             return {
                 "images": [],
                 "total": 0,
-                "service_id": service_id
+                "service_id": kwargs.get("service_id", "44444444-4444-4444-4444-444444444444")
             }
         
         monkeypatch.setattr(image_service, "list_service_images", mock_list)
         
         client = TestClient(app)
         response = client.get(
-            "/images/services/service-uuid-222",
-            headers={"Authorization": "Bearer fake_token"}
+            "/images/services/44444444-4444-4444-4444-444444444444",
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 200
@@ -402,7 +407,7 @@ class TestListServiceImages:
         """Test cliente no puede ver imágenes de otro servicio"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
         
-        async def mock_list(service_id, user_id, user_role):
+        async def mock_list(*args, **kwargs):
             raise HTTPException(
                 status_code=403,
                 detail="No tienes permiso para ver imágenes de este servicio"
@@ -412,8 +417,8 @@ class TestListServiceImages:
         
         client = TestClient(app)
         response = client.get(
-            "/images/services/other-service-uuid",
-            headers={"Authorization": "Bearer fake_token"}
+            "/images/services/44444444-9999-9999-9999-444444444444",
+            headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
         )
         
         assert response.status_code == 403
@@ -438,20 +443,20 @@ class TestGetImage:
         """Test obtener imagen exitosamente"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_get(image_id, user_id, user_role):
+        async def mock_get(*args, **kwargs):
             return mock_image_response
         
         monkeypatch.setattr(image_service, "get_image_by_id", mock_get)
         
         client = TestClient(app)
         response = client.get(
-            "/images/image-uuid-111",
-            headers={"Authorization": "Bearer fake_token"}
+            "/images/55555555-5555-5555-5555-555555555555",
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 200
         data = response.json()
-        assert data["id"] == "image-uuid-111"
+        assert data["id"] == "55555555-5555-5555-5555-555555555555"
         
         app.dependency_overrides.clear()
     
@@ -465,15 +470,15 @@ class TestGetImage:
         """Test imagen no encontrada"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_get(image_id, user_id, user_role):
+        async def mock_get(*args, **kwargs):
             raise HTTPException(status_code=404, detail="Imagen no encontrada")
         
         monkeypatch.setattr(image_service, "get_image_by_id", mock_get)
         
         client = TestClient(app)
         response = client.get(
-            "/images/nonexistent-uuid",
-            headers={"Authorization": "Bearer fake_token"}
+            "/images/00000000-0000-0000-0000-000000000000",
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 404
@@ -497,19 +502,19 @@ class TestDeleteImage:
         """Test eliminar imagen exitosamente"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_delete(image_id, user_id, user_role):
+        async def mock_delete(*args, **kwargs):
             return {
                 "success": True,
                 "message": "Imagen eliminada exitosamente",
-                "image_id": image_id
+                "image_id": kwargs.get("image_id", "55555555-5555-5555-5555-555555555555")
             }
         
         monkeypatch.setattr(image_service, "delete_image", mock_delete)
         
         client = TestClient(app)
         response = client.delete(
-            "/images/image-uuid-111",
-            headers={"Authorization": "Bearer fake_token"}
+            "/images/55555555-5555-5555-5555-555555555555",
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 200
@@ -528,7 +533,7 @@ class TestDeleteImage:
         """Test no puede eliminar imagen de otro usuario"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
         
-        async def mock_delete(image_id, user_id, user_role):
+        async def mock_delete(*args, **kwargs):
             raise HTTPException(
                 status_code=403,
                 detail="Solo el usuario que subió la imagen puede eliminarla"
@@ -538,8 +543,8 @@ class TestDeleteImage:
         
         client = TestClient(app)
         response = client.delete(
-            "/images/image-uuid-111",
-            headers={"Authorization": "Bearer fake_token"}
+            "/images/55555555-5555-5555-5555-555555555555",
+            headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
         )
         
         assert response.status_code == 403
@@ -556,19 +561,19 @@ class TestDeleteImage:
         """Test admin puede eliminar cualquier imagen"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_admin_user)
         
-        async def mock_delete(image_id, user_id, user_role):
+        async def mock_delete(*args, **kwargs):
             return {
                 "success": True,
                 "message": "Imagen eliminada exitosamente",
-                "image_id": image_id
+                "image_id": kwargs.get("image_id", "55555555-5555-5555-5555-555555555555")
             }
         
         monkeypatch.setattr(image_service, "delete_image", mock_delete)
         
         client = TestClient(app)
         response = client.delete(
-            "/images/image-uuid-111",
-            headers={"Authorization": "Bearer admin_token"}
+            "/images/55555555-5555-5555-5555-555555555555",
+            headers={"Authorization": f"Bearer {get_token(mock_admin_user)}"}
         )
         
         assert response.status_code == 200
@@ -592,7 +597,7 @@ class TestStorageStats:
         """Test técnico obtiene sus estadísticas"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_stats(user_id, user_role):
+        async def mock_stats(*args, **kwargs):
             return {
                 "total_images": 10,
                 "total_size_mb": 15.5,
@@ -607,7 +612,7 @@ class TestStorageStats:
         client = TestClient(app)
         response = client.get(
             "/images/stats/storage",
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 200
@@ -626,7 +631,7 @@ class TestStorageStats:
         """Test admin obtiene estadísticas globales"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_admin_user)
         
-        async def mock_stats(user_id, user_role):
+        async def mock_stats(*args, **kwargs):
             return {
                 "total_images": 100,
                 "total_size_mb": 250.8,
@@ -642,7 +647,7 @@ class TestStorageStats:
         client = TestClient(app)
         response = client.get(
             "/images/stats/storage",
-            headers={"Authorization": "Bearer admin_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_admin_user)}"}
         )
         
         assert response.status_code == 200
@@ -667,11 +672,11 @@ class TestImageValidation:
         client = TestClient(app)
         
         files = {"file": ("test.jpg", b"fake", "image/jpeg")}
-        data = {"service_id": "service-uuid", "image_type": "after"}
+        data = {"service_id": "44444444-4444-4444-4444-444444444444", "image_type": "after"}
         
         response = client.post("/images/upload", files=files, data=data)
         
-        assert response.status_code == 403
+        assert response.status_code == 401
     
     
     def test_invalid_image_type(
@@ -686,7 +691,7 @@ class TestImageValidation:
         
         files = {"file": ("test.jpg", b"fake", "image/jpeg")}
         data = {
-            "service_id": "service-uuid",
+            "service_id": "44444444-4444-4444-4444-444444444444",
             "image_type": "invalid_type"  # No es before/after/during/other
         }
         
@@ -694,7 +699,7 @@ class TestImageValidation:
             "/images/upload",
             files=files,
             data=data,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 422

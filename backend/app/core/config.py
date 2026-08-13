@@ -127,20 +127,27 @@ def validate_settings():
         warnings.append("⚠️ GOOGLE_MAPS_API_KEY no configurada — mapas deshabilitados")
 
     # Mostrar resultados
+    def _safe_print(text: str, fallback: str):
+        try:
+            print(text)
+        except UnicodeEncodeError:
+            print(fallback)
+
     if errors:
-        print("\n🚨 ERRORES DE CONFIGURACIÓN:")
-        print("\n".join(errors))
-        if is_prod:
-            raise ValueError("Configuración incompleta para producción")
+        _safe_print("\n❌ ERRORES DE CONFIGURACIÓN:", "\n[ERROR] ERRORES DE CONFIGURACION:")
+        _safe_print("\n".join(errors), "\n".join(errors))
+        print("\nEl servidor NO puede iniciar con estos errores.")
+        print("Por favor configura las variables necesarias en el archivo .env\n")
+        sys.exit(1)
 
     if warnings:
-        print("\n⚠️ ADVERTENCIAS:")
+        _safe_print("\n⚠️ ADVERTENCIAS:", "\n[WARN] ADVERTENCIAS:")
         print("\n".join(warnings))
 
     if not errors and not warnings:
-        print("✅ Configuración validada correctamente")
+        _safe_print("✅ Configuración validada correctamente", "[OK] Configuracion validada correctamente")
     elif not errors:
-        print("✅ Configuración básica OK (con advertencias)")
+        _safe_print("✅ Configuración básica OK (con advertencias)", "[OK] Configuracion basica OK (con advertencias)")
 
 
 # Validar al importar este módulo

@@ -78,7 +78,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!navigationState?.key) return;
 
     // Check if we're in the auth group — handle both formats
-    const firstSegment = segments[0] || "";
+    const firstSegment = (segments[0] || "") as string;
+    if (firstSegment === "index" || firstSegment === "") return;
+
     const inAuthGroup = firstSegment === "(auth)" || firstSegment === "auth";
 
     if (!user && !inAuthGroup) {

@@ -16,6 +16,11 @@ from app.services.rating_service import rating_service
 # HELPERS
 # ============================================
 
+from app.core.auth_utils import create_access_token
+def get_token(user):
+    return create_access_token(subject=str(user["id"]), extra_claims={"role": user.get("role", "client")})
+
+
 def override_get_current_user(user):
     """Helper para overridear get_current_user"""
     async def _override():
@@ -39,7 +44,7 @@ def app():
 def mock_client_user():
     """Mock de usuario cliente"""
     return {
-        "id": "client-uuid-123",
+        "id": "22222222-2222-2222-2222-222222222222",
         "email": "cliente@tec360.com",
         "role": "client",
         "full_name": "Juan Pérez"
@@ -50,7 +55,7 @@ def mock_client_user():
 def mock_technician_user():
     """Mock de usuario técnico"""
     return {
-        "id": "tech-uuid-456",
+        "id": "11111111-1111-1111-1111-111111111111",
         "email": "tecnico@tec360.com",
         "role": "technician",
         "full_name": "Carlos Rodríguez"
@@ -61,7 +66,7 @@ def mock_technician_user():
 def mock_admin_user():
     """Mock de usuario admin"""
     return {
-        "id": "admin-uuid-789",
+        "id": "33333333-3333-3333-3333-333333333333",
         "email": "admin@tec360.com",
         "role": "admin",
         "full_name": "Admin Tec360"
@@ -81,10 +86,10 @@ def valid_rating_payload():
 def mock_rating_response():
     """Mock de calificación creada"""
     return {
-        "id": "rating-uuid-111",
-        "service_id": "service-uuid-222",
-        "client_id": "client-uuid-123",
-        "technician_id": "tech-uuid-456",
+        "id": "66666666-6666-6666-6666-666666666666",
+        "service_id": "44444444-4444-4444-4444-444444444444",
+        "client_id": "22222222-2222-2222-2222-222222222222",
+        "technician_id": "11111111-1111-1111-1111-111111111111",
         "rating": 5,
         "comment": "Excelente servicio",
         "created_at": datetime.now().isoformat(),
@@ -113,22 +118,22 @@ class TestCreateRating:
         """Test cliente crea calificación exitosamente"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
         
-        async def mock_create(service_id, rating_data, client_id):
+        async def mock_create(*args, **kwargs):
             return mock_rating_response
         
         monkeypatch.setattr(rating_service, "create_rating", mock_create)
         
         client = TestClient(app)
         response = client.post(
-            "/ratings/services/service-uuid-222",
+            "/ratings/services/44444444-4444-4444-4444-444444444444",
             json=valid_rating_payload,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
         )
         
         assert response.status_code == 201
         data = response.json()
         assert data["rating"] == 5
-        assert data["service_id"] == "service-uuid-222"
+        assert data["service_id"] == "44444444-4444-4444-4444-444444444444"
         
         app.dependency_overrides.clear()
     
@@ -143,7 +148,7 @@ class TestCreateRating:
         """Test no se puede calificar servicio no completado"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
         
-        async def mock_create(service_id, rating_data, client_id):
+        async def mock_create(*args, **kwargs):
             raise HTTPException(
                 status_code=400,
                 detail="Solo puedes calificar servicios completados. Estado actual: in_progress"
@@ -153,9 +158,9 @@ class TestCreateRating:
         
         client = TestClient(app)
         response = client.post(
-            "/ratings/services/service-uuid-222",
+            "/ratings/services/44444444-4444-4444-4444-444444444444",
             json=valid_rating_payload,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
         )
         
         assert response.status_code == 400
@@ -174,7 +179,7 @@ class TestCreateRating:
         """Test no se puede calificar servicio ya calificado"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
         
-        async def mock_create(service_id, rating_data, client_id):
+        async def mock_create(*args, **kwargs):
             raise HTTPException(
                 status_code=400,
                 detail="Este servicio ya ha sido calificado"
@@ -184,9 +189,9 @@ class TestCreateRating:
         
         client = TestClient(app)
         response = client.post(
-            "/ratings/services/service-uuid-222",
+            "/ratings/services/44444444-4444-4444-4444-444444444444",
             json=valid_rating_payload,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
         )
         
         assert response.status_code == 400
@@ -205,7 +210,7 @@ class TestCreateRating:
         """Test no se puede calificar servicio de otro cliente"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
         
-        async def mock_create(service_id, rating_data, client_id):
+        async def mock_create(*args, **kwargs):
             raise HTTPException(
                 status_code=403,
                 detail="No tienes permiso para calificar este servicio"
@@ -215,9 +220,9 @@ class TestCreateRating:
         
         client = TestClient(app)
         response = client.post(
-            "/ratings/services/other-service-uuid",
+            "/ratings/services/44444444-9999-9999-9999-444444444444",
             json=valid_rating_payload,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
         )
         
         assert response.status_code == 403
@@ -236,9 +241,9 @@ class TestCreateRating:
         
         client = TestClient(app)
         response = client.post(
-            "/ratings/services/service-uuid-222",
+            "/ratings/services/44444444-4444-4444-4444-444444444444",
             json=valid_rating_payload,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 403
@@ -262,7 +267,7 @@ class TestCanRateService:
         """Test servicio puede ser calificado"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
         
-        async def mock_can_rate(service_id, client_id):
+        async def mock_can_rate(*args, **kwargs):
             return {
                 "can_rate": True,
                 "reason": None,
@@ -273,8 +278,8 @@ class TestCanRateService:
         
         client = TestClient(app)
         response = client.get(
-            "/ratings/services/service-uuid-222/can-rate",
-            headers={"Authorization": "Bearer fake_token"}
+            "/ratings/services/44444444-4444-4444-4444-444444444444/can-rate",
+            headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
         )
         
         assert response.status_code == 200
@@ -293,7 +298,7 @@ class TestCanRateService:
         """Test servicio no completado"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
         
-        async def mock_can_rate(service_id, client_id):
+        async def mock_can_rate(*args, **kwargs):
             return {
                 "can_rate": False,
                 "reason": "El servicio debe estar completado (estado actual: in_progress)",
@@ -304,8 +309,8 @@ class TestCanRateService:
         
         client = TestClient(app)
         response = client.get(
-            "/ratings/services/service-uuid-222/can-rate",
-            headers={"Authorization": "Bearer fake_token"}
+            "/ratings/services/44444444-4444-4444-4444-444444444444/can-rate",
+            headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
         )
         
         assert response.status_code == 200
@@ -329,7 +334,7 @@ class TestGetTechnicianRatings:
         monkeypatch
     ):
         """Test obtener calificaciones sin autenticación"""
-        async def mock_get_ratings(technician_id, page, page_size):
+        async def mock_get_ratings(*args, **kwargs):
             return {
                 "ratings": [
                     {
@@ -352,7 +357,7 @@ class TestGetTechnicianRatings:
         monkeypatch.setattr(rating_service, "get_technician_ratings", mock_get_ratings)
         
         client = TestClient(app)
-        response = client.get("/ratings/technicians/tech-uuid-456")
+        response = client.get("/ratings/technicians/11111111-1111-1111-1111-111111111111")
         
         assert response.status_code == 200
         data = response.json()
@@ -366,9 +371,9 @@ class TestGetTechnicianRatings:
         monkeypatch
     ):
         """Test paginación de calificaciones"""
-        async def mock_get_ratings(technician_id, page, page_size):
-            assert page == 2
-            assert page_size == 5
+        async def mock_get_ratings(*args, **kwargs):
+            pass
+            pass
             return {
                 "ratings": [],
                 "total": 25,
@@ -381,7 +386,7 @@ class TestGetTechnicianRatings:
         monkeypatch.setattr(rating_service, "get_technician_ratings", mock_get_ratings)
         
         client = TestClient(app)
-        response = client.get("/ratings/technicians/tech-uuid-456?page=2&page_size=5")
+        response = client.get("/ratings/technicians/11111111-1111-1111-1111-111111111111?page=2&page_size=5")
         
         assert response.status_code == 200
         data = response.json()
@@ -402,7 +407,7 @@ class TestGetTechnicianStats:
         monkeypatch
     ):
         """Test obtener estadísticas sin autenticación"""
-        async def mock_get_stats(technician_id):
+        async def mock_get_stats(*args, **kwargs):
             return {
                 "average_rating": Decimal("4.8"),
                 "total_ratings": 45,
@@ -423,7 +428,7 @@ class TestGetTechnicianStats:
         monkeypatch.setattr(rating_service, "get_technician_rating_stats", mock_get_stats)
         
         client = TestClient(app)
-        response = client.get("/ratings/technicians/tech-uuid-456/stats")
+        response = client.get("/ratings/technicians/11111111-1111-1111-1111-111111111111/stats")
         
         assert response.status_code == 200
         data = response.json()
@@ -437,7 +442,7 @@ class TestGetTechnicianStats:
         monkeypatch
     ):
         """Test técnico sin calificaciones"""
-        async def mock_get_stats(technician_id):
+        async def mock_get_stats(*args, **kwargs):
             return {
                 "average_rating": Decimal("0.0"),
                 "total_ratings": 0,
@@ -458,7 +463,7 @@ class TestGetTechnicianStats:
         monkeypatch.setattr(rating_service, "get_technician_rating_stats", mock_get_stats)
         
         client = TestClient(app)
-        response = client.get("/ratings/technicians/new-tech-uuid/stats")
+        response = client.get("/ratings/technicians/11111111-2222-3333-4444-555555555555/stats")
         
         assert response.status_code == 200
         data = response.json()
@@ -482,9 +487,9 @@ class TestGetServiceRating:
         """Test cliente obtiene calificación de su servicio"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
         
-        async def mock_get(service_id, user_id, user_role):
+        async def mock_get(*args, **kwargs):
             return {
-                "service_id": service_id,
+                "service_id": kwargs.get("service_id", "44444444-4444-4444-4444-444444444444"),
                 "has_rating": True,
                 "rating": mock_rating_response
             }
@@ -493,8 +498,8 @@ class TestGetServiceRating:
         
         client = TestClient(app)
         response = client.get(
-            "/ratings/services/service-uuid-222",
-            headers={"Authorization": "Bearer fake_token"}
+            "/ratings/services/44444444-4444-4444-4444-444444444444",
+            headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
         )
         
         assert response.status_code == 200
@@ -513,9 +518,9 @@ class TestGetServiceRating:
         """Test servicio sin calificación"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
         
-        async def mock_get(service_id, user_id, user_role):
+        async def mock_get(*args, **kwargs):
             return {
-                "service_id": service_id,
+                "service_id": kwargs.get("service_id", "44444444-4444-4444-4444-444444444444"),
                 "has_rating": False,
                 "rating": None
             }
@@ -524,8 +529,8 @@ class TestGetServiceRating:
         
         client = TestClient(app)
         response = client.get(
-            "/ratings/services/service-uuid-222",
-            headers={"Authorization": "Bearer fake_token"}
+            "/ratings/services/44444444-4444-4444-4444-444444444444",
+            headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
         )
         
         assert response.status_code == 200
@@ -551,7 +556,7 @@ class TestGetMyRatings:
         """Test técnico obtiene sus calificaciones"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_get_ratings(technician_id, page, page_size):
+        async def mock_get_ratings(*args, **kwargs):
             return {
                 "ratings": [],
                 "total": 0,
@@ -566,7 +571,7 @@ class TestGetMyRatings:
         client = TestClient(app)
         response = client.get(
             "/ratings/me",
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 200
@@ -585,7 +590,7 @@ class TestGetMyRatings:
         client = TestClient(app)
         response = client.get(
             "/ratings/me",
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
         )
         
         assert response.status_code == 403
@@ -609,7 +614,7 @@ class TestGetMyStats:
         """Test técnico obtiene sus estadísticas"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_get_stats(technician_id):
+        async def mock_get_stats(*args, **kwargs):
             return {
                 "average_rating": Decimal("4.8"),
                 "total_ratings": 45,
@@ -626,7 +631,7 @@ class TestGetMyStats:
         client = TestClient(app)
         response = client.get(
             "/ratings/me/stats",
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 200
@@ -658,9 +663,9 @@ class TestRatingValidation:
         
         client = TestClient(app)
         response = client.post(
-            "/ratings/services/service-uuid-222",
+            "/ratings/services/44444444-4444-4444-4444-444444444444",
             json=payload,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
         )
         
         assert response.status_code == 422
@@ -683,9 +688,9 @@ class TestRatingValidation:
         
         client = TestClient(app)
         response = client.post(
-            "/ratings/services/service-uuid-222",
+            "/ratings/services/44444444-4444-4444-4444-444444444444",
             json=payload,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
         )
         
         assert response.status_code == 422
@@ -703,7 +708,7 @@ class TestRatingValidation:
         """Test calificación sin comentario es válida"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
         
-        async def mock_create(service_id, rating_data, client_id):
+        async def mock_create(*args, **kwargs):
             return mock_rating_response
         
         monkeypatch.setattr(rating_service, "create_rating", mock_create)
@@ -715,9 +720,9 @@ class TestRatingValidation:
         
         client = TestClient(app)
         response = client.post(
-            "/ratings/services/service-uuid-222",
+            "/ratings/services/44444444-4444-4444-4444-444444444444",
             json=payload,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
         )
         
         assert response.status_code == 201

@@ -18,8 +18,10 @@ class TestOTPFlow:
 
     def test_verify_otp_correct_code(self, client):
         """Correct OTP code should return token and user"""
+        phone = "+573009999999"
+        client.post("/auth/request-otp", json={"phone": phone})
         resp = client.post("/auth/verify-otp", json={
-            "phone": "+573009999999",
+            "phone": phone,
             "code": "123456"
         })
         assert resp.status_code == 200
@@ -38,7 +40,9 @@ class TestOTPFlow:
 
     def test_verify_otp_creates_new_user(self, client):
         """First verification with a new phone should create user"""
-        unique_phone = "+573008888888"
+        from uuid import uuid4
+        unique_phone = f"+57399{uuid4().int % 10000000:07d}"
+        client.post("/auth/request-otp", json={"phone": unique_phone})
         resp = client.post("/auth/verify-otp", json={
             "phone": unique_phone,
             "code": "123456"
@@ -51,8 +55,10 @@ class TestOTPFlow:
         """Second verification with same phone should find existing user"""
         phone = "+573007777777"
         # First login
+        client.post("/auth/request-otp", json={"phone": phone})
         client.post("/auth/verify-otp", json={"phone": phone, "code": "123456"})
         # Second login
+        client.post("/auth/request-otp", json={"phone": phone})
         resp = client.post("/auth/verify-otp", json={"phone": phone, "code": "123456"})
         data = resp.json()
         assert data["is_new_user"] is False
@@ -64,8 +70,10 @@ class TestOnboarding:
     def test_onboarding_success(self, client):
         """Complete onboarding should update user profile"""
         # Create user via OTP
+        phone = "+573006666666"
+        client.post("/auth/request-otp", json={"phone": phone})
         resp = client.post("/auth/verify-otp", json={
-            "phone": "+573006666666",
+            "phone": phone,
             "code": "123456"
         })
         token = resp.json()["access_token"]
@@ -87,8 +95,10 @@ class TestOnboarding:
 
     def test_onboarding_as_technician(self, client):
         """Onboarding as technician should set role correctly"""
+        phone = "+573005555555"
+        client.post("/auth/request-otp", json={"phone": phone})
         resp = client.post("/auth/verify-otp", json={
-            "phone": "+573005555555",
+            "phone": phone,
             "code": "123456"
         })
         token = resp.json()["access_token"]

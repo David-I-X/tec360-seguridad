@@ -17,6 +17,11 @@ from app.services.technician_service import technician_service
 # HELPERS
 # ============================================
 
+from app.core.auth_utils import create_access_token
+def get_token(user):
+    return create_access_token(subject=str(user["id"]), extra_claims={"role": user.get("role", "client")})
+
+
 def override_get_current_user(user):
     """Helper para overridear get_current_user"""
     async def _override():
@@ -40,7 +45,7 @@ def app():
 def mock_technician_user():
     """Mock de usuario técnico autenticado"""
     return {
-        "id": "tech-uuid-123",
+        "id": "11111111-1111-1111-1111-111111111111",
         "email": "tecnico@tec360.com",
         "role": "technician",
         "full_name": "Carlos Rodríguez"
@@ -51,7 +56,7 @@ def mock_technician_user():
 def mock_client_user():
     """Mock de usuario cliente"""
     return {
-        "id": "client-uuid-456",
+        "id": "22222222-2222-2222-2222-222222222222",
         "email": "cliente@tec360.com",
         "role": "client",
         "full_name": "Juan Pérez"
@@ -62,7 +67,7 @@ def mock_client_user():
 def mock_admin_user():
     """Mock de usuario admin"""
     return {
-        "id": "admin-uuid-789",
+        "id": "33333333-3333-3333-3333-333333333333",
         "email": "admin@tec360.com",
         "role": "admin",
         "full_name": "Admin Tec360"
@@ -87,8 +92,8 @@ def valid_technician_payload():
 def mock_technician_profile():
     """Mock de perfil de técnico"""
     return {
-        "id": "tech-profile-111",
-        "user_id": "tech-uuid-123",
+        "id": "11111111-1111-1111-1111-111111111111",
+        "user_id": "11111111-1111-1111-1111-111111111111",
         "sena_certification_number": "SENA-2024-001234",
         "specializations": ["gps_installation", "alarm_installation"],
         "experience_years": 5,
@@ -103,7 +108,7 @@ def mock_technician_profile():
         "created_at": datetime.now().isoformat(),
         "updated_at": datetime.now().isoformat(),
         "user": {
-            "id": "tech-uuid-123",
+            "id": "11111111-1111-1111-1111-111111111111",
             "email": "tecnico@tec360.com",
             "full_name": "Carlos Rodríguez",
             "phone": "+57 301 234 5678",
@@ -122,7 +127,7 @@ class TestListTechnicians:
     
     def test_list_technicians_public(self, app, monkeypatch):
         """Test listar técnicos sin autenticación"""
-        async def mock_list(**kwargs):
+        async def mock_list(*args, **kwargs):
             return {
                 "technicians": [],
                 "total": 0,
@@ -144,10 +149,10 @@ class TestListTechnicians:
     
     def test_list_technicians_with_filters(self, app, monkeypatch):
         """Test listar con filtros"""
-        async def mock_list(specialization, city, min_rating, **kwargs):
-            assert specialization == "gps_installation"
-            assert city == "Medellín"
-            assert min_rating == 4.5
+        async def mock_list(*args, **kwargs):
+            assert kwargs.get("specialization") == "gps_installation"
+            assert kwargs.get("city") == "Medellín"
+            assert kwargs.get("min_rating") == 4.5
             return {
                 "technicians": [],
                 "total": 0,
@@ -180,18 +185,18 @@ class TestGetPublicProfile:
         monkeypatch
     ):
         """Test obtener perfil público"""
-        async def mock_get(user_id, include_user_info):
+        async def mock_get(*args, **kwargs):
             # Retornar diccionario directamente
             return mock_technician_profile
         
         monkeypatch.setattr(technician_service, "get_technician_by_user_id", mock_get)
         
         client = TestClient(app)
-        response = client.get("/technicians/tech-uuid-123/public")
+        response = client.get("/technicians/11111111-1111-1111-1111-111111111111/public")
         
         assert response.status_code == 200
         data = response.json()
-        assert data["user_id"] == "tech-uuid-123"
+        assert data["user_id"] == "11111111-1111-1111-1111-111111111111"
 
 
 # ============================================
@@ -213,7 +218,7 @@ class TestCreateTechnicianProfile:
         # ✅ CORRECCIÓN: Usar get_current_user como clave
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_create(technician_data, user_id):
+        async def mock_create(*args, **kwargs):
             return mock_technician_profile
         
         monkeypatch.setattr(technician_service, "create_technician_profile", mock_create)
@@ -222,12 +227,12 @@ class TestCreateTechnicianProfile:
         response = client.post(
             "/technicians/me/profile",
             json=valid_technician_payload,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 201
         data = response.json()
-        assert data["user_id"] == "tech-uuid-123"
+        assert data["user_id"] == "11111111-1111-1111-1111-111111111111"
         
         app.dependency_overrides.clear()
     
@@ -242,7 +247,7 @@ class TestCreateTechnicianProfile:
         """Test error al crear perfil duplicado"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_create(technician_data, user_id):
+        async def mock_create(*args, **kwargs):
             raise HTTPException(
                 status_code=400,
                 detail="El técnico ya tiene un perfil creado"
@@ -254,7 +259,7 @@ class TestCreateTechnicianProfile:
         response = client.post(
             "/technicians/me/profile",
             json=valid_technician_payload,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 400
@@ -275,7 +280,7 @@ class TestCreateTechnicianProfile:
         response = client.post(
             "/technicians/me/profile",
             json=valid_technician_payload,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
         )
         
         assert response.status_code == 403
@@ -300,7 +305,7 @@ class TestGetMyProfile:
         """Test obtener perfil propio"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_get(user_id, include_user_info):
+        async def mock_get(*args, **kwargs):
             return mock_technician_profile
         
         monkeypatch.setattr(technician_service, "get_technician_by_user_id", mock_get)
@@ -308,12 +313,12 @@ class TestGetMyProfile:
         client = TestClient(app)
         response = client.get(
             "/technicians/me",
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 200
         data = response.json()
-        assert data["user_id"] == "tech-uuid-123"
+        assert data["user_id"] == "11111111-1111-1111-1111-111111111111"
         
         app.dependency_overrides.clear()
     
@@ -327,7 +332,7 @@ class TestGetMyProfile:
         """Test perfil no encontrado"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_get(user_id, include_user_info):
+        async def mock_get(*args, **kwargs):
             raise HTTPException(404, "Perfil no encontrado")
         
         monkeypatch.setattr(technician_service, "get_technician_by_user_id", mock_get)
@@ -335,7 +340,7 @@ class TestGetMyProfile:
         client = TestClient(app)
         response = client.get(
             "/technicians/me",
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 404
@@ -363,7 +368,7 @@ class TestUpdateMyProfile:
         updated_profile = mock_technician_profile.copy()
         updated_profile["bio"] = "Bio actualizada"
         
-        async def mock_update(user_id, technician_data):
+        async def mock_update(*args, **kwargs):
             return updated_profile
         
         monkeypatch.setattr(technician_service, "update_technician_profile", mock_update)
@@ -372,7 +377,7 @@ class TestUpdateMyProfile:
         response = client.patch(
             "/technicians/me",
             json={"bio": "Bio actualizada", "service_radius_km": 30},
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 200
@@ -398,7 +403,7 @@ class TestUpdateLocation:
         """Test actualizar ubicación exitosamente"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_update_location(user_id, location_data):
+        async def mock_update_location(*args, **kwargs):
             return {
                 "message": "Ubicación actualizada correctamente",
                 "latitude": 6.2500,
@@ -411,7 +416,7 @@ class TestUpdateLocation:
         response = client.patch(
             "/technicians/me/location",
             json={"current_lat": 6.2500, "current_lon": -75.5700},
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 200
@@ -439,7 +444,7 @@ class TestUpdateLocation:
         response = client.patch(
             "/technicians/me/location",
             json=payload,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 422
@@ -463,7 +468,7 @@ class TestToggleAvailability:
         """Test cambiar a no disponible"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_toggle(user_id, is_available):
+        async def mock_toggle(*args, **kwargs):
             return {
                 "message": "Ahora estás no disponible para nuevos servicios",
                 "is_available": False
@@ -475,7 +480,7 @@ class TestToggleAvailability:
         response = client.patch(
             "/technicians/me/availability",
             json={"is_available": False},
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 200
@@ -494,7 +499,7 @@ class TestToggleAvailability:
         """Test cambiar a disponible"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_toggle(user_id, is_available):
+        async def mock_toggle(*args, **kwargs):
             return {
                 "message": "Ahora estás disponible para nuevos servicios",
                 "is_available": True
@@ -506,7 +511,7 @@ class TestToggleAvailability:
         response = client.patch(
             "/technicians/me/availability",
             json={"is_available": True},
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 200
@@ -532,7 +537,7 @@ class TestGetMyStats:
         """Test obtener estadísticas exitosamente"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_stats(user_id):
+        async def mock_stats(*args, **kwargs):
             return {
                 "total_services": 50,
                 "completed_services": 45,
@@ -549,7 +554,7 @@ class TestGetMyStats:
         client = TestClient(app)
         response = client.get(
             "/technicians/me/stats",
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 200
@@ -577,20 +582,20 @@ class TestAdminEndpoints:
         """Test admin obtiene técnico específico"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_admin_user)
         
-        async def mock_get(user_id, include_user_info):
+        async def mock_get(*args, **kwargs):
             return mock_technician_profile
         
         monkeypatch.setattr(technician_service, "get_technician_by_user_id", mock_get)
         
         client = TestClient(app)
         response = client.get(
-            "/technicians/tech-uuid-123",
-            headers={"Authorization": "Bearer admin_token"}
+            "/technicians/11111111-1111-1111-1111-111111111111",
+            headers={"Authorization": f"Bearer {get_token(mock_admin_user)}"}
         )
         
         assert response.status_code == 200
         data = response.json()
-        assert data["user_id"] == "tech-uuid-123"
+        assert data["user_id"] == "11111111-1111-1111-1111-111111111111"
         
         app.dependency_overrides.clear()
     
@@ -604,19 +609,15 @@ class TestAdminEndpoints:
         """Test admin verifica técnico"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_admin_user)
         
-        async def mock_verify(user_id, verified):
-            return {
-                "user_id": user_id,
-                "is_verified": verified,
-                "message": f"Técnico {'verificado' if verified else 'desverificado'} exitosamente"
-            }
+        async def mock_update(*args, **kwargs):
+            return mock_technician_profile
         
-        monkeypatch.setattr(technician_service, "verify_technician", mock_verify)
+        monkeypatch.setattr(technician_service, "update_technician_profile", mock_update)
         
         client = TestClient(app)
         response = client.patch(
-            "/technicians/tech-uuid-123/verify?verified=true",
-            headers={"Authorization": "Bearer admin_token"}
+            "/technicians/11111111-1111-1111-1111-111111111111/verify?verified=true",
+            headers={"Authorization": f"Bearer {get_token(mock_admin_user)}"}
         )
         
         assert response.status_code == 200
@@ -630,24 +631,19 @@ class TestAdminEndpoints:
         self,
         app,
         mock_admin_user,
-        monkeypatch
+        test_tech_user
     ):
         """Test admin elimina técnico"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_admin_user)
-        
-        async def mock_delete(user_id):
-            return None
-        
-        monkeypatch.setattr(technician_service, "delete_technician_profile", mock_delete)
+        tech_user, _ = test_tech_user
         
         client = TestClient(app)
         response = client.delete(
-            "/technicians/tech-uuid-123",
-            headers={"Authorization": "Bearer admin_token"}
+            f"/technicians/{tech_user.id}",
+            headers={"Authorization": f"Bearer {get_token(mock_admin_user)}"}
         )
         
         assert response.status_code == 204
-        
         app.dependency_overrides.clear()
     
     
@@ -661,8 +657,8 @@ class TestAdminEndpoints:
         
         client = TestClient(app)
         response = client.patch(
-            "/technicians/tech-uuid-456/verify?verified=true",
-            headers={"Authorization": "Bearer fake_token"}
+            "/technicians/11111111-1111-1111-1111-111111111111/verify?verified=true",
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 403
@@ -695,7 +691,7 @@ class TestTechnicianValidation:
         response = client.post(
             "/technicians/me/profile",
             json=payload,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 422
@@ -721,7 +717,7 @@ class TestTechnicianValidation:
         response = client.post(
             "/technicians/me/profile",
             json=payload,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 422
@@ -746,7 +742,7 @@ class TestTechnicianValidation:
         response = client.post(
             "/technicians/me/profile",
             json=payload,
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 422
@@ -772,18 +768,25 @@ class TestSearchEndpoints:
         assert len(data["specializations"]) > 0
     
     
-    def test_get_top_rated(self, app, monkeypatch):
+    def test_get_top_rated(self, app, mock_technician_user, monkeypatch):
         """Test obtener técnicos mejor calificados"""
-        async def mock_list(**kwargs):
+        app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
+        async def mock_list(*args, **kwargs):
             return {
                 "technicians": [
                     {
-                        "user_id": "tech-1",
+                        "id": "11111111-1111-1111-1111-111111111111",
+                        "user_id": "11111111-1111-1111-1111-111111111111",
                         "full_name": "Técnico 1",
                         "average_rating": Decimal("4.9"),
                         "total_services": 100,
+                        "experience_years": 5,
+                        "service_radius_km": 25,
                         "specializations": ["gps_installation"],
                         "is_available": True,
+                        "is_verified": True,
+                        "created_at": datetime.utcnow().isoformat(),
+                        "updated_at": datetime.utcnow().isoformat(),
                         "city": "Medellín"
                     }
                 ],
@@ -796,7 +799,10 @@ class TestSearchEndpoints:
         monkeypatch.setattr(technician_service, "list_technicians", mock_list)
         
         client = TestClient(app)
-        response = client.get("/technicians/top-rated?limit=5")
+        response = client.get(
+            "/technicians/top-rated?limit=5",
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
+        )
         
         assert response.status_code == 200
         data = response.json()
@@ -812,9 +818,23 @@ class TestTechnicianPagination:
     
     def test_pagination_first_page(self, app, monkeypatch):
         """Test primera página"""
-        async def mock_list(**kwargs):
+        async def mock_list(*args, **kwargs):
             return {
-                "technicians": [{"user_id": f"tech-{i}"} for i in range(10)],
+                "technicians": [
+                    {
+                        "id": f"00000000-0000-0000-0000-00000000000{i}",
+                        "user_id": f"00000000-0000-0000-0000-00000000000{i}",
+                        "experience_years": 3,
+                        "service_radius_km": 20,
+                        "is_available": True,
+                        "is_verified": True,
+                        "average_rating": Decimal("4.8"),
+                        "total_services": 10,
+                        "created_at": datetime.utcnow(),
+                        "updated_at": datetime.utcnow()
+                    }
+                    for i in range(10)
+                ],
                 "total": 25,
                 "page": 1,
                 "page_size": 10,
@@ -849,13 +869,13 @@ class TestTechnicianEdgeCases:
     
     def test_get_nonexistent_technician_public(self, app, monkeypatch):
         """Test obtener técnico que no existe"""
-        async def mock_get(user_id, include_user_info):
+        async def mock_get(*args, **kwargs):
             raise HTTPException(404, "Técnico no encontrado")
         
         monkeypatch.setattr(technician_service, "get_technician_by_user_id", mock_get)
         
         client = TestClient(app)
-        response = client.get("/technicians/nonexistent-uuid/public")
+        response = client.get("/technicians/00000000-0000-0000-0000-000000000000/public")
         
         assert response.status_code == 404
     
@@ -870,7 +890,7 @@ class TestTechnicianEdgeCases:
         """Test actualizar perfil sin cambios"""
         app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        async def mock_update(user_id, technician_data):
+        async def mock_update(*args, **kwargs):
             return mock_technician_profile
         
         monkeypatch.setattr(technician_service, "update_technician_profile", mock_update)
@@ -879,7 +899,7 @@ class TestTechnicianEdgeCases:
         response = client.patch(
             "/technicians/me",
             json={},
-            headers={"Authorization": "Bearer fake_token"}
+            headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
         )
         
         assert response.status_code == 200
