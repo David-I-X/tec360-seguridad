@@ -22,6 +22,7 @@ from app.main import app
 from app.core.database import get_session
 from app.core.config import settings
 from app.core.auth_utils import create_access_token
+import app.models  # Ensures all SQLModel tables are registered in metadata
 from app.models.user import User
 from app.models.technician import Technician
 

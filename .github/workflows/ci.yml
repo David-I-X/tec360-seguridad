@@ -113,6 +113,9 @@ jobs:
         env:
           CI: true
           BASE_URL: http://localhost:3000
+          NEXT_PUBLIC_API_URL: http://localhost:8000/api
+          NEXT_PUBLIC_GOOGLE_MAPS_KEY: placeholder
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: placeholder
       - name: Upload test artifacts
         if: failure()
         uses: actions/upload-artifact@v4
