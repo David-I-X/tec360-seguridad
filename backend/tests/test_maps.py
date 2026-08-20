@@ -14,7 +14,7 @@ from app.services.maps_service import maps_service
 # ============================================
 
 @pytest.fixture
-def app():
+def maps_app():
     """Crea una app FastAPI de prueba"""
     app = FastAPI()
     app.include_router(router)
@@ -104,7 +104,7 @@ class TestGeocodeAddress:
     
     def test_geocode_success(
         self,
-        app,
+        maps_app,
         mock_geocode_response,
         monkeypatch
     ):
@@ -114,7 +114,7 @@ class TestGeocodeAddress:
         
         monkeypatch.setattr(maps_service, "geocode_address", mock_geocode)
         
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.post(
             "/maps/geocode",
             json={
@@ -133,7 +133,7 @@ class TestGeocodeAddress:
     
     def test_geocode_without_city(
         self,
-        app,
+        maps_app,
         mock_geocode_response,
         monkeypatch
     ):
@@ -143,7 +143,7 @@ class TestGeocodeAddress:
         
         monkeypatch.setattr(maps_service, "geocode_address", mock_geocode)
         
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.post(
             "/maps/geocode",
             json={
@@ -157,7 +157,7 @@ class TestGeocodeAddress:
     
     def test_geocode_address_not_found(
         self,
-        app,
+        maps_app,
         monkeypatch
     ):
         """Test dirección no encontrada"""
@@ -168,7 +168,7 @@ class TestGeocodeAddress:
         
         monkeypatch.setattr(maps_service, "geocode_address", mock_geocode)
         
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.post(
             "/maps/geocode",
             json={
@@ -182,10 +182,10 @@ class TestGeocodeAddress:
     
     def test_geocode_invalid_address_too_short(
         self,
-        app
+        maps_app
     ):
         """Test dirección muy corta (validación Pydantic)"""
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.post(
             "/maps/geocode",
             json={
@@ -206,7 +206,7 @@ class TestReverseGeocode:
     
     def test_reverse_geocode_success(
         self,
-        app,
+        maps_app,
         mock_reverse_geocode_response,
         monkeypatch
     ):
@@ -216,7 +216,7 @@ class TestReverseGeocode:
         
         monkeypatch.setattr(maps_service, "reverse_geocode", mock_reverse)
         
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.get(
             "/maps/reverse-geocode?latitude=6.2442&longitude=-75.5636"
         )
@@ -229,10 +229,10 @@ class TestReverseGeocode:
     
     def test_reverse_geocode_invalid_latitude(
         self,
-        app
+        maps_app
     ):
         """Test latitud inválida"""
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.get(
             "/maps/reverse-geocode?latitude=100&longitude=-75.5636"
         )
@@ -242,10 +242,10 @@ class TestReverseGeocode:
     
     def test_reverse_geocode_invalid_longitude(
         self,
-        app
+        maps_app
     ):
         """Test longitud inválida"""
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.get(
             "/maps/reverse-geocode?latitude=6.2442&longitude=200"
         )
@@ -262,7 +262,7 @@ class TestCalculateDistance:
     
     def test_calculate_distance_success(
         self,
-        app,
+        maps_app,
         mock_distance_response,
         monkeypatch
     ):
@@ -272,7 +272,7 @@ class TestCalculateDistance:
         
         monkeypatch.setattr(maps_service, "calculate_distance", mock_distance)
         
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.get(
             "/maps/distance?origin_lat=6.2442&origin_lon=-75.5636"
             "&dest_lat=6.2500&dest_lon=-75.5700&mode=driving"
@@ -286,7 +286,7 @@ class TestCalculateDistance:
     
     def test_calculate_distance_walking_mode(
         self,
-        app,
+        maps_app,
         mock_distance_response,
         monkeypatch
     ):
@@ -300,7 +300,7 @@ class TestCalculateDistance:
         
         monkeypatch.setattr(maps_service, "calculate_distance", mock_distance)
         
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.get(
             "/maps/distance?origin_lat=6.2442&origin_lon=-75.5636"
             "&dest_lat=6.2500&dest_lon=-75.5700&mode=walking"
@@ -313,7 +313,7 @@ class TestCalculateDistance:
     
     def test_calculate_distance_invalid_mode(
         self,
-        app,
+        maps_app,
         monkeypatch
     ):
         """Test modo de transporte inválido"""
@@ -324,7 +324,7 @@ class TestCalculateDistance:
         
         monkeypatch.setattr(maps_service, "calculate_distance", mock_distance)
         
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.get(
             "/maps/distance?origin_lat=6.2442&origin_lon=-75.5636"
             "&dest_lat=6.2500&dest_lon=-75.5700&mode=flying"
@@ -342,7 +342,7 @@ class TestAutocompleteAddress:
     
     def test_autocomplete_success(
         self,
-        app,
+        maps_app,
         mock_autocomplete_response,
         monkeypatch
     ):
@@ -352,7 +352,7 @@ class TestAutocompleteAddress:
         
         monkeypatch.setattr(maps_service, "autocomplete_address", mock_autocomplete)
         
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.get(
             "/maps/autocomplete?input_text=Calle 50&city=Medellín"
         )
@@ -366,7 +366,7 @@ class TestAutocompleteAddress:
     
     def test_autocomplete_no_results(
         self,
-        app,
+        maps_app,
         monkeypatch
     ):
         """Test autocompletar sin resultados"""
@@ -375,7 +375,7 @@ class TestAutocompleteAddress:
         
         monkeypatch.setattr(maps_service, "autocomplete_address", mock_autocomplete)
         
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.get(
             "/maps/autocomplete?input_text=xyz123&city=Medellín"
         )
@@ -387,10 +387,10 @@ class TestAutocompleteAddress:
     
     def test_autocomplete_input_too_short(
         self,
-        app
+        maps_app
     ):
         """Test input muy corto"""
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.get(
             "/maps/autocomplete?input_text=Ca"
         )
@@ -407,7 +407,7 @@ class TestValidateAddress:
     
     def test_validate_address_valid(
         self,
-        app,
+        maps_app,
         monkeypatch
     ):
         """Test validar dirección válida"""
@@ -424,7 +424,7 @@ class TestValidateAddress:
         
         monkeypatch.setattr(maps_service, "validate_address", mock_validate)
         
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.post(
             "/maps/validate",
             json={
@@ -441,7 +441,7 @@ class TestValidateAddress:
     
     def test_validate_address_invalid(
         self,
-        app,
+        maps_app,
         monkeypatch
     ):
         """Test validar dirección inválida"""
@@ -456,7 +456,7 @@ class TestValidateAddress:
         
         monkeypatch.setattr(maps_service, "validate_address", mock_validate)
         
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.post(
             "/maps/validate",
             json={
@@ -480,10 +480,10 @@ class TestHaversineDistance:
     
     def test_haversine_distance_success(
         self,
-        app
+        maps_app
     ):
         """Test calcular distancia Haversine"""
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.get(
             "/maps/distance/haversine?lat1=6.2442&lon1=-75.5636"
             "&lat2=6.2500&lon2=-75.5700"
@@ -498,10 +498,10 @@ class TestHaversineDistance:
     
     def test_haversine_same_point(
         self,
-        app
+        maps_app
     ):
         """Test distancia entre el mismo punto"""
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.get(
             "/maps/distance/haversine?lat1=6.2442&lon1=-75.5636"
             "&lat2=6.2442&lon2=-75.5636"
@@ -521,14 +521,14 @@ class TestMapsHealth:
     
     def test_maps_health_unavailable(
         self,
-        app,
+        maps_app,
         monkeypatch
     ):
         """Test API no configurada"""
         # Simular que gmaps es None
         monkeypatch.setattr(maps_service, "gmaps", None)
         
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.get("/maps/health")
         
         assert response.status_code == 200
@@ -539,7 +539,7 @@ class TestMapsHealth:
     
     def test_maps_health_ok(
         self,
-        app,
+        maps_app,
         mock_geocode_response,
         monkeypatch
     ):
@@ -552,7 +552,7 @@ class TestMapsHealth:
         
         monkeypatch.setattr(maps_service, "geocode_address", mock_geocode)
         
-        client = TestClient(app)
+        client = TestClient(maps_app)
         response = client.get("/maps/health")
         
         assert response.status_code == 200
@@ -570,7 +570,7 @@ class TestMapsIntegration:
     
     def test_geocode_for_service_creation(
         self,
-        app,
+        maps_app,
         mock_geocode_response,
         monkeypatch
     ):
@@ -581,7 +581,7 @@ class TestMapsIntegration:
         monkeypatch.setattr(maps_service, "geocode_address", mock_geocode)
         
         # Simular flujo: cliente ingresa dirección → geocodificar → crear servicio
-        client = TestClient(app)
+        client = TestClient(maps_app)
         
         # 1. Geocodificar dirección
         geocode_response = client.post(

@@ -64,24 +64,27 @@ async def on_startup():
     logger.info("Upload directories verified/created")
 
     # Seed quiz questions if not already present
-    try:
-        from app.services.quiz_seed import seed_quiz_questions
-        from sqlmodel import Session
-        from app.core.database import engine
-        with Session(engine) as session:
-            seed_quiz_questions(session)
-    except Exception as e:
-        logger.warning(f"Could not seed quiz questions: {e}")
+    if settings.ENVIRONMENT != "test":
+        try:
+            from app.services.quiz_seed import seed_quiz_questions
+            from sqlmodel import Session
+            from app.core.database import engine
+            with Session(engine) as session:
+                seed_quiz_questions(session)
+        except Exception as e:
+            logger.warning(f"Could not seed quiz questions: {e}")
     
     # Start background scheduler
-    from app.core.scheduler import start_scheduler
-    start_scheduler()
+    if settings.ENVIRONMENT != "test":
+        from app.core.scheduler import start_scheduler
+        start_scheduler()
 
 @app.on_event("shutdown")
 async def on_shutdown():
     # Stop background scheduler
-    from app.core.scheduler import shutdown_scheduler
-    shutdown_scheduler()
+    if settings.ENVIRONMENT != "test":
+        from app.core.scheduler import shutdown_scheduler
+        shutdown_scheduler()
 
 
 

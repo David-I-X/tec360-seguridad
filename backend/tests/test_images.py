@@ -50,7 +50,7 @@ def create_mock_upload_file(filename="test.jpg", content_type="image/jpeg", size
 # ============================================
 
 @pytest.fixture
-def app():
+def images_app():
     """Crea una app FastAPI de prueba"""
     app = FastAPI()
     app.include_router(router)
@@ -146,7 +146,7 @@ class TestUploadImage:
     
     def test_upload_image_success(
         self,
-        app,
+        images_app,
         mock_technician_user,
         mock_image_response,
         monkeypatch
@@ -159,7 +159,7 @@ class TestUploadImage:
         
         monkeypatch.setattr(image_service, "upload_image", mock_upload)
         
-        client = TestClient(app)
+        client = TestClient(images_app)
         
         # Crear archivo mock
         files = {"file": ("test.jpg", b"fake image content", "image/jpeg")}
@@ -186,7 +186,7 @@ class TestUploadImage:
     
     def test_upload_image_service_not_found(
         self,
-        app,
+        images_app,
         mock_technician_user,
         monkeypatch
     ):
@@ -198,7 +198,7 @@ class TestUploadImage:
         
         monkeypatch.setattr(image_service, "upload_image", mock_upload)
         
-        client = TestClient(app)
+        client = TestClient(images_app)
         
         files = {"file": ("test.jpg", b"fake image", "image/jpeg")}
         data = {
@@ -220,7 +220,7 @@ class TestUploadImage:
     
     def test_upload_image_forbidden(
         self,
-        app,
+        images_app,
         mock_client_user,
         monkeypatch
     ):
@@ -235,7 +235,7 @@ class TestUploadImage:
         
         monkeypatch.setattr(image_service, "upload_image", mock_upload)
         
-        client = TestClient(app)
+        client = TestClient(images_app)
         
         files = {"file": ("test.jpg", b"fake image", "image/jpeg")}
         data = {
@@ -257,7 +257,7 @@ class TestUploadImage:
     
     def test_upload_image_invalid_file_type(
         self,
-        app,
+        images_app,
         mock_technician_user,
         monkeypatch
     ):
@@ -272,7 +272,7 @@ class TestUploadImage:
         
         monkeypatch.setattr(image_service, "upload_image", mock_upload)
         
-        client = TestClient(app)
+        client = TestClient(images_app)
         
         files = {"file": ("test.pdf", b"fake pdf", "application/pdf")}
         data = {
@@ -294,7 +294,7 @@ class TestUploadImage:
     
     def test_upload_image_file_too_large(
         self,
-        app,
+        images_app,
         mock_technician_user,
         monkeypatch
     ):
@@ -309,7 +309,7 @@ class TestUploadImage:
         
         monkeypatch.setattr(image_service, "upload_image", mock_upload)
         
-        client = TestClient(app)
+        client = TestClient(images_app)
         
         # Simular archivo grande
         large_content = b"x" * (6 * 1024 * 1024)  # 6MB
@@ -340,7 +340,7 @@ class TestListServiceImages:
     
     def test_list_images_success(
         self,
-        app,
+        images_app,
         mock_technician_user,
         mock_image_list,
         monkeypatch
@@ -353,7 +353,7 @@ class TestListServiceImages:
         
         monkeypatch.setattr(image_service, "list_service_images", mock_list)
         
-        client = TestClient(app)
+        client = TestClient(images_app)
         response = client.get(
             "/images/services/44444444-4444-4444-4444-444444444444",
             headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
@@ -369,7 +369,7 @@ class TestListServiceImages:
     
     def test_list_images_empty(
         self,
-        app,
+        images_app,
         mock_technician_user,
         monkeypatch
     ):
@@ -385,7 +385,7 @@ class TestListServiceImages:
         
         monkeypatch.setattr(image_service, "list_service_images", mock_list)
         
-        client = TestClient(app)
+        client = TestClient(images_app)
         response = client.get(
             "/images/services/44444444-4444-4444-4444-444444444444",
             headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
@@ -400,7 +400,7 @@ class TestListServiceImages:
     
     def test_list_images_forbidden(
         self,
-        app,
+        images_app,
         mock_client_user,
         monkeypatch
     ):
@@ -415,7 +415,7 @@ class TestListServiceImages:
         
         monkeypatch.setattr(image_service, "list_service_images", mock_list)
         
-        client = TestClient(app)
+        client = TestClient(images_app)
         response = client.get(
             "/images/services/44444444-9999-9999-9999-444444444444",
             headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
@@ -435,7 +435,7 @@ class TestGetImage:
     
     def test_get_image_success(
         self,
-        app,
+        images_app,
         mock_technician_user,
         mock_image_response,
         monkeypatch
@@ -448,7 +448,7 @@ class TestGetImage:
         
         monkeypatch.setattr(image_service, "get_image_by_id", mock_get)
         
-        client = TestClient(app)
+        client = TestClient(images_app)
         response = client.get(
             "/images/55555555-5555-5555-5555-555555555555",
             headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
@@ -463,7 +463,7 @@ class TestGetImage:
     
     def test_get_image_not_found(
         self,
-        app,
+        images_app,
         mock_technician_user,
         monkeypatch
     ):
@@ -475,7 +475,7 @@ class TestGetImage:
         
         monkeypatch.setattr(image_service, "get_image_by_id", mock_get)
         
-        client = TestClient(app)
+        client = TestClient(images_app)
         response = client.get(
             "/images/00000000-0000-0000-0000-000000000000",
             headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
@@ -495,7 +495,7 @@ class TestDeleteImage:
     
     def test_delete_image_success(
         self,
-        app,
+        images_app,
         mock_technician_user,
         monkeypatch
     ):
@@ -511,7 +511,7 @@ class TestDeleteImage:
         
         monkeypatch.setattr(image_service, "delete_image", mock_delete)
         
-        client = TestClient(app)
+        client = TestClient(images_app)
         response = client.delete(
             "/images/55555555-5555-5555-5555-555555555555",
             headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
@@ -526,7 +526,7 @@ class TestDeleteImage:
     
     def test_delete_image_forbidden(
         self,
-        app,
+        images_app,
         mock_client_user,
         monkeypatch
     ):
@@ -541,7 +541,7 @@ class TestDeleteImage:
         
         monkeypatch.setattr(image_service, "delete_image", mock_delete)
         
-        client = TestClient(app)
+        client = TestClient(images_app)
         response = client.delete(
             "/images/55555555-5555-5555-5555-555555555555",
             headers={"Authorization": f"Bearer {get_token(mock_client_user)}"}
@@ -554,7 +554,7 @@ class TestDeleteImage:
     
     def test_delete_image_as_admin(
         self,
-        app,
+        images_app,
         mock_admin_user,
         monkeypatch
     ):
@@ -570,7 +570,7 @@ class TestDeleteImage:
         
         monkeypatch.setattr(image_service, "delete_image", mock_delete)
         
-        client = TestClient(app)
+        client = TestClient(images_app)
         response = client.delete(
             "/images/55555555-5555-5555-5555-555555555555",
             headers={"Authorization": f"Bearer {get_token(mock_admin_user)}"}
@@ -590,7 +590,7 @@ class TestStorageStats:
     
     def test_get_storage_stats_technician(
         self,
-        app,
+        images_app,
         mock_technician_user,
         monkeypatch
     ):
@@ -609,7 +609,7 @@ class TestStorageStats:
         
         monkeypatch.setattr(image_service, "get_storage_stats", mock_stats)
         
-        client = TestClient(app)
+        client = TestClient(images_app)
         response = client.get(
             "/images/stats/storage",
             headers={"Authorization": f"Bearer {get_token(mock_technician_user)}"}
@@ -624,7 +624,7 @@ class TestStorageStats:
     
     def test_get_storage_stats_admin(
         self,
-        app,
+        images_app,
         mock_admin_user,
         monkeypatch
     ):
@@ -644,7 +644,7 @@ class TestStorageStats:
         
         monkeypatch.setattr(image_service, "get_storage_stats", mock_stats)
         
-        client = TestClient(app)
+        client = TestClient(images_app)
         response = client.get(
             "/images/stats/storage",
             headers={"Authorization": f"Bearer {get_token(mock_admin_user)}"}
@@ -654,7 +654,7 @@ class TestStorageStats:
         data = response.json()
         assert data["total_images"] == 100
         
-        app.dependency_overrides.clear()
+        images_app.dependency_overrides.clear()
 
 
 # ============================================
@@ -666,10 +666,10 @@ class TestImageValidation:
     
     def test_upload_without_auth(
         self,
-        app
+        images_app
     ):
         """Test subir sin autenticación"""
-        client = TestClient(app)
+        client = TestClient(images_app)
         
         files = {"file": ("test.jpg", b"fake", "image/jpeg")}
         data = {"service_id": "44444444-4444-4444-4444-444444444444", "image_type": "after"}
@@ -681,13 +681,13 @@ class TestImageValidation:
     
     def test_invalid_image_type(
         self,
-        app,
+        images_app,
         mock_technician_user
     ):
         """Test tipo de imagen inválido"""
-        app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
+        images_app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
-        client = TestClient(app)
+        client = TestClient(images_app)
         
         files = {"file": ("test.jpg", b"fake", "image/jpeg")}
         data = {
@@ -704,7 +704,7 @@ class TestImageValidation:
         
         assert response.status_code == 422
         
-        app.dependency_overrides.clear()
+        images_app.dependency_overrides.clear()
 
 
 # Comando para ejecutar:
