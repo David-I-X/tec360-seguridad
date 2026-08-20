@@ -3,6 +3,7 @@ Configuración central del backend
 Carga variables de entorno y expone configuraciones globales
 """
 import os
+import sys
 from typing import List
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv

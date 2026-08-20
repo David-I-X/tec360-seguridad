@@ -254,7 +254,7 @@ async def delete_my_account(
     user.is_active = False
     user.full_name = "Usuario Eliminado"
     user.email = f"deleted_{user.id}@tec360.internal"
-    user.phone = f"+570000000000"
+    user.phone = "+570000000000"
     user.avatar_url = None
     session.add(user)
     session.commit()
