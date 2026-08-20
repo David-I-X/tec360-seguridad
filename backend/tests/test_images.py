@@ -152,7 +152,7 @@ class TestUploadImage:
         monkeypatch
     ):
         """Test técnico sube imagen exitosamente"""
-        app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
+        images_app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
         async def mock_upload(*args, **kwargs):
             return mock_image_response
@@ -181,7 +181,7 @@ class TestUploadImage:
         assert result["success"] is True
         assert result["image"]["id"] == "55555555-5555-5555-5555-555555555555"
         
-        app.dependency_overrides.clear()
+        images_app.dependency_overrides.clear()
     
     
     def test_upload_image_service_not_found(
@@ -191,7 +191,7 @@ class TestUploadImage:
         monkeypatch
     ):
         """Test servicio no encontrado"""
-        app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
+        images_app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
         async def mock_upload(*args, **kwargs):
             raise HTTPException(status_code=404, detail="Servicio no encontrado")
@@ -215,7 +215,7 @@ class TestUploadImage:
         
         assert response.status_code == 404
         
-        app.dependency_overrides.clear()
+        images_app.dependency_overrides.clear()
     
     
     def test_upload_image_forbidden(
@@ -225,7 +225,7 @@ class TestUploadImage:
         monkeypatch
     ):
         """Test cliente no puede subir imagen de servicio de otro"""
-        app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
+        images_app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
         
         async def mock_upload(*args, **kwargs):
             raise HTTPException(
@@ -252,7 +252,7 @@ class TestUploadImage:
         
         assert response.status_code == 403
         
-        app.dependency_overrides.clear()
+        images_app.dependency_overrides.clear()
     
     
     def test_upload_image_invalid_file_type(
@@ -262,7 +262,7 @@ class TestUploadImage:
         monkeypatch
     ):
         """Test tipo de archivo inválido"""
-        app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
+        images_app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
         async def mock_upload(*args, **kwargs):
             raise HTTPException(
@@ -289,7 +289,7 @@ class TestUploadImage:
         
         assert response.status_code == 400
         
-        app.dependency_overrides.clear()
+        images_app.dependency_overrides.clear()
     
     
     def test_upload_image_file_too_large(
@@ -299,7 +299,7 @@ class TestUploadImage:
         monkeypatch
     ):
         """Test archivo muy grande"""
-        app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
+        images_app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
         async def mock_upload(*args, **kwargs):
             raise HTTPException(
@@ -328,7 +328,7 @@ class TestUploadImage:
         
         assert response.status_code == 400
         
-        app.dependency_overrides.clear()
+        images_app.dependency_overrides.clear()
 
 
 # ============================================
@@ -346,7 +346,7 @@ class TestListServiceImages:
         monkeypatch
     ):
         """Test listar imágenes exitosamente"""
-        app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
+        images_app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
         async def mock_list(*args, **kwargs):
             return mock_image_list
@@ -364,7 +364,7 @@ class TestListServiceImages:
         assert data["total"] == 2
         assert len(data["images"]) == 2
         
-        app.dependency_overrides.clear()
+        images_app.dependency_overrides.clear()
     
     
     def test_list_images_empty(
@@ -374,7 +374,7 @@ class TestListServiceImages:
         monkeypatch
     ):
         """Test servicio sin imágenes"""
-        app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
+        images_app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
         async def mock_list(*args, **kwargs):
             return {
@@ -395,7 +395,7 @@ class TestListServiceImages:
         data = response.json()
         assert data["total"] == 0
         
-        app.dependency_overrides.clear()
+        images_app.dependency_overrides.clear()
     
     
     def test_list_images_forbidden(
@@ -405,7 +405,7 @@ class TestListServiceImages:
         monkeypatch
     ):
         """Test cliente no puede ver imágenes de otro servicio"""
-        app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
+        images_app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
         
         async def mock_list(*args, **kwargs):
             raise HTTPException(
@@ -423,7 +423,7 @@ class TestListServiceImages:
         
         assert response.status_code == 403
         
-        app.dependency_overrides.clear()
+        images_app.dependency_overrides.clear()
 
 
 # ============================================
@@ -441,7 +441,7 @@ class TestGetImage:
         monkeypatch
     ):
         """Test obtener imagen exitosamente"""
-        app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
+        images_app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
         async def mock_get(*args, **kwargs):
             return mock_image_response
@@ -458,7 +458,7 @@ class TestGetImage:
         data = response.json()
         assert data["id"] == "55555555-5555-5555-5555-555555555555"
         
-        app.dependency_overrides.clear()
+        images_app.dependency_overrides.clear()
     
     
     def test_get_image_not_found(
@@ -468,7 +468,7 @@ class TestGetImage:
         monkeypatch
     ):
         """Test imagen no encontrada"""
-        app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
+        images_app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
         async def mock_get(*args, **kwargs):
             raise HTTPException(status_code=404, detail="Imagen no encontrada")
@@ -483,7 +483,7 @@ class TestGetImage:
         
         assert response.status_code == 404
         
-        app.dependency_overrides.clear()
+        images_app.dependency_overrides.clear()
 
 
 # ============================================
@@ -500,7 +500,7 @@ class TestDeleteImage:
         monkeypatch
     ):
         """Test eliminar imagen exitosamente"""
-        app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
+        images_app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
         async def mock_delete(*args, **kwargs):
             return {
@@ -521,7 +521,7 @@ class TestDeleteImage:
         data = response.json()
         assert data["success"] is True
         
-        app.dependency_overrides.clear()
+        images_app.dependency_overrides.clear()
     
     
     def test_delete_image_forbidden(
@@ -531,7 +531,7 @@ class TestDeleteImage:
         monkeypatch
     ):
         """Test no puede eliminar imagen de otro usuario"""
-        app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
+        images_app.dependency_overrides[get_current_user] = override_get_current_user(mock_client_user)
         
         async def mock_delete(*args, **kwargs):
             raise HTTPException(
@@ -549,7 +549,7 @@ class TestDeleteImage:
         
         assert response.status_code == 403
         
-        app.dependency_overrides.clear()
+        images_app.dependency_overrides.clear()
     
     
     def test_delete_image_as_admin(
@@ -559,7 +559,7 @@ class TestDeleteImage:
         monkeypatch
     ):
         """Test admin puede eliminar cualquier imagen"""
-        app.dependency_overrides[get_current_user] = override_get_current_user(mock_admin_user)
+        images_app.dependency_overrides[get_current_user] = override_get_current_user(mock_admin_user)
         
         async def mock_delete(*args, **kwargs):
             return {
@@ -578,7 +578,7 @@ class TestDeleteImage:
         
         assert response.status_code == 200
         
-        app.dependency_overrides.clear()
+        images_app.dependency_overrides.clear()
 
 
 # ============================================
@@ -595,7 +595,7 @@ class TestStorageStats:
         monkeypatch
     ):
         """Test técnico obtiene sus estadísticas"""
-        app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
+        images_app.dependency_overrides[get_current_user] = override_get_current_user(mock_technician_user)
         
         async def mock_stats(*args, **kwargs):
             return {
@@ -619,7 +619,7 @@ class TestStorageStats:
         data = response.json()
         assert data["total_images"] == 10
         
-        app.dependency_overrides.clear()
+        images_app.dependency_overrides.clear()
     
     
     def test_get_storage_stats_admin(
@@ -629,7 +629,7 @@ class TestStorageStats:
         monkeypatch
     ):
         """Test admin obtiene estadísticas globales"""
-        app.dependency_overrides[get_current_user] = override_get_current_user(mock_admin_user)
+        images_app.dependency_overrides[get_current_user] = override_get_current_user(mock_admin_user)
         
         async def mock_stats(*args, **kwargs):
             return {

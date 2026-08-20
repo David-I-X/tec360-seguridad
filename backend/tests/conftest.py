@@ -18,13 +18,11 @@ from datetime import timedelta
 from fastapi.testclient import TestClient
 from sqlmodel import SQLModel, Session, create_engine
 
-from app.main import app
 from app.core.database import get_session
 from app.core.config import settings
 from app.core.auth_utils import create_access_token
-import app.models  # Ensures all SQLModel tables are registered in metadata
-from app.models.user import User
-from app.models.technician import Technician
+from app.models import User, Technician
+from app.main import app
 
 
 # ============================================
