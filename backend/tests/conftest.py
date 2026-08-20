@@ -45,6 +45,9 @@ app.state.limiter.enabled = False
 def setup_database():
     """Create all tables once at test session start"""
     SQLModel.metadata.create_all(test_engine)
+    with Session(test_engine) as session:
+        from app.services.quiz_seed import seed_quiz_questions
+        seed_quiz_questions(session)
     yield
     # Don't drop tables — keep dev data intact
 
