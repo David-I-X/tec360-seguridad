@@ -38,6 +38,7 @@ class TechnicianBase(SQLModel):
     service_radius_km: int = Field(default=20)
     is_available: bool = Field(default=True)
     is_verified: bool = Field(default=False)
+    verification_status: str = Field(default="incomplete")
     total_services: int = Field(default=0)
     average_rating: float = Field(default=0.0)
     rank: str = Field(default="bronze")
