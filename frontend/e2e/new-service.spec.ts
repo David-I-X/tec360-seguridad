@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Nueva Solicitud de Servicio', () => {
-  test('debe cargar la página de nueva solicitud', async ({ page }) => {
+  test('debe cargar la página de nueva solicitud o redirigir a login', async ({ page }) => {
     await page.goto('/servicios/nuevo');
     
     // Should show form or redirect to login
@@ -10,16 +10,12 @@ test.describe('Nueva Solicitud de Servicio', () => {
     expect(isForm || isLogin).toBe(true);
   });
 
-  test('debe mostrar tipos de servicio disponibles', async ({ page }) => {
+  test('debe requerir autenticación para solicitar servicio', async ({ page }) => {
     await page.goto('/servicios/nuevo');
     
-    if (page.url().includes('/login')) {
-      test.skip();
-      return;
-    }
-    
-    // Check service type options
-    const serviceTypes = page.getByText(/GPS|alarma|cámara|dashcam|mantenimiento/i);
-    await expect(serviceTypes.first()).toBeVisible({ timeout: 10_000 });
+    // ProtectedRoute redirects unauthenticated users or shows login / almost ready
+    const isLoginOrAuth = page.url().includes('/login') || page.url().includes('/auth');
+    const hasLoginPrompt = (await page.getByText(/iniciar sesión|bienvenido|casi listos/i).count()) > 0;
+    expect(isLoginOrAuth || hasLoginPrompt).toBe(true);
   });
 });

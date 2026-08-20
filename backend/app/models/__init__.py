@@ -2,38 +2,56 @@
 Export all models for easy access and ensuring SQLModel metadata registration.
 """
 from app.models.user import User
-from app.models.technician import Technician
-from app.models.service import Service
-from app.models.quotation import Quotation
-from app.models.payment import Payment
-from app.models.credit import CreditWallet, CreditTransaction, CreditPackage
-from app.models.verification import TechnicianDocument, QuizQuestion, QuizAttempt, VerificationStatus
+from app.models.technician import Technician, TechnicianRank
+from app.models.service import Service, ServiceStatus, ServiceType, VehicleType
+from app.models.quotation import Quotation, QuotationStatus
+from app.models.payment import Payment, PaymentStatus, PaymentMethod
+from app.models.credit import TechnicianCredit, CreditTransaction, CreditTransactionType
+from app.models.verification import (
+    TechnicianDocument,
+    QuizQuestion,
+    QuizAttempt,
+    VerificationStatus,
+    DocumentStatus,
+)
 from app.models.notification import Notification
 from app.models.message import Message
-from app.models.incident import Incident
-from app.models.portfolio import PortfolioItem
+from app.models.incident import IncidentReport, IncidentType
+from app.models.portfolio import PortfolioImage
 from app.models.push_token import PushToken
-from app.models.schedule import ScheduleSlot
-from app.models.extras import ExtraItem
+from app.models.schedule import TechnicianSchedule
+from app.models.extras import ServiceRating, ServiceImage, RatedBy, ImageType
 
 __all__ = [
     "User",
     "Technician",
+    "TechnicianRank",
     "Service",
+    "ServiceStatus",
+    "ServiceType",
+    "VehicleType",
     "Quotation",
+    "QuotationStatus",
     "Payment",
-    "CreditWallet",
+    "PaymentStatus",
+    "PaymentMethod",
+    "TechnicianCredit",
     "CreditTransaction",
-    "CreditPackage",
+    "CreditTransactionType",
     "TechnicianDocument",
     "QuizQuestion",
     "QuizAttempt",
     "VerificationStatus",
+    "DocumentStatus",
     "Notification",
     "Message",
-    "Incident",
-    "PortfolioItem",
+    "IncidentReport",
+    "IncidentType",
+    "PortfolioImage",
     "PushToken",
-    "ScheduleSlot",
-    "ExtraItem",
+    "TechnicianSchedule",
+    "ServiceRating",
+    "ServiceImage",
+    "RatedBy",
+    "ImageType",
 ]

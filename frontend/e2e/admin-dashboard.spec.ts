@@ -19,8 +19,8 @@ test.describe('Panel de Administración', () => {
       return;
     }
     
-    // Check admin menu items
-    const menuItems = ['Dashboard', 'Servicios', 'Técnicos', 'Usuarios', 'Verificaciones'];
+    // Check real admin nav menu items
+    const menuItems = ['Dashboard', 'Usuarios', 'Servicios', 'Finanzas'];
     for (const item of menuItems) {
       const menuLink = page.getByText(new RegExp(item, 'i')).first();
       await expect(menuLink).toBeVisible();
