@@ -63,6 +63,14 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: str = os.getenv("VAPID_PRIVATE_KEY", "jiYgW-HF0vQuS5xwcOts4Q8LSpL4MiU32GCIdEZuYhM")
     VAPID_SUBJECT: str = os.getenv("VAPID_SUBJECT", "mailto:johan@tec-360.tech")
 
+    # Object Storage (DigitalOcean Spaces / S3-compatible)
+    STORAGE_BACKEND: str = os.getenv("STORAGE_BACKEND", "local")  # "spaces" or "local"
+    DO_SPACES_KEY: str = os.getenv("DO_SPACES_KEY", "")
+    DO_SPACES_SECRET: str = os.getenv("DO_SPACES_SECRET", "")
+    DO_SPACES_REGION: str = os.getenv("DO_SPACES_REGION", "nyc3")
+    DO_SPACES_BUCKET: str = os.getenv("DO_SPACES_BUCKET", "tec360-uploads")
+    DO_SPACES_ENDPOINT: str = os.getenv("DO_SPACES_ENDPOINT", "")  # e.g. https://nyc3.digitaloceanspaces.com
+
     # CORS - Orígenes permitidos
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",  # Frontend local

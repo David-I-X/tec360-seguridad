@@ -40,29 +40,36 @@ export default function VerificationScreen() {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 0.8,
-        base64: true,
       });
 
-      if (!result.canceled && result.assets[0].base64) {
+      if (!result.canceled && result.assets[0]) {
         setUploading(true);
-        // En una app real, subiríamos la imagen a S3 y enviaríamos la URL.
-        // Aquí simulamos enviando el base64 temporalmente.
-        const imageUrl = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        const asset = result.assets[0];
+        const uri = asset.uri;
+        const ext = uri.split('.').pop() || 'jpg';
+        const docType = docsCount === 0 ? 'id_front' : docsCount === 1 ? 'id_back' : 'sena_cert';
+
+        // Build FormData with the real file
+        const formData = new FormData();
+        formData.append('file', {
+          uri,
+          name: `document_${docType}.${ext}`,
+          type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+        } as any);
+        formData.append('document_type', docType);
 
         const res = await fetchWithAuth('/verification/documents', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            document_type: docsCount === 0 ? 'id_front' : 'id_back',
-            document_url: imageUrl,
-          }),
+          body: formData,
+          // Don't set Content-Type — fetch sets it automatically with boundary for FormData
         });
 
         if (res.ok) {
           Alert.alert('Éxito', 'Documento subido correctamente');
           loadStatus();
         } else {
-          Alert.alert('Error', 'No se pudo subir el documento');
+          const errorData = await res.json().catch(() => null);
+          Alert.alert('Error', errorData?.detail || 'No se pudo subir el documento');
         }
       }
     } catch (error) {
@@ -140,7 +147,7 @@ export default function VerificationScreen() {
             status === 'documents_approved' || status === 'quiz_available' || status === 'verified',
             status === 'incomplete' || status === 'documents_rejected',
             pickAndUploadDocument,
-            docsCount === 0 ? 'Subir Frente de Cédula' : 'Subir Reverso de Cédula'
+            docsCount === 0 ? 'Subir Frente de Cédula' : docsCount === 1 ? 'Subir Reverso de Cédula' : 'Subir Certificado SENA'
           )}
 
           {/* Paso 3: Quiz */}

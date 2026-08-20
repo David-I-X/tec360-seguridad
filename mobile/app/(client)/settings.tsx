@@ -111,6 +111,35 @@ export default function ClientSettingsScreen() {
           <Text style={styles.menuText}>Privacidad</Text>
           <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => {
+            Alert.alert(
+              'Eliminar Cuenta',
+              '¿Estás seguro de que deseas eliminar tu cuenta permanentemente? Esta acción borrará tus datos y no se puede deshacer.',
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                  text: 'Eliminar',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await fetchWithAuth('/auth/me', { method: 'DELETE' });
+                      Alert.alert('Cuenta Eliminada', 'Tu cuenta y datos han sido eliminados.');
+                      logout();
+                    } catch (e: any) {
+                      Alert.alert('Error', e.message || 'No se pudo eliminar la cuenta');
+                    }
+                  },
+                },
+              ]
+            );
+          }}
+        >
+          <Ionicons name="trash-outline" size={20} color={COLORS.red} />
+          <Text style={[styles.menuText, { color: COLORS.red }]}>Eliminar Cuenta</Text>
+          <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.sectionTitle}>SOPORTE</Text>

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlmodel import Session, select
 from uuid import UUID
 from typing import List
@@ -9,7 +9,6 @@ from app.models.user import User
 from app.models.technician import Technician
 from app.models.verification import TechnicianDocument, DocumentStatus
 from app.schemas.verification import (
-    DocumentUploadRequest,
     DocumentResponse,
     AdminReviewRequest,
     PendingTechnicianResponse,
@@ -19,6 +18,7 @@ from app.schemas.verification import (
     VerificationStatusResponse
 )
 from app.services.verification_service import verification_service
+from app.services.storage_service import storage, validate_image, generate_filename
 
 router = APIRouter(prefix="/verification", tags=["Verification"])
 
@@ -52,12 +52,35 @@ def get_my_status(
 
 
 @router.post("/documents", response_model=DocumentResponse)
-def upload_document(
-    req: DocumentUploadRequest,
+async def upload_document(
+    file: UploadFile = File(..., description="Foto del documento (jpg/png/webp, max 10MB)"),
+    document_type: str = Form(..., description="Tipo: id_front, id_back, sena_cert, other_cert"),
     tech: Technician = Depends(get_current_technician),
     session: Session = Depends(get_session)
 ):
-    return verification_service.upload_document(session, tech.id, req)
+    # Validate file
+    ext = validate_image(file)
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(400, "File too large (max 10MB)")
+
+    # Validate document_type
+    valid_types = {"id_front", "id_back", "sena_cert", "other_cert"}
+    if document_type not in valid_types:
+        raise HTTPException(400, f"document_type must be one of: {valid_types}")
+
+    # Upload to storage
+    filename = generate_filename(f"{tech.id}_{document_type}", ext)
+    content_type = file.content_type or "image/jpeg"
+    document_url = await storage.upload(
+        file_bytes=content,
+        folder="documents",
+        filename=filename,
+        content_type=content_type,
+    )
+
+    # Save to DB
+    return verification_service.save_document(session, tech.id, document_type, document_url)
 
 
 @router.get("/quiz/{specialization}", response_model=List[QuizQuestionResponse])

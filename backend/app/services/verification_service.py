@@ -16,7 +16,6 @@ from app.models.verification import (
     QuizAttempt
 )
 from app.schemas.verification import (
-    DocumentUploadRequest,
     DocumentResponse,
     QuizSubmitRequest,
     QuizResultResponse,
@@ -28,17 +27,18 @@ logger = logging.getLogger(__name__)
 
 class VerificationService:
     
-    def upload_document(
-        self, session: Session, technician_id: UUID, req: DocumentUploadRequest
+    def save_document(
+        self, session: Session, technician_id: UUID, document_type: str, document_url: str
     ) -> DocumentResponse:
+        """Save a document record after the file has already been uploaded to storage."""
         tech = session.get(Technician, technician_id)
         if not tech:
             raise HTTPException(404, "Técnico no encontrado")
             
         doc = TechnicianDocument(
             technician_id=technician_id,
-            document_type=req.document_type,
-            document_url=req.document_url
+            document_type=document_type,
+            document_url=document_url
         )
         session.add(doc)
         

@@ -134,6 +134,40 @@ export default function TechProfileScreen() {
           <Text style={styles.menuText}>Soporte</Text>
           <Ionicons name="chevron-forward" size={18} color="#555872" />
         </TouchableOpacity>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(client)/privacy' as any)}>
+          <Ionicons name="shield-checkmark-outline" size={20} color="#8b8fa3" />
+          <Text style={styles.menuText}>Privacidad</Text>
+          <Ionicons name="chevron-forward" size={18} color="#555872" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => {
+            Alert.alert(
+              'Eliminar Cuenta',
+              '¿Estás seguro de que deseas eliminar tu cuenta de técnico permanentemente? Esta acción borrará tus datos y no se puede deshacer.',
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                  text: 'Eliminar',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await fetchWithAuth('/auth/me', { method: 'DELETE' });
+                      Alert.alert('Cuenta Eliminada', 'Tu cuenta y datos han sido eliminados.');
+                      logout();
+                    } catch (e: any) {
+                      Alert.alert('Error', e.message || 'No se pudo eliminar la cuenta');
+                    }
+                  },
+                },
+              ]
+            );
+          }}
+        >
+          <Ionicons name="trash-outline" size={20} color="#ef4444" />
+          <Text style={[styles.menuText, { color: '#ef4444' }]}>Eliminar Cuenta</Text>
+          <Ionicons name="chevron-forward" size={18} color="#555872" />
+        </TouchableOpacity>
       </View>
 
       {/* Logout */}

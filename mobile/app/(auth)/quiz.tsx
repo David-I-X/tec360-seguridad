@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fetchWithAuth } from '../../lib/api';
@@ -21,15 +21,14 @@ type QuizResult = {
 };
 
 export default function QuizScreen() {
+  const params = useLocalSearchParams<{ specialization?: string }>();
+  const specialization = params.specialization || 'gps_installation'; 
   const [loading, setLoading] = useState(true);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<QuizResult | null>(null);
-
-  // Por ahora hardcodeamos la especialización, idealmente vendría del perfil del técnico
-  const specialization = 'gps_installation'; 
+  const [result, setResult] = useState<QuizResult | null>(null); 
 
   useEffect(() => {
     loadQuestions();

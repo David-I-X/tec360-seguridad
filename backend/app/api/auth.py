@@ -235,3 +235,31 @@ async def get_me(
         "success": True, 
         "user": user
     }
+
+
+@router.delete("/me")
+async def delete_my_account(
+    current_user_data: dict = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Deactivate account and anonymize personal data.
+    Complies with Google Play Store Data Safety Account Deletion requirement.
+    """
+    user_id = current_user_data["id"]
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    user.is_active = False
+    user.full_name = "Usuario Eliminado"
+    user.email = f"deleted_{user.id}@tec360.internal"
+    user.phone = f"+570000000000"
+    user.avatar_url = None
+    session.add(user)
+    session.commit()
+
+    return {
+        "success": True,
+        "message": "Tu cuenta y datos personales han sido eliminados correctamente."
+    }
