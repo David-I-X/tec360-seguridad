@@ -8,17 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
 
-let MapView: any = View;
-let Marker: any = View;
-let Polyline: any = View;
-if (Platform.OS !== 'web') {
-  try {
-    const maps = require('react-native-maps');
-    MapView = maps.default;
-    Marker = maps.Marker;
-    Polyline = maps.Polyline;
-  } catch (e) {}
-}
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import { useAuth } from '@/lib/auth-context';
 import { getServiceById, getAuthToken, API_URL, fetchWithAuth } from '@/lib/api';
 import { serviceWebSocket } from '@/lib/websocket';
