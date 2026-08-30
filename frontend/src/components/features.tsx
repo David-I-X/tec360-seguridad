@@ -531,7 +531,13 @@ function Footer() {
         </div>
         <div className="border-t border-slate-200 dark:border-white/5 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-slate-500">© 2026 Tec360 Seguridad. Todos los derechos reservados.</p>
-          <p className="text-xs text-slate-500">Ruta del Emprendimiento — Créame Incubadora de Empresas</p>
+          <div className="flex items-center gap-3 text-xs text-slate-500">
+            <a href="/terminos" className="hover:text-violet-600 dark:hover:text-white transition-colors">Términos y Condiciones</a>
+            <span>·</span>
+            <a href="/privacidad" className="hover:text-violet-600 dark:hover:text-white transition-colors">Privacidad</a>
+            <span>·</span>
+            <span>Créame Incubadora</span>
+          </div>
         </div>
       </div>
     </footer>

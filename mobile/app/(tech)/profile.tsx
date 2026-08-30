@@ -139,6 +139,11 @@ export default function TechProfileScreen() {
           <Text style={styles.menuText}>Privacidad</Text>
           <Ionicons name="chevron-forward" size={18} color="#555872" />
         </TouchableOpacity>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(client)/terms' as any)}>
+          <Ionicons name="document-text-outline" size={20} color="#8b8fa3" />
+          <Text style={styles.menuText}>Términos y Condiciones</Text>
+          <Ionicons name="chevron-forward" size={18} color="#555872" />
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.menuItem}
           onPress={() => {

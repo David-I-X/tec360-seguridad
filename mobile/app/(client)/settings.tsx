@@ -111,6 +111,11 @@ export default function ClientSettingsScreen() {
           <Text style={styles.menuText}>Privacidad</Text>
           <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
         </TouchableOpacity>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(client)/terms' as any)}>
+          <Ionicons name="document-text-outline" size={20} color={COLORS.textSecondary} />
+          <Text style={styles.menuText}>Términos y Condiciones</Text>
+          <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.menuItem}
           onPress={() => {

@@ -178,13 +178,9 @@ function PhoneAuthContent() {
 
             <div className="text-center text-xs text-muted-foreground">
               Al continuar, aceptas nuestros{" "}
-              <button
-                type="button"
-                onClick={() => setError("Términos y condiciones próximamente disponibles")}
-                className="text-blue-600 hover:text-blue-700"
-              >
+              <Link href="/terminos" className="text-blue-600 hover:text-blue-700 underline">
                 términos y condiciones
-              </button>
+              </Link>
             </div>
           </div>
         </Card>

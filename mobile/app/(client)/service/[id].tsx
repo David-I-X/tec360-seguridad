@@ -541,6 +541,22 @@ export default function ServiceDetailScreen() {
           onConfirm={(method) => handleConfirmPayment(method)}
         />
 
+        {/* Support Button */}
+        <TouchableOpacity
+          style={styles.supportBtn}
+          onPress={() => Linking.openURL('https://wa.me/573001234567?text=' + encodeURIComponent('Hola, necesito ayuda con mi servicio #' + id))}
+          activeOpacity={0.7}
+        >
+          <View style={styles.supportBtnInner}>
+            <Ionicons name="logo-whatsapp" size={20} color="#22c55e" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.supportBtnTitle}>¿Necesitas ayuda?</Text>
+              <Text style={styles.supportBtnSub}>Contacta soporte por WhatsApp</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#555872" />
+          </View>
+        </TouchableOpacity>
+
         {/* Chat button is now inside the technician card above */}
       </ScrollView>
     </View>
@@ -680,4 +696,8 @@ const styles = StyleSheet.create({
   chatInlineBtn: { borderRadius: 18, overflow: 'hidden', marginTop: SPACING.lg, marginBottom: SPACING.md },
   chatInlineGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 16, borderRadius: 18 },
   chatInlineText: { color: '#fff', fontSize: FONTS.sizes.md, fontWeight: '800' },
+  supportBtn: { marginTop: SPACING.lg, marginBottom: SPACING.md },
+  supportBtnInner: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: RADIUS.lg, padding: SPACING.lg, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' },
+  supportBtnTitle: { color: COLORS.text, fontSize: 14, fontWeight: FONTS.weights.bold },
+  supportBtnSub: { color: COLORS.textSecondary, fontSize: FONTS.sizes.xs, marginTop: 1 },
 });

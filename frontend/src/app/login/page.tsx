@@ -106,7 +106,10 @@ export default function LoginPage() {
 
           {/* Terms */}
           <p className="text-center text-xs text-muted-foreground mt-6">
-            Al continuar, aceptas nuestros términos y condiciones
+            Al continuar, aceptas nuestros{" "}
+            <Link href="/terminos" className="text-blue-600 hover:text-blue-700 underline">
+              términos y condiciones
+            </Link>
           </p>
         </div>
 
