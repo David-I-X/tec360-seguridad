@@ -73,6 +73,8 @@ export default {
             "Tec360 necesita acceso a tu cámara para tomar fotos de evidencia.",
         },
       ],
+      "expo-font",
+      "expo-web-browser",
     ],
     experiments: {
       typedRoutes: true,
