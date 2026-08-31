@@ -1,12 +1,12 @@
 {
-  "tag": "v2.5.3-mobile",
-  "commit": "a905aa2",
-  "commitFull": "a905aa21fc556e2c80816c695f7b6eb2e0167f49",
-  "buildDate": "2026-08-30T16:42:59Z",
-  "easBuildId": "6453b6bf-2a1a-45b8-8d90-76fb7eaed5dd",
+  "tag": "v2.5.4-mobile",
+  "commit": "676decf",
+  "commitFull": "676decfe50b60916f89cdcfef77bb3481e27cbdf",
+  "buildDate": "2026-08-31T17:27:12Z",
+  "easBuildId": "5fd2655b-3f6a-4c6f-a37e-6f48dd7357a2",
   "easAppVersion": "1.0.0",
-  "easCreatedAt": "2026-08-30T16:27:45.138Z",
-  "apkSizeBytes": 90166653,
+  "easCreatedAt": "2026-08-31T16:41:46.857Z",
+  "apkSizeBytes": 90170249,
   "apkSizeMB": "85 MB",
-  "apkMd5": "8c073f2fdd9833c89ad797892341ffb1"
+  "apkMd5": "8efe40567d60f457e7d4250c85de5620"
 }
