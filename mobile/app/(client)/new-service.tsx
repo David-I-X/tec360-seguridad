@@ -9,7 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Location from 'expo-location';
-import MapView, { Marker, Region } from 'react-native-maps';
+import MapView, { Marker, Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import { fetchWithAuth, API_URL } from '@/lib/api';
 import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
 
@@ -502,6 +502,7 @@ export default function NewServiceScreen() {
 
             <View style={{ height: 250, marginVertical: 16, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border }}>
               <MapView
+                provider={PROVIDER_GOOGLE}
                 style={{ flex: 1 }}
                 region={{
                   latitude: lat,
