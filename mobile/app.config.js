@@ -9,7 +9,7 @@ export default {
     icon: "./assets/images/icon.png",
     scheme: "tec360",
     userInterfaceStyle: "dark",
-    newArchEnabled: false,
+    newArchEnabled: true,
     ios: {
       supportsTablet: false,
       bundleIdentifier: "com.tec360.seguridad",
