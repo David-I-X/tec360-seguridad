@@ -90,7 +90,7 @@ const TERMS_SECTIONS = [
   },
   {
     title: 'Jurisdicción y Ley Aplicable',
-    icon: 'scales-outline' as const,
+    icon: 'scale-outline' as const,
     items: [
       'Ley colombiana aplica a todos los términos',
       'Jurisdicción: Medellín, Colombia',
