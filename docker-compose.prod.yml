@@ -14,17 +14,19 @@
 services:
   # --- PostgreSQL + PostGIS ---
   db:
-    image: postgis/postgis:15-3.4-alpine
+    image: kartoza/postgis:15-3.3
     container_name: tec360_db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-tec360}
+      POSTGRES_PASS: ${DB_PASSWORD:?Database password required}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?Database password required}
       POSTGRES_DB: ${DB_NAME:-tec360}
+      POSTGRES_DBNAME: ${DB_NAME:-tec360}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-tec360} -d ${DB_NAME:-tec360}" ]
+      test: ["CMD", "pg_isready", "-U", "${DB_USER:-tec360}", "-d", "${DB_NAME:-tec360}"]
       interval: 10s
       timeout: 5s
       retries: 5
