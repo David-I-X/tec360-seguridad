@@ -33,8 +33,10 @@ services:
 
   # --- Backend API (FastAPI) ---
   backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     image: ghcr.io/david-i-x/tec360-seguridad/backend:latest
-    pull_policy: always
     container_name: tec360_backend
     restart: unless-stopped
     depends_on:
@@ -50,6 +52,9 @@ services:
       - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
       - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
       - SKIP_CONFIG_VALIDATION=false
+      - TRACCAR_URL=${TRACCAR_URL:-http://10.0.1.56:8082}
+      - TRACCAR_USER=${TRACCAR_USER:-admin}
+      - TRACCAR_PASSWORD=${TRACCAR_PASSWORD:-admin}
     volumes:
       - uploads_data:/opt/tec360-seguridad/uploads
     networks:
@@ -58,8 +63,14 @@ services:
       - "8000"
 
   frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-/api}
+        - NEXT_PUBLIC_GOOGLE_MAPS_KEY=${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-AIzaSyCu1NMEsMIIiY1LoOKlzrSovS-r4jTWWFY}
+        - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY:-}
     image: ghcr.io/david-i-x/tec360-seguridad/frontend:latest
-    pull_policy: always
     container_name: tec360_frontend
     restart: unless-stopped
     depends_on:
