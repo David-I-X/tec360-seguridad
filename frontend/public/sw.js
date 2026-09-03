@@ -1,14 +1,13 @@
-const CACHE_NAME = "tec360-v1";
+const CACHE_NAME = "tec360-v2.6.1";
 
-// Assets to cache on install
+// Assets to cache on install (only static offline shell, NEVER the main page)
 const PRECACHE_ASSETS = [
-    "/",
     "/offline",
     "/icons/icon.svg",
     "/manifest.json",
 ];
 
-// Install — precache critical assets
+// Install — precache critical offline assets
 self.addEventListener("install", (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
@@ -18,7 +17,7 @@ self.addEventListener("install", (event) => {
     self.skipWaiting();
 });
 
-// Activate — clean old caches
+// Activate — wipe all previous caches to prevent chunk mismatch across builds
 self.addEventListener("activate", (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
@@ -32,7 +31,7 @@ self.addEventListener("activate", (event) => {
     self.clients.claim();
 });
 
-// Fetch — Network First for pages/API, Cache First for static assets
+// Fetch — Network only for pages and API, Cache for offline shell and icons
 self.addEventListener("fetch", (event) => {
     const { request } = event;
     const url = new URL(request.url);
@@ -43,20 +42,32 @@ self.addEventListener("fetch", (event) => {
     // Skip cross-origin requests
     if (url.origin !== self.location.origin) return;
 
-    // API calls — Network only (don't cache dynamic data)
-    if (url.pathname.startsWith("/api") || url.pathname.startsWith("/auth")) {
+    // API & Auth calls — Network only (never cache)
+    if (url.pathname.startsWith("/api") || url.pathname.startsWith("/auth") || url.pathname.startsWith("/ws")) {
         return;
     }
 
-    // Static assets (JS, CSS, images, fonts) — Cache First
-    if (
-        url.pathname.match(/\.(js|css|png|jpg|jpeg|svg|gif|ico|woff2?|ttf|eot)$/) ||
-        url.pathname.startsWith("/_next/static")
-    ) {
+    // HTML Navigation requests — ALWAYS Network First, never store stale HTML in Cache Storage
+    if (request.mode === "navigate" || request.headers.get("accept")?.includes("text/html")) {
+        event.respondWith(
+            fetch(request).catch(() => {
+                return caches.match("/offline");
+            })
+        );
+        return;
+    }
+
+    // Static assets (images, icons, offline assets) — Network First, Cache Fallback
+    if (url.pathname.startsWith("/_next/static")) {
+        // Let browser handle Next.js chunk caching natively via HTTP headers
+        return;
+    }
+
+    // Other static files (icons, manifest)
+    if (url.pathname.match(/\.(png|svg|ico|json)$/)) {
         event.respondWith(
             caches.match(request).then((cached) => {
-                if (cached) return cached;
-                return fetch(request).then((response) => {
+                return cached || fetch(request).then((response) => {
                     if (response.ok) {
                         const clone = response.clone();
                         caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
@@ -67,25 +78,6 @@ self.addEventListener("fetch", (event) => {
         );
         return;
     }
-
-    // Pages — Network First with offline fallback
-    event.respondWith(
-        fetch(request)
-            .then((response) => {
-                // Cache successful page responses
-                if (response.ok) {
-                    const clone = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-                }
-                return response;
-            })
-            .catch(() => {
-                // Try cache, then offline page
-                return caches.match(request).then((cached) => {
-                    return cached || caches.match("/offline");
-                });
-            })
-    );
 });
 
 // ============================================
