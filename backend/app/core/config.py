@@ -74,9 +74,12 @@ class Settings(BaseSettings):
 
     # CORS - Orígenes permitidos
     ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000",  # Frontend local
-        "http://localhost:5173",  # Vite (alternativa)
-        "https://tec-360.tech",   # Web Production
+        "http://localhost:3000",      # Frontend local
+        "http://localhost:5173",      # Vite (alternativa)
+        "https://tec-360.tech",       # Web Production
+        "https://www.tec-360.tech",   # Web Production www
+        "http://157.137.224.103",     # OCI Rose Public IP (HTTP)
+        "https://157.137.224.103",    # OCI Rose Public IP (HTTPS)
     ]
     EXTRA_CORS_ORIGINS: str = os.getenv("EXTRA_CORS_ORIGINS", "")
 
