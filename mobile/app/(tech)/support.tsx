@@ -19,7 +19,7 @@ export default function TechSupportScreen() {
       return;
     }
     const whatsappText = `Hola, soy el técnico ${user?.full_name || ''} (${user?.phone || ''}).\n\n${message.trim()}`;
-    Linking.openURL(`https://wa.me/573001234567?text=${encodeURIComponent(whatsappText)}`);
+    Linking.openURL(`https://wa.me/573052156601?text=${encodeURIComponent(whatsappText)}`);
   };
 
   return (
@@ -34,7 +34,7 @@ export default function TechSupportScreen() {
 
       <Text style={styles.sectionTitle}>CANALES DE CONTACTO</Text>
 
-      <TouchableOpacity style={styles.channelCard} onPress={() => Linking.openURL('https://wa.me/573001234567')} activeOpacity={0.7}>
+      <TouchableOpacity style={styles.channelCard} onPress={() => Linking.openURL('https://wa.me/573052156601')} activeOpacity={0.7}>
         <View style={[styles.channelIcon, { backgroundColor: 'rgba(34,197,94,0.15)' }]}>
           <Ionicons name="logo-whatsapp" size={22} color="#22c55e" />
         </View>
@@ -56,7 +56,7 @@ export default function TechSupportScreen() {
         <Ionicons name="chevron-forward" size={18} color="#555872" />
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.channelCard} onPress={() => Linking.openURL('tel:+573001234567')} activeOpacity={0.7}>
+      <TouchableOpacity style={styles.channelCard} onPress={() => Linking.openURL('tel:+573052156601')} activeOpacity={0.7}>
         <View style={[styles.channelIcon, { backgroundColor: 'rgba(168,85,247,0.15)' }]}>
           <Ionicons name="call-outline" size={22} color="#a855f7" />
         </View>

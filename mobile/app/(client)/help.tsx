@@ -79,7 +79,7 @@ export default function HelpScreen() {
       <Text style={styles.sectionTitle}>¿NO ENCUENTRAS LO QUE BUSCAS?</Text>
       <TouchableOpacity
         style={styles.contactCard}
-        onPress={() => Linking.openURL('https://wa.me/573001234567?text=Hola,%20necesito%20ayuda%20con%20Tec360')}
+        onPress={() => Linking.openURL('https://wa.me/573052156601?text=Hola,%20necesito%20ayuda%20con%20Tec360')}
         activeOpacity={0.7}
       >
         <LinearGradient colors={['#22c55e', '#16a34a']} style={styles.contactGradient}>

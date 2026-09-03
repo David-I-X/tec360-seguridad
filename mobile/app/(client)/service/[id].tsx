@@ -555,7 +555,7 @@ export default function ServiceDetailScreen() {
         {/* Support Button */}
         <TouchableOpacity
           style={styles.supportBtn}
-          onPress={() => Linking.openURL('https://wa.me/573001234567?text=' + encodeURIComponent('Hola, necesito ayuda con mi servicio #' + id))}
+          onPress={() => Linking.openURL('https://wa.me/573052156601?text=' + encodeURIComponent('Hola, necesito ayuda con mi servicio #' + id))}
           activeOpacity={0.7}
         >
           <View style={styles.supportBtnInner}>

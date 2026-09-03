@@ -397,7 +397,7 @@ function ServiceDetailContent() {
 
                 {/* Support Button */}
                 <a
-                    href={`https://wa.me/573001234567?text=${encodeURIComponent(`Hola, necesito ayuda con mi servicio #${params.id}`)}`}
+                    href={`https://wa.me/573052156601?text=${encodeURIComponent(`Hola, necesito ayuda con mi servicio #${params.id}`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block"

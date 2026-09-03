@@ -10,7 +10,6 @@
 
     <!-- Web Server & API -->
     <entry key='web.port'>8082</entry>
-    <entry key='web.path'>/opt/traccar/modern</entry>
     <entry key='web.origin'>*</entry>
 
     <!-- Geocoder y Reverse Geocoding (OpenStreetMap Nominatim) -->

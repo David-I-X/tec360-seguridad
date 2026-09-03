@@ -587,7 +587,7 @@ export default function TechServiceScreen() {
         {/* Support Button */}
         <TouchableOpacity
           style={styles.supportBtn}
-          onPress={() => Linking.openURL('https://wa.me/573001234567?text=' + encodeURIComponent('Hola, soy técnico y necesito ayuda con el servicio #' + id))}
+          onPress={() => Linking.openURL('https://wa.me/573052156601?text=' + encodeURIComponent('Hola, soy técnico y necesito ayuda con el servicio #' + id))}
           activeOpacity={0.7}
         >
           <View style={styles.supportBtnInner}>

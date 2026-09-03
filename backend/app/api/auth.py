@@ -21,6 +21,18 @@ _otp_store: dict[str, dict] = {}
 OTP_EXPIRY_MINUTES = 5
 FIXED_OTP_CODE = "123456"
 
+import re
+
+def normalize_phone(phone: str) -> str:
+    """Normaliza un número celular a formato E.164 (+57...)"""
+    cleaned = re.sub(r"[^\d+]", "", phone.strip())
+    if cleaned.startswith("+57"):
+        return cleaned
+    if cleaned.startswith("57") and len(cleaned) == 12:
+        return f"+{cleaned}"
+    cleaned_digits = cleaned.lstrip("+")
+    return f"+57{cleaned_digits}"
+
 # --- SCHEMAS ---
 class OTPRequest(BaseModel):
     phone: str
@@ -42,38 +54,39 @@ class RefreshTokenRequest(BaseModel):
 @router.post("/request-otp")
 @limiter.limit("3/minute")
 async def request_otp(data: OTPRequest, request: Request):
+    phone_norm = normalize_phone(data.phone)
     if settings.SMS_ENABLED:
         # Real SMS mode: generate random code and send via Twilio
         from app.services.sms_service import sms_service
         code = str(random.randint(100000, 999999))
         expires = datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MINUTES)
-        _otp_store[data.phone] = {"code": code, "expires": expires}
+        _otp_store[phone_norm] = {"code": code, "expires": expires}
         
-        sent = await sms_service.send_otp(data.phone, code)
+        sent = await sms_service.send_otp(phone_norm, code)
         if not sent:
-            logger.error(f"Failed to send OTP to {data.phone}")
+            logger.error(f"Failed to send OTP to {phone_norm}")
             raise HTTPException(
                 status_code=500, 
                 detail="Error al enviar el código SMS. Intenta de nuevo."
             )
         
-        logger.info(f"OTP sent via SMS to {data.phone}")
+        logger.info(f"OTP sent via SMS to {phone_norm}")
         return {
             "success": True, 
             "message": "Código de verificación enviado por SMS",
-            "phone": data.phone, 
+            "phone": phone_norm, 
             "expires_in_minutes": OTP_EXPIRY_MINUTES
         }
     else:
         # Dev/free mode: fixed code, no SMS sent
         expires = datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MINUTES)
-        _otp_store[data.phone] = {"code": FIXED_OTP_CODE, "expires": expires}
+        _otp_store[phone_norm] = {"code": FIXED_OTP_CODE, "expires": expires}
         
-        logger.info(f"OTP (dev mode, fixed code) for {data.phone}")
+        logger.info(f"OTP (dev mode, fixed code) for {phone_norm}")
         return {
             "success": True, 
             "message": f"Código de verificación: {FIXED_OTP_CODE}",
-            "phone": data.phone, 
+            "phone": phone_norm, 
             "expires_in_minutes": OTP_EXPIRY_MINUTES
         }
 
@@ -81,24 +94,29 @@ async def request_otp(data: OTPRequest, request: Request):
 @router.post("/verify-otp")
 @limiter.limit("5/minute")
 async def verify_otp(data: OTPVerify, request: Request, session: Session = Depends(get_session)):
+    phone_norm = normalize_phone(data.phone)
     # Check OTP from store
-    stored = _otp_store.get(data.phone)
+    stored = _otp_store.get(phone_norm)
     
     if not stored:
         raise HTTPException(status_code=400, detail="No se ha solicitado un código para este número")
     
     if datetime.utcnow() > stored["expires"]:
-        del _otp_store[data.phone]
+        del _otp_store[phone_norm]
         raise HTTPException(status_code=400, detail="El código ha expirado. Solicita uno nuevo.")
     
     if data.code != stored["code"]:
         raise HTTPException(status_code=400, detail="Código inválido")
     
     # OTP verified — remove from store
-    del _otp_store[data.phone]
+    del _otp_store[phone_norm]
 
-    # Find or Create User
-    statement = select(User).where(User.phone == data.phone)
+    # Find or Create User (match either normalized or raw)
+    statement = select(User).where(
+        (User.phone == phone_norm) | 
+        (User.phone == data.phone) |
+        (User.phone == data.phone.replace("+57", ""))
+    )
     user = session.exec(statement).first()
     
     is_new_user = False
@@ -107,8 +125,8 @@ async def verify_otp(data: OTPVerify, request: Request, session: Session = Depen
         is_new_user = True
         # Create minimal user
         user = User(
-            email=f"{data.phone}@temp.com", # Temporary email
-            phone=data.phone,
+            email=f"{phone_norm.replace('+', '')}@temp.com", # Temporary email
+            phone=phone_norm,
             hashed_password="nopassword", # OTP users don't have passwords
             role="client",
             is_active=True

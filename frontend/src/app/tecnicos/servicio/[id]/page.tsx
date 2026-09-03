@@ -947,7 +947,7 @@ function TechnicianServiceContent() {
 
                     {/* Support Button */}
                     <a
-                        href={`https://wa.me/573001234567?text=${encodeURIComponent(`Hola, soy técnico y necesito ayuda con el servicio #${service.id}`)}`}
+                        href={`https://wa.me/573052156601?text=${encodeURIComponent(`Hola, soy técnico y necesito ayuda con el servicio #${service.id}`)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block mt-4"
