@@ -7,7 +7,7 @@ on:
       sql_command:
         description: 'SQL command to run on production DB'
         required: true
-        default: "SELECT phone, full_name, role FROM users WHERE phone LIKE '%3186264888%';"
+        default: "SELECT id, phone, full_name, role, is_active FROM users ORDER BY created_at DESC LIMIT 10;"
         type: string
 
 jobs:

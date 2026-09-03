@@ -37,7 +37,7 @@ jobs:
       - name: 🏗 Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: npm
           cache-dependency-path: mobile/package-lock.json
 
@@ -63,7 +63,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.type == 'build'
         working-directory: ./mobile
         env:
-          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || 'AIzaSyCu1NMEsMIIiY1LoOKlzrSovS-r4jTWWFY' }}
         run: |
           set -o pipefail
           echo "🔨 Iniciando build en EAS (esto toma ~25-30 min)..."
@@ -77,11 +77,11 @@ jobs:
           echo "📋 Obteniendo info del último build..."
           BUILD_JSON=$(eas build:list --platform android --status finished --limit 1 --json --non-interactive)
           
-          BUILD_URL=$(echo "$BUILD_JSON" | jq -r '.[0].artifacts.buildUrl')
-          BUILD_ID=$(echo "$BUILD_JSON" | jq -r '.[0].id')
-          BUILD_APP_VERSION=$(echo "$BUILD_JSON" | jq -r '.[0].appVersion // "unknown"')
-          BUILD_SDK_VERSION=$(echo "$BUILD_JSON" | jq -r '.[0].sdkVersion // "unknown"')
-          BUILD_CREATED=$(echo "$BUILD_JSON" | jq -r '.[0].createdAt // "unknown"')
+          BUILD_URL=$(echo "$BUILD_JSON" | jq -r 'if type=="array" then .[0].artifacts.buildUrl else (.builds[0].artifacts.buildUrl // .[0].artifacts.buildUrl) end')
+          BUILD_ID=$(echo "$BUILD_JSON" | jq -r 'if type=="array" then .[0].id else (.builds[0].id // .[0].id) end')
+          BUILD_APP_VERSION=$(echo "$BUILD_JSON" | jq -r 'if type=="array" then (.[0].appVersion // "unknown") else ((.builds[0].appVersion // .[0].appVersion) // "unknown") end')
+          BUILD_SDK_VERSION=$(echo "$BUILD_JSON" | jq -r 'if type=="array" then (.[0].sdkVersion // "unknown") else ((.builds[0].sdkVersion // .[0].sdkVersion) // "unknown") end')
+          BUILD_CREATED=$(echo "$BUILD_JSON" | jq -r 'if type=="array" then (.[0].createdAt // "unknown") else ((.builds[0].createdAt // .[0].createdAt) // "unknown") end')
           
           echo "══════════════════════════════════════════"
           echo "📦 EAS Build Info:"
@@ -143,7 +143,15 @@ jobs:
           
           echo "✅ APK y version.json listos para subir"
 
-      - name: 📤 Subir APK al repositorio
+      - name: 📦 Subir APK como artefacto de GitHub Actions
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.type == 'build'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tec360-seguridad-apk
+          path: frontend/public/app/tec360-seguridad-latest.apk
+          retention-days: 14
+
+      - name: 📤 Subir versión y APK al repositorio
         if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.type == 'build'
         run: |
           git config user.name "github-actions[bot]"
@@ -174,7 +182,10 @@ jobs:
           echo "📄 version.json en repo:"
           cat frontend/public/app/version.json
           
-          git add frontend/public/app/tec360-seguridad-latest.apk frontend/public/app/version.json
+          git add frontend/public/app/version.json
+          if [ -f "frontend/public/app/tec360-seguridad-latest.apk" ] && [ "$APK_SIZE" -lt 95000000 ]; then
+            git add frontend/public/app/tec360-seguridad-latest.apk
+          fi
           git commit -m "🤖 Auto-update APK from EAS build ${{ github.ref_name || 'manual' }}" || echo "No changes to commit"
           
           echo "📍 Nuevo commit: $(git log --oneline -1)"

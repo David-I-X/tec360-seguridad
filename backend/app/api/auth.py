@@ -1,15 +1,18 @@
+import logging
+import random
+import re
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlmodel import Session, select
-from app.core.database import get_session
-from app.models.user import User
+
 from app.core.auth_utils import create_access_token, create_refresh_token
 from app.core.config import settings
-from app.core.security import get_current_user
+from app.core.database import get_session
 from app.core.rate_limit import limiter
-from datetime import timedelta, datetime
-import random
-import logging
+from app.core.security import get_current_user
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +23,6 @@ _otp_store: dict[str, dict] = {}
 
 OTP_EXPIRY_MINUTES = 5
 FIXED_OTP_CODE = "123456"
-
-import re
 
 def normalize_phone(phone: str) -> str:
     """Normaliza un número celular a formato E.164 (+57...)"""

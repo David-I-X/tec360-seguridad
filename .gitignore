@@ -77,4 +77,8 @@ node_modules/
 
 # SSH Keys
 *.key
-*.key.pub 
+*.key.pub
+
+# Local media / screenshots
+TRACCAR/*.jpeg
+TRACCAR/*.jpg

@@ -62,8 +62,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Enable PostGIS extension
-        run: PGPASSWORD=test psql -h localhost -U test -d tec360_test -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+      - name: Wait for Postgres & Enable PostGIS extension
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          until pg_isready -h localhost -p 5432 -U test; do sleep 1; done
+          PGPASSWORD=test psql -h localhost -U test -d tec360_test -c "CREATE EXTENSION IF NOT EXISTS postgis;"
       - run: pip install -r requirements.txt
       - run: pytest tests/ -v --tb=short
 
@@ -114,7 +117,7 @@ jobs:
           CI: true
           BASE_URL: http://localhost:3000
           NEXT_PUBLIC_API_URL: http://localhost:8000/api
-          NEXT_PUBLIC_GOOGLE_MAPS_KEY: placeholder
+          NEXT_PUBLIC_GOOGLE_MAPS_KEY: AIzaSyCu1NMEsMIIiY1LoOKlzrSovS-r4jTWWFY
           NEXT_PUBLIC_VAPID_PUBLIC_KEY: placeholder
       - name: Upload test artifacts
         if: failure()
@@ -133,5 +136,5 @@ jobs:
       - run: |
           docker build \
             --build-arg NEXT_PUBLIC_API_URL=/api \
-            --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=placeholder \
+            --build-arg NEXT_PUBLIC_GOOGLE_MAPS_KEY=AIzaSyCu1NMEsMIIiY1LoOKlzrSovS-r4jTWWFY \
             -t tec360-frontend ./frontend
