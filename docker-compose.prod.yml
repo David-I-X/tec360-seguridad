@@ -57,6 +57,8 @@ services:
       - TRACCAR_URL=${TRACCAR_URL:-http://10.0.1.56:8082}
       - TRACCAR_USER=${TRACCAR_USER:-admin}
       - TRACCAR_PASSWORD=${TRACCAR_PASSWORD:-admin}
+      - SAS_BASE_URL=${SAS_BASE_URL:-http://10.0.0.173/api/v1}
+      - SAS_VERTICAL_API_KEY=${SAS_VERTICAL_API_KEY}
     volumes:
       - uploads_data:/opt/tec360-seguridad/uploads
     networks:
