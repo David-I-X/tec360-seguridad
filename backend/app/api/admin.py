@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -11,6 +12,9 @@ from app.core.security import require_roles
 from app.models.service import Service, ServiceStatus
 from app.models.technician import Technician, calculate_rank_points
 from app.models.user import User
+from app.services.sas_service import get_accounting_dashboard
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -351,12 +355,33 @@ async def platform_stats(
         count = session.exec(select(func.count()).select_from(select(Service).where(Service.status == s.value).subquery())).one()
         status_counts[s.value] = count
 
-    # Revenue — real SUM of estimated_price for completed services
-    revenue_result = session.exec(
+    # Gross volume of completed services
+    gross_volume_result = session.exec(
         select(func.coalesce(func.sum(Service.estimated_price), 0))
         .where(Service.status == "completed")
     ).one()
-    total_revenue = float(revenue_result)
+    gross_volume = float(gross_volume_result)
+
+    # Real Revenue connected to SaaS Vertical (Contabilidad)
+    # Under DIAN Concept 1222/2024, Tec360's real revenue is the platform commission,
+    # tracked directly in the SaaS Vertical accounting ledger.
+    real_revenue = gross_volume * 0.18  # Platform commission default (18%)
+    accounting_connected = False
+    month_income = 0.0
+    month_expenses = 0.0
+    month_net_profit = 0.0
+
+    try:
+        accounting = await get_accounting_dashboard()
+        if accounting and "month_income" in accounting:
+            month_income = float(accounting.get("month_income", 0) or 0)
+            month_expenses = float(accounting.get("month_expenses", 0) or 0)
+            month_net_profit = float(accounting.get("month_net_profit", 0) or 0)
+            if month_income > 0:
+                real_revenue = month_income
+            accounting_connected = True
+    except Exception as e:
+        logger.warning(f"Error fetching accounting dashboard for admin stats: {e}")
 
     # Recovery services
     recovery_total = session.exec(select(func.count()).select_from(
@@ -391,7 +416,12 @@ async def platform_stats(
             "completion_rate": f"{(completed / total_services * 100):.1f}%" if total_services > 0 else "0%"
         },
         "revenue": {
-            "total": total_revenue,
+            "total": real_revenue,
+            "gross_volume": gross_volume,
+            "month_income": month_income,
+            "month_expenses": month_expenses,
+            "month_net_profit": month_net_profit,
+            "accounting_connected": accounting_connected,
             "average_ticket": float(avg_ticket_result),
             "currency": "COP"
         },

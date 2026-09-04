@@ -20,6 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.add_column('users', sa.Column('sas_contact_id', sqlmodel.sql.sqltypes.AutoString(), nullable=True))
+    op.execute("ALTER TYPE servicetype ADD VALUE IF NOT EXISTS 'vehicle_recovery'")
 
 
 def downgrade() -> None:

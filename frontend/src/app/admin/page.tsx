@@ -21,6 +21,11 @@ interface AdminStats {
         total: number
         average_ticket: number
         currency: string
+        gross_volume?: number
+        month_income?: number
+        month_expenses?: number
+        month_net_profit?: number
+        accounting_connected?: boolean
     }
     recovery: {
         total: number
@@ -129,18 +134,40 @@ export default function AdminOverview() {
                 {/* Revenue */}
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
-                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Ingresos Reales</p>
+                        <div>
+                            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Ingresos Reales</p>
+                            {m.revenue.accounting_connected && (
+                                <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    SaaS Contabilidad & DIAN
+                                </span>
+                            )}
+                        </div>
                         <span className="text-amber-500 bg-amber-500/10 p-2 rounded-lg"><DollarSign className="w-5 h-5" /></span>
                     </div>
                     <div className="flex items-baseline gap-2 mb-4">
                         <h2 className="text-3xl font-bold">${m.revenue.total.toLocaleString("es-CO")}</h2>
                         <span className="text-xs font-semibold text-slate-400">COP</span>
                     </div>
-                    <div className="flex items-center gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
                         <div>
                             <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Ticket Promedio</p>
                             <p className="text-sm font-semibold text-emerald-500">${m.revenue.average_ticket.toLocaleString("es-CO", { maximumFractionDigits: 0 })}</p>
                         </div>
+                        {m.revenue.gross_volume !== undefined && m.revenue.gross_volume > 0 && (
+                            <div className="text-right">
+                                <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Vol. Servicios</p>
+                                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">${m.revenue.gross_volume.toLocaleString("es-CO")}</p>
+                            </div>
+                        )}
+                    </div>
+                    <div className="mt-3 pt-2 border-t border-slate-50 dark:border-slate-800/60">
+                        <a
+                            href="/admin/contabilidad"
+                            className="text-xs text-primary hover:text-primary/80 font-medium inline-flex items-center gap-1 transition-colors"
+                        >
+                            Ver Libro Contable y DIAN <ChevronRight className="w-3.5 h-3.5" />
+                        </a>
                     </div>
                 </div>
 
