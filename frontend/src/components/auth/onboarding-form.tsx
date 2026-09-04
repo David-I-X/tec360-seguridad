@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -34,6 +34,7 @@ type OnboardingValues = z.infer<typeof onboardingSchema>
 
 export function OnboardingForm() {
     const router = useRouter()
+    const pathname = usePathname()
     const { completeOnboarding } = useAuth()
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState("")
@@ -60,8 +61,10 @@ export function OnboardingForm() {
             // Redirigir según el tipo de usuario seleccionado
             if (data.user_type === "technician") {
                 router.push("/tecnicos/dashboard")
-            } else {
-                router.push("/servicios")
+            } else if (pathname !== "/servicios/nuevo") {
+                // Si ya estamos en /servicios/nuevo, no redirigir:
+                // React re-renderiza automáticamente el ServiceRequestForm
+                router.push("/servicios/nuevo")
             }
         } catch (err: any) {
             console.error(err)

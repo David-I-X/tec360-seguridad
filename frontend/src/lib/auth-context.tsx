@@ -320,11 +320,17 @@ export function PublicOnlyRoute({
         router.push(redirectTo)
       } else {
         // Role-aware redirect
-        const destination = user?.role === "technician" ? "/tecnicos/dashboard" : "/servicios"
-        router.push(destination)
+        if (user?.role === "technician" || user?.role === "reaction_team") {
+          router.push("/tecnicos/dashboard")
+        } else if (!user?.full_name) {
+          // New client without profile — go straight to service creation (includes onboarding)
+          router.push("/servicios/nuevo")
+        } else {
+          router.push("/servicios")
+        }
       }
     }
-  }, [isAuthenticated, isLoading, redirectTo, router, user?.role])
+  }, [isAuthenticated, isLoading, redirectTo, router, user?.role, user?.full_name])
 
   // Mostrar loading mientras carga
   if (isLoading) {
