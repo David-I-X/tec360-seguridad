@@ -81,4 +81,7 @@ node_modules/
 
 # Local media / screenshots
 TRACCAR/*.jpeg
-TRACCAR/*.jpg
+TRACCAR/*.jpg
+
+# Local scripts
+*.bat

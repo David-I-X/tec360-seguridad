@@ -2,17 +2,20 @@
 Servicio de Pagos — Tec360 Seguridad
 Lógica de negocio para pagos en efectivo y digitales
 """
+import logging
 from datetime import datetime
-from uuid import UUID
 from typing import Optional
+from uuid import UUID
 
-from sqlmodel import Session, select, func
 from fastapi import HTTPException
+from sqlmodel import Session, func, select
 
-from app.models.payment import Payment, PaymentStatus, PaymentMethod
+from app.models.payment import Payment, PaymentMethod, PaymentStatus
 from app.models.service import Service
 from app.models.user import User
-from app.schemas.payment import CashPaymentConfirm, PaymentResponse, PaymentListResponse
+from app.schemas.payment import CashPaymentConfirm, PaymentListResponse, PaymentResponse
+
+logger = logging.getLogger(__name__)
 
 
 class PaymentService:
@@ -71,15 +74,25 @@ class PaymentService:
 
         # Trigger DIAN invoice creation asynchronously
         import asyncio
-        from app.services.sas_service import create_dian_invoice
+        from app.services.sas_service import create_dian_invoice, sync_contact_to_sas
         from app.core.database import engine
         from sqlmodel import Session as SqlSession
         
         async def _trigger_invoice(uid, svc, pmt):
-            with SqlSession(engine) as session_bg:
-                client_user = session_bg.get(User, uid)
-                if client_user and client_user.sas_contact_id:
-                    await create_dian_invoice(client_user.sas_contact_id, svc, pmt)
+            try:
+                with SqlSession(engine) as session_bg:
+                    client_user = session_bg.get(User, uid)
+                    if client_user:
+                        if not client_user.sas_contact_id:
+                            sas_id = await sync_contact_to_sas(client_user)
+                            if sas_id:
+                                client_user.sas_contact_id = str(sas_id)
+                                session_bg.add(client_user)
+                                session_bg.commit()
+                        if client_user.sas_contact_id:
+                            await create_dian_invoice(client_user.sas_contact_id, svc, pmt)
+            except Exception as e:
+                logger.error(f"Error in background DIAN invoice trigger: {e}")
         
         asyncio.create_task(_trigger_invoice(service.client_id, service, payment))
 
