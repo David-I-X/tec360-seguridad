@@ -72,29 +72,72 @@ class PaymentService:
         session.commit()
         session.refresh(payment)
 
-        # Trigger DIAN invoice creation asynchronously
+        # Trigger DIAN invoices creation asynchronously:
+        # Factura A: Al Cliente Final (mandate_service, auto_accounting=False)
+        # Factura B: Al Técnico por Comisión (platform_commission, auto_accounting=True)
         import asyncio
         from app.services.sas_service import create_dian_invoice, sync_contact_to_sas
         from app.core.database import engine
         from sqlmodel import Session as SqlSession
         
-        async def _trigger_invoice(uid, svc, pmt):
+        async def _trigger_invoices(client_uid, tech_uid, svc, pmt):
             try:
                 with SqlSession(engine) as session_bg:
-                    client_user = session_bg.get(User, uid)
+                    # 1. Factura A: Cliente Final
+                    client_user = session_bg.get(User, client_uid)
                     if client_user:
                         if not client_user.sas_contact_id:
-                            sas_id = await sync_contact_to_sas(client_user)
-                            if sas_id:
-                                client_user.sas_contact_id = str(sas_id)
+                            c_sas_id = await sync_contact_to_sas(client_user)
+                            if c_sas_id:
+                                client_user.sas_contact_id = str(c_sas_id)
                                 session_bg.add(client_user)
                                 session_bg.commit()
                         if client_user.sas_contact_id:
-                            await create_dian_invoice(client_user.sas_contact_id, svc, pmt)
+                            sku = svc.service_type or "servicio_seguridad"
+                            desc = svc.title or f"Servicio: {sku}"
+                            items_client = [{
+                                "sku": sku,
+                                "description": desc,
+                                "quantity": 1,
+                                "unit_price": pmt.amount,
+                                "tax_rate": 0.19,
+                            }]
+                            await create_dian_invoice(
+                                sas_contact_id=client_user.sas_contact_id,
+                                items=items_client,
+                                auto_accounting=False,
+                                invoice_type="mandate_service",
+                            )
+
+                    # 2. Factura B: Comisión de Intermediación al Técnico
+                    if tech_uid:
+                        tech_user = session_bg.get(User, tech_uid)
+                        if tech_user:
+                            if not tech_user.sas_contact_id:
+                                t_sas_id = await sync_contact_to_sas(tech_user)
+                                if t_sas_id:
+                                    tech_user.sas_contact_id = str(t_sas_id)
+                                    session_bg.add(tech_user)
+                                    session_bg.commit()
+                            if tech_user.sas_contact_id:
+                                commission_amount = round(pmt.amount * 0.18, 2)
+                                items_commission = [{
+                                    "sku": "platform_fee",
+                                    "description": f"Comisión de intermediación por servicio {svc.title or sku} #{str(svc.id)[:8]}",
+                                    "quantity": 1,
+                                    "unit_price": commission_amount,
+                                    "tax_rate": 0.19,
+                                }]
+                                await create_dian_invoice(
+                                    sas_contact_id=tech_user.sas_contact_id,
+                                    items=items_commission,
+                                    auto_accounting=True,
+                                    invoice_type="platform_commission",
+                                )
             except Exception as e:
                 logger.error(f"Error in background DIAN invoice trigger: {e}")
         
-        asyncio.create_task(_trigger_invoice(service.client_id, service, payment))
+        asyncio.create_task(_trigger_invoices(service.client_id, service.technician_id, service, payment))
 
         return self._to_response(payment, session)
 

@@ -23,6 +23,7 @@ from app.api import reputation as reputation_router
 from app.api import chat as chat_router
 from app.api import verification as verification_router
 from app.api import webhooks as webhooks_router
+from app.api import admin_vertical as admin_vertical_router
 import os
 import logging
 import time
@@ -193,6 +194,9 @@ app.include_router(verification_router.router)
 
 # External Webhooks (SaaS Vertical etc.)
 app.include_router(webhooks_router.router, prefix="/api/webhooks", tags=["Webhooks"])
+
+# Admin Vertical SaaS Integration (Accounting & DIAN)
+app.include_router(admin_vertical_router.router)
 
 # Simulation (development only — excluded in production)
 if settings.ENVIRONMENT != "production":

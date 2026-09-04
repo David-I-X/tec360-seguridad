@@ -105,9 +105,18 @@ export default function FinanzasPage() {
 
     return (
         <div className="space-y-8">
-            <div>
-                <h1 className="text-2xl font-bold">Finanzas</h1>
-                <p className="text-slate-500 text-sm mt-1">Control de pagos y recaudos de la operación</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold">Finanzas</h1>
+                    <p className="text-slate-500 text-sm mt-1">Control de pagos y recaudos de la operación</p>
+                </div>
+                <a
+                    href="/admin/contabilidad"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+                >
+                    <DollarSign className="w-4 h-4" />
+                    Contabilidad & Facturación DIAN
+                </a>
             </div>
 
             {/* Metrics */}

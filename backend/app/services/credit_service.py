@@ -7,19 +7,23 @@ Reglas:
 - Saldo mínimo = comisión de 1 servicio para poder aceptar
 - Saldo 0 → técnico bloqueado hasta recargar
 """
-from uuid import UUID
+import logging
 from datetime import datetime
 from typing import Optional
-from sqlmodel import Session, select
+from uuid import UUID
+
 from fastapi import HTTPException, status
+from sqlmodel import Session, select
 
 from app.models.credit import (
-    TechnicianCredit,
-    CreditTransaction,
-    CreditTransactionType,
     COMMISSION_RATE,
     FREE_SERVICES_LIMIT,
+    CreditTransaction,
+    CreditTransactionType,
+    TechnicianCredit,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class CreditService:
@@ -110,6 +114,29 @@ class CreditService:
         session.add(txn)
         session.commit()
         session.refresh(txn)
+
+        # Trigger cash flow entry in SaaS Vertical asynchronously (DIAN Concept 1061/2020)
+        import asyncio
+        from app.services.sas_service import record_recharge_income
+        from app.core.database import engine
+        from app.models.user import User
+        from sqlmodel import Session as SqlSession
+
+        async def _trigger_recharge_cashflow(tech_id_str, recharge_amount):
+            try:
+                with SqlSession(engine) as session_bg:
+                    t_user = session_bg.get(User, UUID(tech_id_str))
+                    t_name = t_user.full_name if t_user and t_user.full_name else f"ID #{tech_id_str[:8]}"
+                    await record_recharge_income(
+                        amount=recharge_amount,
+                        technician_name=t_name,
+                        technician_id=tech_id_str,
+                    )
+            except Exception as e:
+                logger.error(f"Error recording recharge cashflow in SaaS: {e}")
+
+        asyncio.create_task(_trigger_recharge_cashflow(technician_id, amount))
+
         return txn
 
     async def can_accept_service(

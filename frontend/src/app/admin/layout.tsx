@@ -3,7 +3,7 @@
 import { ReactNode, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Shield, LayoutDashboard, Users, Wrench, Settings, LogOut, Search, Bell, Menu, X, DollarSign } from "lucide-react"
+import { Shield, LayoutDashboard, Users, Wrench, Settings, LogOut, Search, Bell, Menu, X, DollarSign, ReceiptText } from "lucide-react"
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
     const pathname = usePathname()
@@ -14,6 +14,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         { href: "/admin/usuarios", icon: Users, label: "Usuarios" },
         { href: "/admin/servicios", icon: Wrench, label: "Servicios" },
         { href: "/admin/finanzas", icon: DollarSign, label: "Finanzas" },
+        { href: "/admin/contabilidad", icon: ReceiptText, label: "Contabilidad & DIAN" },
         { href: "/configuracion", icon: Settings, label: "Configuración" },
     ]
 
