@@ -2,8 +2,11 @@
 File upload endpoints for avatars and service photos.
 Path: backend/app/api/uploads.py
 """
+import io
+import logging
 import os
 import uuid
+from PIL import Image, ImageOps
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlmodel import Session, select
 from app.core.database import get_session
@@ -11,6 +14,8 @@ from app.core.security import get_current_user
 from app.models.extras import ServiceImage
 from app.models.user import User
 from app.models.service import Service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
 
@@ -33,6 +38,46 @@ except Exception:
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB (phone cameras can exceed 5MB)
+DEFAULT_MAX_DIMENSION = 1920
+DEFAULT_JPEG_QUALITY = 82
+
+
+def optimize_and_save_image(
+    content: bytes,
+    target_filepath: str,
+    max_dimension: int = DEFAULT_MAX_DIMENSION,
+    quality: int = DEFAULT_JPEG_QUALITY,
+) -> None:
+    """
+    Optimizes and saves an uploaded image:
+    1. Normalizes EXIF rotation (so mobile photos aren't flipped sideways)
+    2. Resizes if dimension > max_dimension while maintaining aspect ratio
+    3. Converts RGBA to RGB if saving as JPEG
+    4. Compresses with optimal quality (reducing 8MB to ~250-400KB)
+    """
+    try:
+        with Image.open(io.BytesIO(content)) as img:
+            img = ImageOps.exif_transpose(img)
+            
+            if max(img.size) > max_dimension:
+                img.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
+            
+            ext = os.path.splitext(target_filepath)[1].lower()
+            if ext in [".jpg", ".jpeg"]:
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGB")
+                img.save(target_filepath, "JPEG", quality=quality, optimize=True)
+            elif ext == ".webp":
+                img.save(target_filepath, "WEBP", quality=quality, method=4)
+            elif ext == ".png":
+                img.save(target_filepath, "PNG", optimize=True)
+            else:
+                with open(target_filepath, "wb") as f:
+                    f.write(content)
+    except Exception as e:
+        logger.warning(f"PIL image optimization failed, falling back to raw save: {e}")
+        with open(target_filepath, "wb") as f:
+            f.write(content)
 
 
 def _validate_image(file: UploadFile):
@@ -61,8 +106,7 @@ async def upload_avatar(
     filename = f"{current_user['id']}_{uuid.uuid4().hex[:8]}{ext}"
     filepath = os.path.join(AVATAR_DIR, filename)
     
-    with open(filepath, "wb") as f:
-        f.write(content)
+    optimize_and_save_image(content, filepath, max_dimension=800, quality=85)
     
     avatar_url = f"/uploads/avatars/{filename}"
     
@@ -107,8 +151,7 @@ async def upload_service_photo(
     filename = f"{service_id}_{image_type}_{uuid.uuid4().hex[:8]}{ext}"
     filepath = os.path.join(SERVICE_PHOTO_DIR, filename)
     
-    with open(filepath, "wb") as f:
-        f.write(content)
+    optimize_and_save_image(content, filepath, max_dimension=1920, quality=82)
     
     image_url = f"/uploads/service-photos/{filename}"
     
@@ -182,8 +225,7 @@ async def upload_vehicle_photo(
     filename = f"{service_id}_vehicle_{uuid.uuid4().hex[:8]}{ext}"
     filepath = os.path.join(VEHICLE_PHOTO_DIR, filename)
     
-    with open(filepath, "wb") as f:
-        f.write(content)
+    optimize_and_save_image(content, filepath, max_dimension=1920, quality=82)
     
     image_url = f"/uploads/vehicle-photos/{filename}"
     
@@ -216,8 +258,7 @@ async def upload_portfolio_photo(
     filename = f"{current_user['id']}_portfolio_{uuid.uuid4().hex[:8]}{ext}"
     filepath = os.path.join(PORTFOLIO_PHOTO_DIR, filename)
     
-    with open(filepath, "wb") as f:
-        f.write(content)
+    optimize_and_save_image(content, filepath, max_dimension=1920, quality=82)
         
     url = f"/uploads/portfolio-photos/{filename}"
     
