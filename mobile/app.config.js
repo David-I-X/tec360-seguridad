@@ -1,4 +1,4 @@
-const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || "AIzaSyCu1NMEsMIIiY1LoOKlzrSovS-r4jTWWFY";
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || "AIzaSyCu1NMEsMIIiY1LoOKlzrSovS-r4jTWWFY";
 
 export default {
   expo: {

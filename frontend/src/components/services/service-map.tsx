@@ -17,6 +17,8 @@ interface ServiceMapProps {
     technicianLng?: number
 }
 
+const libraries: ("places")[] = ["places"]
+
 // Clean map styles — light theme
 const mapStyleLight: google.maps.MapTypeStyle[] = [
     { featureType: "poi", stylers: [{ visibility: "off" }] },
@@ -134,6 +136,7 @@ function useSmoothMarkerPosition(
 export default function ServiceMap({ lat, lng, address, technicianLat, technicianLng }: ServiceMapProps) {
     const { isLoaded, loadError } = useLoadScript({
         googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "",
+        libraries,
     })
 
     const mapRef = useRef<google.maps.Map | null>(null)
@@ -265,7 +268,7 @@ export default function ServiceMap({ lat, lng, address, technicianLat, technicia
         <div className="relative">
             <GoogleMap
                 mapContainerClassName="w-full h-[350px] rounded-xl"
-                center={!smoothTechPos ? { lat, lng } : undefined}
+                center={{ lat: lat || 6.2442, lng: lng || -75.5636 }}
                 zoom={15}
                 onLoad={onMapLoad}
                 options={{

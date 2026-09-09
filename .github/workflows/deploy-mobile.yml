@@ -61,8 +61,6 @@ jobs:
         id: build
         if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.type == 'build'
         working-directory: ./mobile
-        env:
-          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY || 'AIzaSyCu1NMEsMIIiY1LoOKlzrSovS-r4jTWWFY' }}
         run: |
           set -o pipefail
           echo "🔨 Iniciando build en EAS (esto toma ~25-30 min)..."

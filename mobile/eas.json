@@ -8,25 +8,17 @@
       "developmentClient": true,
       "distribution": "internal",
       "channel": "development",
-      "env": {
-        "GOOGLE_MAPS_API_KEY": "AIzaSyCu1NMEsMIIiY1LoOKlzrSovS-r4jTWWFY"
-      }
+      "environment": "development"
     },
     "preview": {
       "distribution": "internal",
       "channel": "preview",
-      "env": {
-        "GOOGLE_MAPS_API_KEY": "AIzaSyCu1NMEsMIIiY1LoOKlzrSovS-r4jTWWFY",
-        "EXPO_PUBLIC_API_URL": "https://tec-360.tech/api"
-      }
+      "environment": "preview"
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
-      "env": {
-        "GOOGLE_MAPS_API_KEY": "AIzaSyCu1NMEsMIIiY1LoOKlzrSovS-r4jTWWFY",
-        "EXPO_PUBLIC_API_URL": "https://tec-360.tech/api"
-      }
+      "environment": "production"
     }
   },
   "submit": {
