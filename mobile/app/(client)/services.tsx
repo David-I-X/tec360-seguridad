@@ -343,8 +343,8 @@ export default function ServicesScreen() {
         /* MAP VIEW */
         <View style={styles.mapViewContainer}>
           <MapView
-            provider={PROVIDER_GOOGLE}
-            style={StyleSheet.absoluteFillObject}
+            provider={Platform.OS === 'android' ? undefined : PROVIDER_GOOGLE}
+            style={styles.fullscreenMap}
             initialRegion={initialMapRegion}
             customMapStyle={darkMapStyle}
           >
@@ -688,20 +688,33 @@ export default function ServicesScreen() {
 }
 
 const darkMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
+  { elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
   { elementType: 'labels.text.stroke', stylers: [{ color: '#0f172a' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#334155' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#312e81' }] },
-  { featureType: 'water', stylers: [{ color: '#020617' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#cbd5e1' }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#f8fafc' }] },
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#334155' }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#1e293b' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#4f46e5' }] },
+  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#3730a3' }] },
+  { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#c7d2fe' }] },
   { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'landscape', stylers: [{ color: '#0b1329' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0369a1' }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#7dd3fc' }] },
+  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
 ];
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg, paddingTop: 54 },
+  fullscreenMap: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
   centered: { flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' },
   loadingText: { color: COLORS.textSecondary, marginTop: 12, fontSize: FONTS.sizes.sm },
 

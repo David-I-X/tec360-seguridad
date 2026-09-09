@@ -348,7 +348,7 @@ export default function TechServiceScreen() {
       {/* Map */}
       <MapView
         ref={mapRef}
-        provider={PROVIDER_GOOGLE}
+        provider={Platform.OS === 'android' ? undefined : PROVIDER_GOOGLE}
         style={styles.map}
         initialRegion={getMapRegion()}
         customMapStyle={darkMapStyle}

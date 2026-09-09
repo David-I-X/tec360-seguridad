@@ -169,6 +169,7 @@ app.include_router(images.router)
 app.include_router(uploads.router)
 app.include_router(users.router)
 app.include_router(websocket_router.router)
+app.include_router(websocket_router.router, prefix="/api")
 
 app.include_router(location_router.router)
 
