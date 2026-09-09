@@ -15,6 +15,7 @@ interface ServiceMapProps {
     address?: string
     technicianLat?: number
     technicianLng?: number
+    className?: string
 }
 
 const libraries: ("places")[] = ["places"]
@@ -133,7 +134,7 @@ function useSmoothMarkerPosition(
 // ============================================================
 // Main ServiceMap component
 // ============================================================
-export default function ServiceMap({ lat, lng, address, technicianLat, technicianLng }: ServiceMapProps) {
+export default function ServiceMap({ lat, lng, address, technicianLat, technicianLng, className }: ServiceMapProps) {
     const { isLoaded, loadError } = useLoadScript({
         googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "",
         libraries,
@@ -236,7 +237,7 @@ export default function ServiceMap({ lat, lng, address, technicianLat, technicia
     // ============================================================
     if (loadError) {
         return (
-            <div className="h-[350px] w-full flex flex-col items-center justify-center bg-destructive/5 rounded-xl gap-2">
+            <div className={className || "h-[350px] w-full flex flex-col items-center justify-center bg-destructive/5 rounded-xl gap-2"}>
                 <MapPin className="h-8 w-8 text-destructive" />
                 <p className="text-destructive text-sm font-medium">Error cargando Google Maps</p>
                 <p className="text-xs text-muted-foreground">Verifica tu conexión a internet</p>
@@ -246,7 +247,7 @@ export default function ServiceMap({ lat, lng, address, technicianLat, technicia
 
     if (!isLoaded) {
         return (
-            <div className="h-[350px] w-full flex flex-col items-center justify-center bg-muted/10 rounded-xl gap-3">
+            <div className={className || "h-[350px] w-full flex flex-col items-center justify-center bg-muted/10 rounded-xl gap-3"}>
                 <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center">
                     <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
                 </div>
@@ -257,7 +258,7 @@ export default function ServiceMap({ lat, lng, address, technicianLat, technicia
 
     if (lat === 0 && lng === 0) {
         return (
-            <div className="h-[350px] w-full flex flex-col items-center justify-center bg-muted/10 rounded-xl gap-2">
+            <div className={className || "h-[350px] w-full flex flex-col items-center justify-center bg-muted/10 rounded-xl gap-2"}>
                 <MapPin className="h-8 w-8 text-muted-foreground/50" />
                 <span className="text-sm text-muted-foreground">Ubicación no disponible</span>
             </div>
@@ -265,9 +266,9 @@ export default function ServiceMap({ lat, lng, address, technicianLat, technicia
     }
 
     return (
-        <div className="relative">
+        <div className={`relative ${className ? "w-full h-full" : ""}`}>
             <GoogleMap
-                mapContainerClassName="w-full h-[350px] rounded-xl"
+                mapContainerClassName={className || "w-full h-[350px] rounded-xl"}
                 center={{ lat: lat || 6.2442, lng: lng || -75.5636 }}
                 zoom={15}
                 onLoad={onMapLoad}
