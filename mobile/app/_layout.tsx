@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
@@ -46,17 +45,15 @@ function NotificationSetup() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider value={DarkTheme}>
-      <AuthProvider>
-        <NotificationSetup />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(client)" />
-          <Stack.Screen name="(tech)" />
-        </Stack>
-      </AuthProvider>
+    <AuthProvider>
+      <NotificationSetup />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(client)" />
+        <Stack.Screen name="(tech)" />
+      </Stack>
       <StatusBar style="light" />
-    </ThemeProvider>
+    </AuthProvider>
   );
 }
