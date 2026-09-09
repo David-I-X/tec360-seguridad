@@ -4,56 +4,63 @@ import { Button } from "@/components/ui/button"
 import {
   Shield, ArrowRight, CheckCircle, Zap, Star,
   Car, Bike, Truck, Lock, Unlock, AlertTriangle,
-  Radio, MapPin
+  Radio, MapPin, Activity, ShieldCheck, Clock, Award, Signal
 } from "lucide-react"
 import Link from "next/link"
 import { motion, useScroll, useTransform, useInView, AnimatePresence } from "framer-motion"
 import { useRef, useEffect, useState, useMemo } from "react"
 
-/* ─── High-Precision RAF Counter ──────────────────── */
-function useCounter(target: number, duration = 1800) {
-  const [count, setCount] = useState(0)
-  const [started, setStarted] = useState(false)
-
-  useEffect(() => {
-    if (!started) return
-    let startTimestamp: number | null = null
-    let rafId: number
-
-    const step = (timestamp: number) => {
-      if (!startTimestamp) startTimestamp = timestamp
-      const progress = Math.min((timestamp - startTimestamp) / duration, 1)
-      const current = progress * target
-      setCount(target % 1 === 0 ? Math.floor(current) : Number(current.toFixed(1)))
-
-      if (progress < 1) {
-        rafId = requestAnimationFrame(step)
-      } else {
-        setCount(target)
-      }
-    }
-
-    rafId = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(rafId)
-  }, [started, target, duration])
-
-  return { count, start: () => setStarted(true) }
-}
-
-/* ─── Background Cyber/Glass Effects ───────────────── */
+/* ─── Background Cyber/Glass Effects with Subtle Grid & Light Glints ─ */
 function HeroBg() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+      {/* Precision Blueprint Grid (Delicate and crisp in both Light & Dark mode) */}
       <div
-        className="absolute inset-0 opacity-[0.03] dark:opacity-[0.14]"
+        className="absolute inset-0 opacity-100"
         style={{
           backgroundImage:
-            "linear-gradient(to right, rgba(139,92,246,0.3) 1px, transparent 1px), linear-gradient(to bottom, rgba(139,92,246,0.3) 1px, transparent 1px)",
-          backgroundSize: "48px 48px",
+            "linear-gradient(to right, rgba(99, 102, 241, 0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(99, 102, 241, 0.08) 1px, transparent 1px)",
+          backgroundSize: "44px 44px",
         }}
       />
-      <div className="absolute -top-32 right-[5%] w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(139,92,246,0.12)_0%,rgba(59,130,246,0.05)_40%,transparent_70%)] blur-[90px]" />
-      <div className="absolute top-[35%] -left-[10%] w-[500px] h-[500px] bg-[radial-gradient(circle,rgba(59,130,246,0.08)_0%,rgba(139,92,246,0.03)_40%,transparent_70%)] blur-[100px]" />
+      {/* Subtle Dot Matrix Accent at Intersections */}
+      <div
+        className="absolute inset-0 opacity-45 dark:opacity-20"
+        style={{
+          backgroundImage: "radial-gradient(circle, rgba(139, 92, 246, 0.3) 1px, transparent 1px)",
+          backgroundSize: "88px 88px",
+        }}
+      />
+
+      {/* Ambient Glowing Flares (Ethereal light washes) */}
+      <div className="absolute -top-32 right-[5%] w-[680px] h-[680px] bg-[radial-gradient(circle_at_center,rgba(139,92,246,0.14)_0%,rgba(59,130,246,0.06)_40%,transparent_70%)] blur-[95px]" />
+      <div className="absolute top-[28%] -left-[10%] w-[580px] h-[580px] bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.12)_0%,rgba(139,92,246,0.05)_40%,transparent_70%)] blur-[100px]" />
+      <div className="absolute bottom-6 right-[25%] w-[480px] h-[480px] bg-[radial-gradient(circle_at_center,rgba(139,92,246,0.08)_0%,transparent_60%)] blur-[80px]" />
+
+      {/* Subtle Breathing Light Glints (Destellos de luz sutiles en el fondo) */}
+      <div className="absolute top-[16%] left-[22%] w-3 h-3">
+        <span className="absolute inset-0 rounded-full bg-violet-400/50 blur-[1px] animate-ping opacity-60" />
+        <span className="absolute top-1/2 left-0 right-0 h-px bg-violet-500/70 -translate-y-1/2" />
+        <span className="absolute left-1/2 top-0 bottom-0 w-px bg-violet-500/70 -translate-x-1/2" />
+      </div>
+
+      <div className="absolute top-[32%] right-[16%] w-3 h-3">
+        <span className="absolute inset-0 rounded-full bg-blue-400/50 blur-[1px] animate-ping opacity-50" style={{ animationDelay: "1.2s" }} />
+        <span className="absolute top-1/2 left-0 right-0 h-px bg-blue-500/70 -translate-y-1/2" />
+        <span className="absolute left-1/2 top-0 bottom-0 w-px bg-blue-500/70 -translate-x-1/2" />
+      </div>
+
+      <div className="absolute top-[62%] left-[10%] w-2.5 h-2.5">
+        <span className="absolute inset-0 rounded-full bg-violet-400/40 blur-[1px] animate-ping opacity-50" style={{ animationDelay: "0.6s" }} />
+        <span className="absolute top-1/2 left-0 right-0 h-px bg-violet-500/60 -translate-y-1/2" />
+        <span className="absolute left-1/2 top-0 bottom-0 w-px bg-violet-500/60 -translate-x-1/2" />
+      </div>
+
+      <div className="absolute top-[78%] right-[32%] w-2.5 h-2.5">
+        <span className="absolute inset-0 rounded-full bg-cyan-400/50 blur-[1px] animate-ping opacity-60" style={{ animationDelay: "1.8s" }} />
+        <span className="absolute top-1/2 left-0 right-0 h-px bg-cyan-500/70 -translate-y-1/2" />
+        <span className="absolute left-1/2 top-0 bottom-0 w-px bg-cyan-500/70 -translate-x-1/2" />
+      </div>
     </div>
   )
 }
@@ -93,7 +100,6 @@ const VEHICLES: VehicleProfile[] = [
     category: "SUV",
     sats: "16 Satélites",
     streetName: "AV. EL POBLADO",
-    // Waypoints navigate the open right/bottom area - 100% visible
     waypoints: [
       { x: 60, y: 440 },
       { x: 220, y: 440 },
@@ -211,7 +217,6 @@ function InteractiveMapTelemetryHUD() {
       lastTime = currentTime
 
       if (!isEngineCutRef.current && !isSwitchingCity) {
-        // Continuous smooth movement: ~13s to traverse entire route
         progressRef.current += dt * 0.075
         if (progressRef.current >= 1) {
           progressRef.current = 0.01
@@ -230,7 +235,7 @@ function InteractiveMapTelemetryHUD() {
     return () => cancelAnimationFrame(rafId)
   }, [v.waypoints, isSwitchingCity])
 
-  // Realistic speed readout updater (every 700ms, decoupled from 60fps movement)
+  // Realistic speed readout updater (every 700ms)
   useEffect(() => {
     if (isEngineCut) {
       setSpeed(0)
@@ -246,7 +251,6 @@ function InteractiveMapTelemetryHUD() {
     return () => clearInterval(interval)
   }, [isEngineCut, selectedIdx])
 
-  // Vehicle change handler with transition
   const handleSelectVehicle = (idx: number) => {
     if (idx === selectedIdx) return
     setIsSwitchingCity(true)
@@ -287,20 +291,14 @@ function InteractiveMapTelemetryHUD() {
             </pattern>
           </defs>
 
-          {/* Map Base Fill */}
           <rect width="600" height="500" fill="url(#street-grid)" />
 
-          {/* City Building Blocks (Organized so open area is clean & visible) */}
+          {/* City Building Blocks */}
           <g className="fill-slate-200/50 dark:fill-slate-900/50 stroke-slate-300/40 dark:stroke-slate-800/30">
-            {/* Top right blocks */}
             <rect x="340" y="30" width="130" height="60" rx="6" />
             <rect x="490" y="30" width="90" height="50" rx="6" />
-
-            {/* Middle right blocks */}
             <rect x="460" y="240" width="120" height="80" rx="6" />
             <rect x="330" y="160" width="100" height="60" rx="6" />
-
-            {/* Bottom blocks */}
             <rect x="40" y="460" width="160" height="30" rx="4" />
             <rect x="240" y="460" width="120" height="30" rx="4" />
             <rect x="380" y="460" width="180" height="30" rx="4" />
@@ -308,7 +306,7 @@ function InteractiveMapTelemetryHUD() {
             <rect x="360" y="370" width="120" height="70" rx="6" />
           </g>
 
-          {/* Main Avenue Lines (Grid Arteries) */}
+          {/* Main Avenue Lines */}
           <g className="stroke-slate-300/80 dark:stroke-slate-700/60" strokeWidth="2.5" fill="none">
             <path d="M 0 110 L 600 110" />
             <path d="M 0 250 L 600 250" />
@@ -320,7 +318,7 @@ function InteractiveMapTelemetryHUD() {
             <path d="M 20 460 L 560 60" strokeWidth="2" strokeDasharray="6 4" className="stroke-slate-300 dark:stroke-slate-700/80" />
           </g>
 
-          {/* Street Name Text Labels in Map */}
+          {/* Street Name Labels */}
           <g className="fill-slate-400/80 dark:fill-slate-500/70 font-mono text-[9px] tracking-wider uppercase font-semibold">
             <text x="370" y="345">CORREDOR VIAL</text>
             <text x="430" y="195">{v.streetName}</text>
@@ -337,7 +335,7 @@ function InteractiveMapTelemetryHUD() {
             strokeLinejoin="round"
           />
 
-          {/* Active Route Dashed Line (matching reference orange route) */}
+          {/* Active Route Dashed Line */}
           <path
             d={routePathD}
             fill="none"
@@ -359,7 +357,6 @@ function InteractiveMapTelemetryHUD() {
             <circle r="22" className="fill-orange-500/15 animate-ping" />
             <circle r="14" className="fill-orange-500/25" />
             <circle r="7" className="fill-orange-500" />
-            {/* Destination Badge */}
             <g transform="translate(18, -14)">
               <rect
                 x="0"
@@ -381,16 +378,14 @@ function InteractiveMapTelemetryHUD() {
             </g>
           </g>
 
-          {/* Moving Vehicle Node - Animated directly via ref (Smooth 60fps, No Teleporting) */}
+          {/* Moving Vehicle Node */}
           <g ref={markerRef} transform={`translate(${originPoint.x}, ${originPoint.y})`}>
-            {/* Outer Expanding Pulse Wave */}
             <circle
               r={isEngineCut ? "18" : "15"}
               className={`opacity-75 ${
                 isEngineCut ? "fill-red-500 animate-ping" : "fill-orange-500 animate-pulse"
               }`}
             />
-            {/* Main Vehicle Circle */}
             <circle
               r="11"
               className={`shadow-lg ${
@@ -399,12 +394,11 @@ function InteractiveMapTelemetryHUD() {
                   : "fill-orange-500 stroke-2 stroke-white dark:stroke-slate-950"
               }`}
             />
-            {/* Inner Core Dot */}
             <circle r="4" fill="white" />
           </g>
         </svg>
 
-        {/* Satellite Sync Scanline Overlay (when switching vehicle city) */}
+        {/* Satellite Sync Scanline Overlay */}
         <AnimatePresence>
           {isSwitchingCity && (
             <motion.div
@@ -424,7 +418,7 @@ function InteractiveMapTelemetryHUD() {
           )}
         </AnimatePresence>
 
-        {/* Compact Floating Telemetry Glass Card (Streamlined so it NEVER covers the route) */}
+        {/* Compact Floating Telemetry Glass Card */}
         <div className="absolute top-4 left-4 z-20 pointer-events-auto">
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -447,7 +441,7 @@ function InteractiveMapTelemetryHUD() {
               </span>
             </div>
 
-            {/* Vehicle Category Tabs (Compact) */}
+            {/* Vehicle Category Tabs */}
             <div className="flex gap-1 my-2 p-0.5 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-white/5">
               {VEHICLES.map((item, idx) => {
                 const isSelected = selectedIdx === idx
@@ -467,7 +461,7 @@ function InteractiveMapTelemetryHUD() {
               })}
             </div>
 
-            {/* Vehicle Details (Streamlined) */}
+            {/* Vehicle Details */}
             <div className="mb-2">
               <div className="flex items-baseline justify-between">
                 <h4 className="text-sm font-extrabold tracking-tight text-slate-900 dark:text-white truncate">
@@ -485,7 +479,7 @@ function InteractiveMapTelemetryHUD() {
               </p>
             </div>
 
-            {/* Status Badges Row (Battery & Ignition) */}
+            {/* Status Badges Row */}
             <div className="flex items-center gap-1.5 mb-2 flex-wrap">
               <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-[10px] font-mono font-semibold text-slate-700 dark:text-slate-300">
                 <Zap className="w-2.5 h-2.5 text-emerald-500" />
@@ -513,7 +507,7 @@ function InteractiveMapTelemetryHUD() {
               </div>
             </div>
 
-            {/* Toggles Row: Cerco Activo & Blindado */}
+            {/* Toggles Row */}
             <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-200/80 dark:border-white/10 text-[11px]">
               <button
                 onClick={() => setGeofenceActive((p) => !p)}
@@ -546,7 +540,7 @@ function InteractiveMapTelemetryHUD() {
           </motion.div>
         </div>
 
-        {/* Bottom Interactive Command Bar (Matching Image 2 "DISTANCE / SPEED / APAGAR MOTOR") */}
+        {/* Bottom Interactive Command Bar */}
         <div className="absolute bottom-3 left-4 right-4 z-20 pointer-events-auto">
           <div className="w-full bg-white/95 dark:bg-slate-950/92 backdrop-blur-2xl border border-slate-200/90 dark:border-white/10 rounded-2xl p-2.5 sm:p-3 shadow-2xl flex items-center justify-between gap-2 text-slate-900 dark:text-white">
             <div className="flex items-center gap-4 sm:gap-6 font-mono">
@@ -562,7 +556,6 @@ function InteractiveMapTelemetryHUD() {
               </div>
             </div>
 
-            {/* Action Button: Apagar Motor / Reanudar */}
             <button
               onClick={() => setIsEngineCut((p) => !p)}
               className={`px-3.5 sm:px-4 py-2 rounded-xl font-mono text-[11px] sm:text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer ${
@@ -590,40 +583,100 @@ function InteractiveMapTelemetryHUD() {
   )
 }
 
-/* ─── Stats Bar ────────────────────────────────────── */
-const stats = [
-  { value: 99.9, suffix: "%", label: "Precisión Rastreo Satelital", isStar: false },
-  { value: 12, prefix: "<", suffix: " min", label: "Tiempo Respuesta Despacho", isStar: false },
-  { value: 500, suffix: "+", label: "Vehículos Protegidos", isStar: false },
-  { value: 4.9, suffix: "", label: "Calificación Promedio", isStar: true },
+/* ─── NEW: Tactical Capabilities Grid (Replaces generic 4-number stats card) ─── */
+const capabilities = [
+  {
+    icon: Radio,
+    metric: "99.9% UPTIME",
+    title: "Rastreo Satelital L1/L5",
+    description: "Telemetría de ultra-alta frecuencia con algoritmo anti-jammer contra inhibidores de señal.",
+    statusBadge: "SEÑAL CONTINUA 4G",
+    color: "from-violet-500/10 to-blue-500/10",
+    iconColor: "text-violet-600 dark:text-violet-400",
+    iconBg: "bg-violet-100 dark:bg-violet-950/60 border-violet-200 dark:border-violet-500/30",
+  },
+  {
+    icon: Zap,
+    metric: "< 12 MINUTOS",
+    title: "Despacho Inmediato",
+    description: "Red de técnicos certificados y verificados geolocalizada en Medellín, Bogotá, Cali y red nacional.",
+    statusBadge: "CUADRANTE ACTIVO",
+    color: "from-amber-500/10 to-orange-500/10",
+    iconColor: "text-amber-600 dark:text-amber-400",
+    iconBg: "bg-amber-100 dark:bg-amber-950/60 border-amber-200 dark:border-amber-500/30",
+  },
+  {
+    icon: Lock,
+    metric: "CORTE 100% SEGURO",
+    title: "Inmovilización Digital",
+    description: "Corte de corriente remoto preventivo homologado para autos, motos y transporte pesado.",
+    statusBadge: "HOMOLOGACIÓN CAN-BUS",
+    color: "from-rose-500/10 to-red-500/10",
+    iconColor: "text-rose-600 dark:text-rose-400",
+    iconBg: "bg-rose-100 dark:bg-rose-950/60 border-rose-200 dark:border-rose-500/30",
+  },
+  {
+    icon: ShieldCheck,
+    metric: "4.9 ★ RATING",
+    title: "Garantía & Respaldo 360°",
+    description: "Instalación pericial con arnés automotriz de fábrica, auditoría de antecedentes y soporte 24/7.",
+    statusBadge: "RESPALDO INTEGRAL",
+    color: "from-emerald-500/10 to-teal-500/10",
+    iconColor: "text-emerald-600 dark:text-emerald-400",
+    iconBg: "bg-emerald-100 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-500/30",
+  },
 ]
 
-function StatCard({ stat, index }: { stat: (typeof stats)[0]; index: number }) {
-  const counter = useCounter(stat.value, 2000)
-  const ref = useRef<HTMLDivElement>(null)
-  const inView = useInView(ref, { once: true, margin: "-60px" })
-
-  useEffect(() => {
-    if (inView) counter.start()
-  }, [inView, counter])
-
+function TacticalCapabilitiesGrid() {
   return (
     <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 24 }}
+      initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ delay: index * 0.12, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="flex flex-col items-center justify-center text-center px-3"
+      viewport={{ once: true }}
+      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      className="mt-14 md:mt-20 w-full"
     >
-      <p className="text-3xl sm:text-4xl font-extrabold text-violet-600 dark:text-violet-400 font-mono tabular-nums leading-none mb-1.5 tracking-tight">
-        {stat.prefix}
-        {counter.count}
-        {stat.suffix}
-      </p>
-      <div className="flex items-center gap-1 mt-0.5">
-        {stat.isStar && <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />}
-        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 font-medium">{stat.label}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {capabilities.map((cap, i) => {
+          const Icon = cap.icon
+          return (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1, duration: 0.5 }}
+              whileHover={{ y: -3 }}
+              className="group relative rounded-2xl p-5 bg-white/85 dark:bg-slate-950/80 hover:bg-white dark:hover:bg-slate-900 border border-slate-200/90 dark:border-white/10 hover:border-violet-400/40 dark:hover:border-violet-500/40 backdrop-blur-xl shadow-lg shadow-slate-900/5 dark:shadow-black/50 transition-all duration-300 flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${cap.iconBg}`}>
+                    <Icon className={`w-4 h-4 ${cap.iconColor}`} />
+                  </div>
+                  <span className="text-[11px] font-mono font-extrabold text-slate-800 dark:text-slate-200 tracking-tight px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-900 border border-slate-200/80 dark:border-white/5">
+                    {cap.metric}
+                  </span>
+                </div>
+
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight mb-1 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                  {cap.title}
+                </h4>
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                  {cap.description}
+                </p>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  {cap.statusBadge}
+                </span>
+                <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all text-violet-600 dark:text-violet-400" />
+              </div>
+            </motion.div>
+          )
+        })}
       </div>
     </motion.div>
   )
@@ -647,27 +700,34 @@ export function Hero() {
   const opacity = useTransform(scrollYProgress, [0.85, 1], [1, 0])
 
   return (
-    <section ref={sectionRef} className="relative min-h-[92vh] flex flex-col items-center justify-center overflow-hidden pt-24 pb-12">
+    <section ref={sectionRef} className="relative min-h-[92vh] flex flex-col items-center justify-center overflow-hidden pt-24 pb-14">
       <HeroBg />
 
       <motion.div style={{ y, opacity }} className="relative z-10 w-full max-w-7xl mx-auto px-4 md:px-8">
         <div className="flex flex-col lg:flex-row items-center justify-between gap-10 pt-4 md:pt-8">
           {/* Left: Value Proposition */}
           <div className="flex flex-col gap-5 w-full lg:w-1/2 z-10 text-center lg:text-left">
-            {/* Status Badge: Tech-first, subtle certification */}
+            
+            {/* NEW: Status Streamer Bar (Replaces generic pill) */}
             <motion.div initial="hidden" animate="visible" custom={0} variants={fadeUp}>
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-black/60 border border-slate-300 dark:border-violet-500/30 backdrop-blur-xl shadow-md w-fit mx-auto lg:mx-0">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                </span>
-                <span className="text-xs font-mono font-semibold tracking-wider text-slate-800 dark:text-violet-200 uppercase">
-                  Telemetría Satelital 4G // V2.7
-                </span>
-                <span className="text-slate-400 dark:text-violet-500/40">|</span>
-                <span className="text-xs text-slate-600 dark:text-slate-300 font-medium">
-                  Técnicos Verificados
-                </span>
+              <div className="inline-flex items-center gap-2.5 p-1 pr-4 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/90 dark:border-violet-500/30 backdrop-blur-xl shadow-sm w-fit mx-auto lg:mx-0">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-violet-600 text-white font-mono font-bold text-[10px] tracking-wider uppercase shadow-sm">
+                  <Radio className="w-3 h-3 animate-pulse" />
+                  <span>RED 4G ACTIVA</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  </span>
+                  <span className="font-mono text-[11px] font-bold text-slate-900 dark:text-white">
+                    CENTRAL 24/7 ENLACE SATELITAL
+                  </span>
+                  <span className="text-slate-300 dark:text-slate-700">|</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                    Técnicos Verificados
+                  </span>
+                </div>
               </div>
             </motion.div>
 
@@ -730,20 +790,8 @@ export function Hero() {
           <InteractiveMapTelemetryHUD />
         </div>
 
-        {/* Telemetry Stats Bar */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-12 md:mt-16"
-        >
-          <div className="landing-glass-premium rounded-2xl p-6 grid grid-cols-2 md:grid-cols-4 gap-6 bg-white/70 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/10 shadow-lg">
-            {stats.map((stat, i) => (
-              <StatCard key={i} stat={stat} index={i} />
-            ))}
-          </div>
-        </motion.div>
+        {/* NEW: Tactical Capabilities Bento Grid (Replaces generic 4-number stats bar) */}
+        <TacticalCapabilitiesGrid />
       </motion.div>
 
       <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none" />
