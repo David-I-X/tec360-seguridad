@@ -3,8 +3,26 @@
  * Cliente para comunicarse con el backend FastAPI
  */
 
-// URL base del backend (viene de variables de entorno)
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+/**
+ * Get dynamic API Base URL
+ * Adapts to localhost or local network IP (e.g. 192.168.x.x) when accessed from a mobile phone
+ */
+export function getApiBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname
+    if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {
+      const envUrl = process.env.NEXT_PUBLIC_API_URL || ""
+      if (!envUrl.includes("tec-360.tech")) {
+        const protocol = window.location.protocol
+        return `${protocol}//${hostname}:8000`
+      }
+    }
+  }
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+}
+
+// URL base del backend
+const API_URL = getApiBaseUrl()
 
 // ============================================
 // TIPOS

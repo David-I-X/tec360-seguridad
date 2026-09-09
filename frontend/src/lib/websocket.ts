@@ -5,6 +5,16 @@
 
 // Build WebSocket URL from API URL
 function getWsUrl(): string {
+    if (typeof window !== "undefined") {
+        const hostname = window.location.hostname
+        if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {
+            const envUrl = process.env.NEXT_PUBLIC_API_URL || ""
+            if (!envUrl.includes("tec-360.tech")) {
+                const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:"
+                return `${wsProto}//${hostname}:8000`
+            }
+        }
+    }
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
     // Replace http:// with ws:// and https:// with wss://
     return apiUrl.replace(/^http/, "ws")

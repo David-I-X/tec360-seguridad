@@ -75,6 +75,8 @@ class Settings(BaseSettings):
     # CORS - Orígenes permitidos
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",      # Frontend local
+        "http://127.0.0.1:3000",      # Frontend local IP
+        "http://192.168.1.1:3000",    # Frontend local Wi-Fi IP
         "http://localhost:5173",      # Vite (alternativa)
         "https://tec-360.tech",       # Web Production
         "https://www.tec-360.tech",   # Web Production www

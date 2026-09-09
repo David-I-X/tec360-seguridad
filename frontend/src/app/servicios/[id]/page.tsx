@@ -14,7 +14,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion"
 
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
-import { getServiceById, cancelService, confirmService } from "@/lib/api"
+import { getServiceById, cancelService, confirmService, getApiBaseUrl } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { RatingModal } from "@/components/ratings/rating-modal"
@@ -75,7 +75,7 @@ const typeLabels: Record<string, string> = {
     other: "Servicio Técnico Especializado",
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+const API_URL = getApiBaseUrl()
 
 function ServiceDetailContent() {
     const params = useParams()
