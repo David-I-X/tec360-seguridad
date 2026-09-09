@@ -6,7 +6,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, Polyline, UrlTile, PROVIDER_GOOGLE } from 'react-native-maps';
 import { getServiceById, getAuthToken, API_URL, fetchWithAuth } from '@/lib/api';
 import { serviceWebSocket } from '@/lib/websocket';
 import { ServicePinMarker, TechnicianPinMarker } from '@/components/map-markers';
@@ -256,8 +256,16 @@ export default function ServiceDetailScreen() {
         provider={Platform.OS === 'android' ? undefined : PROVIDER_GOOGLE}
         style={styles.fullscreenMap}
         initialRegion={getRegion()}
+        mapType={Platform.OS === 'android' ? 'none' : 'standard'}
         customMapStyle={darkMapStyle}
       >
+        <UrlTile
+          urlTemplate="https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
+          maximumZ={19}
+          flipY={false}
+          zIndex={-1}
+        />
+
         <Marker
           coordinate={{ latitude: serviceLat, longitude: serviceLng }}
           title="Ubicación del servicio"

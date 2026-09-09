@@ -7,7 +7,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, UrlTile, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useAuth } from '@/lib/auth-context';
 import { fetchWithAuth, API_URL } from '@/lib/api';
 import { COLORS, SPACING, FONTS } from '@/constants/theme';
@@ -346,8 +346,15 @@ export default function ServicesScreen() {
             provider={Platform.OS === 'android' ? undefined : PROVIDER_GOOGLE}
             style={styles.fullscreenMap}
             initialRegion={initialMapRegion}
+            mapType={Platform.OS === 'android' ? 'none' : 'standard'}
             customMapStyle={darkMapStyle}
           >
+            <UrlTile
+              urlTemplate="https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
+              maximumZ={19}
+              flipY={false}
+              zIndex={-1}
+            />
             {mapServices.map((item) => {
               const cfg = statusConfig[item.status] || statusConfig.pending;
               const isSelected = selectedMapService?.id === item.id;
