@@ -4,7 +4,7 @@ import {
   ShieldCheck, Camera, Wifi, Radio, Lock, Eye, ArrowRight,
   Search, FileText, CheckCircle, Star, Clock, MapPin, BadgeCheck,
   Car, Radar, Fingerprint, AlertTriangle, Siren, Crosshair,
-  Gauge, Cctv
+  Gauge, Cctv, Wrench
 } from "lucide-react"
 import { motion, useInView } from "framer-motion"
 import { useRef } from "react"
@@ -121,7 +121,7 @@ function PillarsSection() {
               </div>
               
               <div className="mt-6">
-                <Link href="/servicios/nuevo" className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold transition-all shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40">
+                <Link href="/servicios/nuevo?tipo=instalacion" className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold transition-all shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40">
                   Solicitar Instalación
                   <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -141,7 +141,7 @@ function PillarsSection() {
                 <div
                   className="w-14 h-14 rounded-xl bg-blue-100 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-center transition-all"
                 >
-                  <Car className="w-7 h-7 text-blue-600 dark:text-blue-500" />
+                  <Crosshair className="w-7 h-7 text-blue-600 dark:text-blue-500" />
                 </div>
                 <span className="px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-600 dark:text-slate-300 font-medium">
                   Flotas &amp; Particulares
@@ -175,7 +175,7 @@ function PillarsSection() {
               </div>
 
               <div className="mt-6">
-                <Link href="/servicios/nuevo" className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40">
+                <Link href="/servicios/nuevo?tipo=recuperacion" className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40">
                   Solicitar Recuperación
                   <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -244,35 +244,36 @@ function WhySection() {
    STEPS — SIDE BY SIDE (Instalación + Recuperación)
    ════════════════════════════════════════════════════ */
 const installSteps = [
-  { num: "01", title: "Elige tu servicio", desc: "Selecciona qué necesitas: dashcam, GPS o alarma vehicular. Ingresa tu dirección y la fecha.", visual: "📍" },
-  { num: "02", title: "Un técnico acepta", desc: "En minutos un técnico certificado cerca de ti acepta el trabajo. Ves su perfil, calificación y precio.", visual: "🤝" },
-  { num: "03", title: "Llega y trabaja", desc: "El técnico llega a tu ubicación, toma fotos de evidencia y tú confirmas el trabajo completado.", visual: "🛡️" },
-  { num: "04", title: "Garantía y calificación", desc: "Revisa que todo funcione, califica al técnico y disfruta de tu instalación con nuestro respaldo garantizado.", visual: "⭐" },
+  { num: "01", title: "Diagnóstico & Selección", desc: "Elige los dispositivos requeridos: GPS 4G anti-jammer, dashcam HD o alarma inteligente. Indica tu ubicación.", icon: MapPin },
+  { num: "02", title: "Asignación Técnica Verificada", desc: "Un técnico especializado y certificado cerca de ti acepta la orden con perfil verificado y precio fijado.", icon: BadgeCheck },
+  { num: "03", title: "Instalación & Calibración", desc: "Despliegue en sitio, conexión de arneses automotrices, calibración telemática y verificación de señal 4G en plataforma.", icon: Wrench },
+  { num: "04", title: "Garantía & Monitoreo 360°", desc: "Verificación de telemetría en tu smartphone, activación de garantía integral y soporte continuo.", icon: ShieldCheck },
 ]
 
 const recoverySteps = [
-  { num: "01", title: "Realiza la denuncia", desc: "Haz la denuncia formal ante las autoridades (Fiscalía / Policía). Este paso es obligatorio.", visual: "🚨", highlight: true },
-  { num: "02", title: "Notifica a Tec360", desc: "Reporta el siniestro en la plataforma. Adjunta el número de denuncia y los datos del vehículo.", visual: "📲" },
-  { num: "03", title: "Rastreo y localización", desc: "Activamos el rastreo GPS en tiempo real y coordinamos con las autoridades para ubicar tu vehículo.", visual: "📡" },
-  { num: "04", title: "Recuperación asistida", desc: "Se recupera el vehículo en coordinación con las autoridades. Recibes actualizaciones en tiempo real.", visual: "✅" },
+  { num: "01", title: "Bloqueo Digital Inmediato", desc: "Reporta el evento en la app o central 24/7. Ejecutamos corte de motor remoto y fijación satelital en segundos.", icon: Lock, highlight: true },
+  { num: "02", title: "Cerco Satelital Activo", desc: "Rastreo continuo de coordenadas, velocidad y detección anti-jamming en tiempo real sobre la red satelital.", icon: Radar },
+  { num: "03", title: "Coordinación Táctica con Autoridades", desc: "Enlace directo con cuadrantes de la Policía Nacional y Fiscalía con vector de posición en vivo.", icon: Siren },
+  { num: "04", title: "Recuperación y Entrega Asistida", desc: "Aseguramiento del vehículo en sitio, verificación pericial de integridad y entrega asistida al propietario.", icon: ShieldCheck },
 ]
 
-function StepItem({ s, i, total, accentColor = "purple" }: { s: { num: string; title: string; desc: string; visual: string; highlight?: boolean }; i: number; total: number; accentColor?: "purple" | "blue" }) {
+function StepItem({ s, i, total, accentColor = "purple" }: { s: { num: string; title: string; desc: string; icon: any; highlight?: boolean }; i: number; total: number; accentColor?: "purple" | "blue" }) {
   const isHighlight = s.highlight
+  const Icon = s.icon
   return (
     <Reveal delay={i * 0.1}>
       <div className={`flex items-start gap-4 py-5 ${i < total - 1 ? "border-b border-slate-200 dark:border-white/5" : ""}`}>
         <motion.div className="flex-shrink-0 relative" whileHover={{ scale: 1.06 }}>
-          <div className={`flex h-14 w-14 md:h-16 md:w-16 items-center justify-center rounded-xl border ${
-            isHighlight ? "border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/5" : "border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.03]"
+          <div className={`flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-xl border ${
+            isHighlight ? "border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-500" : "border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04] text-slate-700 dark:text-slate-200"
           }`}>
-            <span className="text-2xl md:text-3xl">{s.visual}</span>
+            <Icon className="w-5 h-5 md:w-6 md:h-6" />
           </div>
-          <span className={`absolute -top-1.5 -left-1.5 flex h-5 w-5 items-center justify-center rounded-full text-white text-[9px] font-bold shadow-lg ${
-            isHighlight ? "bg-amber-500" : accentColor === "blue" ? "bg-gradient-to-r from-blue-500 to-indigo-600" : "gradient-brand"
+          <span className={`absolute -top-1.5 -left-1.5 flex h-5 w-5 items-center justify-center rounded-full text-white text-[10px] font-bold font-mono shadow-md ${
+            isHighlight ? "bg-amber-500" : accentColor === "blue" ? "bg-blue-600" : "bg-violet-600"
           }`}>{s.num}</span>
         </motion.div>
-        <div className="flex-1 min-w-0 pt-1">
+        <div className="flex-1 min-w-0 pt-0.5">
           <h4 className={`text-base font-bold mb-1 ${isHighlight ? "text-amber-600 dark:text-amber-400" : "text-slate-900 dark:text-white"}`}>{s.title}</h4>
           <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{s.desc}</p>
         </div>
@@ -298,11 +299,11 @@ function ParallelSteps() {
               {/* Header */}
               <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200 dark:border-white/5">
                 <div className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/20 flex items-center justify-center">
-                  <Car className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                  <Wrench className="w-5 h-5 text-violet-600 dark:text-violet-400" />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">Instalación</h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">Tan fácil como pedir un taxi</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Agendamiento inteligente y servicio geolocalizado</p>
                 </div>
               </div>
               {/* Steps */}
@@ -324,14 +325,14 @@ function ParallelSteps() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recuperación</h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">Protocolo de respuesta inmediata</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Protocolo de respuesta táctica inmediata</p>
                 </div>
               </div>
-              {/* Warning */}
-              <div className="mb-4 p-3 rounded-lg border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/5 flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-700 dark:text-amber-300/90 leading-relaxed">
-                  <strong className="text-amber-800 dark:text-amber-300">Obligatorio:</strong> Primero debes realizar la denuncia formal ante las autoridades.
+              {/* Tactical Alert Banner */}
+              <div className="mb-4 p-3 rounded-xl border border-blue-500/20 bg-blue-500/5 flex items-start gap-2.5">
+                <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+                  <strong className="font-semibold text-blue-800 dark:text-blue-200">Activación Inmediata:</strong> El corte de motor remoto y fijación satelital se ejecutan en segundos mientras se coordina con la Policía Nacional.
                 </p>
               </div>
               {/* Steps */}
@@ -487,7 +488,7 @@ function Footer() {
               Plataforma líder de servicios de seguridad técnica. Conectamos clientes con técnicos certificados para instalaciones y recuperación vehicular en toda Colombia.
             </p>
             <div className="flex gap-2">
-              {["SENA", "Créame", "2026"].map((tag) => (
+              {["Telemetría 4G", "Técnicos Verificados", "Red 24/7"].map((tag) => (
                 <span key={tag} className="text-[10px] font-mono border border-slate-300 dark:border-white/10 px-2 py-1 rounded text-slate-500">{tag}</span>
               ))}
             </div>
@@ -510,33 +511,33 @@ function Footer() {
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold mb-4 text-sm text-slate-900 dark:text-white">Contacto</h4>
+            <h4 className="font-semibold mb-4 text-sm text-slate-900 dark:text-white">Central Operativa &amp; Contacto</h4>
             <ul className="space-y-2.5 text-sm text-slate-600 dark:text-slate-400">
               <li className="flex items-center gap-2">
+                <span className="text-[10px] font-mono font-bold text-violet-400 bg-violet-950/60 border border-violet-500/30 px-1.5 py-0.5 rounded">24/7</span>
+                <span className="font-mono text-slate-800 dark:text-slate-200 text-xs font-semibold">Línea Nacional: (604) 360-0000</span>
+              </li>
+              <li className="flex items-center gap-2">
                 <span className="text-base">📧</span>
-                <a href="mailto:oscarvasquezbroker@gmail.com" className="hover:text-violet-600 dark:hover:text-white transition-colors truncate">
-                  oscarvasquezbroker@gmail.com
+                <a href="mailto:soporte@tec360seguridad.com" className="hover:text-violet-600 dark:hover:text-white transition-colors truncate">
+                  soporte@tec360seguridad.com
                 </a>
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-base">🏢</span>
-                <span>Créame Incubadora</span>
-              </li>
-              <li className="flex items-center gap-2">
                 <span className="text-base">📍</span>
-                <span>Colombia</span>
+                <span>Medellín · Bogotá · Cobertura Nacional</span>
               </li>
             </ul>
           </div>
         </div>
         <div className="border-t border-slate-200 dark:border-white/5 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-slate-500">© 2026 Tec360 Seguridad. Todos los derechos reservados.</p>
+          <p className="text-xs text-slate-500">© 2026 Tec360 Seguridad. Plataforma Telemática Avanzada.</p>
           <div className="flex items-center gap-3 text-xs text-slate-500">
             <a href="/terminos" className="hover:text-violet-600 dark:hover:text-white transition-colors">Términos y Condiciones</a>
             <span>·</span>
             <a href="/privacidad" className="hover:text-violet-600 dark:hover:text-white transition-colors">Privacidad</a>
             <span>·</span>
-            <span>Créame Incubadora</span>
+            <span>Respaldo Institucional</span>
           </div>
         </div>
       </div>
