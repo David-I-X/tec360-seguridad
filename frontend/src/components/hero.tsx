@@ -2,12 +2,12 @@
 
 import { Button } from "@/components/ui/button"
 import {
-  Shield, ArrowRight, CheckCircle, Zap, Star,
+  ArrowRight, CheckCircle, Zap,
   Car, Bike, Truck, Lock, Unlock, AlertTriangle,
-  Radio, MapPin, Activity, ShieldCheck, Clock, Award, Signal
+  Radio, ShieldCheck
 } from "lucide-react"
 import Link from "next/link"
-import { motion, useScroll, useTransform, useInView, AnimatePresence } from "framer-motion"
+import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
 import { useRef, useEffect, useState, useMemo } from "react"
 
 /* ─── Background Cyber/Glass Effects with Subtle Grid & Light Glints ─ */
@@ -203,7 +203,10 @@ function InteractiveMapTelemetryHUD() {
   const markerRef = useRef<SVGGElement>(null)
   const progressRef = useRef(0.15)
   const isEngineCutRef = useRef(false)
-  isEngineCutRef.current = isEngineCut
+
+  useEffect(() => {
+    isEngineCutRef.current = isEngineCut
+  }, [isEngineCut])
 
   const v = VEHICLES[selectedIdx]
 

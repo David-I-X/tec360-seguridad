@@ -82,6 +82,9 @@ node_modules/
 # Local media / screenshots
 TRACCAR/*.jpeg
 TRACCAR/*.jpg
+TRACCAR/*.zip
+.codex/
+backend/uploads/
 
 # Local scripts
 *.bat
