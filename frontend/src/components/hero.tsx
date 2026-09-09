@@ -3,8 +3,8 @@
 import { Button } from "@/components/ui/button"
 import {
   Shield, ArrowRight, CheckCircle, Zap, Star,
-  Car, Bike, Truck, Lock, Unlock, AlertTriangle, Crosshair,
-  Radio, Navigation, Compass, MapPin
+  Car, Bike, Truck, Lock, Unlock, AlertTriangle,
+  Radio, MapPin
 } from "lucide-react"
 import Link from "next/link"
 import { motion, useScroll, useTransform, useInView, AnimatePresence } from "framer-motion"
@@ -44,7 +44,6 @@ function useCounter(target: number, duration = 1800) {
 function HeroBg() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-      {/* Precision Grid */}
       <div
         className="absolute inset-0 opacity-[0.03] dark:opacity-[0.14]"
         style={{
@@ -53,14 +52,13 @@ function HeroBg() {
           backgroundSize: "48px 48px",
         }}
       />
-      {/* Ambient glowing radial orbs */}
       <div className="absolute -top-32 right-[5%] w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(139,92,246,0.12)_0%,rgba(59,130,246,0.05)_40%,transparent_70%)] blur-[90px]" />
       <div className="absolute top-[35%] -left-[10%] w-[500px] h-[500px] bg-[radial-gradient(circle,rgba(59,130,246,0.08)_0%,rgba(139,92,246,0.03)_40%,transparent_70%)] blur-[100px]" />
     </div>
   )
 }
 
-/* ─── Vehicle Profiles & Route Waypoints ───────────── */
+/* ─── Vehicle Profiles & Route Waypoints (Unobstructed Routes) ──── */
 interface VehicleProfile {
   id: string
   name: string
@@ -75,6 +73,7 @@ interface VehicleProfile {
   icon: typeof Car
   category: string
   sats: string
+  streetName: string
   waypoints: { x: number; y: number }[]
 }
 
@@ -84,22 +83,24 @@ const VEHICLES: VehicleProfile[] = [
     name: "TOYOTA HILUX 4X4",
     plate: "TX-360 · MED",
     coords: "6°14'41.2\"N, 75°34'29.8\"W",
-    city: "MED (Medellín, Antioquia)",
+    city: "Medellín (Antioquia)",
     originName: "San Diego",
-    destinationName: "DESTINATION",
+    destinationName: "El Poblado · Milla de Oro",
     distanceKm: "3.2 KM",
     baseSpeedKm: 52,
     battery: "13.8V",
     icon: Car,
-    category: "SUV / Camioneta",
+    category: "SUV",
     sats: "16 Satélites",
+    streetName: "AV. EL POBLADO",
+    // Waypoints navigate the open right/bottom area - 100% visible
     waypoints: [
-      { x: 110, y: 440 },
-      { x: 180, y: 370 },
-      { x: 280, y: 370 },
-      { x: 350, y: 260 },
-      { x: 420, y: 240 },
-      { x: 490, y: 140 },
+      { x: 60, y: 440 },
+      { x: 220, y: 440 },
+      { x: 330, y: 350 },
+      { x: 410, y: 260 },
+      { x: 480, y: 200 },
+      { x: 530, y: 110 },
     ],
   },
   {
@@ -107,22 +108,23 @@ const VEHICLES: VehicleProfile[] = [
     name: "YAMAHA MT-09 SP",
     plate: "KMT-89F · BOG",
     coords: "4°39'12.5\"N, 74°05'33.1\"W",
-    city: "BOG (Bogotá, D.C.)",
-    originName: "Chapinero Cll 72",
-    destinationName: "DESTINATION",
+    city: "Bogotá (D.C.)",
+    originName: "Chapinero",
+    destinationName: "Parque 93 · Cra 15",
     distanceKm: "4.8 KM",
     baseSpeedKm: 65,
     battery: "12.6V",
     icon: Bike,
-    category: "Motocicleta",
+    category: "Moto",
     sats: "14 Satélites",
+    streetName: "CLL 100 // CRA 7MA",
     waypoints: [
-      { x: 490, y: 440 },
-      { x: 390, y: 360 },
-      { x: 390, y: 250 },
-      { x: 250, y: 250 },
-      { x: 190, y: 170 },
-      { x: 130, y: 90 },
+      { x: 80, y: 450 },
+      { x: 180, y: 390 },
+      { x: 310, y: 390 },
+      { x: 390, y: 280 },
+      { x: 450, y: 210 },
+      { x: 520, y: 90 },
     ],
   },
   {
@@ -130,27 +132,27 @@ const VEHICLES: VehicleProfile[] = [
     name: "KENWORTH T800",
     plate: "WPT-204 · CLO",
     coords: "3°26'14.0\"N, 76°31'21.0\"W",
-    city: "CLO (Cali, Valle)",
+    city: "Cali (Valle del Cauca)",
     originName: "Puerto Seco",
-    destinationName: "DESTINATION",
+    destinationName: "Terminal Yumbo Carga",
     distanceKm: "18.5 KM",
     baseSpeedKm: 42,
     battery: "24.4V",
     icon: Truck,
-    category: "Carga Pesada",
+    category: "Carga",
     sats: "18 Satélites",
+    streetName: "CORREDOR INDUSTRIAL",
     waypoints: [
-      { x: 90, y: 440 },
-      { x: 170, y: 440 },
-      { x: 240, y: 330 },
-      { x: 370, y: 330 },
-      { x: 420, y: 200 },
-      { x: 510, y: 120 },
+      { x: 70, y: 430 },
+      { x: 240, y: 430 },
+      { x: 360, y: 340 },
+      { x: 430, y: 220 },
+      { x: 530, y: 130 },
     ],
   },
 ]
 
-/* ─── Waypoint Math & Path Helpers ─────────────────── */
+/* ─── Waypoint Math ────────────────────────────────── */
 function getPositionAlongWaypoints(waypoints: { x: number; y: number }[], progress: number) {
   const segments = []
   let totalLen = 0
@@ -170,14 +172,13 @@ function getPositionAlongWaypoints(waypoints: { x: number; y: number }[], progre
       const segProgress = (targetDist - currentDist) / seg.len
       const x = seg.from.x + seg.dx * segProgress
       const y = seg.from.y + seg.dy * segProgress
-      const angle = (Math.atan2(seg.dy, seg.dx) * 180) / Math.PI
-      return { x, y, angle }
+      return { x, y }
     }
     currentDist += seg.len
   }
 
   const last = waypoints[waypoints.length - 1]
-  return { x: last.x, y: last.y, angle: 0 }
+  return { x: last.x, y: last.y }
 }
 
 function waypointsToSvgPath(waypoints: { x: number; y: number }[]) {
@@ -187,47 +188,63 @@ function waypointsToSvgPath(waypoints: { x: number; y: number }[]) {
 /* ─── Interactive Tactical Map & Floating Card ─────── */
 function InteractiveMapTelemetryHUD() {
   const [selectedIdx, setSelectedIdx] = useState(0)
-  const [progress, setProgress] = useState(0.15)
   const [speed, setSpeed] = useState(52)
   const [isEngineCut, setIsEngineCut] = useState(false)
   const [isSwitchingCity, setIsSwitchingCity] = useState(false)
   const [geofenceActive, setGeofenceActive] = useState(true)
   const [antiJammerActive, setAntiJammerActive] = useState(true)
 
+  const markerRef = useRef<SVGGElement>(null)
+  const progressRef = useRef(0.15)
+  const isEngineCutRef = useRef(false)
+  isEngineCutRef.current = isEngineCut
+
   const v = VEHICLES[selectedIdx]
 
-  // Continuous animation loop along path
+  // Direct 60fps DOM animation loop - ZERO React re-renders for marker movement
   useEffect(() => {
-    if (isEngineCut || isSwitchingCity) {
+    let rafId: number
+    let lastTime = performance.now()
+
+    const animate = (currentTime: number) => {
+      const dt = Math.min((currentTime - lastTime) / 1000, 0.1)
+      lastTime = currentTime
+
+      if (!isEngineCutRef.current && !isSwitchingCity) {
+        // Continuous smooth movement: ~13s to traverse entire route
+        progressRef.current += dt * 0.075
+        if (progressRef.current >= 1) {
+          progressRef.current = 0.01
+        }
+      }
+
+      const pos = getPositionAlongWaypoints(v.waypoints, progressRef.current)
+      if (markerRef.current) {
+        markerRef.current.setAttribute("transform", `translate(${pos.x}, ${pos.y})`)
+      }
+
+      rafId = requestAnimationFrame(animate)
+    }
+
+    rafId = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(rafId)
+  }, [v.waypoints, isSwitchingCity])
+
+  // Realistic speed readout updater (every 700ms, decoupled from 60fps movement)
+  useEffect(() => {
+    if (isEngineCut) {
       setSpeed(0)
       return
     }
 
-    let rafId: number
-    let lastTimestamp = performance.now()
+    const interval = setInterval(() => {
+      const base = VEHICLES[selectedIdx].baseSpeedKm
+      const jitter = Math.floor((Math.random() - 0.5) * 6)
+      setSpeed(base + jitter)
+    }, 700)
 
-    const loop = (now: number) => {
-      const delta = (now - lastTimestamp) / 1000
-      lastTimestamp = now
-
-      setProgress((prev) => {
-        // Traverses route in ~12 seconds
-        const next = prev + delta * 0.08
-        return next >= 1 ? 0.03 : next
-      })
-
-      setSpeed(() => {
-        const base = VEHICLES[selectedIdx].baseSpeedKm
-        const jitter = Math.sin(now / 400) * 3
-        return Math.round(base + jitter)
-      })
-
-      rafId = requestAnimationFrame(loop)
-    }
-
-    rafId = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(rafId)
-  }, [isEngineCut, isSwitchingCity, selectedIdx])
+    return () => clearInterval(interval)
+  }, [isEngineCut, selectedIdx])
 
   // Vehicle change handler with transition
   const handleSelectVehicle = (idx: number) => {
@@ -235,16 +252,11 @@ function InteractiveMapTelemetryHUD() {
     setIsSwitchingCity(true)
     setSelectedIdx(idx)
     setIsEngineCut(false)
-    setProgress(0.06)
+    progressRef.current = 0.05
     setTimeout(() => {
       setIsSwitchingCity(false)
-    }, 450)
+    }, 400)
   }
-
-  // Current position on the route
-  const currentPos = useMemo(() => {
-    return getPositionAlongWaypoints(v.waypoints, progress)
-  }, [v.waypoints, progress])
 
   const routePathD = useMemo(() => {
     return waypointsToSvgPath(v.waypoints)
@@ -254,9 +266,10 @@ function InteractiveMapTelemetryHUD() {
   const originPoint = v.waypoints[0]
 
   return (
-    <div className="w-full lg:w-1/2 relative flex justify-center items-center py-4">
+    <div className="w-full lg:w-1/2 relative flex justify-center items-center py-2">
       {/* Outer Map Canvas Container */}
-      <div className="relative w-full max-w-[580px] h-[540px] rounded-3xl overflow-hidden border border-slate-200/90 dark:border-white/10 shadow-2xl bg-slate-100 dark:bg-[#070b14] select-none">
+      <div className="relative w-full max-w-[580px] h-[520px] rounded-3xl overflow-hidden border border-slate-200/90 dark:border-white/10 shadow-2xl bg-slate-100 dark:bg-[#070b14] select-none">
+        
         {/* SVG Street Grid & Active Route Map */}
         <svg
           viewBox="0 0 600 500"
@@ -264,55 +277,54 @@ function InteractiveMapTelemetryHUD() {
           preserveAspectRatio="xMidYMid slice"
         >
           <defs>
-            {/* Soft grid pattern for streets */}
             <pattern id="street-grid" width="80" height="80" patternUnits="userSpaceOnUse">
               <path
                 d="M 80 0 L 0 0 0 80"
                 fill="none"
-                className="stroke-slate-200/70 dark:stroke-slate-800/40"
+                className="stroke-slate-200/60 dark:stroke-slate-800/40"
                 strokeWidth="1.5"
               />
             </pattern>
-            {/* Glow for route line */}
-            <filter id="route-glow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="3" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
           </defs>
 
           {/* Map Base Fill */}
           <rect width="600" height="500" fill="url(#street-grid)" />
 
-          {/* City Building Blocks (Light & Dark subtle geometry) */}
-          <g className="fill-slate-200/60 dark:fill-slate-900/50 stroke-slate-300/40 dark:stroke-slate-800/30">
-            <rect x="30" y="40" width="80" height="60" rx="6" />
-            <rect x="130" y="30" width="110" height="70" rx="6" />
-            <rect x="260" y="50" width="90" height="50" rx="6" />
-            <rect x="370" y="30" width="120" height="70" rx="6" />
-            <rect x="510" y="40" width="70" height="60" rx="6" />
+          {/* City Building Blocks (Organized so open area is clean & visible) */}
+          <g className="fill-slate-200/50 dark:fill-slate-900/50 stroke-slate-300/40 dark:stroke-slate-800/30">
+            {/* Top right blocks */}
+            <rect x="340" y="30" width="130" height="60" rx="6" />
+            <rect x="490" y="30" width="90" height="50" rx="6" />
 
-            <rect x="40" y="140" width="100" height="80" rx="6" />
-            <rect x="160" y="130" width="130" height="90" rx="6" />
-            <rect x="450" y="150" width="110" height="80" rx="6" />
+            {/* Middle right blocks */}
+            <rect x="460" y="240" width="120" height="80" rx="6" />
+            <rect x="330" y="160" width="100" height="60" rx="6" />
 
-            <rect x="30" y="260" width="90" height="70" rx="6" />
-            <rect x="420" y="270" width="140" height="80" rx="6" />
-
-            <rect x="50" y="360" width="100" height="70" rx="6" />
-            <rect x="180" y="380" width="120" height="80" rx="6" />
-            <rect x="330" y="370" width="110" height="90" rx="6" />
-            <rect x="470" y="380" width="100" height="80" rx="6" />
+            {/* Bottom blocks */}
+            <rect x="40" y="460" width="160" height="30" rx="4" />
+            <rect x="240" y="460" width="120" height="30" rx="4" />
+            <rect x="380" y="460" width="180" height="30" rx="4" />
+            <rect x="180" y="370" width="100" height="50" rx="6" />
+            <rect x="360" y="370" width="120" height="70" rx="6" />
           </g>
 
-          {/* Main Avenue Lines (Avenidas principales) */}
-          <g className="stroke-slate-300/80 dark:stroke-slate-700/60" strokeWidth="3" fill="none">
-            <path d="M 0 120 L 600 120" />
-            <path d="M 0 240 L 600 240" />
+          {/* Main Avenue Lines (Grid Arteries) */}
+          <g className="stroke-slate-300/80 dark:stroke-slate-700/60" strokeWidth="2.5" fill="none">
+            <path d="M 0 110 L 600 110" />
+            <path d="M 0 250 L 600 250" />
             <path d="M 0 360 L 600 360" />
-            <path d="M 150 0 L 150 500" />
-            <path d="M 310 0 L 310 500" />
-            <path d="M 460 0 L 460 500" />
-            <path d="M 0 460 L 520 0" strokeWidth="2.5" strokeDasharray="6 4" className="stroke-slate-300 dark:stroke-slate-700/80" />
+            <path d="M 0 440 L 600 440" strokeWidth="4" className="stroke-slate-300 dark:stroke-slate-700" />
+            <path d="M 220 0 L 220 500" />
+            <path d="M 360 0 L 360 500" />
+            <path d="M 500 0 L 500 500" strokeWidth="3" />
+            <path d="M 20 460 L 560 60" strokeWidth="2" strokeDasharray="6 4" className="stroke-slate-300 dark:stroke-slate-700/80" />
+          </g>
+
+          {/* Street Name Text Labels in Map */}
+          <g className="fill-slate-400/80 dark:fill-slate-500/70 font-mono text-[9px] tracking-wider uppercase font-semibold">
+            <text x="370" y="345">CORREDOR VIAL</text>
+            <text x="430" y="195">{v.streetName}</text>
+            <text x="60" y="430">{v.originName}</text>
           </g>
 
           {/* Route Base Glow Line */}
@@ -320,12 +332,12 @@ function InteractiveMapTelemetryHUD() {
             d={routePathD}
             fill="none"
             className={isEngineCut ? "stroke-red-400/40" : "stroke-orange-400/40 dark:stroke-orange-500/30"}
-            strokeWidth="8"
+            strokeWidth="9"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
 
-          {/* Active Route Dashed Line (matching image 2 orange/coral route) */}
+          {/* Active Route Dashed Line (matching reference orange route) */}
           <path
             d={routePathD}
             fill="none"
@@ -338,16 +350,16 @@ function InteractiveMapTelemetryHUD() {
 
           {/* Origin Marker */}
           <g transform={`translate(${originPoint.x}, ${originPoint.y})`}>
-            <circle r="10" className="fill-orange-500/20 dark:fill-orange-500/30" />
-            <circle r="5" className="fill-orange-500" />
+            <circle r="12" className="fill-orange-500/20" />
+            <circle r="6" className="fill-orange-500" />
           </g>
 
-          {/* Destination Pulsing Pin (Concentric rings like image 2) */}
+          {/* Destination Pulsing Pin */}
           <g transform={`translate(${destinationPoint.x}, ${destinationPoint.y})`}>
             <circle r="22" className="fill-orange-500/15 animate-ping" />
             <circle r="14" className="fill-orange-500/25" />
             <circle r="7" className="fill-orange-500" />
-            {/* Destination Pill Badge */}
+            {/* Destination Badge */}
             <g transform="translate(18, -14)">
               <rect
                 x="0"
@@ -355,42 +367,39 @@ function InteractiveMapTelemetryHUD() {
                 width="84"
                 height="22"
                 rx="6"
-                className="fill-white/95 dark:fill-slate-900/95 stroke-slate-200 dark:stroke-white/10"
+                className="fill-white/95 dark:fill-slate-900/95 stroke-slate-200 dark:stroke-white/10 shadow-md"
                 strokeWidth="1"
               />
               <text
                 x="42"
                 y="14"
                 textAnchor="middle"
-                className="fill-slate-700 dark:fill-slate-200 font-mono text-[9px] font-bold tracking-wider"
+                className="fill-slate-800 dark:fill-slate-200 font-mono text-[9px] font-bold tracking-wider"
               >
                 DESTINATION
               </text>
             </g>
           </g>
 
-          {/* Moving Vehicle Node along route */}
-          <g
-            transform={`translate(${currentPos.x}, ${currentPos.y})`}
-            className="transition-transform duration-75 ease-linear"
-          >
-            {/* Expanding Pulse Wave */}
+          {/* Moving Vehicle Node - Animated directly via ref (Smooth 60fps, No Teleporting) */}
+          <g ref={markerRef} transform={`translate(${originPoint.x}, ${originPoint.y})`}>
+            {/* Outer Expanding Pulse Wave */}
             <circle
               r={isEngineCut ? "18" : "15"}
-              className={`animate-ping opacity-75 ${
-                isEngineCut ? "fill-red-500" : "fill-orange-500 dark:fill-orange-400"
+              className={`opacity-75 ${
+                isEngineCut ? "fill-red-500 animate-ping" : "fill-orange-500 animate-pulse"
               }`}
             />
-            {/* Middle Circle */}
+            {/* Main Vehicle Circle */}
             <circle
-              r="12"
+              r="11"
               className={`shadow-lg ${
                 isEngineCut
                   ? "fill-red-600 stroke-2 stroke-white"
                   : "fill-orange-500 stroke-2 stroke-white dark:stroke-slate-950"
               }`}
             />
-            {/* Inner Heading Dot */}
+            {/* Inner Core Dot */}
             <circle r="4" fill="white" />
           </g>
         </svg>
@@ -402,33 +411,33 @@ function InteractiveMapTelemetryHUD() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="absolute inset-0 z-30 bg-slate-950/70 backdrop-blur-sm flex flex-col items-center justify-center text-white"
+              transition={{ duration: 0.25 }}
+              className="absolute inset-0 z-30 bg-slate-950/70 backdrop-blur-sm flex flex-col items-center justify-center text-white pointer-events-none"
             >
-              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-violet-950/80 border border-violet-500/50">
+              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-violet-950/90 border border-violet-500/50 shadow-2xl">
                 <Radio className="w-4 h-4 text-cyan-400 animate-spin" />
                 <span className="text-xs font-mono font-bold tracking-wider text-cyan-300">
-                  SINCRONIZANDO TELEMETRÍA // {v.city}
+                  SINCRONIZANDO TELEMETRÍA // {v.city.toUpperCase()}
                 </span>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Floating Telemetry Glass Card (Matching User Image 2) */}
-        <div className="absolute top-4 left-4 right-4 z-20 pointer-events-auto">
+        {/* Compact Floating Telemetry Glass Card (Streamlined so it NEVER covers the route) */}
+        <div className="absolute top-4 left-4 z-20 pointer-events-auto">
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-[340px] sm:max-w-[370px] bg-white/95 dark:bg-slate-950/92 backdrop-blur-2xl border border-slate-200/90 dark:border-white/10 rounded-2xl p-4 shadow-2xl shadow-slate-900/10 dark:shadow-black/60 text-slate-900 dark:text-white transition-all"
+            className="w-[280px] sm:w-[290px] bg-white/95 dark:bg-slate-950/92 backdrop-blur-2xl border border-slate-200/90 dark:border-white/10 rounded-2xl p-3.5 shadow-xl shadow-slate-900/10 dark:shadow-black/60 text-slate-900 dark:text-white transition-all"
           >
             {/* Top Status Header */}
-            <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-200/80 dark:border-white/10 text-[11px] font-mono">
-              <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-white/5 truncate">
-                TELEMETRÍA SATELITAL 4G // V2.7
+            <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-slate-200/80 dark:border-white/10 text-[10px] font-mono">
+              <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-white/5 truncate">
+                TELEMETRÍA 4G // V2.7
               </span>
               <span
-                className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase border shrink-0 ${
+                className={`px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase border shrink-0 ${
                   isEngineCut
                     ? "bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-400 border-red-300 dark:border-red-500/40 animate-pulse"
                     : "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/40"
@@ -438,53 +447,53 @@ function InteractiveMapTelemetryHUD() {
               </span>
             </div>
 
-            {/* Vehicle Category Tabs */}
-            <div className="flex gap-1.5 my-3 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-white/5">
+            {/* Vehicle Category Tabs (Compact) */}
+            <div className="flex gap-1 my-2 p-0.5 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-white/5">
               {VEHICLES.map((item, idx) => {
                 const isSelected = selectedIdx === idx
                 return (
                   <button
                     key={item.id}
                     onClick={() => handleSelectVehicle(idx)}
-                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer truncate ${
+                    className={`flex-1 py-1 px-1.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer truncate text-center ${
                       isSelected
-                        ? "bg-violet-600 text-white shadow-sm"
+                        ? "bg-violet-600 text-white shadow-sm font-bold"
                         : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                     }`}
                   >
-                    {item.category.split(" ")[0]}
+                    {item.category}
                   </button>
                 )
               })}
             </div>
 
-            {/* Vehicle Details */}
-            <div className="mb-3">
+            {/* Vehicle Details (Streamlined) */}
+            <div className="mb-2">
               <div className="flex items-baseline justify-between">
-                <h4 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white">
+                <h4 className="text-sm font-extrabold tracking-tight text-slate-900 dark:text-white truncate">
                   {v.name}
                 </h4>
-                <span className="text-xs font-mono font-bold text-violet-600 dark:text-violet-400">
+                <span className="text-[11px] font-mono font-bold text-violet-600 dark:text-violet-400 shrink-0 ml-1">
                   {v.plate}
                 </span>
               </div>
-              <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium truncate">
                 {v.city}
               </p>
-              <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
-                Coordenadas: {v.coords}
+              <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                {v.coords}
               </p>
             </div>
 
             {/* Status Badges Row (Battery & Ignition) */}
-            <div className="flex items-center gap-2 mb-2.5 flex-wrap">
-              <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-[11px] font-mono font-semibold text-slate-700 dark:text-slate-300">
-                <Zap className="w-3 h-3 text-emerald-500" />
+            <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+              <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-[10px] font-mono font-semibold text-slate-700 dark:text-slate-300">
+                <Zap className="w-2.5 h-2.5 text-emerald-500" />
                 <span>{v.battery}</span>
               </div>
 
               <div
-                className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-mono font-semibold border ${
+                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold border ${
                   isEngineCut
                     ? "bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/30"
                     : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30"
@@ -492,87 +501,62 @@ function InteractiveMapTelemetryHUD() {
               >
                 {isEngineCut ? (
                   <>
-                    <AlertTriangle className="w-3 h-3 text-red-500" />
-                    <span>CORTE DE MOTOR</span>
+                    <AlertTriangle className="w-2.5 h-2.5 text-red-500" />
+                    <span>CORTE ACTIVO</span>
                   </>
                 ) : (
                   <>
-                    <CheckCircle className="w-3 h-3 text-emerald-500" />
-                    <span>IGNICIÓN AUTORIZADA</span>
+                    <CheckCircle className="w-2.5 h-2.5 text-emerald-500" />
+                    <span>IGNICIÓN OK</span>
                   </>
                 )}
               </div>
             </div>
 
             {/* Toggles Row: Cerco Activo & Blindado */}
-            <div className="flex items-center justify-between gap-2 py-2 border-t border-b border-slate-200/80 dark:border-white/10 text-xs">
+            <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-slate-200/80 dark:border-white/10 text-[11px]">
               <button
                 onClick={() => setGeofenceActive((p) => !p)}
-                className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 font-medium cursor-pointer"
+                className="flex items-center gap-1 text-slate-700 dark:text-slate-300 font-medium cursor-pointer"
               >
                 <CheckCircle
-                  className={`w-4 h-4 ${geofenceActive ? "text-emerald-500" : "text-slate-400"}`}
+                  className={`w-3.5 h-3.5 ${geofenceActive ? "text-emerald-500" : "text-slate-400"}`}
                 />
-                <span>CERCO ACTIVO</span>
+                <span>CERCO ON</span>
               </button>
 
               <button
                 onClick={() => setAntiJammerActive((p) => !p)}
-                className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium cursor-pointer"
+                className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 font-medium cursor-pointer"
               >
                 <span>Blindado</span>
                 <span
-                  className={`w-7 h-4 rounded-full flex items-center transition-colors p-0.5 ${
+                  className={`w-6 h-3.5 rounded-full flex items-center transition-colors p-0.5 ${
                     antiJammerActive ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"
                   }`}
                 >
                   <span
-                    className={`w-3 h-3 rounded-full bg-white transition-transform ${
-                      antiJammerActive ? "translate-x-3" : "translate-x-0"
+                    className={`w-2.5 h-2.5 rounded-full bg-white transition-transform ${
+                      antiJammerActive ? "translate-x-2.5" : "translate-x-0"
                     }`}
                   />
                 </span>
               </button>
             </div>
-
-            {/* Dual Mini Preview Boxes (Like Image 2) */}
-            <div className="grid grid-cols-2 gap-2 my-2.5">
-              {/* Mini Satellite Orbit Box */}
-              <div className="bg-slate-900 text-white rounded-xl p-2.5 flex items-center gap-2.5 border border-slate-800">
-                <div className="w-8 h-8 rounded-lg bg-orange-500/20 border border-orange-500/40 flex items-center justify-center shrink-0">
-                  <Radio className="w-4 h-4 text-orange-400 animate-pulse" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[9px] uppercase tracking-wider text-slate-400 font-mono">Central 24/7</p>
-                  <p className="text-[11px] font-bold text-white font-mono truncate">{v.sats}</p>
-                </div>
-              </div>
-
-              {/* Mini Street Route Box */}
-              <div className="bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-white rounded-xl p-2.5 flex items-center gap-2.5 border border-slate-200 dark:border-white/5">
-                <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-500/20 border border-violet-200 dark:border-violet-500/40 flex items-center justify-center shrink-0">
-                  <MapPin className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-mono">Ruta Activa</p>
-                  <p className="text-[11px] font-bold font-mono truncate">{v.distanceKm}</p>
-                </div>
-              </div>
-            </div>
           </motion.div>
         </div>
 
-        {/* Bottom Interactive Command Bar (Matching Image 2 "DISTANCE / SPEED / START RUN") */}
-        <div className="absolute bottom-4 left-4 right-4 z-20 pointer-events-auto">
-          <div className="w-full bg-white/95 dark:bg-slate-950/92 backdrop-blur-2xl border border-slate-200/90 dark:border-white/10 rounded-2xl p-3 sm:p-3.5 shadow-2xl flex items-center justify-between gap-3 text-slate-900 dark:text-white">
+        {/* Bottom Interactive Command Bar (Matching Image 2 "DISTANCE / SPEED / APAGAR MOTOR") */}
+        <div className="absolute bottom-3 left-4 right-4 z-20 pointer-events-auto">
+          <div className="w-full bg-white/95 dark:bg-slate-950/92 backdrop-blur-2xl border border-slate-200/90 dark:border-white/10 rounded-2xl p-2.5 sm:p-3 shadow-2xl flex items-center justify-between gap-2 text-slate-900 dark:text-white">
             <div className="flex items-center gap-4 sm:gap-6 font-mono">
               <div>
-                <p className="text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Distancia</p>
-                <p className="text-sm font-extrabold">{v.distanceKm}</p>
+                <p className="text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold">Distancia</p>
+                <p className="text-xs sm:text-sm font-extrabold">{v.distanceKm}</p>
               </div>
               <div className="border-l border-slate-200 dark:border-white/10 pl-4 sm:pl-6">
-                <p className="text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-400">Velocidad</p>
-                <p className={`text-sm font-extrabold tabular-nums ${isEngineCut ? "text-red-500 animate-pulse" : "text-emerald-600 dark:text-emerald-400"}`}>
+                <p className="text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold">Velocidad</p>
+                <p className={`text-xs sm:text-sm font-extrabold tabular-nums ${isEngineCut ? "text-red-500 animate-pulse" : "text-emerald-600 dark:text-emerald-400"}`}>
                   {speed} KM/H
                 </p>
               </div>
@@ -581,7 +565,7 @@ function InteractiveMapTelemetryHUD() {
             {/* Action Button: Apagar Motor / Reanudar */}
             <button
               onClick={() => setIsEngineCut((p) => !p)}
-              className={`px-4 sm:px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all shadow-lg flex items-center gap-2 cursor-pointer ${
+              className={`px-3.5 sm:px-4 py-2 rounded-xl font-mono text-[11px] sm:text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer ${
                 isEngineCut
                   ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30"
                   : "bg-red-600 hover:bg-red-700 text-white shadow-red-600/30"
