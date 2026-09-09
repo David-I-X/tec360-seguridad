@@ -650,11 +650,11 @@ function TechnicianServiceContent() {
 
                     <GlassCard className="p-5">
                         <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                            <Calendar className="w-4 h-4" /> Fecha
+                            <Calendar className="w-4 h-4 text-violet-500" /> Fecha y Hora del Servicio
                         </h3>
-                        <p className="text-sm">
+                        <p className="text-sm font-medium">
                             {service.scheduled_date
-                                ? format(new Date(service.scheduled_date), "PPP", { locale: es })
+                                ? format(new Date(service.scheduled_date), "PPP 'a las' p", { locale: es })
                                 : "Por definir"}
                         </p>
                         {service.estimated_price && (
