@@ -7,13 +7,13 @@ import {
   registerForPushNotificationsAsync,
   sendPushTokenToBackend,
   addNotificationResponseListener,
+  NotificationSubscription,
 } from '@/lib/notifications';
-import * as Notifications from 'expo-notifications';
 
 function NotificationSetup() {
   const { user } = useAuth();
   const router = useRouter();
-  const responseListenerRef = useRef<Notifications.Subscription | null>(null);
+  const responseListenerRef = useRef<NotificationSubscription | null>(null);
 
   useEffect(() => {
     if (!user) return;
