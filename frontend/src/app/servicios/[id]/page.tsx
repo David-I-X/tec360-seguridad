@@ -87,8 +87,17 @@ function ServiceDetailContent() {
     
     // UI Drawer state
     const [isSlideOpen, setIsSlideOpen] = useState(true)
+    const [isMobile, setIsMobile] = useState(false)
     const [copiedCoord, setCopiedCoord] = useState(false)
     const [isChatOpen, setIsChatOpen] = useState(false)
+
+    // Detect mobile viewport (< 640px)
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 640)
+        checkMobile()
+        window.addEventListener("resize", checkMobile)
+        return () => window.removeEventListener("resize", checkMobile)
+    }, [])
 
     // Modals state
     const [showRatingModal, setShowRatingModal] = useState(false)
@@ -276,25 +285,28 @@ function ServiceDetailContent() {
                 2. FLOATING OVERLAYS ON THE MAP
             ══════════════════════════════════════════════════════════ */}
             {/* Top-Left: Navigation Back + Live Connection Pill */}
-            <div className="absolute top-4 left-4 z-20 flex items-center gap-2.5">
+            <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 flex items-center gap-2">
                 <Button
                     variant="outline"
                     size="sm"
                     onClick={() => router.push("/servicios")}
-                    className="rounded-xl bg-white/90 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-800 border-slate-200/90 dark:border-white/10 backdrop-blur-xl shadow-lg text-xs font-semibold text-slate-800 dark:text-slate-200 gap-1.5 cursor-pointer"
+                    className="rounded-xl bg-white/95 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/90 dark:border-white/10 backdrop-blur-xl shadow-lg text-xs font-semibold text-slate-800 dark:text-slate-200 gap-1.5 px-3 py-1.5 h-8 sm:h-9 cursor-pointer"
                 >
                     <ArrowLeft className="w-4 h-4" />
                     <span>Volver</span>
                 </Button>
 
                 {isLive && (
-                    <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/90 dark:border-white/10 backdrop-blur-xl shadow-lg text-xs font-mono font-medium">
-                        <span className="relative flex h-2 w-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 h-8 sm:h-9 rounded-xl bg-white/95 dark:bg-slate-900/90 border border-slate-200/90 dark:border-white/10 backdrop-blur-xl shadow-lg text-xs font-mono font-medium">
+                        <span className="relative flex h-2 w-2 shrink-0">
                             <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${isConnected ? "bg-emerald-500" : "bg-amber-500"} opacity-75`} />
                             <span className={`relative inline-flex rounded-full h-2 w-2 ${isConnected ? "bg-emerald-500" : "bg-amber-500"}`} />
                         </span>
-                        <span className="text-slate-700 dark:text-slate-300">
+                        <span className="hidden sm:inline text-slate-700 dark:text-slate-300">
                             {isConnected ? "ENLACE EN VIVO" : "RECONECTANDO"}
+                        </span>
+                        <span className="sm:hidden text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                            {isConnected ? "EN VIVO" : "..."}
                         </span>
                     </div>
                 )}
@@ -304,18 +316,18 @@ function ServiceDetailContent() {
             <AnimatePresence>
                 {!isSlideOpen && (
                     <motion.div
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        className="absolute top-4 right-4 z-20"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20"
                     >
                         <Button
                             onClick={() => setIsSlideOpen(true)}
-                            className="rounded-xl bg-violet-600 hover:bg-violet-700 text-white shadow-xl shadow-violet-600/20 font-semibold text-xs flex items-center gap-2 px-4 py-2 cursor-pointer transition-all"
+                            className="rounded-xl bg-violet-600 hover:bg-violet-700 text-white shadow-xl shadow-violet-600/25 font-semibold text-xs flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 h-8 sm:h-9 cursor-pointer transition-all"
                         >
                             <PanelRightOpen className="w-4 h-4" />
                             <span>Ver Detalles</span>
-                            <span className="px-1.5 py-0.5 rounded-md bg-white/20 text-[10px] font-mono uppercase">
+                            <span className="hidden xs:inline-block px-1.5 py-0.5 rounded-md bg-white/20 text-[10px] font-mono uppercase">
                                 {statusInfo.label}
                             </span>
                         </Button>
@@ -323,9 +335,42 @@ function ServiceDetailContent() {
                 )}
             </AnimatePresence>
 
+            {/* Mobile Bottom Peek Bar when slide is closed */}
+            <AnimatePresence>
+                {!isSlideOpen && isMobile && (
+                    <motion.div
+                        initial={{ y: 80, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 80, opacity: 0 }}
+                        className="fixed bottom-3 inset-x-3 z-20 sm:hidden"
+                    >
+                        <button
+                            onClick={() => setIsSlideOpen(true)}
+                            className="w-full flex items-center justify-between p-3 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 shadow-xl cursor-pointer active:scale-[0.99] transition-transform"
+                        >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusInfo.dotColor}`} />
+                                <div className="text-left truncate">
+                                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                        {service.title || "Servicio Técnico"}
+                                    </p>
+                                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                                        {statusInfo.label} {service.estimated_price ? `· $${service.estimated_price.toLocaleString()}` : ""}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-1 text-xs font-semibold text-violet-600 dark:text-violet-400 shrink-0 bg-violet-500/10 px-2.5 py-1 rounded-xl">
+                                <span>Detalles</span>
+                                <ChevronRight className="w-3.5 h-3.5" />
+                            </div>
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Bottom-Left: Tracking Simulator in Development */}
             {process.env.NODE_ENV === "development" && (
-                <div className="absolute bottom-4 left-4 z-20 max-w-xs">
+                <div className="hidden sm:block absolute bottom-4 left-4 z-20 max-w-xs">
                     <TrackingSimulator
                         serviceId={service.id}
                         destLat={latValue}
@@ -334,36 +379,62 @@ function ServiceDetailContent() {
                 </div>
             )}
 
+            {/* Mobile Backdrop to tap-to-dismiss */}
+            <AnimatePresence>
+                {isSlideOpen && isMobile && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setIsSlideOpen(false)}
+                        className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-25 sm:hidden"
+                    />
+                )}
+            </AnimatePresence>
+
             {/* ══════════════════════════════════════════════════════════
-                3. SLIDE-OUT LATERAL TELEMETRY DRAWER ("Slide que abre y cierra")
+                3. SLIDE-OUT LATERAL TELEMETRY DRAWER / MOBILE BOTTOM SHEET
             ══════════════════════════════════════════════════════════ */}
             <AnimatePresence>
                 {isSlideOpen && (
                     <motion.aside
-                        initial={{ x: "100%", opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        exit={{ x: "100%", opacity: 0 }}
+                        key="telemetry-slide"
+                        variants={{
+                            hidden: isMobile ? { y: "100%", opacity: 0 } : { x: "100%", opacity: 0 },
+                            visible: isMobile ? { y: 0, opacity: 1 } : { x: 0, opacity: 1 },
+                        }}
+                        initial="hidden"
+                        animate="visible"
+                        exit="hidden"
                         transition={{ type: "spring", damping: 28, stiffness: 280 }}
-                        className="absolute top-0 right-0 bottom-0 w-full sm:w-[440px] md:w-[470px] z-30 flex flex-col bg-white/95 dark:bg-slate-950/92 backdrop-blur-2xl border-l border-slate-200/90 dark:border-white/10 shadow-2xl h-full"
+                        className="fixed sm:absolute bottom-0 left-0 right-0 sm:top-0 sm:left-auto sm:right-0 sm:bottom-0 w-full sm:w-[440px] md:w-[470px] max-h-[78dvh] sm:max-h-full h-auto sm:h-full z-30 flex flex-col bg-white/98 dark:bg-slate-950/95 backdrop-blur-2xl border-t sm:border-t-0 sm:border-l border-slate-200/90 dark:border-white/10 rounded-t-3xl sm:rounded-none shadow-2xl overflow-hidden"
                     >
+                        {/* Mobile Drag Indicator / Handle */}
+                        <div
+                            className="sm:hidden pt-3 pb-1 flex justify-center cursor-pointer"
+                            onClick={() => setIsSlideOpen(false)}
+                        >
+                            <div className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 transition-colors" />
+                        </div>
+
                         {/* ── Slide Header ────────────────────────────────── */}
-                        <div className="p-4 sm:p-5 border-b border-slate-200/80 dark:border-white/10 flex items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-900/40">
-                            <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-9 h-9 rounded-xl bg-violet-600/10 dark:bg-violet-500/20 border border-violet-500/30 flex items-center justify-center shrink-0 text-violet-600 dark:text-violet-400">
-                                    <Shield className="w-5 h-5" />
+                        <div className="p-3.5 sm:p-5 border-b border-slate-200/80 dark:border-white/10 flex items-center justify-between gap-3 bg-slate-50/70 dark:bg-slate-900/40">
+                            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-violet-600/10 dark:bg-violet-500/20 border border-violet-500/30 flex items-center justify-center shrink-0 text-violet-600 dark:text-violet-400">
+                                    <Shield className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </div>
                                 <div className="min-w-0">
-                                    <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight truncate">
+                                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-tight truncate">
                                         {service.title || "Servicio Técnico"}
                                     </h2>
-                                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
+                                    <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
                                         {typeLabels[service.service_type] || service.service_type}
                                     </p>
                                 </div>
                             </div>
 
                             <div className="flex items-center gap-2 shrink-0">
-                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border ${statusInfo.color}`}>
+                                <span className={`inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-medium border ${statusInfo.color}`}>
                                     <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dotColor}`} />
                                     {statusInfo.label}
                                 </span>
@@ -505,22 +576,24 @@ function ServiceDetailContent() {
                             {/* 4. Quotations Card (for pending/quoted clients) */}
                             {showQuotationsCard && (
                                 <div className="rounded-2xl p-4 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-indigo-500/10 border border-blue-500/30 shadow-sm">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-500 flex items-center justify-center shrink-0">
-                                            <FileText className="w-5 h-5" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-                                                {service.status === "quoted" ? "¡Tienes cotizaciones disponibles!" : "Esperando cotizaciones"}
-                                            </h4>
-                                            <p className="text-[11px] text-slate-600 dark:text-slate-400 truncate">
-                                                {service.status === "quoted" ? "Revisa las propuestas de los técnicos" : "Los técnicos pronto enviarán propuestas"}
-                                            </p>
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                                            <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-500 flex items-center justify-center shrink-0">
+                                                <FileText className="w-5 h-5" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                                                    {service.status === "quoted" ? "¡Tienes cotizaciones disponibles!" : "Esperando cotizaciones"}
+                                                </h4>
+                                                <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                                                    {service.status === "quoted" ? "Revisa las propuestas de los técnicos" : "Los técnicos pronto enviarán propuestas"}
+                                                </p>
+                                            </div>
                                         </div>
                                         <Button
                                             size="sm"
                                             onClick={() => router.push(`/servicios/${params.id}/cotizaciones`)}
-                                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shrink-0 cursor-pointer"
+                                            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shrink-0 cursor-pointer"
                                         >
                                             Ver Cotizaciones
                                         </Button>
@@ -797,7 +870,7 @@ export default function ServiceDetailPage() {
     return (
         <ProtectedRoute>
             {/* Full-viewport container under fixed navbar (h-16) */}
-            <div className="fixed inset-x-0 top-16 bottom-0 w-full h-[calc(100dvh-4rem)] overflow-hidden bg-slate-950">
+            <div className="fixed inset-x-0 top-16 bottom-0 w-full h-[calc(100dvh-4rem)] overflow-hidden bg-slate-100 dark:bg-slate-950">
                 <ServiceDetailContent />
             </div>
         </ProtectedRoute>

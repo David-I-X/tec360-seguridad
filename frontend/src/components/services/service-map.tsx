@@ -8,6 +8,7 @@ import {
     Polyline,
 } from "@react-google-maps/api"
 import { Loader2, MapPin, Navigation2 } from "lucide-react"
+import { useTheme } from "next-themes"
 
 interface ServiceMapProps {
     lat: number
@@ -24,22 +25,25 @@ const libraries: ("places")[] = ["places"]
 const mapStyleLight: google.maps.MapTypeStyle[] = [
     { featureType: "poi", stylers: [{ visibility: "off" }] },
     { featureType: "transit", stylers: [{ visibility: "off" }] },
-    { featureType: "water", stylers: [{ color: "#c9e8fc" }] },
-    { featureType: "road", elementType: "geometry", stylers: [{ color: "#e8e8e8" }] },
-    { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
-    { featureType: "landscape", stylers: [{ color: "#f3f4f6" }] },
+    { featureType: "water", stylers: [{ color: "#dbeafe" }] },
+    { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
+    { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#fed7aa" }] },
+    { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#475569" }] },
+    { featureType: "landscape", stylers: [{ color: "#f8fafc" }] },
 ]
 
 // Dark map styles
 const mapStyleDark: google.maps.MapTypeStyle[] = [
-    { elementType: "geometry", stylers: [{ color: "#1a1a2e" }] },
-    { elementType: "labels.text.stroke", stylers: [{ color: "#1a1a2e" }] },
-    { elementType: "labels.text.fill", stylers: [{ color: "#8b92a5" }] },
-    { featureType: "road", elementType: "geometry", stylers: [{ color: "#2a2a4a" }] },
-    { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#1e1e3a" }] },
-    { featureType: "water", stylers: [{ color: "#0e1a2b" }] },
+    { elementType: "geometry", stylers: [{ color: "#0f172a" }] },
+    { elementType: "labels.text.stroke", stylers: [{ color: "#0f172a" }] },
+    { elementType: "labels.text.fill", stylers: [{ color: "#94a3b8" }] },
+    { featureType: "road", elementType: "geometry", stylers: [{ color: "#1e293b" }] },
+    { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#334155" }] },
+    { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#312e81" }] },
+    { featureType: "water", stylers: [{ color: "#020617" }] },
     { featureType: "poi", stylers: [{ visibility: "off" }] },
     { featureType: "transit", stylers: [{ visibility: "off" }] },
+    { featureType: "landscape", stylers: [{ color: "#0b1329" }] },
 ]
 
 // Custom SVG marker for the service destination
@@ -140,6 +144,14 @@ export default function ServiceMap({ lat, lng, address, technicianLat, technicia
         libraries,
     })
 
+    const { resolvedTheme } = useTheme()
+    const [mounted, setMounted] = useState(false)
+    useEffect(() => {
+        setMounted(true)
+    }, [])
+
+    const isDark = mounted ? resolvedTheme === "dark" : true
+
     const mapRef = useRef<google.maps.Map | null>(null)
     const [osrmPath, setOsrmPath] = useState<{lat: number, lng: number}[]>([])
     const [eta, setEta] = useState<string | null>(null)
@@ -147,12 +159,17 @@ export default function ServiceMap({ lat, lng, address, technicianLat, technicia
     const routeRequested = useRef(false)
     const lastRoutePos = useRef<{ lat: number; lng: number } | null>(null)
 
-    // Detect dark mode
-    const isDark = typeof document !== "undefined" &&
-        document.documentElement.classList.contains("dark")
-
     // Smooth marker animation
     const smoothTechPos = useSmoothMarkerPosition(technicianLat, technicianLng, 2000)
+
+    // Dynamically update Google Map options when theme changes
+    useEffect(() => {
+        if (mapRef.current && isLoaded) {
+            mapRef.current.setOptions({
+                styles: isDark ? mapStyleDark : mapStyleLight,
+            })
+        }
+    }, [isDark, isLoaded])
 
     // ============================================================
     // OSRM API — get real route along streets (Free fallback)
@@ -223,7 +240,10 @@ export default function ServiceMap({ lat, lng, address, technicianLat, technicia
     // Map loaded callback
     const onMapLoad = useCallback((map: google.maps.Map) => {
         mapRef.current = map
-    }, [])
+        map.setOptions({
+            styles: resolvedTheme === "dark" ? mapStyleDark : mapStyleLight,
+        })
+    }, [resolvedTheme])
 
     // Polyline options — blue route line
     const polylineOptions = useMemo(() => ({
@@ -317,27 +337,27 @@ export default function ServiceMap({ lat, lng, address, technicianLat, technicia
                 )}
             </GoogleMap>
 
-            {/* ETA + Distance overlay */}
+            {/* ETA + Distance overlay (positioned safely below top back button) */}
             {(eta || distance) && (
-                <div className="absolute top-3 left-3 bg-card/95 backdrop-blur-md rounded-lg px-3 py-2 shadow-lg border border-border/50">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                        <Navigation2 className="h-4 w-4 text-blue-500" />
+                <div className="absolute top-16 left-3 sm:left-4 z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-xl px-3 py-2 shadow-lg border border-slate-200/90 dark:border-white/10">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                        <Navigation2 className="h-3.5 w-3.5 text-blue-500" />
                         {eta && <span>{eta}</span>}
-                        {eta && distance && <span className="text-muted-foreground">·</span>}
-                        {distance && <span className="text-muted-foreground text-xs">{distance}</span>}
+                        {eta && distance && <span className="text-slate-400">·</span>}
+                        {distance && <span className="text-slate-500 dark:text-slate-400 text-[11px] font-mono">{distance}</span>}
                     </div>
                 </div>
             )}
 
-            {/* Legend overlay */}
+            {/* Legend overlay (positioned safely at bottom-left) */}
             {smoothTechPos && (
-                <div className="absolute bottom-3 left-3 bg-card/90 backdrop-blur-md rounded-lg px-3 py-2 shadow-lg border border-border/50 text-xs flex items-center gap-3">
+                <div className="absolute bottom-4 left-3 sm:left-4 z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-xl px-3 py-1.5 shadow-lg border border-slate-200/90 dark:border-white/10 text-[11px] font-medium text-slate-700 dark:text-slate-300 flex items-center gap-3">
                     <span className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
+                        <span className="w-2 h-2 rounded-full bg-red-500 inline-block shadow-xs" />
                         Destino
                     </span>
                     <span className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block animate-pulse" />
+                        <span className="w-2 h-2 rounded-full bg-blue-500 inline-block animate-pulse shadow-xs" />
                         Técnico
                     </span>
                 </div>
