@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Image, Linking, Dimensions, Platform, Alert, RefreshControl,
@@ -6,37 +6,58 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
-
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
-import { useAuth } from '@/lib/auth-context';
 import { getServiceById, getAuthToken, API_URL, fetchWithAuth } from '@/lib/api';
 import { serviceWebSocket } from '@/lib/websocket';
 import { ServicePinMarker, TechnicianPinMarker } from '@/components/map-markers';
 import RatingModal from '@/components/rating-modal';
 import PaymentModal from '@/components/payment-modal';
+import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // ─── Status stepper config ───────────────────────
 const SERVICE_STEPS = [
-  { key: 'assigned', label: 'Técnico asignado', emoji: '🔔', detail: 'Tu técnico aceptó el servicio' },
-  { key: 'en_route', label: 'En camino', emoji: '🚗', detail: 'El técnico está en ruta' },
-  { key: 'arrived', label: 'Llegó', emoji: '📍', detail: 'El técnico está en tu ubicación' },
-  { key: 'in_progress', label: 'Trabajando', emoji: '🔧', detail: 'El servicio está en progreso' },
-  { key: 'completed', label: 'Completado', emoji: '✅', detail: '¡Servicio terminado!' },
+  { key: 'assigned', label: 'Técnico asignado', icon: 'notifications-outline', detail: 'Tu técnico aceptó el servicio' },
+  { key: 'en_route', label: 'En camino', icon: 'navigate-outline', detail: 'El técnico está en ruta satelital' },
+  { key: 'arrived', label: 'Llegó al sitio', icon: 'location-outline', detail: 'El técnico está en tu ubicación' },
+  { key: 'in_progress', label: 'En progreso', icon: 'construct-outline', detail: 'El servicio está ejecutándose' },
+  { key: 'completed', label: 'Completado', icon: 'checkmark-circle-outline', detail: '¡Servicio terminado exitosamente!' },
 ];
 
-const statusInfo: Record<string, { label: string; color: string; emoji: string }> = {
-  pending: { label: 'Pendiente', color: '#eab308', emoji: '⏳' },
-  quoted: { label: 'Cotizado', color: '#a855f7', emoji: '💰' },
-  assigned: { label: 'Asignado', color: '#8b5cf6', emoji: '🔔' },
-  en_route: { label: 'En camino', color: '#7c3aed', emoji: '🚗' },
-  arrived: { label: 'Llegó', color: '#f97316', emoji: '📍' },
-  in_progress: { label: 'Trabajando', color: '#a855f7', emoji: '🔧' },
-  completed: { label: 'Completado', color: '#22c55e', emoji: '✅' },
-  cancelled: { label: 'Cancelado', color: '#ef4444', emoji: '❌' },
+const statusInfo: Record<string, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = {
+  pending: { label: 'Pendiente', color: '#f59e0b', icon: 'time-outline' },
+  quoted: { label: 'Con Cotizaciones', color: '#818cf8', icon: 'document-text-outline' },
+  assigned: { label: 'Asignado', color: '#60a5fa', icon: 'person-outline' },
+  en_route: { label: 'En camino', color: '#38bdf8', icon: 'navigate-outline' },
+  arrived: { label: 'Llegó al sitio', color: '#fb923c', icon: 'location-outline' },
+  in_progress: { label: 'En Progreso', color: '#c084fc', icon: 'construct-outline' },
+  completed: { label: 'Completado', color: '#34d399', icon: 'checkmark-circle-outline' },
+  confirmed: { label: 'Confirmado', color: '#34d399', icon: 'checkmark-circle' },
+  cancelled: { label: 'Cancelado', color: '#f87171', icon: 'close-circle-outline' },
 };
+
+function formatDetailedDate(dateStr?: string | null): string | null {
+  if (!dateStr) return null;
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return null;
+    const dateFormatted = d.toLocaleDateString('es-CO', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+    const timeFormatted = d.toLocaleTimeString('es-CO', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+    return `${dateFormatted} a las ${timeFormatted}`;
+  } catch {
+    return null;
+  }
+}
 
 // ─── Fetch real road route from OSRM ───
 async function fetchRouteCoordinates(
@@ -73,7 +94,9 @@ export default function ServiceDetailScreen() {
   const [alreadyRated, setAlreadyRated] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const lastRouteFetchRef = React.useRef<{ lat: number; lng: number } | null>(null);
+  const [isSlideExpanded, setIsSlideExpanded] = useState(false);
+  const lastRouteFetchRef = useRef<{ lat: number; lng: number } | null>(null);
+  const mapRef = useRef<MapView | null>(null);
 
   const handleConfirmPayment = async (method: string) => {
     try {
@@ -83,7 +106,6 @@ export default function ServiceDetailScreen() {
         body: JSON.stringify({ payment_method: method })
       });
       setService((prev: any) => ({ ...prev, status: 'confirmed' }));
-      // Update canRate to allow rating if applicable
       setCanRate(true);
     } catch (e: any) {
       Alert.alert('Error', e.message || 'No se pudo confirmar el servicio');
@@ -94,11 +116,17 @@ export default function ServiceDetailScreen() {
     try {
       const data = await getServiceById(id!);
       setService(data.service || data);
-    } catch (e) { console.error(e); }
-    finally { setIsLoading(false); setRefreshing(false); }
+    } catch (e) {
+      console.error('[ServiceDetail] Error loading service:', e);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
   }, [id]);
 
-  useEffect(() => { loadService(); }, [loadService]);
+  useEffect(() => {
+    loadService();
+  }, [loadService]);
 
   // Check if user can rate (for completed services)
   useEffect(() => {
@@ -106,15 +134,16 @@ export default function ServiceDetailScreen() {
     (async () => {
       try {
         const res = await fetchWithAuth(`/ratings/services/${id}/can-rate`);
-        const data = await res.json();
-        setCanRate(data.can_rate);
-        setAlreadyRated(!data.can_rate && data.reason?.includes('ya'));
-      } catch (e) {
-        // If endpoint fails, still allow rating attempt
+        if (res.ok) {
+          const data = await res.json();
+          setCanRate(data.can_rate);
+          setAlreadyRated(!data.can_rate && data.reason?.includes('ya'));
+        }
+      } catch {
         setCanRate(true);
       }
     })();
-  }, [service?.status, id]);
+  }, [service, id]);
 
   // WebSocket for live tracking
   useEffect(() => {
@@ -135,14 +164,16 @@ export default function ServiceDetailScreen() {
       });
     })();
 
-    return () => { serviceWebSocket.disconnect(); unsubscribe?.(); };
+    return () => {
+      serviceWebSocket.disconnect();
+      unsubscribe?.();
+    };
   }, [id]);
 
-  // ─── Fetch real road route when tech location updates ───
+  // Fetch real road route when tech location updates
   useEffect(() => {
     if (!techLocation || !service?.service_lat || !service?.service_lon) return;
 
-    // Only re-fetch if moved >200m
     if (lastRouteFetchRef.current) {
       const dlat = Math.abs(techLocation.lat - lastRouteFetchRef.current.lat);
       const dlng = Math.abs(techLocation.lng - lastRouteFetchRef.current.lng);
@@ -164,26 +195,28 @@ export default function ServiceDetailScreen() {
   }, [techLocation, service?.service_lat, service?.service_lon]);
 
   if (isLoading) {
-    return <View style={styles.centered}><ActivityIndicator size="large" color="#8b5cf6" /></View>;
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Cargando telemetría del servicio...</Text>
+      </View>
+    );
   }
 
   const tech = service?.technician;
   const staticUrl = API_URL.replace(/\/api\/?$/, '');
   const isLive = ['assigned', 'en_route', 'arrived', 'in_progress'].includes(service?.status);
   const isTrackingStatus = ['en_route', 'in_progress'].includes(service?.status);
-  // Use explicit null check — 0.0 is falsy in JS but valid coord
+
   const hasServiceCoords = service?.service_lat != null && service?.service_lon != null
     && (service.service_lat !== 0 || service.service_lon !== 0);
   const serviceLat = hasServiceCoords ? service.service_lat : 6.2518;
   const serviceLng = hasServiceCoords ? service.service_lon : -75.5636;
   const si = statusInfo[service?.status] || statusInfo.pending;
 
-  const serviceDateObj = service?.scheduled_date || service?.requested_date || service?.created_at;
-  const formattedDate = serviceDateObj
-    ? `${new Date(serviceDateObj).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })} · ${new Date(serviceDateObj).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}`
-    : null;
+  const formattedDate = formatDetailedDate(service?.scheduled_date || service?.requested_date || service?.created_at);
   const formattedPrice = service?.estimated_price
-    ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(service.estimated_price)
+    ? `$${Number(service.estimated_price).toLocaleString('es-CO')}`
     : null;
 
   const getRegion = () => {
@@ -192,9 +225,19 @@ export default function ServiceDetailScreen() {
       const midLng = (techLocation.lng + serviceLng) / 2;
       const deltaLat = Math.abs(techLocation.lat - serviceLat) * 1.6 || 0.02;
       const deltaLng = Math.abs(techLocation.lng - serviceLng) * 1.6 || 0.02;
-      return { latitude: midLat, longitude: midLng, latitudeDelta: Math.max(deltaLat, 0.01), longitudeDelta: Math.max(deltaLng, 0.01) };
+      return {
+        latitude: midLat,
+        longitude: midLng,
+        latitudeDelta: Math.max(deltaLat, 0.015),
+        longitudeDelta: Math.max(deltaLng, 0.015),
+      };
     }
-    return { latitude: serviceLat, longitude: serviceLng, latitudeDelta: 0.015, longitudeDelta: 0.015 };
+    return {
+      latitude: serviceLat,
+      longitude: serviceLng,
+      latitudeDelta: 0.015,
+      longitudeDelta: 0.015,
+    };
   };
 
   const openInMaps = () => {
@@ -207,10 +250,11 @@ export default function ServiceDetailScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Map — ALWAYS visible */}
+      {/* ── 1. FULLSCREEN MAP BACKGROUND ── */}
       <MapView
+        ref={mapRef}
         provider={PROVIDER_GOOGLE}
-        style={styles.map}
+        style={StyleSheet.absoluteFillObject}
         initialRegion={getRegion()}
         customMapStyle={darkMapStyle}
       >
@@ -218,83 +262,107 @@ export default function ServiceDetailScreen() {
           coordinate={{ latitude: serviceLat, longitude: serviceLng }}
           title="Ubicación del servicio"
           anchor={{ x: 0.5, y: 1 }}
-          tracksViewChanges={false}
         >
           <ServicePinMarker />
         </Marker>
+
         {techLocation && (
           <Marker
             coordinate={{ latitude: techLocation.lat, longitude: techLocation.lng }}
             title={tech?.full_name || 'Técnico'}
             anchor={{ x: 0.5, y: 0.5 }}
-            tracksViewChanges={false}
           >
             <TechnicianPinMarker label={tech?.full_name?.split(' ')[0]} />
           </Marker>
         )}
-        {/* Real road route */}
+
         {routeCoords.length > 1 && (
           <Polyline
             coordinates={routeCoords}
-            strokeColor="#3b82f6"
+            strokeColor="#38bdf8"
             strokeWidth={4}
           />
         )}
       </MapView>
 
-      {/* Back button */}
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={22} color="#f0f0f5" />
-      </TouchableOpacity>
-
-      {/* Open maps */}
-      {hasServiceCoords && (
-        <TouchableOpacity style={styles.mapsBtn} onPress={openInMaps} activeOpacity={0.8}>
-          <Ionicons name="navigate" size={14} color="#fff" />
-          <Text style={styles.mapsBtnText}>Ver en mapa</Text>
+      {/* ── 2. FLOATING TOP CONTROLS ── */}
+      <View style={styles.topControlBar}>
+        {/* Back Button */}
+        <TouchableOpacity
+          style={styles.floatingRoundBtn}
+          onPress={() => router.back()}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
-      )}
 
-      {/* ETA overlay */}
+        {/* Right Buttons: Google Maps & Slide Drawer Toggle */}
+        <View style={styles.topRightRow}>
+          {hasServiceCoords && (
+            <TouchableOpacity
+              style={styles.floatingActionBtn}
+              onPress={openInMaps}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="navigate" size={13} color="#fff" />
+              <Text style={styles.floatingActionText}>Google Maps</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[styles.floatingActionBtn, styles.floatingToggleBtn]}
+            onPress={() => setIsSlideExpanded(prev => !prev)}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name={isSlideExpanded ? "chevron-down" : "reorder-three"}
+              size={15}
+              color="#fff"
+            />
+            <Text style={styles.floatingActionText}>
+              {isSlideExpanded ? "Minimizar" : "Detalles"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* ── 3. MAP OVERLAYS (ETA, Live Pulse, Legend) ── */}
       {routeInfo && routeInfo.duration && (
         <View style={styles.etaOverlay}>
-          <Ionicons name="navigate" size={14} color="#3b82f6" />
+          <Ionicons name="speedometer-outline" size={14} color="#38bdf8" />
           <Text style={styles.etaText}>{routeInfo.duration}</Text>
           <Text style={styles.etaDivider}>·</Text>
           <Text style={styles.etaDistance}>{routeInfo.distance}</Text>
         </View>
       )}
 
-      {/* Tracking status overlay on map */}
       {isLive && !techLocation && (
         <View style={styles.trackingOverlay}>
           {isTrackingStatus ? (
             <>
-              <ActivityIndicator size="small" color="#eab308" />
+              <ActivityIndicator size="small" color="#f59e0b" />
               <Text style={styles.trackingOverlayText}>
                 Esperando ubicación del técnico...
               </Text>
             </>
           ) : (
             <>
-              <Ionicons name="time-outline" size={16} color="#8b8fa3" />
+              <Ionicons name="time-outline" size={15} color="#94a3b8" />
               <Text style={styles.trackingOverlayText}>
-                El técnico aún no está en camino
+                El técnico aún no inicia ruta
               </Text>
             </>
           )}
         </View>
       )}
 
-      {/* Live tracking active badge */}
       {techLocation && (
         <View style={styles.liveTrackingBadge}>
           <View style={styles.liveDot} />
-          <Text style={styles.liveTrackingText}>EN VIVO</Text>
+          <Text style={styles.liveTrackingText}>ENLACE ACTIVO</Text>
         </View>
       )}
 
-      {/* Legend */}
       {techLocation && (
         <View style={styles.legendOverlay}>
           <View style={styles.legendItem}>
@@ -302,274 +370,365 @@ export default function ServiceDetailScreen() {
             <Text style={styles.legendText}>Destino</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
+            <View style={[styles.legendDot, { backgroundColor: '#38bdf8' }]} />
             <Text style={styles.legendText}>Técnico</Text>
           </View>
         </View>
       )}
 
-      {/* Bottom Sheet */}
-      <ScrollView 
-        style={styles.sheet} 
-        contentContainerStyle={{ paddingBottom: 120 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadService(); }} tintColor="#8b5cf6" />}
-      >
-
-        {/* ── Technician Card ── */}
-        {tech && (
-          <View style={styles.techCard}>
-            <View style={styles.techGradientBar} />
-            <Text style={styles.techCardLabel}>TÉCNICO ASIGNADO</Text>
-
-            <View style={styles.techRow}>
-              {tech.avatar_url ? (
-                <Image source={{ uri: tech.avatar_url.startsWith('http') ? tech.avatar_url : `${staticUrl}${tech.avatar_url}` }} style={styles.techAvatar} />
-              ) : (
-                <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.techAvatar}>
-                  <Text style={styles.techInitial}>{(tech.full_name || 'T').charAt(0).toUpperCase()}</Text>
-                </LinearGradient>
-              )}
-              <View style={{ flex: 1 }}>
-                <Text style={styles.techName}>{tech.full_name || 'Técnico'}</Text>
-                <View style={styles.badgesRow}>
-                  <View style={styles.ratingBadge}>
-                    <Ionicons name="star" size={12} color="#eab308" />
-                    <Text style={styles.ratingText}>{tech.average_rating?.toFixed(1) || 'Nuevo'}</Text>
-                  </View>
-                  <View style={styles.verifiedBadge}>
-                    <Ionicons name="checkmark-circle" size={12} color="#22c55e" />
-                    <Text style={styles.verifiedText}>Verificado</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.techActions}>
-              <TouchableOpacity style={styles.profileBtn} activeOpacity={0.7} onPress={() => router.push(`/(client)/tech-profile/${tech.id || service?.technician_id}` as any)}>
-                <Text style={styles.profileBtnText}>Ver perfil</Text>
-              </TouchableOpacity>
-              {tech.phone && (
-                <TouchableOpacity style={styles.callBtnFull} onPress={() => Linking.openURL(`tel:${tech.phone}`)} activeOpacity={0.7}>
-                  <LinearGradient colors={['#22c55e', '#16a34a']} style={styles.callBtnGradient}>
-                    <Ionicons name="call" size={16} color="#fff" />
-                    <Text style={styles.callBtnText}>Llamar</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity style={styles.callBtnFull} onPress={() => router.push(`/(client)/chat/${id}` as any)} activeOpacity={0.7}>
-                <LinearGradient colors={['#8b5cf6', '#7c3aed']} style={styles.callBtnGradient}>
-                  <Ionicons name="chatbubbles" size={16} color="#fff" />
-                  <Text style={styles.callBtnText}>Chat</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* ── Status Timeline ── */}
-        {isLive && <StatusTimeline status={service?.status} />}
-
-        {/* Status Banner (non-live) */}
-        {!isLive && (
-          <View style={[styles.statusBanner, { borderColor: `${si.color}40`, backgroundColor: `${si.color}15` }]}>
-            <Text style={{ fontSize: 22 }}>{si.emoji}</Text>
-            <Text style={[styles.statusBannerLabel, { color: si.color }]}>{si.label}</Text>
-          </View>
-        )}
-
-        {/* Title */}
-        <Text style={styles.title}>{service?.title}</Text>
-        {service?.description && service.description.toLowerCase() !== 'sin descripción' && (
-          <Text style={styles.description}>"{service.description}"</Text>
-        )}
-
-        {/* Info Cards */}
-        <View style={styles.infoGrid}>
-          <View style={styles.infoCard}>
-            <View style={[styles.infoIconBox, { backgroundColor: 'rgba(139,92,246,0.15)' }]}>
-              <Ionicons name="location" size={18} color="#8b5cf6" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.infoLabel}>Ubicación</Text>
-              <Text style={styles.infoValue} numberOfLines={2}>{service?.service_address}</Text>
-              {service?.service_city && <Text style={styles.infoSub}>{service.service_city}</Text>}
-            </View>
-          </View>
-
-          <View style={styles.infoRowSplit}>
-            {formattedDate && (
-              <View style={[styles.infoCard, { flex: 1 }]}>
-                <View style={[styles.infoIconBox, { backgroundColor: 'rgba(168,85,247,0.15)' }]}>
-                  <Ionicons name="calendar" size={18} color="#a855f7" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.infoLabel}>Fecha y Hora</Text>
-                  <Text style={styles.infoValue} numberOfLines={1}>{formattedDate}</Text>
-                </View>
-              </View>
-            )}
-            {formattedPrice && (
-              <View style={[styles.infoCard, { flex: 1 }]}>
-                <View style={[styles.infoIconBox, { backgroundColor: 'rgba(34,197,94,0.15)' }]}>
-                  <Ionicons name="cash" size={18} color="#22c55e" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.infoLabel}>Precio</Text>
-                  <Text style={[styles.infoValue, { color: '#22c55e' }]}>{formattedPrice}</Text>
-                </View>
-              </View>
-            )}
-          </View>
-
-          {service?.vehicle_plate && (
-            <View style={styles.infoCard}>
-              <View style={[styles.infoIconBox, { backgroundColor: 'rgba(59,130,246,0.15)' }]}>
-                <Ionicons name="car" size={18} color="#3b82f6" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.infoLabel}>Vehículo</Text>
-                <Text style={styles.infoValue}>{service.vehicle_type} {service.vehicle_model}</Text>
-                <Text style={styles.infoSub}>Placa: {service.vehicle_plate}</Text>
-              </View>
-            </View>
-          )}
-        </View>
-
-        {service?.vehicle_photo_url && (
-          <Image
-            source={{ uri: service.vehicle_photo_url.startsWith('http') ? service.vehicle_photo_url : `${staticUrl}${service.vehicle_photo_url}` }}
-            style={styles.vehiclePhoto}
-          />
-        )}
-
-        {service?.status === 'pending' && (
-          <>
-            <TouchableOpacity onPress={() => router.push(`/(client)/quotations/${id}` as any)} activeOpacity={0.8}>
-              <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.actionButton}>
-                <Ionicons name="pricetags" size={18} color="#fff" />
-                <Text style={styles.actionText}>Ver Cotizaciones</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => {
-                Alert.alert(
-                  'Cancelar servicio',
-                  '¿Estás seguro de que deseas cancelar este servicio?',
-                  [
-                    { text: 'No', style: 'cancel' },
-                    {
-                      text: 'Sí, cancelar',
-                      style: 'destructive',
-                      onPress: async () => {
-                        try {
-                          await fetchWithAuth(`/services/${id}`, { method: 'DELETE' });
-                          Alert.alert('Servicio cancelado', 'Tu servicio ha sido cancelado.');
-                          router.back();
-                        } catch (err) {
-                          Alert.alert('Error', 'No se pudo cancelar el servicio.');
-                        }
-                      },
-                    },
-                  ]
-                );
-              }}
-              activeOpacity={0.8}
-              style={{ marginTop: 4 }}
-            >
-              <View style={[styles.actionButton, { backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' }]}>
-                <Ionicons name="close-circle" size={18} color="#ef4444" />
-                <Text style={[styles.actionText, { color: '#ef4444' }]}>Cancelar servicio</Text>
-              </View>
-            </TouchableOpacity>
-          </>
-        )}
-
-        {service?.status === 'completed' && (
-          <View style={styles.completedBanner}>
-            <Text style={{ fontSize: 40, marginBottom: 8 }}>🎉</Text>
-            <Text style={{ color: '#22c55e', fontSize: 18, fontWeight: '800' }}>¡Servicio completado!</Text>
-            <Text style={{ color: '#8b8fa3', fontSize: 13, textAlign: 'center', marginTop: 4 }}>
-              El técnico ha indicado que terminó el trabajo. Por favor, confirma que todo quedó bien.
-            </Text>
-            <TouchableOpacity onPress={() => setShowPaymentModal(true)} activeOpacity={0.8} style={{ marginTop: 16, width: '100%' }}>
-              <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.actionButton}>
-                <Ionicons name="card" size={18} color="#fff" />
-                <Text style={styles.actionText}>Confirmar y Pagar</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {['completed', 'confirmed'].includes(service?.status) && (
-          <View style={[styles.completedBanner, { marginTop: service?.status === 'completed' ? 16 : 0, backgroundColor: 'rgba(234,179,8,0.05)', borderColor: 'rgba(234,179,8,0.2)' }]}>
-            {service?.status === 'confirmed' && (
-              <>
-                <Text style={{ fontSize: 40, marginBottom: 8 }}>✅</Text>
-                <Text style={{ color: '#22c55e', fontSize: 18, fontWeight: '800' }}>¡Servicio Confirmado!</Text>
-                <Text style={{ color: '#8b8fa3', fontSize: 13, textAlign: 'center', marginTop: 4 }}>Gracias por usar Tec360.</Text>
-              </>
-            )}
-            {canRate && (
-              <TouchableOpacity onPress={() => setShowRating(true)} activeOpacity={0.8} style={{ marginTop: 16, width: '100%' }}>
-                <LinearGradient colors={['#eab308', '#ca8a04']} style={styles.actionButton}>
-                  <Ionicons name="star" size={18} color="#fff" />
-                  <Text style={styles.actionText}>Calificar servicio</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
-            {alreadyRated && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 }}>
-                <Ionicons name="checkmark-circle" size={18} color="#22c55e" />
-                <Text style={{ color: '#22c55e', fontSize: 13, fontWeight: '600' }}>Ya calificaste este servicio</Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Rating Modal */}
-        <RatingModal
-          visible={showRating}
-          techName={tech?.full_name?.split(' ')[0]}
-          onClose={() => setShowRating(false)}
-          onSubmit={async (rating, comment) => {
-            await fetchWithAuth(`/ratings/services/${id}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ rating, comment: comment || null }),
-            });
-            setShowRating(false);
-            setCanRate(false);
-            setAlreadyRated(true);
-            Alert.alert('¡Gracias! 🌟', 'Tu calificación ha sido enviada.');
-          }}
-        />
-
-        {/* Payment Modal */}
-        <PaymentModal
-          visible={showPaymentModal}
-          onClose={() => setShowPaymentModal(false)}
-          amount={service?.estimated_price || 0}
-          onConfirm={(method) => handleConfirmPayment(method)}
-        />
-
-        {/* Support Button */}
+      {/* ── 4. SLIDE DRAWER (COLLAPSIBLE BOTTOM SHEET) ── */}
+      <View style={[styles.slideSheet, isSlideExpanded ? styles.slideSheetExpanded : styles.slideSheetCollapsed]}>
+        {/* Drag Handle Bar */}
         <TouchableOpacity
-          style={styles.supportBtn}
-          onPress={() => Linking.openURL('https://wa.me/573052156601?text=' + encodeURIComponent('Hola, necesito ayuda con mi servicio #' + id))}
-          activeOpacity={0.7}
+          style={styles.dragHandleContainer}
+          onPress={() => setIsSlideExpanded(prev => !prev)}
+          activeOpacity={0.8}
         >
-          <View style={styles.supportBtnInner}>
-            <Ionicons name="logo-whatsapp" size={20} color="#22c55e" />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.supportBtnTitle}>¿Necesitas ayuda?</Text>
-              <Text style={styles.supportBtnSub}>Contacta soporte por WhatsApp</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#555872" />
-          </View>
+          <View style={styles.dragHandlePill} />
         </TouchableOpacity>
 
-        {/* Chat button is now inside the technician card above */}
-      </ScrollView>
+        {/* ── COLLAPSED VIEW: Quick Glance Bar ── */}
+        {!isSlideExpanded ? (
+          <View style={styles.collapsedContent}>
+            <View style={styles.collapsedRow}>
+              <View style={{ flex: 1 }}>
+                <View style={styles.collapsedBadgeRow}>
+                  <View style={[styles.miniStatusDot, { backgroundColor: si.color }]} />
+                  <Text style={[styles.miniStatusLabel, { color: si.color }]}>
+                    {si.label}
+                  </Text>
+                  {isLive && (
+                    <View style={styles.miniLiveTag}>
+                      <Text style={styles.miniLiveText}>EN VIVO</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.collapsedTitle} numberOfLines={1}>
+                  {service?.title}
+                </Text>
+                {formattedDate && (
+                  <Text style={styles.collapsedDate} numberOfLines={1}>
+                    📅 {formattedDate}
+                  </Text>
+                )}
+              </View>
+
+              <TouchableOpacity
+                onPress={() => setIsSlideExpanded(true)}
+                style={styles.expandBtn}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#8b5cf6', '#7c3aed']}
+                  style={styles.expandBtnGradient}
+                >
+                  <Text style={styles.expandBtnText}>Ver detalles</Text>
+                  <Ionicons name="chevron-up" size={16} color="#fff" />
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          /* ── EXPANDED VIEW: Complete Organized Details ── */
+          <ScrollView
+            style={styles.expandedScrollView}
+            contentContainerStyle={{ paddingBottom: 60 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => { setRefreshing(true); loadService(); }}
+                tintColor={COLORS.primary}
+              />
+            }
+          >
+            {/* Header: Status Tag & Close Button */}
+            <View style={styles.expandedHeaderRow}>
+              <View style={[styles.statusBanner, { borderColor: `${si.color}40`, backgroundColor: `${si.color}15` }]}>
+                <Ionicons name={si.icon} size={18} color={si.color} />
+                <Text style={[styles.statusBannerLabel, { color: si.color }]}>
+                  {si.label}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.minimizeBtn}
+                onPress={() => setIsSlideExpanded(false)}
+              >
+                <Ionicons name="chevron-down" size={18} color={COLORS.textSecondary} />
+                <Text style={styles.minimizeText}>Ver mapa</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Title & Description */}
+            <Text style={styles.title}>{service?.title}</Text>
+            {service?.description && service.description.toLowerCase() !== 'sin descripción' && (
+              <Text style={styles.description}>
+                {`"${service.description}"`}
+              </Text>
+            )}
+
+            {/* Scheduled Date & Time Banner */}
+            {formattedDate && (
+              <View style={styles.scheduledBanner}>
+                <Ionicons name="time" size={18} color="#c084fc" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.scheduledLabel}>CITA PROGRAMADA</Text>
+                  <Text style={styles.scheduledValue}>{formattedDate}</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Technician Card */}
+            {tech && (
+              <View style={styles.techCard}>
+                <View style={styles.techGradientBar} />
+                <Text style={styles.techCardLabel}>TÉCNICO ASIGNADO</Text>
+
+                <View style={styles.techRow}>
+                  {tech.avatar_url ? (
+                    <Image
+                      source={{ uri: tech.avatar_url.startsWith('http') ? tech.avatar_url : `${staticUrl}${tech.avatar_url}` }}
+                      style={styles.techAvatar}
+                    />
+                  ) : (
+                    <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.techAvatar}>
+                      <Text style={styles.techInitial}>{(tech.full_name || 'T').charAt(0).toUpperCase()}</Text>
+                    </LinearGradient>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.techName}>{tech.full_name || 'Técnico'}</Text>
+                    <View style={styles.badgesRow}>
+                      <View style={styles.ratingBadge}>
+                        <Ionicons name="star" size={12} color="#fbbf24" />
+                        <Text style={styles.ratingText}>{Number(tech.average_rating || 5).toFixed(1)}</Text>
+                      </View>
+                      <View style={styles.verifiedBadge}>
+                        <Ionicons name="shield-checkmark" size={12} color="#34d399" />
+                        <Text style={styles.verifiedText}>Certificado 360</Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.techActions}>
+                  <TouchableOpacity
+                    style={styles.profileBtn}
+                    activeOpacity={0.7}
+                    onPress={() => router.push(`/(client)/tech-profile/${tech.id || service?.technician_id}` as any)}
+                  >
+                    <Text style={styles.profileBtnText}>Perfil</Text>
+                  </TouchableOpacity>
+
+                  {tech.phone && (
+                    <TouchableOpacity
+                      style={styles.callBtnFull}
+                      onPress={() => Linking.openURL(`tel:${tech.phone}`)}
+                      activeOpacity={0.7}
+                    >
+                      <LinearGradient colors={['#22c55e', '#16a34a']} style={styles.callBtnGradient}>
+                        <Ionicons name="call" size={15} color="#fff" />
+                        <Text style={styles.callBtnText}>Llamar</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity
+                    style={styles.callBtnFull}
+                    onPress={() => router.push(`/(client)/chat/${id}` as any)}
+                    activeOpacity={0.7}
+                  >
+                    <LinearGradient colors={['#8b5cf6', '#7c3aed']} style={styles.callBtnGradient}>
+                      <Ionicons name="chatbubbles" size={15} color="#fff" />
+                      <Text style={styles.callBtnText}>Chat</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Status Timeline Stepper */}
+            {isLive && <StatusTimeline status={service?.status} />}
+
+            {/* Info Cards Grid */}
+            <View style={styles.infoGrid}>
+              <View style={styles.infoCard}>
+                <View style={[styles.infoIconBox, { backgroundColor: 'rgba(139,92,246,0.15)' }]}>
+                  <Ionicons name="location" size={18} color="#8b5cf6" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.infoLabel}>Ubicación del Servicio</Text>
+                  <Text style={styles.infoValue} numberOfLines={2}>{service?.service_address || "Sin dirección"}</Text>
+                  {service?.service_city && <Text style={styles.infoSub}>{service.service_city}</Text>}
+                </View>
+                {hasServiceCoords && (
+                  <TouchableOpacity onPress={openInMaps} style={styles.mapsSmallBtn}>
+                    <Ionicons name="navigate" size={13} color="#38bdf8" />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {formattedPrice && (
+                <View style={styles.infoCard}>
+                  <View style={[styles.infoIconBox, { backgroundColor: 'rgba(52,211,153,0.15)' }]}>
+                    <Ionicons name="cash" size={18} color="#34d399" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.infoLabel}>Inversión Estimada</Text>
+                    <Text style={[styles.infoValue, { color: '#34d399' }]}>{formattedPrice}</Text>
+                  </View>
+                </View>
+              )}
+
+              {service?.vehicle_plate && (
+                <View style={styles.infoCard}>
+                  <View style={[styles.infoIconBox, { backgroundColor: 'rgba(56,189,248,0.15)' }]}>
+                    <Ionicons name="car" size={18} color="#38bdf8" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.infoLabel}>Vehículo Registrado</Text>
+                    <Text style={styles.infoValue}>{service.vehicle_type} {service.vehicle_model}</Text>
+                    <Text style={styles.infoSub}>Placa: {service.vehicle_plate}</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {service?.vehicle_photo_url && (
+              <Image
+                source={{ uri: service.vehicle_photo_url.startsWith('http') ? service.vehicle_photo_url : `${staticUrl}${service.vehicle_photo_url}` }}
+                style={styles.vehiclePhoto}
+              />
+            )}
+
+            {/* Action Buttons: Pending / Quoted */}
+            {service?.status === 'pending' && (
+              <View style={styles.actionGroup}>
+                <TouchableOpacity onPress={() => router.push(`/(client)/quotations/${id}` as any)} activeOpacity={0.8}>
+                  <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.actionButton}>
+                    <Ionicons name="pricetags" size={18} color="#fff" />
+                    <Text style={styles.actionText}>Ver Cotizaciones Disponibles</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    Alert.alert(
+                      'Cancelar servicio',
+                      '¿Estás seguro de que deseas cancelar este servicio?',
+                      [
+                        { text: 'No', style: 'cancel' },
+                        {
+                          text: 'Sí, cancelar',
+                          style: 'destructive',
+                          onPress: async () => {
+                            try {
+                              await fetchWithAuth(`/services/${id}`, { method: 'DELETE' });
+                              Alert.alert('Servicio cancelado', 'Tu servicio ha sido cancelado.');
+                              router.back();
+                            } catch {
+                              Alert.alert('Error', 'No se pudo cancelar el servicio.');
+                            }
+                          },
+                        },
+                      ]
+                    );
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.actionButton, { backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' }]}>
+                    <Ionicons name="close-circle" size={18} color="#ef4444" />
+                    <Text style={[styles.actionText, { color: '#ef4444' }]}>Cancelar servicio</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Action Buttons: Completed */}
+            {service?.status === 'completed' && (
+              <View style={styles.completedBanner}>
+                <Text style={{ fontSize: 36, marginBottom: 6 }}>🎉</Text>
+                <Text style={{ color: '#34d399', fontSize: 18, fontWeight: '800' }}>¡Servicio completado!</Text>
+                <Text style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', marginTop: 4 }}>
+                  El técnico terminó la instalación. Confirma para cerrar el servicio.
+                </Text>
+                <TouchableOpacity onPress={() => setShowPaymentModal(true)} activeOpacity={0.8} style={{ marginTop: 14, width: '100%' }}>
+                  <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.actionButton}>
+                    <Ionicons name="card" size={18} color="#fff" />
+                    <Text style={styles.actionText}>Confirmar y Pagar</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {['completed', 'confirmed'].includes(service?.status) && (
+              <View style={[styles.completedBanner, { marginTop: 12, backgroundColor: 'rgba(245,158,11,0.06)', borderColor: 'rgba(245,158,11,0.25)' }]}>
+                {service?.status === 'confirmed' && (
+                  <>
+                    <Text style={{ fontSize: 32, marginBottom: 4 }}>✅</Text>
+                    <Text style={{ color: '#34d399', fontSize: 16, fontWeight: '800' }}>Servicio Confirmado</Text>
+                    <Text style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', marginTop: 2 }}>Gracias por confiar en Tec360 Seguridad.</Text>
+                  </>
+                )}
+                {canRate && (
+                  <TouchableOpacity onPress={() => setShowRating(true)} activeOpacity={0.8} style={{ marginTop: 12, width: '100%' }}>
+                    <LinearGradient colors={['#f59e0b', '#d97706']} style={styles.actionButton}>
+                      <Ionicons name="star" size={18} color="#fff" />
+                      <Text style={styles.actionText}>Calificar Servicio</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                )}
+                {alreadyRated && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                    <Ionicons name="checkmark-circle" size={16} color="#34d399" />
+                    <Text style={{ color: '#34d399', fontSize: 12, fontWeight: '600' }}>Ya calificaste este servicio</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Support Button (WhatsApp) */}
+            <TouchableOpacity
+              style={styles.supportBtn}
+              onPress={() => Linking.openURL('https://wa.me/573052156601?text=' + encodeURIComponent('Hola, necesito ayuda con mi servicio #' + id))}
+              activeOpacity={0.7}
+            >
+              <View style={styles.supportBtnInner}>
+                <Ionicons name="logo-whatsapp" size={20} color="#22c55e" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.supportBtnTitle}>¿Requieres soporte en vivo?</Text>
+                  <Text style={styles.supportBtnSub}>Chatea con la central de operaciones</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#555872" />
+              </View>
+            </TouchableOpacity>
+          </ScrollView>
+        )}
+      </View>
+
+      {/* Modals */}
+      <RatingModal
+        visible={showRating}
+        techName={tech?.full_name?.split(' ')[0]}
+        onClose={() => setShowRating(false)}
+        onSubmit={async (rating, comment) => {
+          await fetchWithAuth(`/ratings/services/${id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rating, comment: comment || null }),
+          });
+          setShowRating(false);
+          setCanRate(false);
+          setAlreadyRated(true);
+          Alert.alert('¡Gracias! 🌟', 'Tu calificación ha sido enviada.');
+        }}
+      />
+
+      <PaymentModal
+        visible={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        amount={service?.estimated_price || 0}
+        onConfirm={(method) => handleConfirmPayment(method)}
+      />
     </View>
   );
 }
@@ -583,7 +742,7 @@ function StatusTimeline({ status }: { status: string }) {
     <View style={styles.timelineContainer}>
       {activeStep && (
         <View style={styles.activeStepBanner}>
-          <Text style={{ fontSize: 22 }}>{activeStep.emoji}</Text>
+          <Ionicons name={activeStep.icon as any} size={22} color="#38bdf8" />
           <View style={{ flex: 1 }}>
             <Text style={styles.activeStepLabel}>{activeStep.label}</Text>
             <Text style={styles.activeStepDetail}>{activeStep.detail}</Text>
@@ -601,23 +760,23 @@ function StatusTimeline({ status }: { status: string }) {
             <View
               style={[
                 styles.stepCircle,
-                done && { backgroundColor: '#22c55e', borderColor: '#22c55e' },
-                active && { backgroundColor: 'rgba(59,130,246,0.2)', borderColor: '#3b82f6' },
+                done && { backgroundColor: '#34d399', borderColor: '#34d399' },
+                active && { backgroundColor: 'rgba(56,189,248,0.2)', borderColor: '#38bdf8' },
                 upcoming && { backgroundColor: 'rgba(85,88,114,0.1)', borderColor: 'rgba(85,88,114,0.3)' },
               ]}
             >
               {done ? (
-                <Ionicons name="checkmark" size={14} color="#fff" />
+                <Ionicons name="checkmark" size={13} color="#fff" />
               ) : (
-                <Text style={{ fontSize: 12 }}>{step.emoji}</Text>
+                <Ionicons name={step.icon as any} size={12} color={active ? '#38bdf8' : '#64748b'} />
               )}
             </View>
             <Text
               style={[
                 styles.stepLabel,
-                done && { color: '#22c55e' },
-                active && { color: '#3b82f6' },
-                upcoming && { color: '#555872' },
+                done && { color: '#34d399' },
+                active && { color: '#38bdf8' },
+                upcoming && { color: '#64748b' },
               ]}
             >
               {step.label}
@@ -631,97 +790,605 @@ function StatusTimeline({ status }: { status: string }) {
 }
 
 const darkMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
-  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
-  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#263c3f' }] },
-  { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: '#6b9a76' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#38414e' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#212a37' }] },
-  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9ca5b3' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#746855' }] },
-  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#1f2835' }] },
-  { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#f3d19c' }] },
-  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#2f3948' }] },
-  { featureType: 'transit.station', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#17263c' }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#515c6d' }] },
-  { featureType: 'water', elementType: 'labels.text.stroke', stylers: [{ color: '#17263c' }] },
+  { elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#0f172a' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#334155' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#312e81' }] },
+  { featureType: 'water', stylers: [{ color: '#020617' }] },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  { featureType: 'landscape', stylers: [{ color: '#0b1329' }] },
 ];
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   centered: { flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' },
-  map: { width: SCREEN_WIDTH, height: 280 },
-  backButton: { position: 'absolute', top: 56, left: SPACING.md, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(15,23,42,0.8)', justifyContent: 'center', alignItems: 'center', zIndex: 10 },
-  mapsBtn: { position: 'absolute', top: 56, right: SPACING.md, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(139,92,246,0.9)', paddingHorizontal: 14, paddingVertical: SPACING.sm, borderRadius: RADIUS.round, zIndex: 10 },
-  mapsBtnText: { color: '#fff', fontSize: FONTS.sizes.xs, fontWeight: FONTS.weights.bold },
-  etaOverlay: { position: 'absolute', top: 100, left: SPACING.md, flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, backgroundColor: 'rgba(10,14,28,0.92)', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.border, zIndex: 10 },
-  etaText: { color: COLORS.text, fontSize: 13, fontWeight: FONTS.weights.bold },
-  etaDivider: { color: COLORS.textMuted, fontSize: 13 },
-  etaDistance: { color: COLORS.textSecondary, fontSize: FONTS.sizes.xs },
-  legendOverlay: { position: 'absolute', top: 240, left: SPACING.md, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: COLORS.bgOverlay, paddingHorizontal: SPACING.md, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, zIndex: 10 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  legendDot: { width: SPACING.sm, height: SPACING.sm, borderRadius: SPACING.xs },
-  legendText: { color: COLORS.textSecondary, fontSize: 11 },
-  sheet: { flex: 1, backgroundColor: COLORS.bg, borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl, marginTop: -SPACING.lg, paddingHorizontal: SPACING.lg, paddingTop: SPACING.lg },
+  loadingText: { color: COLORS.textSecondary, marginTop: 12, fontSize: FONTS.sizes.sm },
 
-  techCard: { backgroundColor: COLORS.bgCard, borderRadius: 22, padding: SPACING.lg, marginBottom: SPACING.md, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
-  techGradientBar: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, backgroundColor: COLORS.primary },
-  techCardLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: FONTS.weights.bold, letterSpacing: 1.5, marginBottom: SPACING.md },
-  techRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
-  techAvatar: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 2, borderColor: COLORS.primaryBorder },
-  techInitial: { color: '#fff', fontSize: FONTS.sizes.xl, fontWeight: '800' },
-  techName: { color: COLORS.text, fontSize: 17, fontWeight: '800', marginBottom: 6 },
-  badgesRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexWrap: 'wrap' },
-  ratingBadge: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, backgroundColor: 'rgba(234,179,8,0.1)', borderWidth: 1, borderColor: 'rgba(234,179,8,0.2)', borderRadius: RADIUS.round, paddingHorizontal: SPACING.sm, paddingVertical: 3 },
-  ratingText: { color: COLORS.yellow, fontSize: 11, fontWeight: FONTS.weights.bold },
-  verifiedBadge: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
-  verifiedText: { color: COLORS.textSecondary, fontSize: 11 },
-  techActions: { flexDirection: 'row', gap: SPACING.md, marginTop: SPACING.md },
-  profileBtn: { flex: 1, borderWidth: 1, borderColor: 'rgba(59,130,246,0.3)', borderRadius: 14, paddingVertical: 12, alignItems: 'center' },
-  profileBtnText: { color: '#3b82f6', fontSize: 13, fontWeight: FONTS.weights.semibold },
-  callBtnFull: { flex: 1, borderRadius: 14, overflow: 'hidden' },
-  callBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, paddingVertical: 12, borderRadius: 14 },
-  callBtnText: { color: '#fff', fontSize: 13, fontWeight: FONTS.weights.bold },
+  // Top Floating Bar
+  topControlBar: {
+    position: 'absolute',
+    top: 52,
+    left: SPACING.md,
+    right: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 20,
+  },
+  floatingRoundBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(15,23,42,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  topRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  floatingActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(15,23,42,0.85)',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: RADIUS.round,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  floatingToggleBtn: {
+    backgroundColor: 'rgba(139,92,246,0.9)',
+    borderColor: 'rgba(139,92,246,0.5)',
+  },
+  floatingActionText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
 
-  timelineContainer: { marginBottom: SPACING.lg },
-  activeStepBanner: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, backgroundColor: 'rgba(59,130,246,0.1)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.2)', borderRadius: 18, padding: SPACING.lg, marginBottom: SPACING.md },
-  activeStepLabel: { color: COLORS.text, fontSize: FONTS.sizes.sm, fontWeight: FONTS.weights.bold },
-  activeStepDetail: { color: COLORS.textSecondary, fontSize: FONTS.sizes.xs, marginTop: 2 },
-  stepRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, marginBottom: SPACING.sm },
-  stepCircle: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
-  stepLabel: { fontSize: 13, fontWeight: FONTS.weights.semibold, flex: 1 },
-  activeDot: { width: 7, height: 7, borderRadius: SPACING.xs, backgroundColor: '#3b82f6' },
+  // Map Overlays
+  etaOverlay: {
+    position: 'absolute',
+    top: 104,
+    left: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(10,14,28,0.92)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(56,189,248,0.3)',
+    zIndex: 15,
+  },
+  etaText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  etaDivider: { color: COLORS.textMuted, fontSize: 12 },
+  etaDistance: { color: COLORS.textSecondary, fontSize: 11 },
 
-  statusBanner: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, borderRadius: 14, padding: SPACING.lg, borderWidth: 1, marginBottom: SPACING.md },
-  statusBannerLabel: { fontSize: 15, fontWeight: FONTS.weights.bold },
+  trackingOverlay: {
+    position: 'absolute',
+    top: 104,
+    right: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(10,14,28,0.92)',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.3)',
+    zIndex: 15,
+  },
+  trackingOverlayText: { color: '#f59e0b', fontSize: 10, fontWeight: '700' },
 
-  title: { color: COLORS.text, fontSize: 22, fontWeight: '800', marginBottom: 6 },
-  description: { color: COLORS.textSecondary, fontSize: FONTS.sizes.sm, fontStyle: 'italic', lineHeight: 20, marginBottom: SPACING.md, borderLeftWidth: 2, borderLeftColor: COLORS.primaryBorder, paddingLeft: 10 },
-  infoGrid: { gap: SPACING.md, marginBottom: SPACING.md },
-  infoRowSplit: { flexDirection: 'row', gap: SPACING.md },
-  infoCard: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: RADIUS.lg, padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.borderLight },
-  infoIconBox: { width: 36, height: 36, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center' },
-  infoLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: FONTS.weights.semibold, marginBottom: 2 },
-  infoValue: { color: COLORS.text, fontSize: FONTS.sizes.sm, fontWeight: FONTS.weights.bold },
-  infoSub: { color: COLORS.textSecondary, fontSize: FONTS.sizes.xs, marginTop: 1 },
-  vehiclePhoto: { width: '100%', height: 180, borderRadius: RADIUS.lg, marginBottom: SPACING.md },
-  actionButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.md, borderRadius: RADIUS.lg, paddingVertical: SPACING.md, marginBottom: SPACING.md },
-  actionText: { color: '#fff', fontSize: FONTS.sizes.md, fontWeight: FONTS.weights.bold },
-  trackingOverlay: { position: 'absolute', top: 240, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, backgroundColor: 'rgba(10,14,28,0.92)', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.md, borderWidth: 1, borderColor: 'rgba(234,179,8,0.3)', zIndex: 10 },
-  trackingOverlayText: { color: COLORS.yellow, fontSize: FONTS.sizes.xs, fontWeight: FONTS.weights.semibold },
-  liveTrackingBadge: { position: 'absolute', top: 240, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.greenMuted, paddingHorizontal: SPACING.md, paddingVertical: 6, borderRadius: RADIUS.round, borderWidth: 1, borderColor: COLORS.greenBorder, zIndex: 10 },
-  liveDot: { width: 7, height: 7, borderRadius: SPACING.xs, backgroundColor: COLORS.green },
-  liveTrackingText: { color: COLORS.green, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
-  completedBanner: { alignItems: 'center', padding: SPACING.lg, backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' },
-  chatInlineBtn: { borderRadius: 18, overflow: 'hidden', marginTop: SPACING.lg, marginBottom: SPACING.md },
-  chatInlineGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 16, borderRadius: 18 },
-  chatInlineText: { color: '#fff', fontSize: FONTS.sizes.md, fontWeight: '800' },
-  supportBtn: { marginTop: SPACING.lg, marginBottom: SPACING.md },
-  supportBtnInner: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: RADIUS.lg, padding: SPACING.lg, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' },
-  supportBtnTitle: { color: COLORS.text, fontSize: 14, fontWeight: FONTS.weights.bold },
-  supportBtnSub: { color: COLORS.textSecondary, fontSize: FONTS.sizes.xs, marginTop: 1 },
+  liveTrackingBadge: {
+    position: 'absolute',
+    top: 148,
+    left: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(52,211,153,0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADIUS.round,
+    borderWidth: 1,
+    borderColor: 'rgba(52,211,153,0.3)',
+    zIndex: 15,
+  },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#34d399' },
+  liveTrackingText: { color: '#34d399', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+
+  legendOverlay: {
+    position: 'absolute',
+    top: 148,
+    right: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(10,14,28,0.85)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(80,60,160,0.2)',
+    zIndex: 15,
+  },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot: { width: 7, height: 7, borderRadius: 3.5 },
+  legendText: { color: COLORS.textSecondary, fontSize: 10 },
+
+  // Slide Drawer / Sheet
+  slideSheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(10,14,28,0.95)',
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 14,
+    elevation: 20,
+    zIndex: 30,
+  },
+  slideSheetCollapsed: {
+    height: 140,
+    paddingHorizontal: SPACING.md,
+  },
+  slideSheetExpanded: {
+    height: SCREEN_HEIGHT * 0.74,
+    paddingHorizontal: SPACING.md,
+  },
+  dragHandleContainer: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  dragHandlePill: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+
+  // Collapsed View
+  collapsedContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  collapsedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  collapsedBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  miniStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  miniStatusLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  miniLiveTag: {
+    backgroundColor: 'rgba(52,211,153,0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(52,211,153,0.3)',
+  },
+  miniLiveText: {
+    color: '#34d399',
+    fontSize: 8,
+    fontWeight: '800',
+  },
+  collapsedTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  collapsedDate: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  expandBtn: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  expandBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  expandBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // Expanded View
+  expandedScrollView: {
+    flex: 1,
+  },
+  expandedHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  minimizeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    padding: 6,
+  },
+  minimizeText: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+  },
+  statusBannerLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  title: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  description: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontStyle: 'italic',
+    lineHeight: 18,
+    marginBottom: 12,
+    borderLeftWidth: 2,
+    borderLeftColor: COLORS.primaryBorder,
+    paddingLeft: 8,
+  },
+  scheduledBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(192,132,252,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(192,132,252,0.25)',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 14,
+  },
+  scheduledLabel: {
+    color: '#c084fc',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  scheduledValue: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 1,
+  },
+
+  // Technician Card
+  techCard: {
+    backgroundColor: 'rgba(18,22,40,0.85)',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(80,60,160,0.25)',
+    overflow: 'hidden',
+  },
+  techGradientBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: COLORS.primary,
+  },
+  techCardLabel: {
+    color: COLORS.textMuted,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    marginBottom: 10,
+  },
+  techRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  techAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: COLORS.primaryBorder,
+  },
+  techInitial: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  techName: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  badgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(251,191,36,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.25)',
+    borderRadius: RADIUS.round,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  ratingText: {
+    color: '#fbbf24',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  verifiedText: {
+    color: '#34d399',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  techActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  profileBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(56,189,248,0.3)',
+    borderRadius: 12,
+    paddingVertical: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileBtnText: {
+    color: '#38bdf8',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  callBtnFull: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  callBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 12,
+  },
+  callBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // Status Stepper
+  timelineContainer: {
+    marginBottom: 14,
+  },
+  activeStepBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(56,189,248,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(56,189,248,0.25)',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 10,
+  },
+  activeStepLabel: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  activeStepDetail: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  stepCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  activeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#38bdf8',
+  },
+
+  // Info Grid
+  infoGrid: {
+    gap: 8,
+    marginBottom: 12,
+  },
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(18,22,40,0.85)',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(80,60,160,0.15)',
+  },
+  infoIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  infoLabel: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontWeight: '600',
+    marginBottom: 1,
+  },
+  infoValue: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  infoSub: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  mapsSmallBtn: {
+    padding: 6,
+    backgroundColor: 'rgba(56,189,248,0.12)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(56,189,248,0.25)',
+  },
+  vehiclePhoto: {
+    width: '100%',
+    height: 160,
+    borderRadius: 14,
+    marginBottom: 12,
+  },
+
+  // Actions
+  actionGroup: {
+    gap: 8,
+    marginBottom: 12,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 14,
+    paddingVertical: 13,
+  },
+  actionText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  completedBanner: {
+    alignItems: 'center',
+    padding: 14,
+    backgroundColor: 'rgba(52,211,153,0.08)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(52,211,153,0.25)',
+    marginBottom: 10,
+  },
+
+  // Support
+  supportBtn: {
+    marginTop: 6,
+    marginBottom: 12,
+  },
+  supportBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(34,197,94,0.08)',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(34,197,94,0.2)',
+  },
+  supportBtnTitle: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  supportBtnSub: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    marginTop: 1,
+  },
 });
