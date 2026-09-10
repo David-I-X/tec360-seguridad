@@ -65,7 +65,7 @@ class ServiceCreate(BaseModel):
     )
     service_address: str = Field(
         ...,
-        min_length=10,
+        min_length=5,
         description="Dirección completa donde se realizará el servicio",
         example="Calle 50 #45-30, El Poblado, Medellín"
     )

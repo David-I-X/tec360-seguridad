@@ -138,7 +138,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={
             "success": False,
             "error": "Datos inválidos",
-            "details": errors
+            "details": errors,
+            "detail": errors[0] if errors else "Datos inválidos"
         }
     )
 

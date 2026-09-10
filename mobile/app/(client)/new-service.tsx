@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
@@ -9,7 +9,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Location from 'expo-location';
-import MapView, { Marker, Region, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, UrlTile, Region, PROVIDER_GOOGLE } from 'react-native-maps';
+import { ServicePinMarker } from '@/components/map-markers';
 import { fetchWithAuth, API_URL } from '@/lib/api';
 import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
 
@@ -27,14 +28,17 @@ export default function NewServiceScreen() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const [formMode, setFormMode] = useState<'normal' | 'recovery'>('normal');
+
+  const mapRef = useRef<MapView | null>(null);
 
   // Form data
   const [serviceType, setServiceType] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
+  const [city, setCity] = useState('Medellín');
   const [lat, setLat] = useState(6.2442); // Default to Medellín
   const [lng, setLng] = useState(-75.5636);
   const [vehicleType, setVehicleType] = useState('');
@@ -57,34 +61,76 @@ export default function NewServiceScreen() {
   const [recDescription, setRecDescription] = useState('');
 
   const getLocationAndGeocode = async (setAddrFn: (val: string) => void, setCityFn?: (val: string) => void) => {
+    setIsLocating(true);
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permiso denegado', 'Ingresa la ubicación manualmente en el mapa o texto.');
+        Alert.alert('Permiso de ubicación', 'Por favor habilita el acceso a tu ubicación o escribe la dirección manualmente.');
+        setIsLocating(false);
         return;
       }
-      let location = await Location.getCurrentPositionAsync({});
-      setLat(location.coords.latitude);
-      setLng(location.coords.longitude);
-      
+
+      let location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const currentLat = location.coords.latitude;
+      const currentLng = location.coords.longitude;
+      setLat(currentLat);
+      setLng(currentLng);
+
+      // Smoothly animate map to current position
+      mapRef.current?.animateToRegion({
+        latitude: currentLat,
+        longitude: currentLng,
+        latitudeDelta: 0.008,
+        longitudeDelta: 0.008,
+      }, 500);
+
+      let resolvedAddress = '';
+      let resolvedCity = 'Medellín';
+
       try {
         const geocodeResult = await Location.reverseGeocodeAsync({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude
+          latitude: currentLat,
+          longitude: currentLng,
         });
+
         if (geocodeResult && geocodeResult.length > 0) {
           const addr = geocodeResult[0];
-          const formattedAddr = [addr.street, addr.streetNumber, addr.subregion || addr.district].filter(Boolean).join(', ');
-          setAddrFn(formattedAddr || 'Ubicación obtenida por GPS');
-          if (setCityFn && addr.city) {
-            setCityFn(addr.city);
+          resolvedCity = addr.city || addr.subregion || addr.region || 'Medellín';
+
+          const streetPart = [addr.street, addr.streetNumber].filter(Boolean).join(' ');
+          const zonePart = addr.district || addr.subregion || addr.name;
+
+          const parts = [
+            streetPart || zonePart,
+            zonePart && zonePart !== streetPart ? zonePart : null,
+            resolvedCity,
+          ].filter(Boolean);
+
+          if (parts.length > 0) {
+            resolvedAddress = parts.join(', ');
           }
         }
       } catch (geocerr) {
-        // Ignorar error de geocoding
+        console.warn('Reverse geocoding error:', geocerr);
       }
-    } catch (e) {
-      Alert.alert('Aviso', 'No se pudo obtener la ubicación.');
+
+      // If geocoding was empty or too short, build clear fallback with coordinates
+      if (!resolvedAddress || resolvedAddress.trim().length < 5) {
+        resolvedAddress = `Ubicación GPS (${currentLat.toFixed(4)}, ${currentLng.toFixed(4)}), ${resolvedCity}`;
+      }
+
+      setAddrFn(resolvedAddress);
+      if (setCityFn) {
+        setCityFn(resolvedCity);
+      }
+    } catch (e: any) {
+      console.warn('GPS location error:', e);
+      Alert.alert('Aviso GPS', 'No pudimos obtener la señal de GPS automáticamente. Puedes fijarla arrastrando el mapa o escribiendo tu dirección.');
+    } finally {
+      setIsLocating(false);
     }
   };
 
@@ -125,13 +171,28 @@ export default function NewServiceScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!serviceType || !address || !city) {
-      Alert.alert('Campos requeridos', 'Completa el tipo de servicio, dirección y ciudad.');
+    const trimmedAddress = address.trim();
+    const targetCity = (city || 'Medellín').trim();
+
+    if (!serviceType) {
+      Alert.alert('Tipo de servicio', 'Por favor selecciona qué servicio necesitas.');
+      return;
+    }
+    if (!trimmedAddress) {
+      Alert.alert('Dirección requerida', 'Por favor ingresa o confirma la dirección del servicio.');
       return;
     }
 
+    // Guarantee address meets backend min length (at least 10 chars)
+    const finalAddress = trimmedAddress.length < 10
+      ? `${trimmedAddress}, ${targetCity}`
+      : trimmedAddress;
+
     const selectedService = SERVICE_TYPES.find(t => t.key === serviceType);
-    const finalTitle = title || selectedService?.label || 'Servicio Técnico';
+    const serviceLabel = selectedService?.key === 'other' ? 'Servicio General' : (selectedService?.label || 'Servicio Técnico');
+    const finalTitle = title.trim().length >= 5
+      ? title.trim()
+      : `${serviceLabel}${vehicleModel ? ` - ${vehicleModel}` : ''}`;
 
     setIsLoading(true);
     try {
@@ -141,15 +202,15 @@ export default function NewServiceScreen() {
         body: JSON.stringify({
           service_type: serviceType,
           title: finalTitle,
-          description,
-          service_address: address,
-          service_city: city || 'Medellín',
-          service_lat: lat,
-          service_lon: lng,
+          description: description || undefined,
+          service_address: finalAddress,
+          service_city: targetCity,
+          service_lat: Number(lat) || 6.2442,
+          service_lon: Number(lng) || -75.5636,
           scheduled_date: new Date().toISOString(),
           vehicle_type: vehicleType || undefined,
           vehicle_model: vehicleModel || undefined,
-          vehicle_plate: vehiclePlate || undefined,
+          vehicle_plate: vehiclePlate ? vehiclePlate.trim() : undefined,
         }),
       });
 
@@ -157,12 +218,16 @@ export default function NewServiceScreen() {
         let msg = 'Error al crear servicio';
         try {
           const errData = await res.json();
-          if (Array.isArray(errData.detail)) {
-             msg = errData.detail[0].msg; // e.g. String should have at least 10 characters
-          } else if (errData.detail) {
-             msg = errData.detail;
+          if (Array.isArray(errData.details)) {
+            msg = errData.details.join('\n');
+          } else if (Array.isArray(errData.detail)) {
+            msg = errData.detail.map((e: any) => e.msg || e).join('\n');
+          } else if (typeof errData.detail === 'string') {
+            msg = errData.detail;
+          } else if (errData.error) {
+            msg = errData.error;
           }
-        } catch(e){}
+        } catch (_) {}
         throw new Error(msg);
       }
       const data = await res.json();
@@ -170,25 +235,29 @@ export default function NewServiceScreen() {
 
       // Upload vehicle photo if present
       if (vehiclePhotoUri && serviceId) {
-        const formData = new FormData();
-        formData.append('file', {
-          uri: vehiclePhotoUri,
-          name: 'vehicle.jpg',
-          type: 'image/jpeg',
-        } as any);
-        formData.append('service_id', serviceId.toString());
+        try {
+          const formData = new FormData();
+          formData.append('file', {
+            uri: vehiclePhotoUri,
+            name: 'vehicle.jpg',
+            type: 'image/jpeg',
+          } as any);
+          formData.append('service_id', serviceId.toString());
 
-        await fetchWithAuth('/uploads/vehicle-photo', {
-          method: 'POST',
-          body: formData,
-        });
+          await fetchWithAuth('/uploads/vehicle-photo', {
+            method: 'POST',
+            body: formData,
+          });
+        } catch (photoErr) {
+          console.warn('Vehicle photo upload failed:', photoErr);
+        }
       }
 
       Alert.alert('¡Servicio creado!', 'Tu solicitud fue enviada a los técnicos disponibles.', [
         { text: 'Ver servicio', onPress: () => router.replace(`/(client)/service/${serviceId}` as any) },
       ]);
     } catch (err: any) {
-      Alert.alert('Error', err.message);
+      Alert.alert('Error', err.message || 'No se pudo crear el servicio');
     } finally {
       setIsLoading(false);
     }
@@ -208,10 +277,11 @@ export default function NewServiceScreen() {
       return;
     }
 
+    const trimmedRecAddress = recAddress.trim();
     // Build the address: when GPS is active and no manual address, use a default
-    const finalAddress = (recHasGps === 'yes' && !recAddress)
-      ? 'Seguimiento por GPS activo'
-      : recAddress;
+    const finalAddress = (recHasGps === 'yes' && !trimmedRecAddress)
+      ? 'Seguimiento por GPS activo, Medellín'
+      : (trimmedRecAddress.length < 10 ? `${trimmedRecAddress}, Medellín` : trimmedRecAddress);
 
     setIsLoading(true);
     try {
@@ -225,8 +295,8 @@ export default function NewServiceScreen() {
           description: recDescription || 'Solicitud de recuperación de vehículo robado',
           service_address: finalAddress,
           service_city: city || 'Medellín',
-          service_lat: lat,
-          service_lon: lng,
+          service_lat: Number(lat) || 6.2442,
+          service_lon: Number(lng) || -75.5636,
           vehicle_type: recVehicleType,
           vehicle_model: recVehicleModel,
           vehicle_plate: recVehiclePlate,
@@ -241,12 +311,13 @@ export default function NewServiceScreen() {
       });
 
       if (!res.ok) {
-        // Parse backend validation errors properly (matching web behavior)
         let msg = 'Error al crear solicitud de recuperación';
         try {
           const errData = await res.json();
-          if (Array.isArray(errData.detail)) {
-            msg = errData.detail.map((e: any) => e.msg).join(', ');
+          if (Array.isArray(errData.details)) {
+            msg = errData.details.join('\n');
+          } else if (Array.isArray(errData.detail)) {
+            msg = errData.detail.map((e: any) => e.msg || e).join('\n');
           } else if (typeof errData.detail === 'string') {
             msg = errData.detail;
           } else if (errData.error) {
@@ -262,7 +333,7 @@ export default function NewServiceScreen() {
         { text: 'Ver servicio', onPress: () => router.replace(`/(client)/service/${serviceId}` as any) },
       ]);
     } catch (err: any) {
-      Alert.alert('Error', err.message);
+      Alert.alert('Error', err.message || 'No se pudo activar la solicitud');
     } finally {
       setIsLoading(false);
     }
@@ -376,10 +447,17 @@ export default function NewServiceScreen() {
               
               <TouchableOpacity 
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#555872', borderStyle: 'dashed' }}
-                onPress={() => getLocationAndGeocode(setRecAddress)}
+                onPress={() => getLocationAndGeocode(setRecAddress, setCity)}
+                disabled={isLocating}
               >
-                <Ionicons name="location" size={18} color="#8b8fa3" />
-                <Text style={{ color: '#8b8fa3', fontSize: 13, fontWeight: '600', marginLeft: 8 }}>Obtener mi ubicación actual</Text>
+                {isLocating ? (
+                  <ActivityIndicator size="small" color="#8b8fa3" />
+                ) : (
+                  <>
+                    <Ionicons name="location" size={18} color="#8b8fa3" />
+                    <Text style={{ color: '#8b8fa3', fontSize: 13, fontWeight: '600', marginLeft: 8 }}>Obtener mi ubicación actual</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           )}
@@ -493,18 +571,29 @@ export default function NewServiceScreen() {
             <Text style={styles.sectionTitle}>¿Dónde necesitas el servicio?</Text>
 
             <TouchableOpacity 
-              style={[styles.gpsOption, { flexDirection: 'row', justifyContent: 'center', paddingVertical: 12, marginBottom: 8 }]}
+              style={[styles.gpsOption, { flexDirection: 'row', justifyContent: 'center', paddingVertical: 12, marginBottom: 12 }]}
               onPress={() => getLocationAndGeocode(setAddress, setCity)}
+              disabled={isLocating}
             >
-              <Ionicons name="location" size={20} color={COLORS.primary} />
-              <Text style={[styles.gpsOptionText, { marginLeft: 8, color: COLORS.primary, fontSize: 15 }]}>Usar mi ubicación actual</Text>
+              {isLocating ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : (
+                <>
+                  <Ionicons name="location" size={20} color={COLORS.primary} />
+                  <Text style={[styles.gpsOptionText, { marginLeft: 8, color: COLORS.primary, fontSize: 15, fontWeight: '700' }]}>
+                    Usar mi ubicación actual
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
 
-            <View style={{ height: 250, marginVertical: 16, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border }}>
+            <View style={{ height: 260, marginVertical: 8, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border }}>
               <MapView
-                provider={PROVIDER_GOOGLE}
+                ref={mapRef}
+                provider={Platform.OS === 'android' ? undefined : PROVIDER_GOOGLE}
                 style={{ flex: 1 }}
-                region={{
+                mapType={Platform.OS === 'android' ? 'none' : 'standard'}
+                initialRegion={{
                   latitude: lat,
                   longitude: lng,
                   latitudeDelta: 0.01,
@@ -513,24 +602,63 @@ export default function NewServiceScreen() {
                 onRegionChangeComplete={async (region) => {
                   setLat(region.latitude);
                   setLng(region.longitude);
-                  // Optional reverse geocode when dragging map manually
                   try {
                     const res = await Location.reverseGeocodeAsync({ latitude: region.latitude, longitude: region.longitude });
                     if (res && res.length > 0) {
                       const addr = res[0];
-                      const formatted = [addr.street, addr.streetNumber, addr.subregion || addr.district].filter(Boolean).join(', ');
-                      if (formatted) setAddress(formatted);
-                      if (addr.city) setCity(addr.city);
+                      const detectedCity = addr.city || addr.subregion || addr.region || 'Medellín';
+                      const streetPart = [addr.street, addr.streetNumber].filter(Boolean).join(' ');
+                      const zonePart = addr.district || addr.subregion || addr.name;
+                      const parts = [
+                        streetPart || zonePart,
+                        zonePart && zonePart !== streetPart ? zonePart : null,
+                        detectedCity,
+                      ].filter(Boolean);
+                      if (parts.length > 0) {
+                        setAddress(parts.join(', '));
+                      }
+                      setCity(detectedCity);
                     }
                   } catch (e) {}
                 }}
               >
-                <Marker coordinate={{ latitude: lat, longitude: lng }} />
+                <UrlTile
+                  urlTemplate="https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
+                  maximumZ={19}
+                  flipY={false}
+                  zIndex={-1}
+                />
+                <Marker coordinate={{ latitude: lat, longitude: lng }} anchor={{ x: 0.5, y: 1 }}>
+                  <ServicePinMarker />
+                </Marker>
               </MapView>
             </View>
 
-            <Text style={styles.inputLabel}>Dirección</Text>
-            <TextInput style={styles.input} placeholder="Calle, número, barrio" placeholderTextColor="#555872" value={address} onChangeText={setAddress} />
+            {/* Coordinates Badge */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14, paddingHorizontal: 4 }}>
+              <Ionicons name="checkmark-circle" size={16} color={COLORS.green} />
+              <Text style={{ color: COLORS.textMuted, fontSize: 12 }}>
+                Punto fijado: {lat.toFixed(4)}, {lng.toFixed(4)}
+              </Text>
+            </View>
+
+            <Text style={styles.inputLabel}>Dirección / Referencia *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Calle, número, barrio"
+              placeholderTextColor="#555872"
+              value={address}
+              onChangeText={setAddress}
+            />
+
+            <Text style={styles.inputLabel}>Ciudad *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Medellín"
+              placeholderTextColor="#555872"
+              value={city}
+              onChangeText={setCity}
+            />
           </View>
         )}
       </ScrollView>
