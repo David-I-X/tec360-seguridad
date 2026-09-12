@@ -8,12 +8,20 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { getServiceById, fetchWithAuth, getAuthToken, API_URL } from '@/lib/api';
-import { ServicePinMarker, MyLocationMarker } from '@/components/map-markers';
+import {
+  TecMapView,
+  TecMapViewRef,
+  OriginHaloMarker,
+  DestinationSquircleMarker,
+  GradientRoute,
+  DESTINATION_ANCHOR,
+  ORIGIN_ANCHOR,
+} from '@/components/map';
 import { serviceWebSocket } from '@/lib/websocket';
 import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
 
@@ -70,7 +78,7 @@ export default function TechServiceScreen() {
   const [adjustmentData, setAdjustmentData] = useState({ amount: '', desc: '' });
   const [isSubmittingAdjustment, setIsSubmittingAdjustment] = useState(false);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
-  const mapRef = useRef<any>(null);
+  const mapRef = useRef<TecMapViewRef | null>(null);
   const lastRouteFetch = useRef<{ lat: number; lng: number } | null>(null);
 
   const loadService = useCallback(async () => {
@@ -345,41 +353,33 @@ export default function TechServiceScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Map */}
-      <MapView
+      {/* Map (Google Maps Native) */}
+      <TecMapView
         ref={mapRef}
-        provider={Platform.OS === 'android' ? undefined : PROVIDER_GOOGLE}
         style={styles.map}
         initialRegion={getMapRegion()}
-        customMapStyle={darkMapStyle}
       >
         <Marker
           coordinate={{ latitude: serviceLat, longitude: serviceLng }}
           title="Ubicación del servicio"
-          anchor={{ x: 0.5, y: 1 }}
-          tracksViewChanges={false}
+          anchor={DESTINATION_ANCHOR}
         >
-          <ServicePinMarker />
+          <DestinationSquircleMarker label={service?.service_city || 'Destino'} />
         </Marker>
         {myLocation && (
           <Marker
             coordinate={{ latitude: myLocation.lat, longitude: myLocation.lng }}
             title="Mi ubicación"
-            anchor={{ x: 0.5, y: 0.5 }}
-            tracksViewChanges={false}
+            anchor={ORIGIN_ANCHOR}
           >
-            <MyLocationMarker />
+            <OriginHaloMarker label="Tú" heading={45} />
           </Marker>
         )}
-        {/* Real road route */}
+        {/* Real road route with multi-tone gradient */}
         {routeCoords.length > 1 && (
-          <Polyline
-            coordinates={routeCoords}
-            strokeColor="#3b82f6"
-            strokeWidth={4}
-          />
+          <GradientRoute coordinates={routeCoords} />
         )}
-      </MapView>
+      </TecMapView>
 
       {/* Back */}
       <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>

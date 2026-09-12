@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
@@ -9,8 +9,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Location from 'expo-location';
-import MapView, { Marker, UrlTile, Region, PROVIDER_GOOGLE } from 'react-native-maps';
-import { ServicePinMarker } from '@/components/map-markers';
+import { Marker } from 'react-native-maps';
+import { TecMapView, TecMapViewRef, ServicePinMarker } from '@/components/map';
 import { fetchWithAuth, API_URL } from '@/lib/api';
 import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
 
@@ -24,6 +24,19 @@ const SERVICE_TYPES = [
   { key: 'other', label: 'Otro', emoji: '🔧' },
 ];
 
+const STEPS = ['Tipo', 'Vehículo', 'Ubicación', 'Horario'];
+
+const TIME_SLOTS = [
+  { id: '08:00', label: '08:00 AM', period: 'Mañana', hours: 8, minutes: 0 },
+  { id: '09:30', label: '09:30 AM', period: 'Mañana', hours: 9, minutes: 30 },
+  { id: '11:00', label: '11:00 AM', period: 'Mañana', hours: 11, minutes: 0 },
+  { id: '13:30', label: '01:30 PM', period: 'Tarde', hours: 13, minutes: 30 },
+  { id: '15:00', label: '03:00 PM', period: 'Tarde', hours: 15, minutes: 0 },
+  { id: '16:30', label: '04:30 PM', period: 'Tarde', hours: 16, minutes: 30 },
+  { id: '18:00', label: '06:00 PM', period: 'Noche', hours: 18, minutes: 0 },
+  { id: '19:30', label: '07:30 PM', period: 'Noche', hours: 19, minutes: 30 },
+];
+
 export default function NewServiceScreen() {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -31,7 +44,7 @@ export default function NewServiceScreen() {
   const [isLocating, setIsLocating] = useState(false);
   const [formMode, setFormMode] = useState<'normal' | 'recovery'>('normal');
 
-  const mapRef = useRef<MapView | null>(null);
+  const mapRef = useRef<TecMapViewRef | null>(null);
 
   // Form data
   const [serviceType, setServiceType] = useState('');
@@ -46,12 +59,28 @@ export default function NewServiceScreen() {
   const [vehiclePlate, setVehiclePlate] = useState('');
   const [vehiclePhotoUri, setVehiclePhotoUri] = useState<string | null>(null);
 
+  // Scheduling state
+  const [scheduleMode, setScheduleMode] = useState<'asap' | 'scheduled'>('asap');
+  const [selectedDateKey, setSelectedDateKey] = useState<string>(() => {
+    const today = new Date();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${today.getFullYear()}-${mm}-${dd}`;
+  });
+  const [selectedSlot, setSelectedSlot] = useState<string>('09:30');
+  const [isCustomTime, setIsCustomTime] = useState(false);
+  const [customHour, setCustomHour] = useState('09');
+  const [customMinute, setCustomMinute] = useState('00');
+  const [customPeriod, setCustomPeriod] = useState<'AM' | 'PM'>('AM');
+  const [clientNotes, setClientNotes] = useState('');
+
   // Recovery-specific state
   const [recVehicleType, setRecVehicleType] = useState('');
   const [recVehicleModel, setRecVehicleModel] = useState('');
   const [recVehiclePlate, setRecVehiclePlate] = useState('');
   const [recVehicleColor, setRecVehicleColor] = useState('');
   const [recDistinctiveMarks, setRecDistinctiveMarks] = useState('');
+  const [recTimeFrame, setRecTimeFrame] = useState<'recent' | 'earlier' | 'yesterday' | 'other'>('recent');
   const [recStolenDate, setRecStolenDate] = useState('');
   const [recStolenTime, setRecStolenTime] = useState('');
   const [recHasGps, setRecHasGps] = useState<'yes' | 'no' | 'unknown'>('unknown');
@@ -170,6 +199,91 @@ export default function NewServiceScreen() {
     }
   };
 
+  const upcomingDays = useMemo(() => {
+    const list = [];
+    const now = new Date();
+    const dayNames = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];
+    const monthNames = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(now);
+      d.setDate(now.getDate() + i);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      const dateKey = `${yyyy}-${mm}-${dd}`;
+
+      let label = dayNames[d.getDay()];
+      if (i === 0) label = 'HOY';
+      else if (i === 1) label = 'MAÑ';
+
+      list.push({
+        dateKey,
+        rawDate: d,
+        label,
+        dayNum: d.getDate(),
+        month: monthNames[d.getMonth()],
+        fullText: d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }),
+      });
+    }
+    return list;
+  }, []);
+
+  const isSlotPast = (slot: typeof TIME_SLOTS[0]) => {
+    const today = new Date();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayKey = `${today.getFullYear()}-${mm}-${dd}`;
+
+    if (selectedDateKey !== todayKey) return false;
+
+    const currentMinutes = today.getHours() * 60 + today.getMinutes();
+    const slotMinutes = slot.hours * 60 + slot.minutes;
+    return slotMinutes <= currentMinutes + 30;
+  };
+
+  const selectedDayObj = useMemo(() => {
+    return upcomingDays.find(d => d.dateKey === selectedDateKey) || upcomingDays[0];
+  }, [upcomingDays, selectedDateKey]);
+
+  const formattedSelectedTime = useMemo(() => {
+    if (isCustomTime) {
+      return `${customHour}:${customMinute} ${customPeriod}`;
+    }
+    const slot = TIME_SLOTS.find(s => s.id === selectedSlot);
+    return slot ? slot.label : '09:30 AM';
+  }, [isCustomTime, customHour, customMinute, customPeriod, selectedSlot]);
+
+  const handleNextStep = () => {
+    if (step === 0) {
+      if (!serviceType) {
+        Alert.alert('Tipo de servicio', 'Por favor selecciona qué servicio necesitas.');
+        return;
+      }
+      setStep(1);
+      return;
+    }
+    if (step === 1) {
+      if (!vehicleType) {
+        Alert.alert('Vehículo requerido', 'Por favor selecciona el tipo de vehículo.');
+        return;
+      }
+      setStep(2);
+      return;
+    }
+    if (step === 2) {
+      if (!address.trim()) {
+        Alert.alert('Dirección requerida', 'Por favor ingresa o confirma la dirección del servicio.');
+        return;
+      }
+      setStep(3);
+      return;
+    }
+    if (step === 3) {
+      handleSubmit();
+    }
+  };
+
   const handleSubmit = async () => {
     const trimmedAddress = address.trim();
     const targetCity = (city || 'Medellín').trim();
@@ -190,9 +304,41 @@ export default function NewServiceScreen() {
 
     const selectedService = SERVICE_TYPES.find(t => t.key === serviceType);
     const serviceLabel = selectedService?.key === 'other' ? 'Servicio General' : (selectedService?.label || 'Servicio Técnico');
+
+    // Build scheduled date & time ISO preserving local time
+    let targetDate: Date;
+    let targetHours: number;
+    let targetMinutes: number;
+
+    if (scheduleMode === 'asap') {
+      targetDate = new Date();
+      targetDate.setMinutes(targetDate.getMinutes() + 45);
+      targetHours = targetDate.getHours();
+      targetMinutes = targetDate.getMinutes();
+    } else {
+      const [y, m, d] = selectedDateKey.split('-').map(Number);
+      targetDate = new Date(y, m - 1, d);
+
+      if (isCustomTime) {
+        let h = parseInt(customHour, 10);
+        if (customPeriod === 'PM' && h < 12) h += 12;
+        if (customPeriod === 'AM' && h === 12) h = 0;
+        targetHours = h;
+        targetMinutes = parseInt(customMinute, 10);
+      } else {
+        const slot = TIME_SLOTS.find(s => s.id === selectedSlot) || TIME_SLOTS[0];
+        targetHours = slot.hours;
+        targetMinutes = slot.minutes;
+      }
+    }
+
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const localISO = `${targetDate.getFullYear()}-${pad(targetDate.getMonth() + 1)}-${pad(targetDate.getDate())}T${pad(targetHours)}:${pad(targetMinutes)}:00`;
+
+    const formattedDateForTitle = `${pad(targetDate.getDate())}/${pad(targetDate.getMonth() + 1)}/${targetDate.getFullYear()}`;
     const finalTitle = title.trim().length >= 5
       ? title.trim()
-      : `${serviceLabel}${vehicleModel ? ` - ${vehicleModel}` : ''}`;
+      : `${serviceLabel}${vehicleModel ? ` - ${vehicleModel}` : ''} - ${formattedDateForTitle}`;
 
     setIsLoading(true);
     try {
@@ -207,7 +353,8 @@ export default function NewServiceScreen() {
           service_city: targetCity,
           service_lat: Number(lat) || 6.2442,
           service_lon: Number(lng) || -75.5636,
-          scheduled_date: new Date().toISOString(),
+          scheduled_date: localISO,
+          client_notes: clientNotes ? clientNotes.trim() : (description || undefined),
           vehicle_type: vehicleType || undefined,
           vehicle_model: vehicleModel || undefined,
           vehicle_plate: vehiclePlate ? vehiclePlate.trim() : undefined,
@@ -253,7 +400,7 @@ export default function NewServiceScreen() {
         }
       }
 
-      Alert.alert('¡Servicio creado!', 'Tu solicitud fue enviada a los técnicos disponibles.', [
+      Alert.alert('¡Servicio programado!', 'Tu solicitud fue guardada y asignada a los técnicos disponibles.', [
         { text: 'Ver servicio', onPress: () => router.replace(`/(client)/service/${serviceId}` as any) },
       ]);
     } catch (err: any) {
@@ -283,6 +430,13 @@ export default function NewServiceScreen() {
       ? 'Seguimiento por GPS activo, Medellín'
       : (trimmedRecAddress.length < 10 ? `${trimmedRecAddress}, Medellín` : trimmedRecAddress);
 
+    let stolenDatetime = 'Hace menos de 1 hora';
+    if (recTimeFrame === 'earlier') stolenDatetime = 'Hoy más temprano';
+    else if (recTimeFrame === 'yesterday') stolenDatetime = 'Ayer';
+    else if (recTimeFrame === 'other') {
+      stolenDatetime = [recStolenDate, recStolenTime].filter(Boolean).join(' ') || 'Fecha por precisar';
+    }
+
     setIsLoading(true);
     try {
       const recTitle = `🚨 Recuperación - ${recVehicleType === 'motorcycle' ? 'Moto' : 'Carro'} ${recVehicleModel} (${recVehiclePlate})`;
@@ -297,6 +451,7 @@ export default function NewServiceScreen() {
           service_city: city || 'Medellín',
           service_lat: Number(lat) || 6.2442,
           service_lon: Number(lng) || -75.5636,
+          scheduled_date: new Date().toISOString(),
           vehicle_type: recVehicleType,
           vehicle_model: recVehicleModel,
           vehicle_plate: recVehiclePlate,
@@ -306,6 +461,7 @@ export default function NewServiceScreen() {
             vehicle_color: recVehicleColor || null,
             distinctive_marks: recDistinctiveMarks || null,
             police_report_number: recPoliceReport || null,
+            stolen_datetime: stolenDatetime,
           },
         }),
       });
@@ -462,6 +618,52 @@ export default function NewServiceScreen() {
             </View>
           )}
 
+          {/* Time frame when it happened */}
+          <Text style={styles.inputLabel}>¿Cuándo ocurrió el suceso? *</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+            {[
+              { key: 'recent', label: '⚡ Menos de 1 hr' },
+              { key: 'earlier', label: '🕒 Hoy más temprano' },
+              { key: 'yesterday', label: '📅 Ayer' },
+              { key: 'other', label: '🗓️ Otra fecha' },
+            ].map(tf => (
+              <TouchableOpacity
+                key={tf.key}
+                style={[styles.gpsOption, recTimeFrame === tf.key && styles.gpsOptionActive]}
+                onPress={() => setRecTimeFrame(tf.key as any)}
+              >
+                <Text style={[styles.gpsOptionText, recTimeFrame === tf.key && { color: '#ef4444', fontWeight: '700' }]}>
+                  {tf.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {recTimeFrame === 'other' && (
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>Fecha aproximada</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="DD/MM/AAAA"
+                  placeholderTextColor="#555872"
+                  value={recStolenDate}
+                  onChangeText={setRecStolenDate}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>Hora aproximada</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ej: 03:30 PM"
+                  placeholderTextColor="#555872"
+                  value={recStolenTime}
+                  onChangeText={setRecStolenTime}
+                />
+              </View>
+            </View>
+          )}
+
           {/* Notes */}
           <Text style={styles.inputLabel}>Información adicional (opcional)</Text>
           <TextInput style={[styles.input, { height: 80, textAlignVertical: 'top' }]} placeholder="Cualquier dato relevante..." placeholderTextColor="#555872" value={recDescription} onChangeText={setRecDescription} multiline />
@@ -487,7 +689,7 @@ export default function NewServiceScreen() {
       <>
       {/* Steps indicator */}
       <View style={styles.stepsRow}>
-        {['Tipo', 'Vehículo', 'Ubicación'].map((label, i) => (
+        {STEPS.map((label, i) => (
           <View key={label} style={styles.stepItem}>
             <View style={[styles.stepDot, i <= step && styles.stepDotActive]} />
             <Text style={[styles.stepLabel, i <= step && styles.stepLabelActive]}>{label}</Text>
@@ -588,11 +790,9 @@ export default function NewServiceScreen() {
             </TouchableOpacity>
 
             <View style={{ height: 260, marginVertical: 8, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border }}>
-              <MapView
+              <TecMapView
                 ref={mapRef}
-                provider={Platform.OS === 'android' ? undefined : PROVIDER_GOOGLE}
                 style={{ flex: 1 }}
-                mapType={Platform.OS === 'android' ? 'none' : 'standard'}
                 initialRegion={{
                   latitude: lat,
                   longitude: lng,
@@ -622,16 +822,10 @@ export default function NewServiceScreen() {
                   } catch (e) {}
                 }}
               >
-                <UrlTile
-                  urlTemplate="https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
-                  maximumZ={19}
-                  flipY={false}
-                  zIndex={-1}
-                />
                 <Marker coordinate={{ latitude: lat, longitude: lng }} anchor={{ x: 0.5, y: 1 }}>
                   <ServicePinMarker />
                 </Marker>
-              </MapView>
+              </TecMapView>
             </View>
 
             {/* Coordinates Badge */}
@@ -661,6 +855,224 @@ export default function NewServiceScreen() {
             />
           </View>
         )}
+
+        {/* Step 3: Schedule & Confirmation */}
+        {step === 3 && (
+          <View style={styles.stepContent}>
+            <Text style={styles.sectionTitle}>Fecha y hora de la cita</Text>
+
+            {/* Mode selection: ASAP vs Scheduled */}
+            <View style={styles.scheduleModeRow}>
+              <TouchableOpacity
+                style={[styles.scheduleModeCard, scheduleMode === 'asap' && styles.scheduleModeCardActive]}
+                onPress={() => setScheduleMode('asap')}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Ionicons name="flash" size={16} color={scheduleMode === 'asap' ? COLORS.primaryLight : COLORS.textSecondary} />
+                  <Text style={[styles.scheduleModeTitle, scheduleMode === 'asap' && styles.scheduleModeTitleActive]}>
+                    Hoy mismo
+                  </Text>
+                </View>
+                <Text style={styles.scheduleModeSub}>Lo antes posible (1-2 hrs)</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.scheduleModeCard, scheduleMode === 'scheduled' && styles.scheduleModeCardActive]}
+                onPress={() => setScheduleMode('scheduled')}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Ionicons name="calendar" size={16} color={scheduleMode === 'scheduled' ? COLORS.primaryLight : COLORS.textSecondary} />
+                  <Text style={[styles.scheduleModeTitle, scheduleMode === 'scheduled' && styles.scheduleModeTitleActive]}>
+                    Programar
+                  </Text>
+                </View>
+                <Text style={styles.scheduleModeSub}>Elegir fecha y hora</Text>
+              </TouchableOpacity>
+            </View>
+
+            {scheduleMode === 'scheduled' && (
+              <>
+                {/* Day selector */}
+                <Text style={styles.inputLabel}>Selecciona el día</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.daysScroll}
+                >
+                  {upcomingDays.map((d) => {
+                    const isSelected = selectedDateKey === d.dateKey;
+                    return (
+                      <TouchableOpacity
+                        key={d.dateKey}
+                        style={[styles.dayCard, isSelected && styles.dayCardActive]}
+                        onPress={() => setSelectedDateKey(d.dateKey)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.dayCardLabel, isSelected && styles.dayCardLabelActive]}>
+                          {d.label}
+                        </Text>
+                        <Text style={[styles.dayCardNum, isSelected && styles.dayCardNumActive]}>
+                          {d.dayNum}
+                        </Text>
+                        <Text style={[styles.dayCardMonth, isSelected && styles.dayCardMonthActive]}>
+                          {d.month}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+
+                {/* Time selection */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 8 }}>
+                  <Text style={[styles.inputLabel, { marginBottom: 0 }]}>Franja horaria</Text>
+                  <TouchableOpacity onPress={() => setIsCustomTime(!isCustomTime)}>
+                    <Text style={{ color: COLORS.primaryLight, fontSize: 12, fontWeight: '700' }}>
+                      {isCustomTime ? 'Ver franjas sugeridas' : '⏰ Hora exacta'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {!isCustomTime ? (
+                  <View style={styles.slotsContainer}>
+                    {['Mañana', 'Tarde', 'Noche'].map((period) => {
+                      const periodSlots = TIME_SLOTS.filter(s => s.period === period);
+                      return (
+                        <View key={period}>
+                          <Text style={styles.slotGroupTitle}>
+                            {period === 'Mañana' ? '🌅 Mañana' : period === 'Tarde' ? '☀️ Tarde' : '🌆 Noche'}
+                          </Text>
+                          <View style={styles.slotsRow}>
+                            {periodSlots.map((slot) => {
+                              const isPast = isSlotPast(slot);
+                              const isSelected = selectedSlot === slot.id && !isPast;
+                              return (
+                                <TouchableOpacity
+                                  key={slot.id}
+                                  style={[
+                                    styles.slotChip,
+                                    isSelected && styles.slotChipActive,
+                                    isPast && styles.slotChipDisabled,
+                                  ]}
+                                  onPress={() => {
+                                    if (isPast) {
+                                      Alert.alert('Hora no disponible', 'Esta franja horaria ya pasó para el día de hoy.');
+                                      return;
+                                    }
+                                    setSelectedSlot(slot.id);
+                                  }}
+                                  activeOpacity={isPast ? 1 : 0.7}
+                                >
+                                  <Text style={[
+                                    styles.slotChipText,
+                                    isSelected && styles.slotChipTextActive,
+                                    isPast && styles.slotChipTextDisabled,
+                                  ]}>
+                                    {slot.label}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <View style={styles.customTimeContainer}>
+                    <Text style={styles.customTimeLabel}>Hora</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.customPillsScroll}>
+                      {['07', '08', '09', '10', '11', '12', '01', '02', '03', '04', '05', '06', '07', '08'].map(h => (
+                        <TouchableOpacity
+                          key={h}
+                          style={[styles.customPill, customHour === h && styles.customPillActive]}
+                          onPress={() => setCustomHour(h)}
+                        >
+                          <Text style={[styles.customPillText, customHour === h && styles.customPillTextActive]}>{h}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+
+                    <Text style={styles.customTimeLabel}>Minutos</Text>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {['00', '15', '30', '45'].map(m => (
+                        <TouchableOpacity
+                          key={m}
+                          style={[styles.customPill, { flex: 1 }, customMinute === m && styles.customPillActive]}
+                          onPress={() => setCustomMinute(m)}
+                        >
+                          <Text style={[styles.customPillText, customMinute === m && styles.customPillTextActive]}>:{m}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <Text style={styles.customTimeLabel}>Jornada</Text>
+                    <View style={styles.customAmPmRow}>
+                      {(['AM', 'PM'] as const).map(p => (
+                        <TouchableOpacity
+                          key={p}
+                          style={[styles.customAmPmBtn, customPeriod === p && styles.customAmPmBtnActive]}
+                          onPress={() => setCustomPeriod(p)}
+                        >
+                          <Text style={[styles.customAmPmText, customPeriod === p && styles.customAmPmTextActive]}>{p}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </>
+            )}
+
+            {/* Client Notes */}
+            <Text style={[styles.inputLabel, { marginTop: 14 }]}>Instrucciones para el técnico (opcional)</Text>
+            <TextInput
+              style={[styles.input, { height: 75, textAlignVertical: 'top' }]}
+              placeholder="Ej: Timbre 402, preguntar por Carlos, portón negro..."
+              placeholderTextColor="#555872"
+              value={clientNotes}
+              onChangeText={setClientNotes}
+              multiline
+            />
+
+            {/* Summary card */}
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryHeader}>
+                <Ionicons name="receipt-outline" size={18} color={COLORS.primaryLight} />
+                <Text style={styles.summaryTitle}>Resumen de la cita</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Servicio</Text>
+                <Text style={styles.summaryValue}>
+                  {SERVICE_TYPES.find(t => t.key === serviceType)?.emoji} {SERVICE_TYPES.find(t => t.key === serviceType)?.label || 'Servicio Técnico'}
+                </Text>
+              </View>
+              {vehicleType ? (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Vehículo</Text>
+                  <Text style={styles.summaryValue}>
+                    {vehicleModel || (vehicleType === 'car' ? 'Carro' : vehicleType === 'motorcycle' ? 'Moto' : 'Carga')}
+                    {vehiclePlate ? ` (${vehiclePlate})` : ''}
+                  </Text>
+                </View>
+              ) : null}
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Ubicación</Text>
+                <Text style={styles.summaryValue} numberOfLines={1}>
+                  {address || 'Ubicación fijada'}
+                </Text>
+              </View>
+              <View style={[styles.summaryRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
+                <Text style={styles.summaryLabel}>Fecha y Hora</Text>
+                <Text style={[styles.summaryValue, { color: COLORS.primaryLight, fontWeight: '700' }]}>
+                  {scheduleMode === 'asap'
+                    ? '⚡ Hoy mismo (Lo antes posible)'
+                    : `📅 ${selectedDayObj?.label} ${selectedDayObj?.dayNum} ${selectedDayObj?.month} · ${formattedSelectedTime}`}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       {/* Bottom Actions */}
@@ -672,13 +1084,13 @@ export default function NewServiceScreen() {
         )}
         <TouchableOpacity
           style={[styles.nextBtn, isLoading && { opacity: 0.6 }]}
-          onPress={step < 2 ? () => setStep(s => s + 1) : handleSubmit}
+          onPress={step < 3 ? handleNextStep : handleSubmit}
           disabled={isLoading}
           activeOpacity={0.8}
         >
           <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.nextBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
             {isLoading ? <ActivityIndicator color="#fff" /> : (
-              <Text style={styles.nextBtnText}>{step < 2 ? 'Siguiente' : 'Crear Servicio'}</Text>
+              <Text style={styles.nextBtnText}>{step < 3 ? 'Siguiente' : 'Confirmar Servicio'}</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>
@@ -737,4 +1149,47 @@ const styles = StyleSheet.create({
   gpsOption: { flex: 1, backgroundColor: COLORS.bgCard, borderRadius: 10, padding: SPACING.md, alignItems: 'center', borderWidth: 2, borderColor: COLORS.border },
   gpsOptionActive: { borderColor: COLORS.red, backgroundColor: COLORS.redMuted },
   gpsOptionText: { color: COLORS.textSecondary, fontSize: 13, fontWeight: FONTS.weights.semibold },
+  // Schedule styles
+  scheduleModeRow: { flexDirection: 'row', gap: 12, marginBottom: 18 },
+  scheduleModeCard: { flex: 1, backgroundColor: COLORS.bgCard, borderRadius: 14, padding: 14, borderWidth: 2, borderColor: COLORS.border },
+  scheduleModeCardActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryMuted },
+  scheduleModeTitle: { color: COLORS.textSecondary, fontSize: 14, fontWeight: '700' },
+  scheduleModeTitleActive: { color: COLORS.primaryLight },
+  scheduleModeSub: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
+  daysScroll: { gap: 8, paddingBottom: 10, paddingTop: 2 },
+  dayCard: { width: 62, paddingVertical: 10, alignItems: 'center', backgroundColor: COLORS.bgCard, borderRadius: 12, borderWidth: 1.5, borderColor: COLORS.border },
+  dayCardActive: { borderColor: COLORS.primary, backgroundColor: 'rgba(139,92,246,0.22)' },
+  dayCardLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  dayCardLabelActive: { color: COLORS.primaryLight },
+  dayCardNum: { color: COLORS.text, fontSize: 18, fontWeight: '800', marginVertical: 2 },
+  dayCardNumActive: { color: '#ffffff' },
+  dayCardMonth: { color: COLORS.textMuted, fontSize: 10, fontWeight: '600' },
+  dayCardMonthActive: { color: COLORS.primaryLight },
+  slotsContainer: { gap: 10, marginBottom: 14 },
+  slotGroupTitle: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 6 },
+  slotsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  slotChip: { width: '31%', paddingVertical: 10, borderRadius: 10, backgroundColor: COLORS.bgCard, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
+  slotChipActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryMuted },
+  slotChipDisabled: { opacity: 0.3 },
+  slotChipText: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '600' },
+  slotChipTextActive: { color: COLORS.primaryLight, fontWeight: '800' },
+  slotChipTextDisabled: { color: COLORS.textMuted },
+  customTimeContainer: { backgroundColor: 'rgba(15,23,42,0.85)', borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, padding: 14, gap: 12, marginBottom: 14 },
+  customTimeLabel: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '700' },
+  customPillsScroll: { gap: 6, paddingVertical: 2 },
+  customPill: { minWidth: 42, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: COLORS.bgCard, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
+  customPillActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryMuted },
+  customPillText: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '600' },
+  customPillTextActive: { color: COLORS.primaryLight, fontWeight: '800' },
+  customAmPmRow: { flexDirection: 'row', gap: 8 },
+  customAmPmBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, backgroundColor: COLORS.bgCard, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
+  customAmPmBtnActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryMuted },
+  customAmPmText: { color: COLORS.textSecondary, fontSize: 13, fontWeight: '700' },
+  customAmPmTextActive: { color: COLORS.primaryLight },
+  summaryCard: { backgroundColor: 'rgba(15,23,42,0.9)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(139,92,246,0.3)', padding: 16, marginTop: 16, gap: 10 },
+  summaryHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  summaryTitle: { color: COLORS.text, fontSize: 13, fontWeight: '700' },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: 'rgba(80,60,160,0.1)' },
+  summaryLabel: { color: COLORS.textMuted, fontSize: 12 },
+  summaryValue: { color: COLORS.text, fontSize: 12, fontWeight: '600', maxWidth: '65%', textAlign: 'right' },
 });

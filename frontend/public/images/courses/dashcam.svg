@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="100%" height="100%">
+  <defs>
+    <linearGradient id="cam-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#081524" />
+      <stop offset="50%" stop-color="#0c2340" />
+      <stop offset="100%" stop-color="#0369a1" />
+    </linearGradient>
+    <radialGradient id="lens-glow" cx="40%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="40%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </radialGradient>
+    <pattern id="cam-grid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#0e3b68" stroke-width="0.75" />
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="450" fill="url(#cam-bg)" />
+  <rect width="800" height="450" fill="url(#cam-grid)" opacity="0.6" />
+
+  <!-- Target Crosshairs -->
+  <g stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.3" fill="none">
+    <line x1="220" y1="200" x2="580" y2="200" stroke-dasharray="8 6" />
+    <line x1="400" y1="70" x2="400" y2="330" stroke-dasharray="8 6" />
+    <circle cx="400" cy="200" r="110" />
+    <circle cx="400" cy="200" r="130" stroke-dasharray="4 8" />
+  </g>
+
+  <!-- Camera Body & Lens -->
+  <g transform="translate(400, 195)">
+    <!-- Dashcam Base Shell -->
+    <rect x="-85" y="-50" width="170" height="100" rx="20" fill="#0f172a" stroke="#0284c7" stroke-width="3" filter="drop-shadow(0px 10px 30px rgba(56,189,248,0.4))" />
+    
+    <!-- Camera Lens Ring -->
+    <circle cx="-15" cy="0" r="38" fill="#1e293b" stroke="#38bdf8" stroke-width="3" />
+    <circle cx="-15" cy="0" r="30" fill="url(#lens-glow)" />
+    
+    <!-- Optical reflection flare -->
+    <ellipse cx="-23" cy="-10" rx="10" ry="6" fill="#ffffff" opacity="0.6" transform="rotate(-30, -23, -10)" />
+
+    <!-- Screen preview area -->
+    <rect x="32" y="-30" width="38" height="60" rx="6" fill="#02162e" stroke="#38bdf8" stroke-width="1.5" />
+    <path d="M 36 -10 L 48 10 L 60 -5 L 66 18" stroke="#38bdf8" stroke-width="1.5" fill="none" />
+
+    <!-- REC dot -->
+    <circle cx="58" cy="-22" r="3" fill="#ef4444" />
+    <text x="36" y="-20" fill="#ef4444" font-family="monospace" font-size="6" font-weight="bold">REC</text>
+
+    <!-- Angle field indicator -->
+    <path d="M -15 -38 L -90 -95" stroke="#38bdf8" stroke-width="1" stroke-dasharray="3 3" opacity="0.6" />
+    <path d="M -15 38 L -90 95" stroke="#38bdf8" stroke-width="1" stroke-dasharray="3 3" opacity="0.6" />
+    <text x="-125" y="-85" fill="#38bdf8" font-family="monospace" font-size="11" font-weight="bold">FOV 170°</text>
+  </g>
+
+  <!-- Typography -->
+  <text x="400" y="345" text-anchor="middle" fill="#ffffff" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="900" letter-spacing="1">
+    DASHCAMS HD Y CÁMARAS DOBLES
+  </text>
+  <text x="400" y="375" text-anchor="middle" fill="#38bdf8" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" letter-spacing="3">
+    MODO CENTINELA 24/7 • HARDWIRE KIT
+  </text>
+</svg>

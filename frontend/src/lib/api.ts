@@ -10,19 +10,27 @@
 export function getApiBaseUrl(): string {
   if (typeof window !== "undefined") {
     const hostname = window.location.hostname
-    if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {
-      const envUrl = process.env.NEXT_PUBLIC_API_URL || ""
-      if (!envUrl.includes("tec-360.tech")) {
-        const protocol = window.location.protocol
-        return `${protocol}//${hostname}:8000`
-      }
+    const envUrl = process.env.NEXT_PUBLIC_API_URL || ""
+    if (envUrl.includes("tec-360.tech")) {
+      return envUrl
+    }
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:8000"
+    }
+    if (hostname) {
+      const protocol = window.location.protocol
+      return `${protocol}//${hostname}:8000`
     }
   }
-  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+  const envUrl = process.env.NEXT_PUBLIC_API_URL || ""
+  if (envUrl && !envUrl.includes("192.168.1.1")) {
+    return envUrl
+  }
+  return "http://localhost:8000"
 }
 
 // URL base del backend
-const API_URL = getApiBaseUrl()
+export const API_URL = getApiBaseUrl()
 
 // ============================================
 // TIPOS
@@ -184,7 +192,8 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const endpointUrl = url.startsWith("http") ? url : `${API_URL}${url}`;
+  const baseUrl = getApiBaseUrl();
+  const endpointUrl = url.startsWith("http") ? url : `${baseUrl}${url}`;
   let response = await fetch(endpointUrl, { ...options, headers });
 
   if (response.status === 401) {
@@ -222,7 +231,8 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
  * Solicita un código OTP por SMS
  */
 export async function requestOTP(phone: string): Promise<OTPResponse> {
-  const response = await fetch(`${API_URL}/auth/request-otp`, {
+  const baseUrl = getApiBaseUrl();
+  const response = await fetch(`${baseUrl}/auth/request-otp`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -244,7 +254,8 @@ export async function verifyOTP(
   phone: string,
   code: string
 ): Promise<AuthResponse> {
-  const response = await fetch(`${API_URL}/auth/verify-otp`, {
+  const baseUrl = getApiBaseUrl();
+  const response = await fetch(`${baseUrl}/auth/verify-otp`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -321,7 +332,8 @@ export async function refreshToken(): Promise<{
     throw new Error("No hay refresh token")
   }
 
-  const response = await fetch(`${API_URL}/auth/refresh`, {
+  const baseUrl = getApiBaseUrl();
+  const response = await fetch(`${baseUrl}/auth/refresh`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -633,7 +645,83 @@ export const api = {
     })
     if (!res.ok) await handleAPIError(res)
     return { data: await res.json() }
+  },
+  courses: {
+    list: async (params?: { category?: string; difficulty?: string; search?: string; is_free?: boolean; is_required?: boolean }) => {
+      const query = new URLSearchParams()
+      if (params?.category) query.append("category", params.category)
+      if (params?.difficulty) query.append("difficulty", params.difficulty)
+      if (params?.search) query.append("search", params.search)
+      if (params?.is_free !== undefined) query.append("is_free", String(params.is_free))
+      if (params?.is_required !== undefined) query.append("is_required", String(params.is_required))
+      const qs = query.toString() ? `?${query.toString()}` : ""
+      const res = await fetchWithAuth(`/api/courses${qs}`)
+      if (!res.ok) await handleAPIError(res)
+      return { data: await res.json() }
+    },
+    getCategories: async () => {
+      const res = await fetchWithAuth(`/api/courses/categories`)
+      if (!res.ok) await handleAPIError(res)
+      return { data: await res.json() }
+    },
+    getMyCourses: async () => {
+      const res = await fetchWithAuth(`/api/courses/my-courses`)
+      if (!res.ok) await handleAPIError(res)
+      return { data: await res.json() }
+    },
+    getDetail: async (slug: string) => {
+      const res = await fetchWithAuth(`/api/courses/${slug}`)
+      if (!res.ok) await handleAPIError(res)
+      return { data: await res.json() }
+    },
+    getLesson: async (slug: string, lessonIdOrSlug: string) => {
+      const res = await fetchWithAuth(`/api/courses/${slug}/lessons/${lessonIdOrSlug}`)
+      if (!res.ok) await handleAPIError(res)
+      return { data: await res.json() }
+    },
+    enroll: async (slug: string) => {
+      const res = await fetchWithAuth(`/api/courses/${slug}/enroll`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      })
+      if (!res.ok) await handleAPIError(res)
+      return { data: await res.json() }
+    },
+    completeLesson: async (slug: string, lessonId: string) => {
+      const res = await fetchWithAuth(`/api/courses/${slug}/lessons/${lessonId}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      })
+      if (!res.ok) await handleAPIError(res)
+      return { data: await res.json() }
+    },
+    getQuiz: async (slug: string) => {
+      const res = await fetchWithAuth(`/api/courses/${slug}/quiz`)
+      if (!res.ok) await handleAPIError(res)
+      return { data: await res.json() }
+    },
+    submitQuiz: async (slug: string, answers: { question_id: string; selected_option_index: number }[]) => {
+      const res = await fetchWithAuth(`/api/courses/${slug}/quiz/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers })
+      })
+      if (!res.ok) await handleAPIError(res)
+      return { data: await res.json() }
+    },
+    verifyCertificate: async (code: string) => {
+      const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
+      const headers: Record<string, string> = { "Content-Type": "application/json" }
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`
+      }
+      const baseUrl = getApiBaseUrl()
+      const res = await fetch(`${baseUrl}/api/courses/certificates/${code}`, { headers })
+      if (!res.ok) await handleAPIError(res)
+      return { data: await res.json() }
+    }
   }
 }
+
 
 export default api;

@@ -2,12 +2,13 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   TextInput, ActivityIndicator, RefreshControl, ScrollView,
-  Image,
+  Image, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import MapView, { Marker, UrlTile, PROVIDER_GOOGLE } from 'react-native-maps';
+import { Marker } from 'react-native-maps';
+import { TecMapView, FleetMarker } from '@/components/map';
 import { useAuth } from '@/lib/auth-context';
 import { fetchWithAuth, API_URL } from '@/lib/api';
 import { COLORS, SPACING, FONTS } from '@/constants/theme';
@@ -342,19 +343,10 @@ export default function ServicesScreen() {
       {viewMode === 'map' ? (
         /* MAP VIEW */
         <View style={styles.mapViewContainer}>
-          <MapView
-            provider={Platform.OS === 'android' ? undefined : PROVIDER_GOOGLE}
+          <TecMapView
             style={styles.fullscreenMap}
             initialRegion={initialMapRegion}
-            mapType={Platform.OS === 'android' ? 'none' : 'standard'}
-            customMapStyle={darkMapStyle}
           >
-            <UrlTile
-              urlTemplate="https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
-              maximumZ={19}
-              flipY={false}
-              zIndex={-1}
-            />
             {mapServices.map((item) => {
               const cfg = statusConfig[item.status] || statusConfig.pending;
               const isSelected = selectedMapService?.id === item.id;
@@ -366,13 +358,11 @@ export default function ServicesScreen() {
                   title={item.title}
                   onPress={() => setSelectedMapService(item)}
                 >
-                  <View style={[styles.mapMarkerPin, { borderColor: cfg.color }, isSelected && styles.mapMarkerSelected]}>
-                    <View style={[styles.mapMarkerCore, { backgroundColor: cfg.color }]} />
-                  </View>
+                  <FleetMarker color={cfg.color} isSelected={isSelected} />
                 </Marker>
               );
             })}
-          </MapView>
+          </TecMapView>
 
           {/* Selected Service Floating Card */}
           {selectedMapService ? (

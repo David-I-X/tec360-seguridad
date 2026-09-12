@@ -24,6 +24,7 @@ from app.api import chat as chat_router
 from app.api import verification as verification_router
 from app.api import webhooks as webhooks_router
 from app.api import admin_vertical as admin_vertical_router
+from app.api import courses as courses_router
 import os
 import logging
 import time
@@ -74,6 +75,19 @@ async def on_startup():
                 seed_quiz_questions(session)
         except Exception as e:
             logger.warning(f"Could not seed quiz questions: {e}")
+
+    # Seed Escuela Tec courses if not already present
+    if settings.ENVIRONMENT != "test":
+        try:
+            from app.services.course_seed import seed_courses
+            from sqlmodel import Session, SQLModel
+            from app.core.database import engine
+            from app import models as _models  # noqa: F401
+            SQLModel.metadata.create_all(engine)
+            with Session(engine) as session:
+                seed_courses(session)
+        except Exception as e:
+            logger.warning(f"Could not seed Escuela Tec courses: {e}")
     
     # Start background scheduler
     if settings.ENVIRONMENT != "test":
@@ -200,6 +214,10 @@ app.include_router(webhooks_router.router, prefix="/api/webhooks", tags=["Webhoo
 
 # Admin Vertical SaaS Integration (Accounting & DIAN)
 app.include_router(admin_vertical_router.router)
+
+# Escuela Tec (E-learning & Certificaciones)
+app.include_router(courses_router.router, prefix="/api")
+app.include_router(courses_router.router)
 
 # Simulation (development only — excluded in production)
 if settings.ENVIRONMENT != "production":

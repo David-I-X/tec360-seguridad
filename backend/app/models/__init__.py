@@ -21,6 +21,16 @@ from app.models.portfolio import PortfolioImage
 from app.models.push_token import PushToken
 from app.models.schedule import TechnicianSchedule
 from app.models.extras import ServiceRating, ServiceImage, RatedBy, ImageType
+from app.models.course import (
+    Course,
+    Lesson,
+    CourseQuiz,
+    Enrollment,
+    LessonProgress,
+    CourseCategory,
+    CourseDifficulty,
+    EnrollmentStatus,
+)
 
 __all__ = [
     "User",
@@ -54,4 +64,13 @@ __all__ = [
     "ServiceImage",
     "RatedBy",
     "ImageType",
+    "Course",
+    "Lesson",
+    "CourseQuiz",
+    "Enrollment",
+    "LessonProgress",
+    "CourseCategory",
+    "CourseDifficulty",
+    "EnrollmentStatus",
 ]
+
