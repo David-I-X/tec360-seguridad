@@ -8,7 +8,7 @@ export default {
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "tec360",
-    userInterfaceStyle: "dark",
+    userInterfaceStyle: "automatic",
     newArchEnabled: false,
     ios: {
       supportsTablet: false,
@@ -76,6 +76,13 @@ export default {
       "expo-web-browser",
       "expo-image",
       "expo-status-bar",
+      [
+        "react-native-maps",
+        {
+          "androidGoogleMapsApiKey": GOOGLE_MAPS_API_KEY,
+          "iosGoogleMapsApiKey": GOOGLE_MAPS_API_KEY,
+        },
+      ],
     ],
     experiments: {
       typedRoutes: true,

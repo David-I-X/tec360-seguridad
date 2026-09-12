@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Moon, Sun, LogOut, User, Menu, X, Shield, Wrench, FileText, Bell, Home, ClipboardList, Settings, Download, Wallet } from "lucide-react"
+import { Moon, Sun, LogOut, User, Menu, X, Shield, Wrench, FileText, Bell, Home, ClipboardList, Settings, Download, Wallet, GraduationCap } from "lucide-react"
 import { useTheme } from "next-themes"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
@@ -61,10 +61,12 @@ export function Navbar() {
         { href: "/tecnicos/dashboard", label: "Dashboard", icon: Wrench },
         { href: "/tecnicos/mis-cotizaciones", label: "Cotizaciones", icon: FileText },
         { href: "/tecnicos/billetera", label: "Billetera", icon: Wallet },
+        { href: "/escuela", label: "Escuela Tec", icon: GraduationCap },
         { href: "/descargar-app", label: "Descargar App", icon: Download },
         { href: "/configuracion", label: "Configuración", icon: Settings },
       ]
     }
+
 
     // Client
     return [

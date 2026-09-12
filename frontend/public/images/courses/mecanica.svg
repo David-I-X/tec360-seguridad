@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="100%" height="100%">
+  <defs>
+    <linearGradient id="mec-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#140f06" />
+      <stop offset="50%" stop-color="#261b0c" />
+      <stop offset="100%" stop-color="#78350f" />
+    </linearGradient>
+    <linearGradient id="cpu-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#b45309" />
+    </linearGradient>
+    <radialGradient id="amber-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0" />
+    </radialGradient>
+    <pattern id="mec-grid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#451a03" stroke-width="0.75" />
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="450" fill="url(#mec-bg)" />
+  <rect width="800" height="450" fill="url(#mec-grid)" opacity="0.6" />
+  <circle cx="400" cy="205" r="180" fill="url(#amber-glow)" />
+
+  <!-- Digital CAN-Bus Waveforms -->
+  <g stroke="#f59e0b" stroke-width="2" stroke-opacity="0.5" fill="none">
+    <path d="M 80 140 L 140 140 L 160 110 L 220 110 L 240 140 L 300 140 L 320 110 L 360 110" />
+    <text x="90" y="130" fill="#f59e0b" font-family="monospace" font-size="10" font-weight="bold">CAN_HIGH (2.5V - 3.5V)</text>
+
+    <path d="M 80 270 L 140 270 L 160 300 L 220 300 L 240 270 L 300 270 L 320 300 L 360 300" stroke="#fbbf24" />
+    <text x="90" y="295" fill="#fbbf24" font-family="monospace" font-size="10" font-weight="bold">CAN_LOW (1.5V - 2.5V)</text>
+
+    <!-- Right side pins -->
+    <path d="M 440 110 L 480 110 L 500 140 L 560 140 L 580 110 L 640 110 L 660 140 L 720 140" />
+    <path d="M 440 300 L 480 300 L 500 270 L 560 270 L 580 300 L 640 300 L 660 270 L 720 270" stroke="#fbbf24" />
+  </g>
+
+  <!-- Central Microcontroller / ECU Chip -->
+  <g transform="translate(400, 205)">
+    <!-- Chip Body -->
+    <rect x="-55" y="-55" width="110" height="110" rx="14" fill="#18181b" stroke="#f59e0b" stroke-width="2.5" filter="drop-shadow(0px 8px 24px rgba(245,158,11,0.4))" />
+    
+    <!-- Gold central core -->
+    <rect x="-32" y="-32" width="64" height="64" rx="8" fill="url(#cpu-grad)" opacity="0.9" />
+    
+    <!-- Pins Left & Right -->
+    <g fill="#f59e0b">
+      <rect x="-65" y="-40" width="10" height="5" rx="1" />
+      <rect x="-65" y="-20" width="10" height="5" rx="1" />
+      <rect x="-65" y="0" width="10" height="5" rx="1" />
+      <rect x="-65" y="20" width="10" height="5" rx="1" />
+      <rect x="-65" y="35" width="10" height="5" rx="1" />
+
+      <rect x="55" y="-40" width="10" height="5" rx="1" />
+      <rect x="55" y="-20" width="10" height="5" rx="1" />
+      <rect x="55" y="0" width="10" height="5" rx="1" />
+      <rect x="55" y="20" width="10" height="5" rx="1" />
+      <rect x="55" y="35" width="10" height="5" rx="1" />
+    </g>
+
+    <!-- Chip Text -->
+    <text x="0" y="4" text-anchor="middle" fill="#000000" font-family="monospace" font-size="12" font-weight="900" letter-spacing="1">
+      CAN-BUS
+    </text>
+    <text x="0" y="18" text-anchor="middle" fill="#000000" font-family="monospace" font-size="8" font-weight="700">
+      OBD-II • J1939
+    </text>
+  </g>
+
+  <!-- Typography -->
+  <text x="400" y="345" text-anchor="middle" fill="#ffffff" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="900" letter-spacing="1">
+    ELECTRICIDAD Y REDES AUTOMOTRICES
+  </text>
+  <text x="400" y="375" text-anchor="middle" fill="#fbbf24" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" letter-spacing="3">
+    DIAGNÓSTICO CAN-BUS • MEDICIÓN MULTÍMETRO
+  </text>
+</svg>

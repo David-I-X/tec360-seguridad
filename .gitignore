@@ -85,6 +85,14 @@ TRACCAR/*.jpg
 TRACCAR/*.zip
 .codex/
 backend/uploads/
+promo-video/
+tec360source/
+
+# Agent local tool skills
+.agents/skills/impeccable/
+.github/agents/
+.github/hooks/
+.github/skills/
 
 # Local scripts
 *.bat

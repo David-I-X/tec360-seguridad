@@ -6,10 +6,18 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import MapView, { Marker, Polyline, UrlTile, PROVIDER_GOOGLE } from 'react-native-maps';
+import { Marker } from 'react-native-maps';
 import { getServiceById, getAuthToken, API_URL, fetchWithAuth } from '@/lib/api';
 import { serviceWebSocket } from '@/lib/websocket';
-import { ServicePinMarker, TechnicianPinMarker } from '@/components/map-markers';
+import {
+  TecMapView,
+  TecMapViewRef,
+  OriginHaloMarker,
+  DestinationSquircleMarker,
+  GradientRoute,
+  DESTINATION_ANCHOR,
+  ORIGIN_ANCHOR,
+} from '@/components/map';
 import RatingModal from '@/components/rating-modal';
 import PaymentModal from '@/components/payment-modal';
 import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
@@ -96,7 +104,7 @@ export default function ServiceDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [isSlideExpanded, setIsSlideExpanded] = useState(false);
   const lastRouteFetchRef = useRef<{ lat: number; lng: number } | null>(null);
-  const mapRef = useRef<MapView | null>(null);
+  const mapRef = useRef<TecMapViewRef | null>(null);
 
   const handleConfirmPayment = async (method: string) => {
     try {
@@ -250,48 +258,42 @@ export default function ServiceDetailScreen() {
 
   return (
     <View style={styles.container}>
-      {/* ── 1. FULLSCREEN MAP BACKGROUND ── */}
-      <MapView
+      {/* ── 1. FULLSCREEN MAP BACKGROUND (Google Maps Native) ── */}
+      <TecMapView
         ref={mapRef}
-        provider={Platform.OS === 'android' ? undefined : PROVIDER_GOOGLE}
         style={styles.fullscreenMap}
         initialRegion={getRegion()}
-        mapType={Platform.OS === 'android' ? 'none' : 'standard'}
-        customMapStyle={darkMapStyle}
       >
-        <UrlTile
-          urlTemplate="https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
-          maximumZ={19}
-          flipY={false}
-          zIndex={-1}
-        />
-
+        {/* Service Destination: Translucent Squircle with Stop Symbol */}
         <Marker
           coordinate={{ latitude: serviceLat, longitude: serviceLng }}
           title="Ubicación del servicio"
-          anchor={{ x: 0.5, y: 1 }}
+          anchor={DESTINATION_ANCHOR}
         >
-          <ServicePinMarker />
+          <DestinationSquircleMarker
+            label={service?.service_city || 'Servicio'}
+          />
         </Marker>
 
+        {/* Technician Moving Unit: Translucent Halo with Directional Arrow */}
         {techLocation && (
           <Marker
             coordinate={{ latitude: techLocation.lat, longitude: techLocation.lng }}
             title={tech?.full_name || 'Técnico'}
-            anchor={{ x: 0.5, y: 0.5 }}
+            anchor={ORIGIN_ANCHOR}
           >
-            <TechnicianPinMarker label={tech?.full_name?.split(' ')[0]} />
+            <OriginHaloMarker
+              label={tech?.full_name?.split(' ')[0] || 'Técnico'}
+              heading={45}
+            />
           </Marker>
         )}
 
+        {/* Smooth Multi-Tone Gradient Route (Carbón -> Cobre -> Ámbar -> Azul Cobalto) */}
         {routeCoords.length > 1 && (
-          <Polyline
-            coordinates={routeCoords}
-            strokeColor="#38bdf8"
-            strokeWidth={4}
-          />
+          <GradientRoute coordinates={routeCoords} />
         )}
-      </MapView>
+      </TecMapView>
 
       {/* ── 2. FLOATING TOP CONTROLS ── */}
       <View style={styles.topControlBar}>
