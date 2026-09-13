@@ -37,6 +37,13 @@ const TIME_SLOTS = [
   { id: '19:30', label: '07:30 PM', period: 'Noche', hours: 19, minutes: 30 },
 ];
 
+const QUICK_PRICES = ['40000', '60000', '80000', '120000', '180000'];
+
+const formatCOP = (val: string | number) => {
+  const num = typeof val === 'number' ? val : parseInt(String(val).replace(/\D/g, ''), 10) || 0;
+  return num.toLocaleString('es-CO');
+};
+
 export default function NewServiceScreen() {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -60,7 +67,15 @@ export default function NewServiceScreen() {
   const [vehiclePhotoUri, setVehiclePhotoUri] = useState<string | null>(null);
 
   // Scheduling state
+  const todayKey = useMemo(() => {
+    const today = new Date();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${today.getFullYear()}-${mm}-${dd}`;
+  }, []);
+
   const [scheduleMode, setScheduleMode] = useState<'asap' | 'scheduled'>('asap');
+  const [todayTimeType, setTodayTimeType] = useState<'asap' | 'choose_time'>('asap');
   const [selectedDateKey, setSelectedDateKey] = useState<string>(() => {
     const today = new Date();
     const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -72,6 +87,7 @@ export default function NewServiceScreen() {
   const [customHour, setCustomHour] = useState('09');
   const [customMinute, setCustomMinute] = useState('00');
   const [customPeriod, setCustomPeriod] = useState<'AM' | 'PM'>('AM');
+  const [estimatedPrice, setEstimatedPrice] = useState<string>('60000');
   const [clientNotes, setClientNotes] = useState('');
 
   // Recovery-specific state
@@ -230,16 +246,13 @@ export default function NewServiceScreen() {
   }, []);
 
   const isSlotPast = (slot: typeof TIME_SLOTS[0]) => {
+    const targetDateKey = scheduleMode === 'asap' ? todayKey : selectedDateKey;
+    if (targetDateKey !== todayKey) return false;
+
     const today = new Date();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    const todayKey = `${today.getFullYear()}-${mm}-${dd}`;
-
-    if (selectedDateKey !== todayKey) return false;
-
     const currentMinutes = today.getHours() * 60 + today.getMinutes();
     const slotMinutes = slot.hours * 60 + slot.minutes;
-    return slotMinutes <= currentMinutes + 30;
+    return slotMinutes <= currentMinutes + 15;
   };
 
   const selectedDayObj = useMemo(() => {
@@ -253,6 +266,16 @@ export default function NewServiceScreen() {
     const slot = TIME_SLOTS.find(s => s.id === selectedSlot);
     return slot ? slot.label : '09:30 AM';
   }, [isCustomTime, customHour, customMinute, customPeriod, selectedSlot]);
+
+  const formattedScheduledDateTime = useMemo(() => {
+    if (scheduleMode === 'asap') {
+      if (todayTimeType === 'asap') {
+        return '⚡ Hoy mismo (Lo antes posible)';
+      }
+      return `⚡ Hoy mismo · ${formattedSelectedTime}`;
+    }
+    return `📅 ${selectedDayObj?.label} ${selectedDayObj?.dayNum} ${selectedDayObj?.month} · ${formattedSelectedTime}`;
+  }, [scheduleMode, todayTimeType, formattedSelectedTime, selectedDayObj]);
 
   const handleNextStep = () => {
     if (step === 0) {
@@ -305,18 +328,25 @@ export default function NewServiceScreen() {
     const selectedService = SERVICE_TYPES.find(t => t.key === serviceType);
     const serviceLabel = selectedService?.key === 'other' ? 'Servicio General' : (selectedService?.label || 'Servicio Técnico');
 
+    const numericPrice = parseInt(estimatedPrice.replace(/\D/g, ''), 10) || 0;
+    if (numericPrice < 30000) {
+      Alert.alert('Precio requerido', 'Por favor ingresa un precio ofrecido de al menos $30.000 COP.');
+      return;
+    }
+
     // Build scheduled date & time ISO preserving local time
     let targetDate: Date;
     let targetHours: number;
     let targetMinutes: number;
 
-    if (scheduleMode === 'asap') {
+    if (scheduleMode === 'asap' && todayTimeType === 'asap') {
       targetDate = new Date();
       targetDate.setMinutes(targetDate.getMinutes() + 45);
       targetHours = targetDate.getHours();
       targetMinutes = targetDate.getMinutes();
     } else {
-      const [y, m, d] = selectedDateKey.split('-').map(Number);
+      const dateKeyToUse = scheduleMode === 'asap' ? todayKey : selectedDateKey;
+      const [y, m, d] = dateKeyToUse.split('-').map(Number);
       targetDate = new Date(y, m - 1, d);
 
       if (isCustomTime) {
@@ -354,6 +384,7 @@ export default function NewServiceScreen() {
           service_lat: Number(lat) || 6.2442,
           service_lon: Number(lng) || -75.5636,
           scheduled_date: localISO,
+          estimated_price: numericPrice,
           client_notes: clientNotes ? clientNotes.trim() : (description || undefined),
           vehicle_type: vehicleType || undefined,
           vehicle_model: vehicleModel || undefined,
@@ -865,7 +896,10 @@ export default function NewServiceScreen() {
             <View style={styles.scheduleModeRow}>
               <TouchableOpacity
                 style={[styles.scheduleModeCard, scheduleMode === 'asap' && styles.scheduleModeCardActive]}
-                onPress={() => setScheduleMode('asap')}
+                onPress={() => {
+                  setScheduleMode('asap');
+                  setSelectedDateKey(todayKey);
+                }}
                 activeOpacity={0.7}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
@@ -874,7 +908,7 @@ export default function NewServiceScreen() {
                     Hoy mismo
                   </Text>
                 </View>
-                <Text style={styles.scheduleModeSub}>Lo antes posible (1-2 hrs)</Text>
+                <Text style={styles.scheduleModeSub}>Para el día de hoy</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -892,9 +926,80 @@ export default function NewServiceScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Sub-selector for "Hoy mismo" */}
+            {scheduleMode === 'asap' && (
+              <View style={styles.asapChoiceContainer}>
+                <View style={styles.asapChoiceRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.asapChoiceBtn,
+                      todayTimeType === 'asap' && styles.asapChoiceBtnActive,
+                    ]}
+                    onPress={() => setTodayTimeType('asap')}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="flash"
+                      size={14}
+                      color={todayTimeType === 'asap' ? COLORS.primaryLight : COLORS.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.asapChoiceText,
+                        todayTimeType === 'asap' && styles.asapChoiceTextActive,
+                      ]}
+                    >
+                      ⚡ Lo antes posible (~1h)
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.asapChoiceBtn,
+                      todayTimeType === 'choose_time' && styles.asapChoiceBtnActive,
+                    ]}
+                    onPress={() => {
+                      setTodayTimeType('choose_time');
+                      const currentSlotObj = TIME_SLOTS.find(s => s.id === selectedSlot);
+                      if (currentSlotObj && isSlotPast(currentSlotObj)) {
+                        const nextSlot = TIME_SLOTS.find(s => !isSlotPast(s));
+                        if (nextSlot) {
+                          setSelectedSlot(nextSlot.id);
+                        }
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="time-outline"
+                      size={14}
+                      color={todayTimeType === 'choose_time' ? COLORS.primaryLight : COLORS.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.asapChoiceText,
+                        todayTimeType === 'choose_time' && styles.asapChoiceTextActive,
+                      ]}
+                    >
+                      ⏰ Elegir hora de hoy
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {todayTimeType === 'asap' && (
+                  <View style={styles.asapInfoCard}>
+                    <Ionicons name="information-circle" size={18} color={COLORS.primaryLight} />
+                    <Text style={styles.asapInfoText}>
+                      Un técnico disponible tomará tu solicitud inmediatamente y se dirigirá a tu dirección en aproximadamente 45 a 60 minutos.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Day selector if Scheduled */}
             {scheduleMode === 'scheduled' && (
               <>
-                {/* Day selector */}
                 <Text style={styles.inputLabel}>Selecciona el día</Text>
                 <ScrollView
                   horizontal
@@ -923,16 +1028,31 @@ export default function NewServiceScreen() {
                     );
                   })}
                 </ScrollView>
+              </>
+            )}
 
-                {/* Time selection */}
+            {/* Time Slot Picker (for scheduled OR when choosing a time today) */}
+            {(scheduleMode === 'scheduled' || (scheduleMode === 'asap' && todayTimeType === 'choose_time')) && (
+              <>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 8 }}>
-                  <Text style={[styles.inputLabel, { marginBottom: 0 }]}>Franja horaria</Text>
+                  <Text style={[styles.inputLabel, { marginBottom: 0 }]}>
+                    {scheduleMode === 'asap' ? 'Hora deseada para hoy' : 'Franja horaria'}
+                  </Text>
                   <TouchableOpacity onPress={() => setIsCustomTime(!isCustomTime)}>
                     <Text style={{ color: COLORS.primaryLight, fontSize: 12, fontWeight: '700' }}>
                       {isCustomTime ? 'Ver franjas sugeridas' : '⏰ Hora exacta'}
                     </Text>
                   </TouchableOpacity>
                 </View>
+
+                {scheduleMode === 'asap' && TIME_SLOTS.every(s => isSlotPast(s)) && !isCustomTime && (
+                  <View style={styles.warningBanner}>
+                    <Ionicons name="alert-circle" size={16} color="#f59e0b" />
+                    <Text style={styles.warningBannerText}>
+                      Las franjas estándar de hoy ya concluyeron. Puedes ingresar una "⏰ Hora exacta" o cambiar a "Programar" para mañana.
+                    </Text>
+                  </View>
+                )}
 
                 {!isCustomTime ? (
                   <View style={styles.slotsContainer}>
@@ -983,7 +1103,7 @@ export default function NewServiceScreen() {
                   <View style={styles.customTimeContainer}>
                     <Text style={styles.customTimeLabel}>Hora</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.customPillsScroll}>
-                      {['07', '08', '09', '10', '11', '12', '01', '02', '03', '04', '05', '06', '07', '08'].map(h => (
+                      {['07', '08', '09', '10', '11', '12', '01', '02', '03', '04', '05', '06'].map(h => (
                         <TouchableOpacity
                           key={h}
                           style={[styles.customPill, customHour === h && styles.customPillActive]}
@@ -1024,8 +1144,60 @@ export default function NewServiceScreen() {
               </>
             )}
 
+            {/* Price section */}
+            <View style={styles.priceSection}>
+              <View style={styles.priceSectionHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="cash-outline" size={18} color={COLORS.primaryLight} />
+                  <Text style={styles.priceSectionTitle}>Precio ofrecido</Text>
+                </View>
+                <Text style={styles.priceMinBadge}>Mín. $30.000 COP</Text>
+              </View>
+              <Text style={styles.priceHelperText}>
+                Indica cuánto ofreces pagar. Los técnicos verán este valor antes de aceptar el servicio.
+              </Text>
+
+              <View style={styles.priceInputRow}>
+                <Text style={styles.priceCurrencyPrefix}>$</Text>
+                <TextInput
+                  style={styles.priceInputField}
+                  keyboardType="numeric"
+                  value={formatCOP(estimatedPrice)}
+                  onChangeText={(val) => {
+                    const raw = val.replace(/\D/g, '');
+                    setEstimatedPrice(raw);
+                  }}
+                  placeholder="60.000"
+                  placeholderTextColor="#555872"
+                  maxLength={11}
+                />
+                <View style={styles.priceCurrencySuffixBadge}>
+                  <Text style={styles.priceCurrencySuffixText}>COP</Text>
+                </View>
+              </View>
+
+              {/* Quick chips */}
+              <View style={styles.priceChipsContainer}>
+                {QUICK_PRICES.map((p) => {
+                  const isSelected = estimatedPrice === p;
+                  return (
+                    <TouchableOpacity
+                      key={p}
+                      style={[styles.priceChip, isSelected && styles.priceChipActive]}
+                      onPress={() => setEstimatedPrice(p)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.priceChipText, isSelected && styles.priceChipTextActive]}>
+                        ${formatCOP(p)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
             {/* Client Notes */}
-            <Text style={[styles.inputLabel, { marginTop: 14 }]}>Instrucciones para el técnico (opcional)</Text>
+            <Text style={[styles.inputLabel, { marginTop: 4 }]}>Instrucciones para el técnico (opcional)</Text>
             <TextInput
               style={[styles.input, { height: 75, textAlignVertical: 'top' }]}
               placeholder="Ej: Timbre 402, preguntar por Carlos, portón negro..."
@@ -1062,12 +1234,16 @@ export default function NewServiceScreen() {
                   {address || 'Ubicación fijada'}
                 </Text>
               </View>
-              <View style={[styles.summaryRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
+              <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Fecha y Hora</Text>
                 <Text style={[styles.summaryValue, { color: COLORS.primaryLight, fontWeight: '700' }]}>
-                  {scheduleMode === 'asap'
-                    ? '⚡ Hoy mismo (Lo antes posible)'
-                    : `📅 ${selectedDayObj?.label} ${selectedDayObj?.dayNum} ${selectedDayObj?.month} · ${formattedSelectedTime}`}
+                  {formattedScheduledDateTime}
+                </Text>
+              </View>
+              <View style={[styles.summaryRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
+                <Text style={styles.summaryLabel}>Precio ofrecido</Text>
+                <Text style={[styles.summaryValue, { color: '#34d399', fontWeight: '800', fontSize: 14 }]}>
+                  ${formatCOP(estimatedPrice)} COP
                 </Text>
               </View>
             </View>
@@ -1150,12 +1326,22 @@ const styles = StyleSheet.create({
   gpsOptionActive: { borderColor: COLORS.red, backgroundColor: COLORS.redMuted },
   gpsOptionText: { color: COLORS.textSecondary, fontSize: 13, fontWeight: FONTS.weights.semibold },
   // Schedule styles
-  scheduleModeRow: { flexDirection: 'row', gap: 12, marginBottom: 18 },
+  scheduleModeRow: { flexDirection: 'row', gap: 12, marginBottom: 14 },
   scheduleModeCard: { flex: 1, backgroundColor: COLORS.bgCard, borderRadius: 14, padding: 14, borderWidth: 2, borderColor: COLORS.border },
   scheduleModeCardActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryMuted },
   scheduleModeTitle: { color: COLORS.textSecondary, fontSize: 14, fontWeight: '700' },
   scheduleModeTitleActive: { color: COLORS.primaryLight },
   scheduleModeSub: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
+  asapChoiceContainer: { marginBottom: 14 },
+  asapChoiceRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  asapChoiceBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.bgCard, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, borderWidth: 1.5, borderColor: COLORS.border },
+  asapChoiceBtnActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryMuted },
+  asapChoiceText: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '700' },
+  asapChoiceTextActive: { color: COLORS.primaryLight },
+  asapInfoCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(139,92,246,0.12)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(139,92,246,0.25)' },
+  asapInfoText: { flex: 1, color: COLORS.textSecondary, fontSize: 12, lineHeight: 17 },
+  warningBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(245, 158, 11, 0.12)', borderRadius: 10, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.3)' },
+  warningBannerText: { flex: 1, color: '#fbbf24', fontSize: 12, lineHeight: 16 },
   daysScroll: { gap: 8, paddingBottom: 10, paddingTop: 2 },
   dayCard: { width: 62, paddingVertical: 10, alignItems: 'center', backgroundColor: COLORS.bgCard, borderRadius: 12, borderWidth: 1.5, borderColor: COLORS.border },
   dayCardActive: { borderColor: COLORS.primary, backgroundColor: 'rgba(139,92,246,0.22)' },
@@ -1186,6 +1372,23 @@ const styles = StyleSheet.create({
   customAmPmBtnActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryMuted },
   customAmPmText: { color: COLORS.textSecondary, fontSize: 13, fontWeight: '700' },
   customAmPmTextActive: { color: COLORS.primaryLight },
+  // Price styles
+  priceSection: { backgroundColor: 'rgba(15,23,42,0.85)', borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, padding: 16, marginTop: 14, marginBottom: 10 },
+  priceSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  priceSectionTitle: { color: COLORS.text, fontSize: 14, fontWeight: '700' },
+  priceMinBadge: { backgroundColor: 'rgba(139,92,246,0.15)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, color: COLORS.primaryLight, fontSize: 11, fontWeight: '700' },
+  priceHelperText: { color: COLORS.textMuted, fontSize: 12, marginBottom: 14, lineHeight: 16 },
+  priceInputRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bgCard, borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(139,92,246,0.4)', paddingHorizontal: 14, height: 56, marginBottom: 12 },
+  priceCurrencyPrefix: { color: COLORS.textMuted, fontSize: 22, fontWeight: '700', marginRight: 6 },
+  priceInputField: { flex: 1, color: COLORS.text, fontSize: 22, fontWeight: '800', paddingVertical: 0 },
+  priceCurrencySuffixBadge: { backgroundColor: 'rgba(139,92,246,0.2)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  priceCurrencySuffixText: { color: COLORS.primaryLight, fontSize: 12, fontWeight: '800' },
+  priceChipsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  priceChip: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: COLORS.bgCard, borderWidth: 1, borderColor: COLORS.border },
+  priceChipActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryMuted },
+  priceChipText: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '600' },
+  priceChipTextActive: { color: COLORS.primaryLight, fontWeight: '800' },
+  // Summary
   summaryCard: { backgroundColor: 'rgba(15,23,42,0.9)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(139,92,246,0.3)', padding: 16, marginTop: 16, gap: 10 },
   summaryHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   summaryTitle: { color: COLORS.text, fontSize: 13, fontWeight: '700' },
