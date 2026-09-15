@@ -59,11 +59,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build & push backend (multi-arch)
+      - name: Build & push backend
         uses: docker/build-push-action@v5
         with:
           context: ./backend
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -71,11 +71,11 @@ jobs:
             ${{ env.REGISTRY }}/${{ steps.lowercase.outputs.image_prefix }}/backend:${{ steps.meta.outputs.version }}
             ${{ env.REGISTRY }}/${{ steps.lowercase.outputs.image_prefix }}/backend:latest
 
-      - name: Build & push frontend (multi-arch)
+      - name: Build & push frontend
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Switch, Image,
+  ActivityIndicator, RefreshControl, Switch, Image, Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -64,10 +64,15 @@ export default function TechDashboardScreen() {
 
   const handleAcceptService = async (serviceId: string) => {
     try {
-      await fetchWithAuth(`/services/${serviceId}/accept`, { method: 'POST' });
+      const res = await fetchWithAuth(`/services/${serviceId}/accept`, { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || 'No se pudo aceptar el servicio');
+      }
       load(); // Reload
+      Alert.alert('¡Servicio Aceptado!', 'El servicio ha sido asignado a tu cuenta.');
     } catch (e: any) {
-      console.error(e);
+      Alert.alert('No se pudo aceptar', e.message || 'Error al aceptar el servicio');
     }
   };
 

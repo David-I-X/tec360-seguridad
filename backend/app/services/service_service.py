@@ -269,7 +269,17 @@ class ServiceService:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
                 
             if service.status != ServiceStatus.pending:
-                raise HTTPException(status.HTTP_409_CONFLICT, "Servicio no disponible")
+                status_labels = {
+                    ServiceStatus.assigned: "ya fue asignado a un técnico",
+                    ServiceStatus.en_route: "ya está en camino",
+                    ServiceStatus.arrived: "ya tiene un técnico en el sitio",
+                    ServiceStatus.in_progress: "ya se encuentra en ejecución",
+                    ServiceStatus.completed: "ya fue completado",
+                    ServiceStatus.confirmed: "ya fue confirmado",
+                    ServiceStatus.cancelled: "fue cancelado",
+                }
+                status_desc = status_labels.get(service.status, "ya no está disponible")
+                raise HTTPException(status.HTTP_409_CONFLICT, f"Este servicio {status_desc}.")
             
             # Validar que el técnico no tenga conflicto de horario (bloque de 2 horas)
             self._check_technician_schedule_conflict(session, technician_id, service)
@@ -1023,9 +1033,11 @@ class ServiceService:
             time_diff = abs((target_time_naive - existing_time_naive).total_seconds())
 
             if time_diff < 7200:  # 2 horas en segundos (7200s)
+                existing_title = existing.title or f"Servicio #{str(existing.id)[:8]}"
+                remaining_mins = max(1, int((7200 - time_diff) / 60))
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="El técnico ya tiene un servicio asignado en esa franja horaria. Cada servicio requiere una ventana de 2 horas."
+                    detail=f"Ya tienes asignado '{existing_title}' en esta franja horaria. Cada servicio requiere una ventana de 2 horas (espera {remaining_mins} min o completa el servicio previo)."
                 )
 
 service_service = ServiceService()
