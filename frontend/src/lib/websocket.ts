@@ -27,6 +27,8 @@ export type WebSocketMessage =
     | { type: "status_update"; data: { service_id: string; status: string; technician?: any } }
     | { type: "location_update"; data: { technician_id: string; lat: number; lng: number; timestamp: number } }
     | { type: "chat_message"; data: { id: string; service_id: string; sender_id: string; text: string; created_at: string; is_read: boolean } }
+    | { type: "inspection_submitted"; data: { service_id: string; inspection: any } }
+    | { type: "inspection_confirmed"; data: { service_id: string; confirmed_at: string } }
     | { type: "pong" }
 
 type MessageHandler = (message: WebSocketMessage) => void

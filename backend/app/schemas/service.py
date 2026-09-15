@@ -209,6 +209,52 @@ class ServiceAssign(BaseModel):
 
 
 # ============================================
+# SCHEMAS DE INSPECCIÓN VEHICULAR & CONFIRMACIÓN
+# ============================================
+
+class InspectionItemStatus(str, Enum):
+    good = "good"        # B - Bueno
+    regular = "regular"  # R - Regular
+    bad = "bad"          # M - Malo
+    not_applicable = "na" # N/A - No aplica / No existe
+
+
+class InspectionItem(BaseModel):
+    status: InspectionItemStatus = InspectionItemStatus.good
+    notes: Optional[str] = None
+
+
+class VehicleInspectionSubmit(BaseModel):
+    vehicle_km: Optional[str] = Field(None, description="Kilometraje actual del vehículo", example="45230")
+    general_notes: Optional[str] = Field(None, description="Observaciones generales del técnico", example="Vehículo presenta rayón previo en puerta derecha")
+    categories: dict = Field(..., description="Mapa de categorías e ítems con su estado y notas")
+    photo_url: Optional[str] = Field(None, description="URL de foto opcional de evidencia del estado general")
+
+
+class VehicleInspectionResponse(BaseModel):
+    inspected_at: str
+    inspected_by: str
+    vehicle_km: Optional[str] = None
+    general_notes: Optional[str] = None
+    categories: dict
+    photo_url: Optional[str] = None
+    client_confirmed: bool = False
+    client_confirmed_at: Optional[str] = None
+
+
+class InspectionConfirmResponse(BaseModel):
+    confirmed: bool
+    confirmed_at: str
+    message: str
+
+
+class ServiceConfirmRequest(BaseModel):
+    rating: int = Field(5, ge=1, le=5, description="Calificación de 1 a 5 estrellas")
+    comment: Optional[str] = Field(None, description="Comentario u opinión sobre el servicio")
+    payment_method: Optional[str] = Field(None, description="Método de pago (online/cash)")
+
+
+# ============================================
 # SCHEMAS DE SALIDA (Response)
 # ============================================
 

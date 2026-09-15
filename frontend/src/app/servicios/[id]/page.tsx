@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { RatingModal } from "@/components/ratings/rating-modal"
 import PaymentModal from "@/components/PaymentModal"
+import { ServiceConfirmationModal } from "@/components/services/service-confirmation-modal"
 import { TrackingSimulator } from "@/components/services/tracking-simulator"
 import { StarDisplay } from "@/components/ui/star-rating"
 import { getAvatarUrl } from "@/lib/utils"
@@ -105,6 +106,7 @@ function ServiceDetailContent() {
     const [isCancelling, setIsCancelling] = useState(false)
     const [isConfirming, setIsConfirming] = useState(false)
     const [showPaymentModal, setShowPaymentModal] = useState(false)
+    const [confirmModalMode, setConfirmModalMode] = useState<"inspection" | "completion" | null>(null)
 
     // Live Tracking & WebSocket state
     const [token, setToken] = useState<string | null>(null)
@@ -157,7 +159,7 @@ function ServiceDetailContent() {
     useEffect(() => {
         if (!service?.id || !token) return
 
-        const activeTracking = ["assigned", "en_route", "arrived", "in_progress"].includes(service.status)
+        const activeTracking = ["assigned", "en_route", "arrived", "in_progress", "completed"].includes(service.status)
         if (!activeTracking) return
 
         serviceWebSocket.connect(service.id, token)
@@ -165,6 +167,15 @@ function ServiceDetailContent() {
         const unsubscribe = serviceWebSocket.onMessage((message: WebSocketMessage) => {
             if (message.type === "connected") {
                 setIsConnected(true)
+            } else if (message.type === "inspection_submitted") {
+                const inspectionData = message.data?.inspection
+                setService((prev: any) => {
+                    if (!prev) return prev
+                    const meta = { ...(prev.service_metadata || {}) }
+                    meta.vehicle_inspection = inspectionData
+                    return { ...prev, service_metadata: meta }
+                })
+                setConfirmModalMode("inspection")
             } else if (message.type === "status_update") {
                 const { status: newStatus, technician: techData } = message.data
                 setService((prev: any) => ({
@@ -172,6 +183,9 @@ function ServiceDetailContent() {
                     status: newStatus,
                     technician: techData || prev?.technician,
                 }))
+                if (newStatus === "completed") {
+                    setConfirmModalMode("completion")
+                }
             } else if (message.type === "location_update") {
                 const { lat, lng } = message.data
                 setTechnicianLocation({ lat, lng })
@@ -710,27 +724,52 @@ function ServiceDetailContent() {
                                 </p>
                             </div>
 
-                            {/* 7. Confirmation & Payment (if status === 'completed') */}
-                            {service.status === "completed" && user?.role === "client" && (
-                                <div className="rounded-2xl p-4 bg-blue-500/10 border border-blue-500/30 space-y-3">
+                            {/* Pre-service Inspection Card (if inspection exists and not confirmed yet) */}
+                            {service.service_metadata?.vehicle_inspection && !service.service_metadata?.vehicle_inspection?.client_confirmed && user?.role === "client" && (
+                                <div className="rounded-2xl p-4 bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-amber-500/10 border border-blue-500/40 space-y-3 shadow-md">
                                     <div className="flex items-start gap-3">
-                                        <div className="p-2 rounded-xl bg-blue-500/20 text-blue-500 shrink-0">
-                                            <ShieldCheck className="w-5 h-5" />
+                                        <div className="p-2 rounded-xl bg-blue-500/20 text-blue-500 shrink-0 text-xl">
+                                            🔍
                                         </div>
                                         <div className="flex-1">
-                                            <h4 className="text-xs font-bold text-slate-900 dark:text-white">Servicio Finalizado</h4>
+                                            <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                                                Inspección Inicial del Vehículo
+                                            </h4>
                                             <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
-                                                El técnico ha concluido la labor. Por favor verifica y confirma el trabajo.
+                                                El técnico documentó el estado actual de tu auto antes de intervenirlo. Por favor revísalo y confirma para que pueda comenzar.
                                             </p>
                                         </div>
                                     </div>
                                     <Button
-                                        onClick={() => setShowPaymentModal(true)}
-                                        disabled={isConfirming}
+                                        onClick={() => setConfirmModalMode("inspection")}
                                         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md cursor-pointer py-2.5 rounded-xl"
                                     >
-                                        {isConfirming ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                        {isConfirming ? "Confirmando..." : "Confirmar y Pagar"}
+                                        📋 Revisar y Confirmar Inspección
+                                    </Button>
+                                </div>
+                            )}
+
+                            {/* 7. Confirmation of Service Completion (if status === 'completed') */}
+                            {service.status === "completed" && user?.role === "client" && (
+                                <div className="rounded-2xl p-4 bg-gradient-to-br from-emerald-500/15 via-blue-500/10 to-teal-500/15 border border-emerald-500/40 space-y-3 shadow-md">
+                                    <div className="flex items-start gap-3">
+                                        <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-500 shrink-0">
+                                            <ShieldCheck className="w-5 h-5" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                                                ¡Servicio Terminado por el Técnico!
+                                            </h4>
+                                            <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                                                El técnico ha concluido el trabajo. Para cerrar formalmente el servicio, confirma tu conformidad y califica la atención.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        onClick={() => setConfirmModalMode("completion")}
+                                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md cursor-pointer py-2.5 rounded-xl"
+                                    >
+                                        ⭐ Confirmar Conformidad y Calificar
                                     </Button>
                                 </div>
                             )}
@@ -862,6 +901,32 @@ function ServiceDetailContent() {
                 amount={service?.estimated_price || 0}
                 onConfirm={handleConfirm}
             />
+
+            {confirmModalMode && (
+                <ServiceConfirmationModal
+                    isOpen={!!confirmModalMode}
+                    mode={confirmModalMode}
+                    onClose={() => setConfirmModalMode(null)}
+                    service={service}
+                    token={token || ""}
+                    onSuccess={(updated) => {
+                        if (updated) {
+                            setService(updated)
+                            setHasRated(true)
+                        } else if (confirmModalMode === "inspection") {
+                            setService((prev: any) => {
+                                if (!prev) return prev
+                                const meta = { ...(prev.service_metadata || {}) }
+                                if (meta.vehicle_inspection) {
+                                    meta.vehicle_inspection.client_confirmed = true
+                                    meta.vehicle_inspection.client_confirmed_at = new Date().toISOString()
+                                }
+                                return { ...prev, service_metadata: meta }
+                            })
+                        }
+                    }}
+                />
+            )}
         </div>
     )
 }

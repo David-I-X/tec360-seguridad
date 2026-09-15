@@ -20,6 +20,7 @@ import {
 } from '@/components/map';
 import RatingModal from '@/components/rating-modal';
 import PaymentModal from '@/components/payment-modal';
+import ServiceConfirmationSheet from '@/components/service/ServiceConfirmationSheet';
 import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -101,6 +102,7 @@ export default function ServiceDetailScreen() {
   const [canRate, setCanRate] = useState(false);
   const [alreadyRated, setAlreadyRated] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [confirmModalMode, setConfirmModalMode] = useState<'inspection' | 'completion' | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [isSlideExpanded, setIsSlideExpanded] = useState(false);
   const lastRouteFetchRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -168,6 +170,18 @@ export default function ServiceDetailScreen() {
         }
         if (msg.type === 'status_update') {
           setService((prev: any) => prev ? { ...prev, status: msg.data.status } : prev);
+          if (msg.data.status === 'completed') {
+            setConfirmModalMode('completion');
+          }
+        }
+        if (msg.type === 'inspection_submitted') {
+          setService((prev: any) => {
+            if (!prev) return prev;
+            const meta = { ...(prev.service_metadata || {}) };
+            meta.vehicle_inspection = msg.data?.inspection || msg.data;
+            return { ...prev, service_metadata: meta };
+          });
+          setConfirmModalMode('inspection');
         }
       });
     })();
@@ -226,6 +240,10 @@ export default function ServiceDetailScreen() {
   const formattedPrice = service?.estimated_price
     ? `$${Number(service.estimated_price).toLocaleString('es-CO')}`
     : null;
+
+  const inspection = service?.service_metadata?.vehicle_inspection;
+  const hasInspection = !!inspection;
+  const needsInspectionConfirmation = hasInspection && !inspection.client_confirmed && service?.status !== 'completed' && service?.status !== 'confirmed';
 
   const getRegion = () => {
     if (techLocation) {
@@ -412,6 +430,14 @@ export default function ServiceDetailScreen() {
                       <Text style={styles.miniLiveText}>EN VIVO</Text>
                     </View>
                   )}
+                  {needsInspectionConfirmation && (
+                    <TouchableOpacity
+                      onPress={() => setConfirmModalMode('inspection')}
+                      style={[styles.miniLiveTag, { backgroundColor: '#3b82f6' }]}
+                    >
+                      <Text style={[styles.miniLiveText, { color: '#fff' }]}>📋 REVISAR INSPECCIÓN</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
                 <Text style={styles.collapsedTitle} numberOfLines={1}>
                   {service?.title}
@@ -486,6 +512,42 @@ export default function ServiceDetailScreen() {
                   <Text style={styles.scheduledValue}>{formattedDate}</Text>
                 </View>
               </View>
+            )}
+
+            {/* Pre-service Vehicle Inspection Card */}
+            {needsInspectionConfirmation && (
+              <View style={styles.inspectionCard}>
+                <View style={styles.inspectionCardHeader}>
+                  <View style={styles.inspectionIconBox}>
+                    <Ionicons name="clipboard-outline" size={20} color="#3b82f6" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.inspectionCardTitle}>Inspección Previa del Vehículo</Text>
+                    <Text style={styles.inspectionCardSub}>El técnico ha registrado el estado de tu vehículo</Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.inspectionActionBtn}
+                  onPress={() => setConfirmModalMode('inspection')}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.inspectionActionGradient}>
+                    <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
+                    <Text style={styles.inspectionActionText}>Revisar y Confirmar Estado</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {hasInspection && inspection.client_confirmed && (
+              <TouchableOpacity
+                style={styles.inspectionConfirmedBadge}
+                onPress={() => setConfirmModalMode('inspection')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="checkmark-circle" size={16} color="#34d399" />
+                <Text style={styles.inspectionConfirmedText}>Inspección previa aprobada (Toca para ver)</Text>
+              </TouchableOpacity>
             )}
 
             {/* Technician Card */}
@@ -657,14 +719,14 @@ export default function ServiceDetailScreen() {
             {service?.status === 'completed' && (
               <View style={styles.completedBanner}>
                 <Text style={{ fontSize: 36, marginBottom: 6 }}>🎉</Text>
-                <Text style={{ color: '#34d399', fontSize: 18, fontWeight: '800' }}>¡Servicio completado!</Text>
-                <Text style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', marginTop: 4 }}>
-                  El técnico terminó la instalación. Confirma para cerrar el servicio.
+                <Text style={{ color: '#34d399', fontSize: 18, fontWeight: '800' }}>¡Servicio finalizado por el técnico!</Text>
+                <Text style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', marginTop: 4, lineHeight: 18 }}>
+                  El técnico ha finalizado el trabajo. Confirma tu conformidad y califica el servicio para cerrar el ticket.
                 </Text>
-                <TouchableOpacity onPress={() => setShowPaymentModal(true)} activeOpacity={0.8} style={{ marginTop: 14, width: '100%' }}>
-                  <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.actionButton}>
-                    <Ionicons name="card" size={18} color="#fff" />
-                    <Text style={styles.actionText}>Confirmar y Pagar</Text>
+                <TouchableOpacity onPress={() => setConfirmModalMode('completion')} activeOpacity={0.8} style={{ marginTop: 14, width: '100%' }}>
+                  <LinearGradient colors={['#22c55e', '#16a34a']} style={styles.actionButton}>
+                    <Ionicons name="star" size={18} color="#fff" />
+                    <Text style={styles.actionText}>Confirmar Conformidad y Calificar</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -716,6 +778,21 @@ export default function ServiceDetailScreen() {
       </View>
 
       {/* Modals */}
+      {confirmModalMode && (
+        <ServiceConfirmationSheet
+          visible={!!confirmModalMode}
+          mode={confirmModalMode}
+          service={service}
+          onClose={() => setConfirmModalMode(null)}
+          onSuccess={(updated) => {
+            if (updated) {
+              setService((prev: any) => ({ ...prev, ...(updated.service || updated), status: updated.status || (confirmModalMode === 'completion' ? 'confirmed' : prev?.status) }));
+            }
+            loadService();
+          }}
+        />
+      )}
+
       <RatingModal
         visible={showRating}
         techName={tech?.full_name?.split(' ')[0]}
@@ -1387,6 +1464,72 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(52,211,153,0.25)',
     marginBottom: 10,
+  },
+  inspectionCard: {
+    backgroundColor: 'rgba(59,130,246,0.08)',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(59,130,246,0.3)',
+    marginBottom: 12,
+  },
+  inspectionCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  inspectionIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(59,130,246,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  inspectionCardTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  inspectionCardSub: {
+    color: '#93c5fd',
+    fontSize: 12,
+    marginTop: 1,
+  },
+  inspectionActionBtn: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  inspectionActionGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  inspectionActionText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  inspectionConfirmedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(52,211,153,0.08)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(52,211,153,0.2)',
+    marginBottom: 12,
+  },
+  inspectionConfirmedText: {
+    color: '#34d399',
+    fontSize: 12,
+    fontWeight: '600',
   },
 
   // Support

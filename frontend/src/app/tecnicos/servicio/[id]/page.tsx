@@ -9,11 +9,12 @@ import { motion, AnimatePresence } from "framer-motion"
 import {
     ArrowLeft, MapPin, Calendar, Phone, Navigation,
     Loader2, CheckCircle, Camera, X, AlertCircle, Car,
-    ReceiptText, MessageSquare
+    ReceiptText, MessageSquare, Clock
 } from "lucide-react"
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { ServiceChat } from "@/components/chat/ServiceChat"
+import { VehicleInspectionModal } from "@/components/technician/vehicle-inspection-modal"
 
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
 import { getServiceById } from "@/lib/api"
@@ -263,6 +264,7 @@ function TechnicianServiceContent() {
     const [showPaymentModal, setShowPaymentModal] = useState(false)
     const [paymentAmount, setPaymentAmount] = useState<string>("")
     const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
+    const [showInspectionModal, setShowInspectionModal] = useState(false)
 
     useEffect(() => {
         const activeToken = token || (typeof window !== "undefined" ? localStorage.getItem("access_token") : null)
@@ -299,7 +301,7 @@ function TechnicianServiceContent() {
                     const photoMap: Record<PhotoStage, string | null> = { before: null, during: null, after: null }
                     for (const photo of (data.photos || [])) {
                         if (photo.image_type in photoMap) {
-                            photoMap[photo.image_type as PhotoStage] = getImageUrl(photo.image_url) || null
+                            photoMap[photo.image_type as PhotoStage] = getImageUrl(photo.image_url) || photo.file_url || null
                         }
                     }
                     setPhotos(photoMap)
@@ -309,7 +311,7 @@ function TechnicianServiceContent() {
 
         async function fetchPaymentInfo() {
             const currentToken = activeToken || token
-            if (!currentToken || !params.id) return
+            if (!currentToken) return
             try {
                 const res = await fetch(`${API_URL}/payments/service/${params.id}`, {
                     headers: { Authorization: `Bearer ${currentToken}` },
@@ -342,7 +344,30 @@ function TechnicianServiceContent() {
     useEffect(() => {
         if (service?.id && token) {
             serviceWebSocket.connect(service.id, token)
-            return () => serviceWebSocket.disconnect()
+
+            const handleWsMessage = (message: any) => {
+                if (message.type === "inspection_confirmed") {
+                    toast({
+                        title: "✅ Inspección confirmada",
+                        description: "El cliente ha confirmado el estado de su vehículo. Ya puedes iniciar el trabajo.",
+                    })
+                    setService((prev: any) => {
+                        if (!prev) return prev
+                        const meta = { ...(prev.service_metadata || {}) }
+                        if (meta.vehicle_inspection) {
+                            meta.vehicle_inspection.client_confirmed = true
+                            meta.vehicle_inspection.client_confirmed_at = message.data?.confirmed_at || new Date().toISOString()
+                        }
+                        return { ...prev, service_metadata: meta }
+                    })
+                }
+            }
+
+            const unsub = serviceWebSocket.onMessage(handleWsMessage)
+            return () => {
+                unsub()
+                serviceWebSocket.disconnect()
+            }
         }
     }, [service?.id, token])
 
@@ -507,8 +532,30 @@ function TechnicianServiceContent() {
         }
     }
 
-    // "Start work" → require during photo then move to in_progress
+    // "Start work" → require inspection + client confirmation, then during photo then move to in_progress
     const handleInProgress = () => {
+        if (!isRecovery) {
+            const inspection = service?.service_metadata?.vehicle_inspection
+            if (!inspection) {
+                setShowInspectionModal(true)
+                return
+            }
+            if (!inspection.client_confirmed) {
+                const inspectedAtStr = inspection.inspected_at
+                let timeoutPassed = false
+                if (inspectedAtStr) {
+                    const diffMs = Date.now() - new Date(inspectedAtStr).getTime()
+                    if (diffMs >= 15 * 60 * 1000) {
+                        timeoutPassed = true
+                    }
+                }
+                if (!timeoutPassed) {
+                    setShowInspectionModal(true)
+                    return
+                }
+            }
+        }
+
         if (!isRecovery && !photos.during) {
             pendingStatusRef.current = "in_progress"
             setPendingPhotoFor("during")
@@ -561,6 +608,28 @@ function TechnicianServiceContent() {
                     />
                 )}
             </AnimatePresence>
+
+            {/* ─── Vehicle Inspection Modal ─── */}
+            <VehicleInspectionModal
+                isOpen={showInspectionModal}
+                onClose={() => setShowInspectionModal(false)}
+                serviceId={service.id}
+                vehicleModel={service.vehicle_model}
+                vehiclePlate={service.vehicle_plate}
+                existingInspection={service.service_metadata?.vehicle_inspection}
+                token={token || ""}
+                onInspectionConfirmed={() => {
+                    setService((prev: any) => {
+                        if (!prev) return prev
+                        const meta = { ...(prev.service_metadata || {}) }
+                        if (meta.vehicle_inspection) {
+                            meta.vehicle_inspection.client_confirmed = true
+                        }
+                        return { ...prev, service_metadata: meta }
+                    })
+                    handleInProgress()
+                }}
+            />
 
             <div className="space-y-5">
                 {/* Header */}
@@ -897,12 +966,50 @@ function TechnicianServiceContent() {
                         </Button>
                     )}
 
-                    {service.status === "arrived" && (
-                        <Button onClick={handleInProgress} size="lg" className="w-full bg-purple-600 hover:bg-purple-700" disabled={isUpdating}>
-                            🔧 {isUpdating ? "Actualizando..." : "Iniciar trabajo"}
-                            {!isRecovery && !photos.during && <span className="ml-2 text-xs opacity-70">(requiere foto)</span>}
-                        </Button>
-                    )}
+                    {service.status === "arrived" && (() => {
+                        const inspection = service?.service_metadata?.vehicle_inspection
+                        const isConfirmed = inspection?.client_confirmed
+                        const hasInspection = !!inspection
+
+                        if (isRecovery) {
+                            return (
+                                <Button onClick={handleInProgress} size="lg" className="w-full bg-purple-600 hover:bg-purple-700" disabled={isUpdating}>
+                                    🔧 {isUpdating ? "Actualizando..." : "Iniciar trabajo"}
+                                    {!photos.during && <span className="ml-2 text-xs opacity-70">(requiere foto)</span>}
+                                </Button>
+                            )
+                        }
+
+                        if (!hasInspection) {
+                            return (
+                                <Button onClick={() => setShowInspectionModal(true)} size="lg" className="w-full bg-blue-600 hover:bg-blue-700 font-bold shadow-lg shadow-blue-500/20" disabled={isUpdating}>
+                                    📋 Realizar Inspección Previa del Vehículo
+                                </Button>
+                            )
+                        }
+
+                        if (!isConfirmed) {
+                            return (
+                                <Button onClick={() => setShowInspectionModal(true)} size="lg" className="w-full bg-amber-600 hover:bg-amber-700 font-bold shadow-lg shadow-amber-500/20" disabled={isUpdating}>
+                                    <Clock className="mr-2 h-5 w-5 animate-pulse" />
+                                    ⏳ Inspección enviada — Esperando confirmación
+                                </Button>
+                            )
+                        }
+
+                        return (
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-green-500/10 border border-green-500/30 text-green-400 text-xs">
+                                    <CheckCircle className="w-4 h-4 shrink-0" />
+                                    <span>✅ Inspección previa confirmada por el cliente</span>
+                                </div>
+                                <Button onClick={handleInProgress} size="lg" className="w-full bg-purple-600 hover:bg-purple-700 font-bold" disabled={isUpdating}>
+                                    🔧 {isUpdating ? "Actualizando..." : "Iniciar trabajo"}
+                                    {!photos.during && <span className="ml-2 text-xs opacity-70">(requiere foto)</span>}
+                                </Button>
+                            </div>
+                        )
+                    })()}
 
                     {service.status === "in_progress" && (
                         <div className="space-y-2">

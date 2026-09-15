@@ -13,7 +13,9 @@ from app.schemas.service import (
     ServiceUpdate,
     ServiceResponse,
     ServiceListResponse,
-    NearbyTechnicianResponse
+    NearbyTechnicianResponse,
+    VehicleInspectionSubmit,
+    ServiceConfirmRequest
 )
 import math
 from datetime import datetime
@@ -367,7 +369,38 @@ class ServiceService:
             # Validar que el técnico está asignado a este servicio
             if str(service.technician_id) != technician_id:
                 raise HTTPException(status.HTTP_403_FORBIDDEN, "No estás asignado a este servicio")
-            
+
+            # Validar inspección vehicular obligatoria para transición a in_progress (excepto vehicle_recovery)
+            if new_status == "in_progress" and service.service_type != "vehicle_recovery":
+                metadata = service.service_metadata or {}
+                inspection = metadata.get("vehicle_inspection")
+                if not inspection:
+                    raise HTTPException(
+                        status.HTTP_400_BAD_REQUEST,
+                        "Debes completar el checklist de inspección vehicular antes de iniciar el trabajo."
+                    )
+                # Validar confirmación del cliente (o timeout de 15 min)
+                client_confirmed = inspection.get("client_confirmed", False)
+                if not client_confirmed:
+                    inspected_at_str = inspection.get("inspected_at")
+                    allow_timeout = False
+                    if inspected_at_str:
+                        try:
+                            from datetime import timezone, timedelta
+                            inspected_at = datetime.fromisoformat(inspected_at_str)
+                            now = datetime.utcnow()
+                            if inspected_at.tzinfo is not None:
+                                now = datetime.now(timezone.utc)
+                            if now - inspected_at >= timedelta(minutes=15):
+                                allow_timeout = True
+                        except Exception:
+                            pass
+                    if not allow_timeout:
+                        raise HTTPException(
+                            status.HTTP_400_BAD_REQUEST,
+                            "Esperando que el cliente confirme la copia de la inspección de su vehículo. (Si el cliente no responde en 15 minutos, podrás iniciar automáticamente)."
+                        )
+
             # Actualizar estado
             service.status = ServiceStatus(new_status)
             service.updated_at = datetime.utcnow()
@@ -538,7 +571,189 @@ class ServiceService:
         except Exception as e:
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-    async def confirm_service(self, session: Session, service_id: str, client_id: str, payment_method: str = None) -> ServiceResponse:
+    async def save_vehicle_inspection(
+        self,
+        session: Session,
+        service_id: str,
+        technician_id: str,
+        inspection_data: VehicleInspectionSubmit
+    ) -> dict:
+        """Guarda la inspección vehicular realizada por el técnico y notifica al cliente."""
+        from uuid import UUID as UUIDType
+        try:
+            try:
+                service_uuid = UUIDType(service_id)
+            except ValueError:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "ID de servicio inválido")
+
+            service = session.exec(select(Service).where(Service.id == service_uuid)).first()
+            if not service:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
+
+            if str(service.technician_id) != technician_id:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "No estás asignado a este servicio")
+
+            if service.status not in (ServiceStatus.arrived, ServiceStatus.in_progress):
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"La inspección debe realizarse al llegar al servicio (estado actual: {service.status})"
+                )
+
+            current_metadata = dict(service.service_metadata or {})
+            now_iso = datetime.utcnow().isoformat()
+
+            inspection_dict = {
+                "inspected_at": now_iso,
+                "inspected_by": technician_id,
+                "vehicle_km": inspection_data.vehicle_km,
+                "general_notes": inspection_data.general_notes,
+                "categories": inspection_data.categories,
+                "photo_url": inspection_data.photo_url,
+                "client_confirmed": False,
+                "client_confirmed_at": None,
+            }
+
+            current_metadata["vehicle_inspection"] = inspection_dict
+            service.service_metadata = current_metadata
+            service.updated_at = datetime.utcnow()
+
+            session.add(service)
+            session.commit()
+            session.refresh(service)
+
+            # Broadcast WebSocket event to service room
+            try:
+                from app.core.websocket_manager import ws_manager
+                await ws_manager.broadcast_to_service(
+                    service_id=str(service.id),
+                    message={
+                        "type": "inspection_submitted",
+                        "data": {
+                            "service_id": str(service.id),
+                            "inspection": inspection_dict
+                        }
+                    }
+                )
+            except Exception as ws_err:
+                import logging
+                logging.warning(f"WS inspection_submitted broadcast failed: {ws_err}")
+
+            # Notify client
+            try:
+                from app.services.notification_service import NotificationService
+                await NotificationService.notify_user(
+                    session=session,
+                    user_id=service.client_id,
+                    title="🔍 Inspección de Vehículo Registrada",
+                    message="El técnico ha registrado el estado previo de tu vehículo. Por favor revísala y confírmala para iniciar el servicio.",
+                    notification_type="inspection_submitted",
+                    reference_id=str(service.id),
+                )
+            except Exception as notif_err:
+                import logging
+                logging.warning(f"Notification inspection_submitted failed: {notif_err}")
+
+            return {
+                "success": True,
+                "service_id": str(service.id),
+                "inspection": inspection_dict,
+                "message": "Inspección registrada con éxito. Notificando al cliente."
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+    async def confirm_vehicle_inspection(
+        self,
+        session: Session,
+        service_id: str,
+        client_id: str
+    ) -> dict:
+        """Permite al cliente confirmar la inspección vehicular previa."""
+        from uuid import UUID as UUIDType
+        try:
+            try:
+                service_uuid = UUIDType(service_id)
+            except ValueError:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "ID de servicio inválido")
+
+            service = session.exec(select(Service).where(Service.id == service_uuid)).first()
+            if not service:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
+
+            if str(service.client_id) != client_id:
+                raise HTTPException(status.HTTP_403_FORBIDDEN, "No autorizado")
+
+            current_metadata = dict(service.service_metadata or {})
+            inspection = current_metadata.get("vehicle_inspection")
+            if not inspection:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "No hay inspección registrada para este servicio")
+
+            now_iso = datetime.utcnow().isoformat()
+            inspection["client_confirmed"] = True
+            inspection["client_confirmed_at"] = now_iso
+            current_metadata["vehicle_inspection"] = inspection
+
+            service.service_metadata = current_metadata
+            service.updated_at = datetime.utcnow()
+
+            session.add(service)
+            session.commit()
+            session.refresh(service)
+
+            # Broadcast WebSocket event to service room
+            try:
+                from app.core.websocket_manager import ws_manager
+                await ws_manager.broadcast_to_service(
+                    service_id=str(service.id),
+                    message={
+                        "type": "inspection_confirmed",
+                        "data": {
+                            "service_id": str(service.id),
+                            "confirmed_at": now_iso
+                        }
+                    }
+                )
+            except Exception as ws_err:
+                import logging
+                logging.warning(f"WS inspection_confirmed broadcast failed: {ws_err}")
+
+            # Notify technician
+            if service.technician_id:
+                try:
+                    from app.services.notification_service import NotificationService
+                    await NotificationService.notify_user(
+                        session=session,
+                        user_id=service.technician_id,
+                        title="✅ Inspección Confirmada por el Cliente",
+                        message="El cliente ha confirmado el estado inicial de su vehículo. Ya puedes iniciar el trabajo.",
+                        notification_type="inspection_confirmed",
+                        reference_id=str(service.id),
+                    )
+                except Exception as notif_err:
+                    import logging
+                    logging.warning(f"Notification inspection_confirmed failed: {notif_err}")
+
+            return {
+                "success": True,
+                "service_id": str(service.id),
+                "confirmed_at": now_iso,
+                "message": "Inspección confirmada satisfactoriamente"
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+    async def confirm_service(
+        self,
+        session: Session,
+        service_id: str,
+        client_id: str,
+        confirm_data: ServiceConfirmRequest = None,
+        payment_method: str = None
+    ) -> ServiceResponse:
         try:
             service = session.exec(select(Service).where(Service.id == service_id)).first()
             if not service:
@@ -554,13 +769,55 @@ class ServiceService:
             service.client_confirmed_at = datetime.utcnow()
             service.updated_at = datetime.utcnow()
             
-            if payment_method:
-                service.payment_method = payment_method
-                service.payment_status = "paid" if payment_method == "online" else "pending"
+            resolved_payment_method = (confirm_data.payment_method if confirm_data and confirm_data.payment_method else payment_method)
+            if resolved_payment_method:
+                service.payment_method = resolved_payment_method
+                service.payment_status = "paid" if resolved_payment_method == "online" else "pending"
             
+            # Guardar metadata de confirmación y rating
+            current_metadata = dict(service.service_metadata or {})
+            rating_val = confirm_data.rating if confirm_data else 5
+            comment_val = confirm_data.comment if confirm_data else None
+
+            current_metadata["client_confirmation"] = {
+                "rating": rating_val,
+                "comment": comment_val,
+                "confirmed_at": datetime.utcnow().isoformat(),
+            }
+            service.service_metadata = current_metadata
+
             session.add(service)
             session.commit()
             session.refresh(service)
+
+            # Crear rating en ServiceRating si hay técnico asignado
+            if service.technician_id:
+                try:
+                    from app.services.rating_service import RatingService
+                    from app.schemas.rating import RatingCreate
+                    rating_svc = RatingService()
+                    valid_comment = comment_val.strip() if comment_val and len(comment_val.strip()) >= 10 else None
+                    await rating_svc.create_rating(
+                        session=session,
+                        service_id=str(service.id),
+                        rating_data=RatingCreate(rating=rating_val, comment=valid_comment),
+                        client_id=client_id
+                    )
+                except Exception as rating_err:
+                    import logging
+                    logging.warning(f"Rating creation skipped/failed: {rating_err}")
+
+            # WebSocket broadcast
+            try:
+                from app.core.websocket_manager import ws_manager
+                await ws_manager.broadcast_service_status(
+                    service_id=str(service.id),
+                    status="confirmed",
+                    extra_data={"rating": rating_val}
+                )
+            except Exception as ws_error:
+                import logging
+                logging.warning(f"WebSocket broadcast failed: {ws_error}")
             
             # Notificar al técnico
             if service.technician_id:

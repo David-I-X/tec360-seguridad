@@ -23,6 +23,7 @@ import {
   ORIGIN_ANCHOR,
 } from '@/components/map';
 import { serviceWebSocket } from '@/lib/websocket';
+import VehicleInspectionSheet from '@/components/technician/VehicleInspectionSheet';
 import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -77,6 +78,7 @@ export default function TechServiceScreen() {
   const [adjustmentModalVisible, setAdjustmentModalVisible] = useState(false);
   const [adjustmentData, setAdjustmentData] = useState({ amount: '', desc: '' });
   const [isSubmittingAdjustment, setIsSubmittingAdjustment] = useState(false);
+  const [inspectionVisible, setInspectionVisible] = useState(false);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const mapRef = useRef<TecMapViewRef | null>(null);
   const lastRouteFetch = useRef<{ lat: number; lng: number } | null>(null);
@@ -102,6 +104,20 @@ export default function TechServiceScreen() {
       unsub = serviceWebSocket.onMessage((msg) => {
         if (msg.type === 'status_update') {
           setService((prev: any) => prev ? { ...prev, status: msg.data.status } : prev);
+        } else if (msg.type === 'inspection_confirmed') {
+          setService((prev: any) => {
+            if (!prev) return prev;
+            const meta = { ...(prev.service_metadata || {}) };
+            if (meta.vehicle_inspection) {
+              meta.vehicle_inspection.client_confirmed = true;
+              meta.vehicle_inspection.client_confirmed_at = msg.data?.confirmed_at || new Date().toISOString();
+            }
+            return { ...prev, service_metadata: meta };
+          });
+          Alert.alert(
+            '✅ Inspección confirmada',
+            'El cliente ha aprobado el estado previo del vehículo. Ya puedes iniciar el trabajo técnico.'
+          );
         }
       });
     })();
@@ -173,9 +189,21 @@ export default function TechServiceScreen() {
     })();
   }, [myLocation, service?.service_lat, service?.service_lon]);
 
+  const isRecovery = service?.service_type === 'vehicle_recovery';
+  const inspection = service?.service_metadata?.vehicle_inspection;
+  const hasInspection = !!inspection;
+  const isInspectionConfirmed = !isRecovery ? (inspection?.client_confirmed || false) : true;
+
   const handleStatusChange = async () => {
     const action = STATUS_ACTIONS[service?.status];
     if (!action) return;
+
+    if (action.next === 'in_progress') {
+      if (!isRecovery && !isInspectionConfirmed) {
+        setInspectionVisible(true);
+        return;
+      }
+    }
 
     if (action.next === 'in_progress' || action.next === 'completed') {
       const stage = action.next === 'in_progress' ? 'before' : 'after';
@@ -189,15 +217,13 @@ export default function TechServiceScreen() {
 
     setIsUpdating(true);
     try {
-      await fetchWithAuth(`/services/${id}/status`, {
+      await fetchWithAuth(`/services/${id}/status?new_status=${action.next}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: action.next }),
       });
       setService((prev: any) => prev ? { ...prev, status: action.next } : prev);
 
       if (action.next === 'completed') {
-        Alert.alert('¡Servicio completado!', 'Excelente trabajo 🎉', [
+        Alert.alert('¡Servicio completado!', 'Esperando confirmación de conformidad del cliente.', [
           { text: 'OK', onPress: () => router.replace('/(tech)/dashboard') },
         ]);
       }
@@ -492,7 +518,34 @@ export default function TechServiceScreen() {
           </View>
         )}
 
-        {action && (
+        {/* Inspection buttons for arrived status */}
+        {service?.status === 'arrived' && !isRecovery && !hasInspection && (
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => setInspectionVisible(true)}
+            activeOpacity={0.8}
+          >
+            <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.actionGradient}>
+              <Text style={styles.actionEmoji}>📋</Text>
+              <Text style={styles.actionText}>Inspección Previa Vehículo</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+
+        {service?.status === 'arrived' && !isRecovery && hasInspection && !isInspectionConfirmed && (
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => setInspectionVisible(true)}
+            activeOpacity={0.8}
+          >
+            <LinearGradient colors={['#f59e0b', '#d97706']} style={styles.actionGradient}>
+              <Text style={styles.actionEmoji}>⏳</Text>
+              <Text style={styles.actionText}>Esperando Confirmación Cliente</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+
+        {action && (service?.status !== 'arrived' || isRecovery || isInspectionConfirmed) && (
           <TouchableOpacity
             style={[styles.actionBtn, isUpdating && { opacity: 0.6 }]}
             onPress={handleStatusChange}
@@ -693,6 +746,17 @@ export default function TechServiceScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+
+      {/* Vehicle Inspection Sheet */}
+      <VehicleInspectionSheet
+        visible={inspectionVisible}
+        onClose={() => setInspectionVisible(false)}
+        serviceId={id!}
+        existingInspection={service?.service_metadata?.vehicle_inspection}
+        onSuccess={() => {
+          loadService();
+        }}
+      />
     </View>
   );
 }

@@ -14,7 +14,9 @@ from app.schemas.service import (
     ServiceResponse,
     ServiceListPaginated,
     ServiceAssign,
-    NearbyTechnicianResponse
+    NearbyTechnicianResponse,
+    VehicleInspectionSubmit,
+    ServiceConfirmRequest
 )
 from app.schemas.incident import IncidentCreate
 from app.models.incident import IncidentReport
@@ -313,21 +315,59 @@ async def update_service(
     )
 
 
+@router.post("/{service_id}/inspection")
+async def submit_vehicle_inspection(
+    service_id: str = Path(..., description="UUID del servicio"),
+    inspection_data: VehicleInspectionSubmit = ...,
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
+    session: Session = Depends(get_session)
+):
+    """
+    Permite al técnico registrar el checklist de inspección vehicular antes de iniciar el trabajo.
+    Notifica al cliente con una copia para su confirmación previa.
+    """
+    return await service_service.save_vehicle_inspection(
+        session=session,
+        service_id=service_id,
+        technician_id=current_user["id"],
+        inspection_data=inspection_data
+    )
+
+
+@router.post("/{service_id}/inspection/confirm")
+async def confirm_vehicle_inspection(
+    service_id: str = Path(..., description="UUID del servicio"),
+    current_user: dict = Depends(require_roles("client")),
+    session: Session = Depends(get_session)
+):
+    """
+    Permite al cliente confirmar la copia del checklist de inspección previa de su vehículo.
+    Habilita al técnico para iniciar el trabajo.
+    """
+    return await service_service.confirm_vehicle_inspection(
+        session=session,
+        service_id=service_id,
+        client_id=current_user["id"]
+    )
+
+
 @router.patch("/{service_id}/confirm", response_model=ServiceResponse)
 async def confirm_service(
     service_id: str = Path(..., description="UUID del servicio"),
+    confirm_data: Optional[ServiceConfirmRequest] = None,
     payment_method: str = Query(None, description="Método de pago (online/cash)"),
     current_user: dict = Depends(require_roles("client")),
     session: Session = Depends(get_session)
 ):
     """
-    Permite al cliente confirmar que el servicio fue completado satisfactoriamente.
-    Opcionalmente registra el método de pago elegido.
+    Permite al cliente confirmar que el servicio fue completado satisfactoriamente,
+    registrando su calificación de estrellas (1-5) y comentario opcional.
     """
     return await service_service.confirm_service(
         session=session,
         service_id=service_id,
         client_id=current_user["id"],
+        confirm_data=confirm_data,
         payment_method=payment_method
     )
 
