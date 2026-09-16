@@ -8,6 +8,7 @@ from fastapi import HTTPException, status
 from sqlmodel import Session, select, func
 from app.models.service import Service, ServiceStatus
 from app.models.user import User
+from app.models.technician import Technician
 from app.schemas.service import (
     ServiceCreate,
     ServiceUpdate,
@@ -15,7 +16,9 @@ from app.schemas.service import (
     ServiceListResponse,
     NearbyTechnicianResponse,
     VehicleInspectionSubmit,
-    ServiceConfirmRequest
+    ServiceConfirmRequest,
+    ServiceClient,
+    ServiceTechnician
 )
 import math
 from datetime import datetime
@@ -126,6 +129,10 @@ class ServiceService:
             technician = None
             if service.technician_id:
                 technician = session.exec(select(User).where(User.id == service.technician_id)).first()
+                if technician:
+                    tech_model = session.exec(select(Technician).where(Technician.user_id == technician.id)).first()
+                    if tech_model and tech_model.average_rating is not None:
+                        setattr(technician, "average_rating", float(tech_model.average_rating))
                 
             return self._to_response(service, client=client, technician=technician)
             
@@ -167,28 +174,7 @@ class ServiceService:
             
             total_pages = math.ceil(total / page_size) if total > 0 else 0
             
-            # Convertir a lista de schemas — resolver nombres reales
-            services_parsed = []
-            for s in results:
-                client = session.get(User, s.client_id) if s.client_id else None
-                technician = session.get(User, s.technician_id) if s.technician_id else None
-                services_parsed.append(ServiceListResponse(
-                    id=str(s.id),
-                    service_type=s.service_type,
-                    status=s.status,
-                    title=s.title,
-                    service_city="Medellín",
-                    scheduled_date=s.scheduled_date,
-                    estimated_price=s.estimated_price,
-                    vehicle_type=s.vehicle_type,
-                    vehicle_model=s.vehicle_model,
-                    vehicle_plate=s.vehicle_plate,
-                    vehicle_photo_url=s.vehicle_photo_url,
-                    service_metadata=s.service_metadata,
-                    created_at=s.created_at,
-                    client_name=client.full_name if client else None,
-                    technician_name=technician.full_name if technician else None
-                ))
+            services_parsed = [self._to_list_item(session, s) for s in results]
                 
             return {
                 "services": services_parsed,
@@ -200,6 +186,75 @@ class ServiceService:
             
         except Exception as e:
              raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+    def _to_list_item(self, session: Session, s: Service) -> ServiceListResponse:
+        """Helper para convertir DB Service a ServiceListResponse completo con mapa y relaciones"""
+        client = session.get(User, s.client_id) if s.client_id else None
+        technician = session.get(User, s.technician_id) if s.technician_id else None
+
+        lat = None
+        lon = None
+        if s.service_location:
+            try:
+                pt = to_shape(s.service_location)
+                lat = float(pt.y)
+                lon = float(pt.x)
+            except Exception:
+                pass
+
+        tech_schema = None
+        if technician:
+            tech_model = session.exec(select(Technician).where(Technician.user_id == technician.id)).first()
+            avg_rating = float(tech_model.average_rating) if (tech_model and tech_model.average_rating is not None) else 0.0
+            tech_schema = ServiceTechnician(
+                id=str(technician.id),
+                email=technician.email,
+                full_name=technician.full_name,
+                phone=technician.phone,
+                avatar_url=technician.avatar_url,
+                average_rating=avg_rating
+            )
+
+        client_schema = None
+        if client:
+            client_schema = ServiceClient(
+                id=str(client.id),
+                email=client.email,
+                full_name=client.full_name,
+                phone=client.phone,
+                avatar_url=client.avatar_url
+            )
+
+        city = getattr(s, "service_city", None)
+        if not city and s.service_address and "," in s.service_address:
+            city = s.service_address.split(",")[-1].strip()
+        if not city:
+            city = "Medellín"
+
+        return ServiceListResponse(
+            id=str(s.id),
+            service_type=s.service_type,
+            status=s.status,
+            title=s.title,
+            description=s.description,
+            service_address=s.service_address,
+            service_city=city,
+            service_lat=lat,
+            service_lon=lon,
+            scheduled_date=s.scheduled_date,
+            estimated_price=s.estimated_price,
+            final_price=getattr(s, "final_price", None),
+            vehicle_type=s.vehicle_type,
+            vehicle_model=s.vehicle_model,
+            vehicle_plate=s.vehicle_plate,
+            vehicle_photo_url=s.vehicle_photo_url,
+            service_metadata=s.service_metadata,
+            created_at=s.created_at,
+            client_name=client.full_name if client else None,
+            technician_name=technician.full_name if technician else None,
+            client=client_schema,
+            technician=tech_schema
+        )
 
     async def list_available_services(
         self,
@@ -232,25 +287,7 @@ class ServiceService:
             
             total_pages = math.ceil(total / page_size) if total > 0 else 0
             
-            services_parsed = []
-            for s in results:
-                client = session.get(User, s.client_id) if s.client_id else None
-                services_parsed.append(ServiceListResponse(
-                    id=str(s.id),
-                    service_type=s.service_type,
-                    status=s.status,
-                    title=s.title,
-                    service_city="Medellín",
-                    scheduled_date=s.scheduled_date,
-                    estimated_price=s.estimated_price,
-                    vehicle_type=s.vehicle_type,
-                    vehicle_model=s.vehicle_model,
-                    vehicle_plate=s.vehicle_plate,
-                    vehicle_photo_url=s.vehicle_photo_url,
-                    service_metadata=s.service_metadata,
-                    created_at=s.created_at,
-                    client_name=client.full_name if client else None,
-                ))
+            services_parsed = [self._to_list_item(session, s) for s in results]
                 
             return {
                 "services": services_parsed,
@@ -941,6 +978,22 @@ class ServiceService:
 
     def _to_response(self, service: Service, client_name: str = None, client: User = None, technician: User = None) -> ServiceResponse:
         """Helper para convertir DB model a Response Schema"""
+        lat = 0.0
+        lon = 0.0
+        if service.service_location:
+            try:
+                pt = to_shape(service.service_location)
+                lat = float(pt.y)
+                lon = float(pt.x)
+            except Exception:
+                pass
+
+        city = getattr(service, "service_city", None)
+        if not city and service.service_address and "," in service.service_address:
+            city = service.service_address.split(",")[-1].strip()
+        if not city:
+            city = "Medellín"
+
         response_kwargs = {
             "id": str(service.id),
             "client_id": str(service.client_id),
@@ -950,9 +1003,9 @@ class ServiceService:
             "title": service.title,
             "description": service.description,
             "service_address": service.service_address,
-            "service_city": "Medellín", # Default
-            "service_lat": to_shape(service.service_location).y if service.service_location else 0.0,
-            "service_lon": to_shape(service.service_location).x if service.service_location else 0.0,
+            "service_city": city,
+            "service_lat": lat,
+            "service_lon": lon,
             "requested_date": service.requested_date,
             "scheduled_date": service.scheduled_date,
             "estimated_price": service.estimated_price,
@@ -967,7 +1020,6 @@ class ServiceService:
         
         # Opcionalmente hidratar relaciones si se pasaron
         if client:
-            from app.schemas.service import ServiceClient
             response_kwargs["client"] = ServiceClient(
                 id=str(client.id),
                 email=client.email,
@@ -977,13 +1029,14 @@ class ServiceService:
             )
             
         if technician:
-            from app.schemas.service import ServiceTechnician
+            tech_rating = getattr(technician, "average_rating", None)
             response_kwargs["technician"] = ServiceTechnician(
                 id=str(technician.id),
                 email=technician.email,
                 full_name=technician.full_name,
                 phone=technician.phone,
-                avatar_url=technician.avatar_url
+                avatar_url=technician.avatar_url,
+                average_rating=float(tech_rating) if tech_rating is not None else 0.0
             )
             
         return ServiceResponse(**response_kwargs)

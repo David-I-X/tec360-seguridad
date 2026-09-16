@@ -277,6 +277,7 @@ class ServiceTechnician(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
     avatar_url: Optional[str] = None
+    average_rating: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -345,16 +346,20 @@ class ServiceResponse(BaseModel):
 
 class ServiceListResponse(BaseModel):
     """
-    Schema para listar servicios (versión simplificada).
-    No incluye relaciones completas para optimizar performance.
+    Schema para listar servicios (versión simplificada con soporte de mapa y relaciones).
     """
     id: str
     service_type: str
     status: str
     title: str
+    description: Optional[str] = None
+    service_address: Optional[str] = None
     service_city: str
+    service_lat: Optional[float] = None
+    service_lon: Optional[float] = None
     scheduled_date: Optional[datetime] = None
     estimated_price: Optional[Decimal] = None
+    final_price: Optional[Decimal] = None
     vehicle_type: Optional[str] = None
     vehicle_model: Optional[str] = None
     vehicle_plate: Optional[str] = None
@@ -365,6 +370,10 @@ class ServiceListResponse(BaseModel):
     # Info mínima del cliente/técnico
     client_name: Optional[str] = None
     technician_name: Optional[str] = None
+
+    # Relaciones para frontend y mapas
+    client: Optional[ServiceClient] = None
+    technician: Optional[ServiceTechnician] = None
 
     class Config:
         from_attributes = True

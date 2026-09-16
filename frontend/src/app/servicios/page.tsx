@@ -9,7 +9,7 @@ import {
   ClipboardList, CheckCircle2, XCircle, ArrowLeft, Search,
   LayoutGrid, List, Map as MapIcon, Radio, Video, BellRing,
   ShieldAlert, Wrench, Clock, FileText, Activity,
-  Navigation, User, Sparkles, X
+  Navigation, User, Sparkles, X, Car
 } from "lucide-react"
 import { motion } from "framer-motion"
 
@@ -503,12 +503,18 @@ function MyServicesContent() {
                         )}
                       </div>
                       <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-rose-500" />
-                          <span>{service.service_city || "Sin ciudad"}</span>
+                        <span className="flex items-center gap-1 truncate max-w-[220px]">
+                          <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
+                          <span className="truncate">{service.service_address || service.service_city || "Sin ubicación"}</span>
                         </span>
+                        {(service.vehicle_plate || service.vehicle_model) && (
+                          <span className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
+                            <Car className="w-3 h-3 text-violet-500 shrink-0" />
+                            <span>{service.vehicle_model || "Vehículo"} {service.vehicle_plate ? `• ${service.vehicle_plate.toUpperCase()}` : ""}</span>
+                          </span>
+                        )}
                         <span className="flex items-center gap-1 font-mono text-[11px]">
-                          <Clock className="w-3 h-3 text-violet-500" />
+                          <Clock className="w-3 h-3 text-violet-500 shrink-0" />
                           <span>
                             {service.scheduled_date
                               ? format(new Date(service.scheduled_date), "dd/MM/yyyy · p", { locale: es })
@@ -526,7 +532,11 @@ function MyServicesContent() {
                     </span>
 
                     <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
-                      {service.estimated_price ? `$${service.estimated_price.toLocaleString()}` : "Por cotizar"}
+                      {service.final_price
+                        ? `$${Number(service.final_price).toLocaleString()}`
+                        : service.estimated_price
+                        ? `$${Number(service.estimated_price).toLocaleString()}`
+                        : "Por cotizar"}
                     </span>
 
                     <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
@@ -585,12 +595,29 @@ function MyServicesContent() {
                         {typeConfig.label}
                       </p>
 
+                      {/* Vehicle Info Badge (if present) */}
+                      {(service.vehicle_plate || service.vehicle_model) && (
+                        <div className="flex items-center gap-1.5 mb-2.5 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/90 text-[11px] text-slate-700 dark:text-slate-300 w-fit border border-slate-200/50 dark:border-white/5">
+                          <Car className="w-3.5 h-3.5 text-violet-500 shrink-0" />
+                          <span className="font-semibold">{service.vehicle_model || "Vehículo"}</span>
+                          {service.vehicle_plate && (
+                            <span className="font-mono uppercase font-bold text-violet-600 dark:text-violet-400">
+                              • {service.vehicle_plate}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       {/* Location & Scheduled Details */}
                       <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400 mb-4">
                         <div className="flex items-center gap-1.5 truncate">
                           <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                           <span className="truncate">
-                            {service.service_address ? `${service.service_address}${service.service_city ? `, ${service.service_city}` : ""}` : "Ubicación por definir"}
+                            {service.service_address 
+                              ? (service.service_city && !service.service_address.toLowerCase().includes(service.service_city.toLowerCase())
+                                  ? `${service.service_address}, ${service.service_city}` 
+                                  : service.service_address)
+                              : "Ubicación por definir"}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-500 dark:text-slate-400">
@@ -645,10 +672,14 @@ function MyServicesContent() {
                     <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200/80 dark:border-white/10">
                       <div>
                         <span className="block text-[9px] font-mono uppercase font-bold text-slate-400">
-                          {service.estimated_price ? "PRECIO ESTIMADO" : "COTIZACIÓN"}
+                          {service.final_price ? "PRECIO FINAL" : service.estimated_price ? "PRECIO ESTIMADO" : "COTIZACIÓN"}
                         </span>
                         <span className="text-sm font-mono font-extrabold text-slate-900 dark:text-white">
-                          {service.estimated_price ? `$${service.estimated_price.toLocaleString()}` : "Por definir"}
+                          {service.final_price 
+                            ? `$${Number(service.final_price).toLocaleString()}`
+                            : service.estimated_price 
+                            ? `$${Number(service.estimated_price).toLocaleString()}` 
+                            : "Por definir"}
                         </span>
                       </div>
 
