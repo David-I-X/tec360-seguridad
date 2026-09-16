@@ -8,6 +8,8 @@ name: Deploy
 
 on:
   push:
+    branches:
+      - master
     tags:
       - "v*"
       - "!v*-mobile"  # Mobile builds have their own workflow
@@ -49,8 +51,10 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "version=${{ github.event.inputs.version || 'latest' }}" >> $GITHUB_OUTPUT
-          else
+          elif [[ "${GITHUB_REF}" =~ ^refs/tags/v ]]; then
             echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          else
+            echo "version=latest" >> $GITHUB_OUTPUT
           fi
 
       - name: Set up QEMU
