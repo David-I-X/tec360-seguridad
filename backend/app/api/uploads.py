@@ -2,7 +2,7 @@
 File upload endpoints for avatars and service photos.
 Path: backend/app/api/uploads.py
 
-Uses storage_service for file persistence (local or DigitalOcean Spaces).
+Uses storage_service for file persistence (local Oracle VM volume or OCI Object Storage).
 """
 import io
 import logging

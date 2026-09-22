@@ -15,7 +15,7 @@ graph TB
         M["📱 App Móvil"]
     end
 
-    subgraph DigitalOcean["☁️ DigitalOcean Droplet"]
+    subgraph OracleCloud["☁️ Oracle Cloud (OCI - Rose Diamond)"]
         NGINX["🔀 Nginx\nReverse Proxy + SSL\ntec-360.tech"]
 
         subgraph Backend["🐍 Backend"]
@@ -188,7 +188,7 @@ graph LR
 2. Si CI pasa, se ejecuta el deploy (`deploy.yml`)
 3. Se construyen las imágenes Docker del backend y frontend
 4. Las imágenes se suben a GitHub Container Registry (GHCR)
-5. El servidor de DigitalOcean descarga las imágenes nuevas
+5. El servidor de Oracle Cloud (OCI) descarga las imágenes nuevas
 6. Se ejecutan las migraciones de Alembic automáticamente
 7. Los contenedores se reinician con las nuevas versiones
 

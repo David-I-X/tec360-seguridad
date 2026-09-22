@@ -67,13 +67,14 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: str = os.getenv("VAPID_PRIVATE_KEY", "jiYgW-HF0vQuS5xwcOts4Q8LSpL4MiU32GCIdEZuYhM")
     VAPID_SUBJECT: str = os.getenv("VAPID_SUBJECT", "mailto:johan@tec-360.tech")
 
-    # Object Storage (DigitalOcean Spaces / S3-compatible)
-    STORAGE_BACKEND: str = os.getenv("STORAGE_BACKEND", "local")  # "spaces" or "local"
-    DO_SPACES_KEY: str = os.getenv("DO_SPACES_KEY", "")
-    DO_SPACES_SECRET: str = os.getenv("DO_SPACES_SECRET", "")
-    DO_SPACES_REGION: str = os.getenv("DO_SPACES_REGION", "nyc3")
-    DO_SPACES_BUCKET: str = os.getenv("DO_SPACES_BUCKET", "tec360-uploads")
-    DO_SPACES_ENDPOINT: str = os.getenv("DO_SPACES_ENDPOINT", "")  # e.g. https://nyc3.digitaloceanspaces.com
+    # Object Storage (Oracle Cloud Infrastructure / S3-compatible / Local volume)
+    STORAGE_BACKEND: str = os.getenv("STORAGE_BACKEND", "local")  # "local", "oci", or "s3"
+    OCI_STORAGE_KEY: str = os.getenv("OCI_STORAGE_KEY", os.getenv("S3_ACCESS_KEY", os.getenv("DO_SPACES_KEY", "")))
+    OCI_STORAGE_SECRET: str = os.getenv("OCI_STORAGE_SECRET", os.getenv("S3_SECRET_KEY", os.getenv("DO_SPACES_SECRET", "")))
+    OCI_STORAGE_REGION: str = os.getenv("OCI_STORAGE_REGION", os.getenv("S3_REGION", "sa-bogota-1"))
+    OCI_STORAGE_BUCKET: str = os.getenv("OCI_STORAGE_BUCKET", os.getenv("S3_BUCKET", "tec360-uploads"))
+    OCI_STORAGE_ENDPOINT: str = os.getenv("OCI_STORAGE_ENDPOINT", os.getenv("S3_ENDPOINT", ""))  # e.g. https://{namespace}.compat.objectstorage.{region}.oraclecloud.com
+    OCI_STORAGE_PUBLIC_URL: str = os.getenv("OCI_STORAGE_PUBLIC_URL", "")  # Optional CDN or public bucket URL
 
     # CORS - Orígenes permitidos
     ALLOWED_ORIGINS: List[str] = [

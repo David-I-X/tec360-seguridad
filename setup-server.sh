@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================
 # Tec360 Seguridad — Server Setup Script
-# Run this on a fresh Ubuntu 24.04 Droplet
+# Run this on a fresh Ubuntu 24.04 OCI Instance (or use setup-oci-rose.sh)
 # Usage: sudo bash setup-server.sh
 # ============================================
 

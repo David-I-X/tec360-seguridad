@@ -187,8 +187,8 @@ export default function PrivacidadPage() {
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs sm:text-sm">
               <div className="p-3.5 bg-slate-950/60 border border-slate-800 rounded-xl">
-                <div className="font-bold text-white">DigitalOcean LLC (Región NYC3)</div>
-                <div className="text-slate-400 mt-1">Alojamiento de servidores backend (FastAPI), bases de datos PostgreSQL/PostGIS y almacenamiento S3/Spaces.</div>
+                <div className="font-bold text-white">Oracle Cloud Infrastructure (OCI)</div>
+                <div className="text-slate-400 mt-1">Alojamiento de servidores backend (FastAPI), bases de datos PostgreSQL/PostGIS y almacenamiento en la nube.</div>
               </div>
               <div className="p-3.5 bg-slate-950/60 border border-slate-800 rounded-xl">
                 <div className="font-bold text-white">Twilio Inc. (EE.UU.)</div>
