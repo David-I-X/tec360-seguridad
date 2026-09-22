@@ -37,27 +37,78 @@ const STATUS_ACTIONS: Record<string, { label: string; next: StatusFlow; emoji: s
   in_progress: { label: 'Finalizar', next: 'completed', emoji: '✅', colors: ['#22c55e', '#16a34a'] },
 };
 
-// ─── Fetch real road route from OSRM (free, no API key) ───
+function decodePolyline(encoded: string) {
+    let points = [];
+    let index = 0, len = encoded.length;
+    let lat = 0, lng = 0;
+    while (index < len) {
+        let b, shift = 0, result = 0;
+        do {
+            b = encoded.charAt(index++).charCodeAt(0) - 63;
+            result |= (b & 0x1f) << shift;
+            shift += 5;
+        } while (b >= 0x20);
+        let dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+        lat += dlat;
+        shift = 0;
+        result = 0;
+        do {
+            b = encoded.charAt(index++).charCodeAt(0) - 63;
+            result |= (b & 0x1f) << shift;
+            shift += 5;
+        } while (b >= 0x20);
+        let dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+        lng += dlng;
+        points.push({ latitude: (lat / 1E5), longitude: (lng / 1E5) });
+    }
+    return points;
+}
+
+// ─── Fetch real road route from Google Maps / OSRM ───
 async function fetchRouteCoordinates(
   originLat: number, originLng: number,
   destLat: number, destLng: number
-): Promise<{ latitude: number; longitude: number }[]> {
+): Promise<{ coords: { latitude: number; longitude: number }[]; duration: string; distance: string }> {
+  try {
+    const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || "AIzaSyCu1NMEsMIIiY1LoOKlzrSovS-r4jTWWFY";
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originLat},${originLng}&destination=${destLat},${destLng}&key=${apiKey}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.routes && data.routes.length > 0) {
+      const route = data.routes[0];
+      const coords = decodePolyline(route.overview_polyline.points);
+      const leg = route.legs[0];
+      return { coords, duration: leg.duration.text, distance: leg.distance.text };
+    }
+  } catch (e) {
+    console.warn('[Route] Google Maps fetch failed:', e);
+  }
+
+  // Fallback to OSRM
   try {
     const url = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=full&geometries=geojson`;
     const res = await fetch(url);
     const data = await res.json();
     if (data.routes && data.routes.length > 0) {
-      const coords = data.routes[0].geometry.coordinates;
-      return coords.map((c: number[]) => ({ latitude: c[1], longitude: c[0] }));
+      const route = data.routes[0];
+      const coords = route.geometry.coordinates.map((c: number[]) => ({ latitude: c[1], longitude: c[0] }));
+      const mins = Math.round(route.duration / 60);
+      const km = (route.distance / 1000).toFixed(1);
+      return { coords, duration: `${mins} min`, distance: `${km} km` };
     }
   } catch (e) {
     console.warn('[Route] OSRM fetch failed:', e);
   }
+
   // Fallback: straight line
-  return [
-    { latitude: originLat, longitude: originLng },
-    { latitude: destLat, longitude: destLng },
-  ];
+  return {
+    coords: [
+      { latitude: originLat, longitude: originLng },
+      { latitude: destLat, longitude: destLng },
+    ],
+    duration: '',
+    distance: ''
+  };
 }
 
 export default function TechServiceScreen() {
@@ -168,24 +219,14 @@ export default function TechServiceScreen() {
     lastRouteFetch.current = { ...myLocation };
 
     (async () => {
-      const coords = await fetchRouteCoordinates(
+      const result = await fetchRouteCoordinates(
         myLocation.lat, myLocation.lng,
         service.service_lat, service.service_lon
       );
-      setRouteCoords(coords);
-
-      // Also fetch route info (distance/duration)
-      try {
-        const url = `https://router.project-osrm.org/route/v1/driving/${myLocation.lng},${myLocation.lat};${service.service_lon},${service.service_lat}?overview=false`;
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data.routes?.[0]) {
-          const r = data.routes[0];
-          const mins = Math.round(r.duration / 60);
-          const km = (r.distance / 1000).toFixed(1);
-          setRouteInfo({ distance: `${km} km`, duration: `${mins} min` });
-        }
-      } catch (e) {}
+      if (result.coords.length > 0) {
+        setRouteCoords(result.coords);
+        setRouteInfo({ distance: result.distance, duration: result.duration });
+      }
     })();
   }, [myLocation, service?.service_lat, service?.service_lon]);
 

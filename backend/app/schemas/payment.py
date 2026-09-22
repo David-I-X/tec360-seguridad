@@ -13,6 +13,29 @@ class CashPaymentConfirm(BaseModel):
     notes: Optional[str] = Field(None, max_length=500, description="Notas opcionales")
 
 
+class DigitalPaymentIntent(BaseModel):
+    """Cliente inicia un pago digital (PSE, Nequi, Daviplata, Tarjeta)"""
+    service_id: str
+    amount: float = Field(..., gt=0, description="Monto a pagar en COP")
+    payment_method: str = Field(..., description="pse | nequi | daviplata | card")
+    bank_name: Optional[str] = Field(None, description="Nombre del banco (solo PSE)")
+    card_last_four: Optional[str] = Field(None, max_length=4, description="Últimos 4 dígitos (solo tarjeta)")
+
+
+class DigitalPaymentConfirm(BaseModel):
+    """Cliente confirma la transacción digital"""
+    transaction_id: str = Field(..., description="ID de transacción devuelto por /digital/intent")
+
+
+class PaymentIntentResponse(BaseModel):
+    """Respuesta al crear un intent de pago digital"""
+    transaction_id: str
+    status: str = "processing"
+    payment_method: str
+    amount: float
+    message: str = "Procesando pago..."
+
+
 class PaymentResponse(BaseModel):
     id: str
     service_id: str
@@ -34,6 +57,13 @@ class PaymentResponse(BaseModel):
     client_name: Optional[str] = None
     technician_name: Optional[str] = None
     service_title: Optional[str] = None
+
+    # DIAN Electronic Invoice fields
+    invoice_number: Optional[str] = None
+    cufe: Optional[str] = None
+    qr_url: Optional[str] = None
+    pdf_url: Optional[str] = None
+    dian_status: Optional[str] = None
 
 
 class PaymentListResponse(BaseModel):

@@ -96,9 +96,9 @@ async def simulate_movement(
     """
     Starts a simulated movement for testing.
     The technician marker will move from start to end position over time.
-    Only available in development environment.
+    Available in development, or in production when SIMULATION_ENABLED=true.
     """
-    if settings.ENVIRONMENT == "production":
+    if settings.ENVIRONMENT == "production" and not settings.SIMULATION_ENABLED:
         raise HTTPException(status_code=403, detail="Simulación no disponible en producción")
 
     technician_id = current_user["id"]
@@ -131,7 +131,7 @@ async def simulate_movement(
 @router.get("/status")
 async def simulation_status():
     """Returns current simulation/tracking status for debugging"""
-    if settings.ENVIRONMENT == "production":
+    if settings.ENVIRONMENT == "production" and not settings.SIMULATION_ENABLED:
         raise HTTPException(status_code=403, detail="No disponible en producción")
 
     return {

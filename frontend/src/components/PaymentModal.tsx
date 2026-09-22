@@ -11,36 +11,74 @@ import {
   Check, 
   Lock 
 } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/api';
 
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   amount: number;
   onConfirm: (method: string) => void;
+  service_id: string;
 }
 
-export default function PaymentModal({ isOpen, onClose, amount, onConfirm }: PaymentModalProps) {
+export default function PaymentModal({ isOpen, onClose, amount, onConfirm, service_id }: PaymentModalProps) {
   const [method, setMethod] = useState<'online' | 'cash'>('online');
   const [onlineType, setOnlineType] = useState<'pse' | 'card'>('pse');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [transactionId, setTransactionId] = useState<string | null>(null);
+
   if (!isOpen && !isSuccess) return null;
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     setIsLoading(true);
-    // Simulamos el tiempo de carga
-    setTimeout(() => {
-      setIsLoading(false);
+    setApiError(null);
+
+    try {
+      if (method === 'online') {
+        const intentRes = await fetchWithAuth('/payments/digital/intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ service_id, amount, payment_method: onlineType })
+        });
+        const intentData = await intentRes.json();
+        
+        if (!intentRes.ok) throw new Error(intentData.error || intentData.detail || 'Error al iniciar pago');
+
+        const txId = intentData.transaction_id || intentData.id;
+
+        // Mostrar animación de progreso
+        await new Promise(resolve => setTimeout(resolve, 2500));
+
+        const confirmRes = await fetchWithAuth('/payments/digital/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transaction_id: txId })
+        });
+        const confirmData = await confirmRes.json();
+        
+        if (!confirmRes.ok) throw new Error(confirmData.error || confirmData.detail || 'Error al confirmar pago');
+
+        setTransactionId(txId);
+      } else {
+        if (onConfirm) onConfirm(method);
+      }
+
       setIsSuccess(true);
-      if (onConfirm) onConfirm(method);
+      if (method === 'online' && onConfirm) onConfirm(method);
       
-      // Cerrar después del éxito
       setTimeout(() => {
         setIsSuccess(false);
+        setTransactionId(null);
         onClose();
-      }, 2000);
-    }, 1500);
+      }, 3000);
+    } catch (error: any) {
+      setApiError(error.message || 'Error en el proceso de pago');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const formatCurrency = (val: number) => {
@@ -68,7 +106,12 @@ export default function PaymentModal({ isOpen, onClose, amount, onConfirm }: Pay
               <CheckCircle className="w-12 h-12 text-emerald-500" />
             </div>
             <h2 className="text-3xl font-bold mb-2">¡Pago Exitoso!</h2>
-            <p className="text-white/60">Tu servicio ha sido confirmado. Hemos registrado tu método de pago.</p>
+            <p className="text-white/60 mb-2">Tu servicio ha sido confirmado. Hemos registrado tu método de pago.</p>
+            {transactionId && (
+              <p className="text-emerald-400 font-mono bg-emerald-500/10 px-4 py-2 rounded-lg text-sm">
+                Referencia de pago: {transactionId}
+              </p>
+            )}
           </div>
         ) : (
           <>
@@ -94,6 +137,18 @@ export default function PaymentModal({ isOpen, onClose, amount, onConfirm }: Pay
                   <ShieldCheck className="w-6 h-6 text-white" />
                 </div>
               </div>
+
+              {apiError && (
+                <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex gap-3 animate-scale-in">
+                  <div className="text-red-500 pt-0.5">
+                    <AlertCircle className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1 flex-1">
+                    <h4 className="text-sm font-semibold text-red-500">Error en el pago</h4>
+                    <p className="text-xs text-red-400 leading-relaxed">{apiError}</p>
+                  </div>
+                </div>
+              )}
 
               {/* Payment Method Selector */}
               <div className="space-y-3">

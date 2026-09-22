@@ -898,6 +898,7 @@ function ServiceDetailContent() {
             <PaymentModal
                 isOpen={showPaymentModal}
                 onClose={() => setShowPaymentModal(false)}
+                service_id={service.id}
                 amount={service?.estimated_price || 0}
                 onConfirm={handleConfirm}
             />

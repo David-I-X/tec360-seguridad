@@ -187,6 +187,33 @@ export default function ServiceMap({ lat, lng, address, technicianLat, technicia
 
         async function fetchRoute() {
             try {
+                const directionsService = new google.maps.DirectionsService()
+                const result = await directionsService.route({
+                    origin: new google.maps.LatLng(technicianLat!, technicianLng!),
+                    destination: new google.maps.LatLng(lat!, lng!),
+                    travelMode: google.maps.TravelMode.DRIVING,
+                })
+
+                if (result.routes && result.routes.length > 0) {
+                    const route = result.routes[0]
+                    const path = route.overview_path.map(p => ({ lat: p.lat(), lng: p.lng() }))
+                    
+                    setOsrmPath(path)
+                    routeRequested.current = true
+                    lastRoutePos.current = { lat: technicianLat!, lng: technicianLng! }
+
+                    if (route.legs && route.legs.length > 0) {
+                        const leg = route.legs[0]
+                        if (leg.duration) setEta(leg.duration.text)
+                        if (leg.distance) setDistance(leg.distance.text)
+                    }
+                    return
+                }
+            } catch (googleErr) {
+                console.warn("[Map] Google Directions failed, falling back to OSRM:", googleErr)
+            }
+
+            try {
                 const url = `https://router.project-osrm.org/route/v1/driving/${technicianLng},${technicianLat};${lng},${lat}?overview=full&geometries=geojson`
                 const res = await fetch(url)
                 const data = await res.json()

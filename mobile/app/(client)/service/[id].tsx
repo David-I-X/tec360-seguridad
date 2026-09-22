@@ -68,11 +68,54 @@ function formatDetailedDate(dateStr?: string | null): string | null {
   }
 }
 
-// ─── Fetch real road route from OSRM ───
+function decodePolyline(encoded: string) {
+    let points = [];
+    let index = 0, len = encoded.length;
+    let lat = 0, lng = 0;
+    while (index < len) {
+        let b, shift = 0, result = 0;
+        do {
+            b = encoded.charAt(index++).charCodeAt(0) - 63;
+            result |= (b & 0x1f) << shift;
+            shift += 5;
+        } while (b >= 0x20);
+        let dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+        lat += dlat;
+        shift = 0;
+        result = 0;
+        do {
+            b = encoded.charAt(index++).charCodeAt(0) - 63;
+            result |= (b & 0x1f) << shift;
+            shift += 5;
+        } while (b >= 0x20);
+        let dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+        lng += dlng;
+        points.push({ latitude: (lat / 1E5), longitude: (lng / 1E5) });
+    }
+    return points;
+}
+
+// ─── Fetch real road route from Google Maps / OSRM ───
 async function fetchRouteCoordinates(
   originLat: number, originLng: number,
   destLat: number, destLng: number
 ): Promise<{ coords: { latitude: number; longitude: number }[]; duration: string; distance: string }> {
+  try {
+    const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || "AIzaSyCu1NMEsMIIiY1LoOKlzrSovS-r4jTWWFY";
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originLat},${originLng}&destination=${destLat},${destLng}&key=${apiKey}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.routes && data.routes.length > 0) {
+      const route = data.routes[0];
+      const coords = decodePolyline(route.overview_polyline.points);
+      const leg = route.legs[0];
+      return { coords, duration: leg.duration.text, distance: leg.distance.text };
+    }
+  } catch (e) {
+    console.warn('[Route] Google Maps fetch failed:', e);
+  }
+
+  // Fallback to OSRM
   try {
     const url = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=full&geometries=geojson`;
     const res = await fetch(url);

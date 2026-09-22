@@ -1,219 +1,130 @@
 """
-Centralized storage service for file uploads.
-Supports two backends:
-  - "local": saves to /opt/tec360-seguridad/uploads/ (dev / legacy)
-  - "spaces": uploads to DigitalOcean Spaces (S3-compatible, production)
-
-Usage:
-    from app.services.storage_service import storage
-
-    url = await storage.upload(
-        file_bytes=content,
-        folder="documents",
-        filename="cedula_front_abc123.jpg",
-        content_type="image/jpeg",
-    )
-    # Returns: "/uploads/documents/cedula_front_abc123.jpg"  (local)
-    #      or: "https://tec360-uploads.nyc3.digitaloceanspaces.com/documents/cedula_front_abc123.jpg"  (spaces)
-
-    await storage.delete(url)
+Storage Service — Abstracción para almacenamiento de archivos.
+Soporta: local (Docker volume) y DigitalOcean Spaces (S3-compatible).
+Se elige según settings.STORAGE_BACKEND ("local" | "spaces").
 """
-import os
-import uuid
 import logging
+import os
 
-from fastapi import UploadFile, HTTPException
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
-
-def validate_image(file: UploadFile) -> str:
-    """Validate file extension. Returns the extension."""
-    if not file.filename:
-        raise HTTPException(400, "No filename provided")
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(400, f"File type {ext} not allowed. Use: {ALLOWED_EXTENSIONS}")
-    return ext
-
-
-def generate_filename(prefix: str, ext: str) -> str:
-    """Generate a unique filename like 'prefix_a1b2c3d4.jpg'."""
-    return f"{prefix}_{uuid.uuid4().hex[:8]}{ext}"
-
-
-# ---------------------------------------------------------------------------
-# Abstract base
-# ---------------------------------------------------------------------------
 class StorageBackend:
-    """Interface that both backends implement."""
+    """Base class for storage backends."""
 
-    async def upload(
-        self,
-        file_bytes: bytes,
-        folder: str,
-        filename: str,
-        content_type: str = "image/jpeg",
-    ) -> str:
+    def upload(self, content: bytes, path: str, content_type: str = "image/jpeg") -> str:
+        """
+        Upload content and return the public URL.
+        Args:
+            content: Raw file bytes
+            path: Relative path like "avatars/abc123.jpg"
+            content_type: MIME type
+        Returns:
+            Public URL string
+        """
         raise NotImplementedError
 
-    async def delete(self, url: str) -> bool:
+    def delete(self, path: str) -> bool:
+        """Delete a file by path. Returns True if successful."""
         raise NotImplementedError
 
 
-# ---------------------------------------------------------------------------
-# Local filesystem backend (dev / legacy)
-# ---------------------------------------------------------------------------
-class LocalStorageBackend(StorageBackend):
+class LocalStorage(StorageBackend):
+    """Stores files on local filesystem (Docker volume)."""
+
     BASE_DIR = "/opt/tec360-seguridad/uploads"
 
     def __init__(self):
-        # On Windows dev machines, use a relative path
-        if os.name == "nt":
-            self.BASE_DIR = os.path.join(os.getcwd(), "uploads")
         os.makedirs(self.BASE_DIR, exist_ok=True)
 
-    async def upload(
-        self,
-        file_bytes: bytes,
-        folder: str,
-        filename: str,
-        content_type: str = "image/jpeg",
-    ) -> str:
-        dir_path = os.path.join(self.BASE_DIR, folder)
-        os.makedirs(dir_path, exist_ok=True)
+    def upload(self, content: bytes, path: str, content_type: str = "image/jpeg") -> str:
+        full_path = os.path.join(self.BASE_DIR, path)
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        with open(full_path, "wb") as f:
+            f.write(content)
+        # Return relative URL for local
+        return f"/uploads/{path}"
 
-        filepath = os.path.join(dir_path, filename)
-        with open(filepath, "wb") as f:
-            f.write(file_bytes)
-
-        url = f"/uploads/{folder}/{filename}"
-        logger.info("Saved file locally: %s", url)
-        return url
-
-    async def delete(self, url: str) -> bool:
-        # url looks like "/uploads/documents/file.jpg"
-        relative = url.lstrip("/").replace("uploads/", "", 1)
-        filepath = os.path.join(self.BASE_DIR, relative)
-        if os.path.exists(filepath):
-            os.remove(filepath)
-            logger.info("Deleted local file: %s", filepath)
+    def delete(self, path: str) -> bool:
+        full_path = os.path.join(self.BASE_DIR, path)
+        try:
+            os.remove(full_path)
             return True
-        return False
+        except FileNotFoundError:
+            return False
 
 
-# ---------------------------------------------------------------------------
-# DigitalOcean Spaces backend (production)
-# ---------------------------------------------------------------------------
-class SpacesStorageBackend(StorageBackend):
-    def __init__(
-        self,
-        key: str,
-        secret: str,
-        region: str,
-        bucket: str,
-        endpoint: str,
-    ):
+class SpacesStorage(StorageBackend):
+    """Stores files on DigitalOcean Spaces (S3-compatible)."""
+
+    def __init__(self):
         import boto3
-        from botocore.config import Config as BotoConfig
-
-        self.bucket = bucket
-        self.region = region
-
-        # Build the endpoint URL if not provided
-        if not endpoint:
-            endpoint = f"https://{region}.digitaloceanspaces.com"
-        self.endpoint = endpoint
-
-        # CDN URL for public reads (DO Spaces edge cache)
-        self.cdn_url = f"https://{bucket}.{region}.cdn.digitaloceanspaces.com"
+        self.bucket = settings.DO_SPACES_BUCKET
+        self.region = settings.DO_SPACES_REGION
+        self.endpoint = settings.DO_SPACES_ENDPOINT or f"https://{self.region}.digitaloceanspaces.com"
+        self.cdn_url = self.endpoint.replace("digitaloceanspaces.com", "cdn.digitaloceanspaces.com")
 
         self.client = boto3.client(
             "s3",
-            region_name=region,
-            endpoint_url=endpoint,
-            aws_access_key_id=key,
-            aws_secret_access_key=secret,
-            config=BotoConfig(
-                signature_version="s3v4",
-                retries={"max_attempts": 3, "mode": "adaptive"},
-            ),
+            region_name=self.region,
+            endpoint_url=self.endpoint,
+            aws_access_key_id=settings.DO_SPACES_KEY,
+            aws_secret_access_key=settings.DO_SPACES_SECRET,
         )
-        logger.info(
-            "DigitalOcean Spaces client initialized — bucket=%s endpoint=%s",
-            bucket, endpoint,
-        )
+        logger.info(f"SpacesStorage initialized: bucket={self.bucket}, endpoint={self.endpoint}")
 
-    async def upload(
-        self,
-        file_bytes: bytes,
-        folder: str,
-        filename: str,
-        content_type: str = "image/jpeg",
-    ) -> str:
-        key = f"{folder}/{filename}"
-
+    def upload(self, content: bytes, path: str, content_type: str = "image/jpeg") -> str:
         self.client.put_object(
             Bucket=self.bucket,
-            Key=key,
-            Body=file_bytes,
+            Key=path,
+            Body=content,
             ContentType=content_type,
             ACL="public-read",
         )
-
-        url = f"{self.cdn_url}/{key}"
-        logger.info("Uploaded to Spaces: %s", url)
+        # Return CDN URL
+        url = f"{self.cdn_url}/{self.bucket}/{path}"
+        logger.info(f"Uploaded to Spaces: {url}")
         return url
 
-    async def delete(self, url: str) -> bool:
-        # Extract key from CDN URL
-        # e.g. "https://tec360-uploads.nyc3.cdn.digitaloceanspaces.com/documents/file.jpg"
-        #  -> key = "documents/file.jpg"
+    def delete(self, path: str) -> bool:
         try:
-            key = url.split(f"{self.cdn_url}/", 1)[1]
-        except (IndexError, AttributeError):
-            # Try extracting from endpoint URL as fallback
-            try:
-                key = url.split(f"{self.endpoint}/{self.bucket}/", 1)[1]
-            except (IndexError, AttributeError):
-                logger.warning("Could not extract key from URL: %s", url)
-                return False
-
-        self.client.delete_object(Bucket=self.bucket, Key=key)
-        logger.info("Deleted from Spaces: %s", key)
-        return True
-
-
-# ---------------------------------------------------------------------------
-# Factory — creates the correct backend based on settings
-# ---------------------------------------------------------------------------
-def _create_backend() -> StorageBackend:
-    # Import here to avoid circular imports during testing
-    try:
-        from app.core.config import settings
-        backend_type = settings.STORAGE_BACKEND
-    except Exception:
-        backend_type = os.getenv("STORAGE_BACKEND", "local")
-
-    if backend_type == "spaces":
-        try:
-            from app.core.config import settings as s
-            return SpacesStorageBackend(
-                key=s.DO_SPACES_KEY,
-                secret=s.DO_SPACES_SECRET,
-                region=s.DO_SPACES_REGION,
-                bucket=s.DO_SPACES_BUCKET,
-                endpoint=s.DO_SPACES_ENDPOINT,
-            )
+            self.client.delete_object(Bucket=self.bucket, Key=path)
+            return True
         except Exception as e:
-            logger.error("Failed to create Spaces backend: %s — falling back to local", e)
-            return LocalStorageBackend()
+            logger.error(f"Failed to delete from Spaces: {e}")
+            return False
 
-    return LocalStorageBackend()
+
+def _create_backend() -> StorageBackend:
+    """Factory: create the configured storage backend."""
+    backend = settings.STORAGE_BACKEND.lower()
+    if backend == "spaces":
+        if not settings.DO_SPACES_KEY or not settings.DO_SPACES_SECRET:
+            logger.warning(
+                "STORAGE_BACKEND=spaces but DO_SPACES_KEY/SECRET not set. "
+                "Falling back to local storage."
+            )
+            return LocalStorage()
+        return SpacesStorage()
+    return LocalStorage()
 
 
 # Singleton instance
-storage: StorageBackend = _create_backend()
+try:
+    storage = _create_backend()
+except Exception as e:
+    logger.warning(f"Failed to initialize storage backend: {e}. Using local fallback.")
+    storage = LocalStorage()
+
+
+def get_content_type(ext: str) -> str:
+    """Map file extension to MIME type."""
+    types = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+    }
+    return types.get(ext.lower(), "application/octet-stream")

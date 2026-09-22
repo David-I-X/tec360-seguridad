@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     WOMPI_PRIVATE_KEY: str = os.getenv("WOMPI_PRIVATE_KEY", "")
     WOMPI_EVENTS_SECRET: str = os.getenv("WOMPI_EVENTS_SECRET", "")
 
+    # Simulation (field testing)
+    SIMULATION_ENABLED: bool = os.getenv("SIMULATION_ENABLED", "false").lower() == "true"
+
     # VAPID / Web Push
     VAPID_PRIVATE_KEY: str = os.getenv("VAPID_PRIVATE_KEY", "jiYgW-HF0vQuS5xwcOts4Q8LSpL4MiU32GCIdEZuYhM")
     VAPID_SUBJECT: str = os.getenv("VAPID_SUBJECT", "mailto:johan@tec-360.tech")

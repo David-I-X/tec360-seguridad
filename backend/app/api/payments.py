@@ -4,7 +4,7 @@ Feature-flagged: PAYMENTS_ENABLED=false por defecto
 
 Soporta:
 - Pago en efectivo (confirmado por técnico, validado por admin)
-- Pago digital via Wompi (PSE, Nequi, Daviplata, tarjeta) — futuro
+- Pago digital sandbox (PSE, Nequi, Daviplata, tarjeta)
 """
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -14,7 +14,8 @@ from app.core.database import get_session
 from app.core.config import settings
 from app.core.security import get_current_user, require_roles
 from app.schemas.payment import (
-    CashPaymentConfirm, PaymentResponse, PaymentListResponse,
+    CashPaymentConfirm, DigitalPaymentIntent, DigitalPaymentConfirm,
+    PaymentResponse, PaymentIntentResponse, PaymentListResponse,
     TechnicianPaymentSummary,
 )
 from app.services.payment_service import payment_service
@@ -80,6 +81,47 @@ async def get_my_payment_history(
         technician_id=current_user["id"],
         skip=skip,
         limit=limit,
+    )
+
+
+# ============================================
+# ENDPOINTS DE PAGO DIGITAL (SANDBOX)
+# ============================================
+
+@router.post("/digital/intent", response_model=PaymentIntentResponse, status_code=status.HTTP_201_CREATED)
+async def create_digital_payment_intent(
+    data: DigitalPaymentIntent,
+    current_user: dict = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """
+    Inicia un pago digital (PSE, Nequi, Daviplata, Tarjeta).
+    En sandbox genera un transaction_id simulado.
+    En producción se conectaría a Wompi para generar un intent real.
+    """
+    _check_payments_enabled()
+    return await payment_service.create_digital_intent(
+        session=session,
+        data=data,
+        client_id=current_user["id"],
+    )
+
+
+@router.post("/digital/confirm", response_model=PaymentResponse)
+async def confirm_digital_payment(
+    data: DigitalPaymentConfirm,
+    current_user: dict = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """
+    Confirma un pago digital sandbox.
+    En producción real esto vendría del webhook de Wompi, no del cliente.
+    """
+    _check_payments_enabled()
+    return await payment_service.confirm_digital_payment(
+        session=session,
+        transaction_id=data.transaction_id,
+        client_id=current_user["id"],
     )
 
 

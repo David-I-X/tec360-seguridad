@@ -1,5 +1,13 @@
+"""
+Webhook receiver — SaaS Vertical (Factus/DIAN) events
+"""
 from fastapi import APIRouter, Request
+from sqlmodel import Session, select
+from uuid import UUID
 import logging
+
+from app.core.database import get_session
+from app.models.payment import Payment
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +28,46 @@ async def receive_sas_webhook(request: Request):
     logger.info(f"Received SaaS webhook event: {event_type}")
     
     if event_type == "invoice.status_updated":
-        invoice_id = payload.get("invoice_id")
-        status = payload.get("status")
+        invoice_number = payload.get("invoice_number")
+        new_status = payload.get("status")
         cufe = payload.get("cufe")
-        logger.info(f"Factura {invoice_id} status updated to {status}, CUFE: {cufe}")
-        # TODO: Update internal invoice status / link to PDF in DB if we create a table for it
+        qr_url = payload.get("qr_url")
+        pdf_url = payload.get("pdf_url")
+        logger.info(
+            f"Factura {invoice_number} status updated to {new_status}, CUFE: {cufe}"
+        )
+
+        # Update payment record with latest DIAN data
+        try:
+            from app.core.database import engine
+            from sqlmodel import Session as SqlSession
+            with SqlSession(engine) as session:
+                if invoice_number:
+                    payment = session.exec(
+                        select(Payment).where(
+                            Payment.invoice_number == invoice_number
+                        )
+                    ).first()
+                    if payment:
+                        if new_status:
+                            payment.dian_status = new_status
+                        if cufe:
+                            payment.cufe = cufe
+                        if qr_url:
+                            payment.qr_url = qr_url
+                        if pdf_url:
+                            payment.pdf_url = pdf_url
+                        session.add(payment)
+                        session.commit()
+                        logger.info(
+                            f"Payment {payment.id} updated with DIAN webhook data"
+                        )
+                    else:
+                        logger.warning(
+                            f"No payment found for invoice_number={invoice_number}"
+                        )
+        except Exception as e:
+            logger.error(f"Error updating payment from DIAN webhook: {e}")
         
     elif event_type == "whatsapp.message_received":
         phone = payload.get("phone")

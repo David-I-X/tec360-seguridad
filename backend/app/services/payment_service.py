@@ -2,10 +2,11 @@
 Servicio de Pagos — Tec360 Seguridad
 Lógica de negocio para pagos en efectivo y digitales
 """
+import asyncio
 import logging
 from datetime import datetime
 from typing import Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException
 from sqlmodel import Session, func, select
@@ -13,13 +14,121 @@ from sqlmodel import Session, func, select
 from app.models.payment import Payment, PaymentMethod, PaymentStatus
 from app.models.service import Service
 from app.models.user import User
-from app.schemas.payment import CashPaymentConfirm, PaymentListResponse, PaymentResponse
+from app.schemas.payment import (
+    CashPaymentConfirm,
+    DigitalPaymentIntent,
+    PaymentListResponse,
+    PaymentIntentResponse,
+    PaymentResponse,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class PaymentService:
     """Service layer para pagos"""
+
+    # ── Helper: Trigger DIAN invoices ────────────────────────
+    def _trigger_dian_invoices(self, service: Service, payment: Payment):
+        """
+        Dispara la generación de facturas DIAN de forma asíncrona.
+        - Factura A: Al Cliente Final (mandate_service)
+        - Factura B: Al Técnico por Comisión (platform_commission)
+        Guarda invoice_number, cufe, qr_url, pdf_url, dian_status en el Payment.
+        """
+        from app.services.sas_service import create_dian_invoice, sync_contact_to_sas
+        from app.core.database import engine
+        from sqlmodel import Session as SqlSession
+
+        async def _trigger(client_uid, tech_uid, svc_id, svc_type, svc_title, pmt_id, pmt_amount):
+            try:
+                with SqlSession(engine) as session_bg:
+                    payment_db = session_bg.get(Payment, pmt_id)
+                    if not payment_db:
+                        logger.error(f"Payment {pmt_id} not found for DIAN invoice trigger")
+                        return
+
+                    # 1. Factura A: Cliente Final
+                    client_user = session_bg.get(User, client_uid)
+                    if client_user:
+                        if not client_user.sas_contact_id:
+                            c_sas_id = await sync_contact_to_sas(client_user)
+                            if c_sas_id:
+                                client_user.sas_contact_id = str(c_sas_id)
+                                session_bg.add(client_user)
+                                session_bg.commit()
+                        if client_user.sas_contact_id:
+                            sku = svc_type or "servicio_seguridad"
+                            desc = svc_title or f"Servicio: {sku}"
+                            items_client = [{
+                                "sku": sku,
+                                "description": desc,
+                                "quantity": 1,
+                                "unit_price": pmt_amount,
+                                "tax_rate": 0.19,
+                            }]
+                            invoice_data = await create_dian_invoice(
+                                sas_contact_id=client_user.sas_contact_id,
+                                items=items_client,
+                                auto_accounting=False,
+                                invoice_type="mandate_service",
+                            )
+                            # Store DIAN data in payment record
+                            if invoice_data:
+                                payment_db.invoice_number = invoice_data.get("invoice_number")
+                                payment_db.cufe = invoice_data.get("cufe")
+                                payment_db.qr_url = invoice_data.get("qr_url")
+                                payment_db.pdf_url = invoice_data.get("pdf_url")
+                                payment_db.dian_status = invoice_data.get("dian_status", "accepted")
+                                session_bg.add(payment_db)
+                                session_bg.commit()
+                                logger.info(
+                                    f"DIAN data stored for payment {pmt_id}: "
+                                    f"invoice={invoice_data.get('invoice_number')}"
+                                )
+
+                    # 2. Factura B: Comisión de Intermediación al Técnico
+                    if tech_uid:
+                        tech_user = session_bg.get(User, tech_uid)
+                        if tech_user:
+                            if not tech_user.sas_contact_id:
+                                t_sas_id = await sync_contact_to_sas(tech_user)
+                                if t_sas_id:
+                                    tech_user.sas_contact_id = str(t_sas_id)
+                                    session_bg.add(tech_user)
+                                    session_bg.commit()
+                            if tech_user.sas_contact_id:
+                                commission_amount = round(pmt_amount * 0.18, 2)
+                                items_commission = [{
+                                    "sku": "platform_fee",
+                                    "description": (
+                                        f"Comisión de intermediación por servicio "
+                                        f"{svc_title or svc_type} #{str(svc_id)[:8]}"
+                                    ),
+                                    "quantity": 1,
+                                    "unit_price": commission_amount,
+                                    "tax_rate": 0.19,
+                                }]
+                                await create_dian_invoice(
+                                    sas_contact_id=tech_user.sas_contact_id,
+                                    items=items_commission,
+                                    auto_accounting=True,
+                                    invoice_type="platform_commission",
+                                )
+            except Exception as e:
+                logger.error(f"Error in background DIAN invoice trigger: {e}")
+
+        asyncio.create_task(_trigger(
+            service.client_id,
+            service.technician_id,
+            service.id,
+            service.service_type,
+            service.title,
+            payment.id,
+            payment.amount,
+        ))
+
+    # ── Cash Payment ──────────────────────────────────────
 
     async def confirm_cash_payment(
         self,
@@ -72,74 +181,143 @@ class PaymentService:
         session.commit()
         session.refresh(payment)
 
-        # Trigger DIAN invoices creation asynchronously:
-        # Factura A: Al Cliente Final (mandate_service, auto_accounting=False)
-        # Factura B: Al Técnico por Comisión (platform_commission, auto_accounting=True)
-        import asyncio
-        from app.services.sas_service import create_dian_invoice, sync_contact_to_sas
-        from app.core.database import engine
-        from sqlmodel import Session as SqlSession
-        
-        async def _trigger_invoices(client_uid, tech_uid, svc, pmt):
-            try:
-                with SqlSession(engine) as session_bg:
-                    # 1. Factura A: Cliente Final
-                    client_user = session_bg.get(User, client_uid)
-                    if client_user:
-                        if not client_user.sas_contact_id:
-                            c_sas_id = await sync_contact_to_sas(client_user)
-                            if c_sas_id:
-                                client_user.sas_contact_id = str(c_sas_id)
-                                session_bg.add(client_user)
-                                session_bg.commit()
-                        if client_user.sas_contact_id:
-                            sku = svc.service_type or "servicio_seguridad"
-                            desc = svc.title or f"Servicio: {sku}"
-                            items_client = [{
-                                "sku": sku,
-                                "description": desc,
-                                "quantity": 1,
-                                "unit_price": pmt.amount,
-                                "tax_rate": 0.19,
-                            }]
-                            await create_dian_invoice(
-                                sas_contact_id=client_user.sas_contact_id,
-                                items=items_client,
-                                auto_accounting=False,
-                                invoice_type="mandate_service",
-                            )
-
-                    # 2. Factura B: Comisión de Intermediación al Técnico
-                    if tech_uid:
-                        tech_user = session_bg.get(User, tech_uid)
-                        if tech_user:
-                            if not tech_user.sas_contact_id:
-                                t_sas_id = await sync_contact_to_sas(tech_user)
-                                if t_sas_id:
-                                    tech_user.sas_contact_id = str(t_sas_id)
-                                    session_bg.add(tech_user)
-                                    session_bg.commit()
-                            if tech_user.sas_contact_id:
-                                commission_amount = round(pmt.amount * 0.18, 2)
-                                items_commission = [{
-                                    "sku": "platform_fee",
-                                    "description": f"Comisión de intermediación por servicio {svc.title or sku} #{str(svc.id)[:8]}",
-                                    "quantity": 1,
-                                    "unit_price": commission_amount,
-                                    "tax_rate": 0.19,
-                                }]
-                                await create_dian_invoice(
-                                    sas_contact_id=tech_user.sas_contact_id,
-                                    items=items_commission,
-                                    auto_accounting=True,
-                                    invoice_type="platform_commission",
-                                )
-            except Exception as e:
-                logger.error(f"Error in background DIAN invoice trigger: {e}")
-        
-        asyncio.create_task(_trigger_invoices(service.client_id, service.technician_id, service, payment))
+        # Trigger DIAN invoices in background
+        self._trigger_dian_invoices(service, payment)
 
         return self._to_response(payment, session)
+
+    # ── Digital Payment (Sandbox) ─────────────────────────
+
+    async def create_digital_intent(
+        self,
+        session: Session,
+        data: DigitalPaymentIntent,
+        client_id: str,
+    ) -> PaymentIntentResponse:
+        """
+        Crea un intent de pago digital (sandbox).
+        Genera un transaction_id tipo Wompi y crea el Payment en status=pending.
+        """
+        service = session.get(Service, UUID(data.service_id))
+        if not service:
+            raise HTTPException(status_code=404, detail="Servicio no encontrado")
+
+        # Verify client owns the service
+        if str(service.client_id) != str(client_id):
+            raise HTTPException(
+                status_code=403,
+                detail="Solo el cliente del servicio puede realizar el pago"
+            )
+
+        # Check for existing approved payment
+        existing = session.exec(
+            select(Payment).where(
+                Payment.service_id == service.id,
+                Payment.status.in_(["approved", "confirmed_by_technician", "confirmed_by_admin"])
+            )
+        ).first()
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail="Ya existe un pago aprobado para este servicio"
+            )
+
+        # Map string to PaymentMethod enum
+        method_map = {
+            "pse": PaymentMethod.pse,
+            "nequi": PaymentMethod.nequi,
+            "daviplata": PaymentMethod.daviplata,
+            "card": PaymentMethod.card,
+        }
+        pm = method_map.get(data.payment_method)
+        if not pm:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Método de pago no válido: {data.payment_method}"
+            )
+
+        # Generate sandbox transaction ID
+        transaction_id = f"sandbox-{uuid4().hex[:16]}"
+
+        payment = Payment(
+            service_id=service.id,
+            client_id=UUID(client_id),
+            technician_id=service.technician_id,
+            amount=data.amount,
+            currency="COP",
+            payment_method=pm,
+            payment_provider="wompi_sandbox",
+            provider_reference=transaction_id,
+            status=PaymentStatus.pending,
+            notes=f"Pago digital {data.payment_method}"
+                  + (f" - Banco: {data.bank_name}" if data.bank_name else "")
+                  + (f" - Tarjeta: ****{data.card_last_four}" if data.card_last_four else ""),
+        )
+        session.add(payment)
+        session.commit()
+        session.refresh(payment)
+
+        return PaymentIntentResponse(
+            transaction_id=transaction_id,
+            status="processing",
+            payment_method=data.payment_method,
+            amount=data.amount,
+            message="Procesando pago...",
+        )
+
+    async def confirm_digital_payment(
+        self,
+        session: Session,
+        transaction_id: str,
+        client_id: str,
+    ) -> PaymentResponse:
+        """
+        Confirma un pago digital sandbox.
+        En producción real esto vendría del webhook de Wompi.
+        """
+        payment = session.exec(
+            select(Payment).where(
+                Payment.provider_reference == transaction_id,
+                Payment.status == PaymentStatus.pending,
+            )
+        ).first()
+
+        if not payment:
+            raise HTTPException(
+                status_code=404,
+                detail="Transacción no encontrada o ya procesada"
+            )
+
+        # Verify client
+        if str(payment.client_id) != str(client_id):
+            raise HTTPException(
+                status_code=403,
+                detail="No autorizado para confirmar esta transacción"
+            )
+
+        # Approve the payment
+        payment.status = PaymentStatus.approved
+        payment.paid_at = datetime.utcnow()
+        payment.confirmed_by = UUID(client_id)
+        payment.updated_at = datetime.utcnow()
+
+        # Update service payment status
+        service = session.get(Service, payment.service_id)
+        if service:
+            service.payment_status = "paid"
+            session.add(service)
+
+        session.add(payment)
+        session.commit()
+        session.refresh(payment)
+
+        # Trigger DIAN invoices in background
+        if service:
+            self._trigger_dian_invoices(service, payment)
+
+        return self._to_response(payment, session)
+
+    # ── Admin ─────────────────────────────────────────────
 
     async def admin_confirm_payment(
         self,
@@ -167,6 +345,8 @@ class PaymentService:
         session.refresh(payment)
 
         return self._to_response(payment, session)
+
+    # ── Queries ───────────────────────────────────────────
 
     async def get_service_payment(
         self,
@@ -233,7 +413,15 @@ class PaymentService:
             client_name=client.full_name if client else None,
             technician_name=technician.full_name if technician else None,
             service_title=service.title if service else None,
+            # DIAN fields
+            invoice_number=payment.invoice_number,
+            cufe=payment.cufe,
+            qr_url=payment.qr_url,
+            pdf_url=payment.pdf_url,
+            dian_status=payment.dian_status,
         )
+
+    # ── Technician Stats ──────────────────────────────────
 
     async def get_technician_summary(
         self,

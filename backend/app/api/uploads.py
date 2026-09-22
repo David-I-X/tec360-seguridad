@@ -1,6 +1,8 @@
 """
 File upload endpoints for avatars and service photos.
 Path: backend/app/api/uploads.py
+
+Uses storage_service for file persistence (local or DigitalOcean Spaces).
 """
 import io
 import logging
@@ -14,27 +16,11 @@ from app.core.security import get_current_user
 from app.models.extras import ServiceImage
 from app.models.user import User
 from app.models.service import Service
+from app.services.storage_service import storage, get_content_type
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
-
-UPLOAD_DIR = "/opt/tec360-seguridad/uploads"
-AVATAR_DIR = os.path.join(UPLOAD_DIR, "avatars")
-SERVICE_PHOTO_DIR = os.path.join(UPLOAD_DIR, "service-photos")
-VEHICLE_PHOTO_DIR = os.path.join(UPLOAD_DIR, "vehicle-photos")
-PORTFOLIO_PHOTO_DIR = os.path.join(UPLOAD_DIR, "portfolio-photos")
-
-def ensure_upload_dirs():
-    """Create upload directories. Call on app startup after volumes are mounted."""
-    for d in [AVATAR_DIR, SERVICE_PHOTO_DIR, VEHICLE_PHOTO_DIR, PORTFOLIO_PHOTO_DIR]:
-        os.makedirs(d, exist_ok=True)
-
-# Also call at import time as fallback (works in dev without Docker volumes)
-try:
-    ensure_upload_dirs()
-except Exception:
-    pass  # will retry on startup
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB (phone cameras can exceed 5MB)
@@ -42,14 +28,14 @@ DEFAULT_MAX_DIMENSION = 1920
 DEFAULT_JPEG_QUALITY = 82
 
 
-def optimize_and_save_image(
+def optimize_image(
     content: bytes,
-    target_filepath: str,
+    ext: str,
     max_dimension: int = DEFAULT_MAX_DIMENSION,
     quality: int = DEFAULT_JPEG_QUALITY,
-) -> None:
+) -> bytes:
     """
-    Optimizes and saves an uploaded image:
+    Optimizes an uploaded image and returns the processed bytes:
     1. Normalizes EXIF rotation (so mobile photos aren't flipped sideways)
     2. Resizes if dimension > max_dimension while maintaining aspect ratio
     3. Converts RGBA to RGB if saving as JPEG
@@ -62,22 +48,21 @@ def optimize_and_save_image(
             if max(img.size) > max_dimension:
                 img.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
             
-            ext = os.path.splitext(target_filepath)[1].lower()
-            if ext in [".jpg", ".jpeg"]:
+            buf = io.BytesIO()
+            if ext in (".jpg", ".jpeg"):
                 if img.mode in ("RGBA", "P"):
                     img = img.convert("RGB")
-                img.save(target_filepath, "JPEG", quality=quality, optimize=True)
+                img.save(buf, "JPEG", quality=quality, optimize=True)
             elif ext == ".webp":
-                img.save(target_filepath, "WEBP", quality=quality, method=4)
+                img.save(buf, "WEBP", quality=quality, method=4)
             elif ext == ".png":
-                img.save(target_filepath, "PNG", optimize=True)
+                img.save(buf, "PNG", optimize=True)
             else:
-                with open(target_filepath, "wb") as f:
-                    f.write(content)
+                return content
+            return buf.getvalue()
     except Exception as e:
-        logger.warning(f"PIL image optimization failed, falling back to raw save: {e}")
-        with open(target_filepath, "wb") as f:
-            f.write(content)
+        logger.warning(f"PIL image optimization failed, using raw bytes: {e}")
+        return content
 
 
 def _validate_image(file: UploadFile):
@@ -101,14 +86,16 @@ async def upload_avatar(
     
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="File too large (max 5MB)")
+        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
     
     filename = f"{current_user['id']}_{uuid.uuid4().hex[:8]}{ext}"
-    filepath = os.path.join(AVATAR_DIR, filename)
+    optimized = optimize_image(content, ext, max_dimension=800, quality=85)
     
-    optimize_and_save_image(content, filepath, max_dimension=800, quality=85)
-    
-    avatar_url = f"/uploads/avatars/{filename}"
+    avatar_url = storage.upload(
+        content=optimized,
+        path=f"avatars/{filename}",
+        content_type=get_content_type(ext),
+    )
     
     # Update user's avatar_url
     user = session.get(User, current_user["id"])
@@ -146,14 +133,16 @@ async def upload_service_photo(
     
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="File too large (max 5MB)")
+        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
     
     filename = f"{service_id}_{image_type}_{uuid.uuid4().hex[:8]}{ext}"
-    filepath = os.path.join(SERVICE_PHOTO_DIR, filename)
+    optimized = optimize_image(content, ext, max_dimension=1920, quality=82)
     
-    optimize_and_save_image(content, filepath, max_dimension=1920, quality=82)
-    
-    image_url = f"/uploads/service-photos/{filename}"
+    image_url = storage.upload(
+        content=optimized,
+        path=f"service-photos/{filename}",
+        content_type=get_content_type(ext),
+    )
     
     # Create ServiceImage record
     service_image = ServiceImage(
@@ -220,14 +209,16 @@ async def upload_vehicle_photo(
     
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="File too large (max 5MB)")
+        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
     
     filename = f"{service_id}_vehicle_{uuid.uuid4().hex[:8]}{ext}"
-    filepath = os.path.join(VEHICLE_PHOTO_DIR, filename)
+    optimized = optimize_image(content, ext, max_dimension=1920, quality=82)
     
-    optimize_and_save_image(content, filepath, max_dimension=1920, quality=82)
-    
-    image_url = f"/uploads/vehicle-photos/{filename}"
+    image_url = storage.upload(
+        content=optimized,
+        path=f"vehicle-photos/{filename}",
+        content_type=get_content_type(ext),
+    )
     
     # Update Service record
     service.vehicle_photo_url = image_url
@@ -256,11 +247,13 @@ async def upload_portfolio_photo(
         raise HTTPException(status_code=400, detail="File too large (max 10MB)")
         
     filename = f"{current_user['id']}_portfolio_{uuid.uuid4().hex[:8]}{ext}"
-    filepath = os.path.join(PORTFOLIO_PHOTO_DIR, filename)
+    optimized = optimize_image(content, ext, max_dimension=1920, quality=82)
     
-    optimize_and_save_image(content, filepath, max_dimension=1920, quality=82)
-        
-    url = f"/uploads/portfolio-photos/{filename}"
+    url = storage.upload(
+        content=optimized,
+        path=f"portfolio-photos/{filename}",
+        content_type=get_content_type(ext),
+    )
     
     return {
         "url": url,
