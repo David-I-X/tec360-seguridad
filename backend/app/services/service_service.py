@@ -249,6 +249,8 @@ class ServiceService:
             vehicle_plate=s.vehicle_plate,
             vehicle_photo_url=s.vehicle_photo_url,
             service_metadata=s.service_metadata,
+            payment_method=getattr(s, "payment_method", None),
+            payment_status=getattr(s, "payment_status", "pending"),
             created_at=s.created_at,
             client_name=client.full_name if client else None,
             technician_name=technician.full_name if technician else None,
@@ -1014,6 +1016,8 @@ class ServiceService:
             "vehicle_model": service.vehicle_model,
             "vehicle_plate": service.vehicle_plate,
             "vehicle_photo_url": service.vehicle_photo_url,
+            "payment_method": getattr(service, "payment_method", None),
+            "payment_status": getattr(service, "payment_status", "pending"),
             "created_at": service.created_at,
             "updated_at": service.updated_at
         }

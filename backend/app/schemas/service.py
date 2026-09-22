@@ -312,6 +312,8 @@ class ServiceResponse(BaseModel):
     vehicle_plate: Optional[str] = None
     vehicle_photo_url: Optional[str] = None
     service_metadata: Optional[dict] = None
+    payment_method: Optional[str] = None
+    payment_status: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     
@@ -365,6 +367,8 @@ class ServiceListResponse(BaseModel):
     vehicle_plate: Optional[str] = None
     vehicle_photo_url: Optional[str] = None
     service_metadata: Optional[dict] = None
+    payment_method: Optional[str] = None
+    payment_status: Optional[str] = None
     created_at: datetime
     
     # Info mínima del cliente/técnico

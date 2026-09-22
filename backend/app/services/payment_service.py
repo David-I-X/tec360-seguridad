@@ -305,6 +305,7 @@ class PaymentService:
         service = session.get(Service, payment.service_id)
         if service:
             service.payment_status = "paid"
+            service.payment_method = "online"
             session.add(service)
 
         session.add(payment)
