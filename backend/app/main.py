@@ -88,6 +88,20 @@ async def on_startup():
                 seed_courses(session)
         except Exception as e:
             logger.warning(f"Could not seed Escuela Tec courses: {e}")
+
+    # Ensure DIAN fields exist on payments table
+    if settings.ENVIRONMENT != "test":
+        try:
+            from sqlalchemy import text
+            from sqlmodel import Session
+            from app.core.database import engine
+            with Session(engine) as session:
+                for col in ["invoice_number", "cufe", "qr_url", "pdf_url", "dian_status"]:
+                    session.exec(text(f"ALTER TABLE payments ADD COLUMN IF NOT EXISTS {col} VARCHAR;"))
+                session.commit()
+            logger.info("Payments DIAN columns verified/created")
+        except Exception as e:
+            logger.warning(f"Could not verify/add DIAN payment columns: {e}")
     
     # Start background scheduler
     if settings.ENVIRONMENT != "test":
