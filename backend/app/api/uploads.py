@@ -91,7 +91,7 @@ async def upload_avatar(
     filename = f"{current_user['id']}_{uuid.uuid4().hex[:8]}{ext}"
     optimized = optimize_image(content, ext, max_dimension=800, quality=85)
     
-    avatar_url = storage.upload(
+    avatar_url = await storage.upload(
         content=optimized,
         path=f"avatars/{filename}",
         content_type=get_content_type(ext),
@@ -138,7 +138,7 @@ async def upload_service_photo(
     filename = f"{service_id}_{image_type}_{uuid.uuid4().hex[:8]}{ext}"
     optimized = optimize_image(content, ext, max_dimension=1920, quality=82)
     
-    image_url = storage.upload(
+    image_url = await storage.upload(
         content=optimized,
         path=f"service-photos/{filename}",
         content_type=get_content_type(ext),
@@ -214,7 +214,7 @@ async def upload_vehicle_photo(
     filename = f"{service_id}_vehicle_{uuid.uuid4().hex[:8]}{ext}"
     optimized = optimize_image(content, ext, max_dimension=1920, quality=82)
     
-    image_url = storage.upload(
+    image_url = await storage.upload(
         content=optimized,
         path=f"vehicle-photos/{filename}",
         content_type=get_content_type(ext),
@@ -249,7 +249,7 @@ async def upload_portfolio_photo(
     filename = f"{current_user['id']}_portfolio_{uuid.uuid4().hex[:8]}{ext}"
     optimized = optimize_image(content, ext, max_dimension=1920, quality=82)
     
-    url = storage.upload(
+    url = await storage.upload(
         content=optimized,
         path=f"portfolio-photos/{filename}",
         content_type=get_content_type(ext),
