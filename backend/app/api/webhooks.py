@@ -1,12 +1,10 @@
 """
 Webhook receiver — SaaS Vertical (Factus/DIAN) events
 """
-from fastapi import APIRouter, Request
-from sqlmodel import Session, select
-from uuid import UUID
 import logging
+from fastapi import APIRouter, Request
+from sqlmodel import select
 
-from app.core.database import get_session
 from app.models.payment import Payment
 
 logger = logging.getLogger(__name__)
