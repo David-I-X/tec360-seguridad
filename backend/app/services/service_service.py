@@ -9,6 +9,7 @@ from sqlmodel import Session, select, func
 from app.models.service import Service, ServiceStatus
 from app.models.user import User
 from app.models.technician import Technician
+from app.models.payment import Payment
 from app.schemas.service import (
     ServiceCreate,
     ServiceUpdate,
@@ -133,8 +134,13 @@ class ServiceService:
                     tech_model = session.exec(select(Technician).where(Technician.user_id == technician.id)).first()
                     if tech_model and tech_model.average_rating is not None:
                         setattr(technician, "average_rating", float(tech_model.average_rating))
-                
-            return self._to_response(service, client=client, technician=technician)
+
+            # Traer info del pago más reciente (con datos DIAN)
+            payment = session.exec(
+                select(Payment).where(Payment.service_id == service.id).order_by(Payment.created_at.desc())
+            ).first()
+
+            return self._to_response(service, client=client, technician=technician, payment=payment)
             
         except HTTPException:
             raise
@@ -231,6 +237,10 @@ class ServiceService:
         if not city:
             city = "Medellín"
 
+        payment = session.exec(
+            select(Payment).where(Payment.service_id == s.id).order_by(Payment.created_at.desc())
+        ).first()
+
         return ServiceListResponse(
             id=str(s.id),
             service_type=s.service_type,
@@ -251,6 +261,11 @@ class ServiceService:
             service_metadata=s.service_metadata,
             payment_method=getattr(s, "payment_method", None),
             payment_status=getattr(s, "payment_status", "pending"),
+            invoice_number=payment.invoice_number if payment else None,
+            cufe=payment.cufe if payment else None,
+            qr_url=payment.qr_url if payment else None,
+            pdf_url=payment.pdf_url if payment else None,
+            dian_status=payment.dian_status if payment else None,
             created_at=s.created_at,
             client_name=client.full_name if client else None,
             technician_name=technician.full_name if technician else None,
@@ -978,7 +993,14 @@ class ServiceService:
         
         return response_list
 
-    def _to_response(self, service: Service, client_name: str = None, client: User = None, technician: User = None) -> ServiceResponse:
+    def _to_response(
+        self,
+        service: Service,
+        client_name: str = None,
+        client: User = None,
+        technician: User = None,
+        payment: Optional[Payment] = None,
+    ) -> ServiceResponse:
         """Helper para convertir DB model a Response Schema"""
         lat = 0.0
         lon = 0.0
@@ -1018,6 +1040,11 @@ class ServiceService:
             "vehicle_photo_url": service.vehicle_photo_url,
             "payment_method": getattr(service, "payment_method", None),
             "payment_status": getattr(service, "payment_status", "pending"),
+            "invoice_number": payment.invoice_number if payment else None,
+            "cufe": payment.cufe if payment else None,
+            "qr_url": payment.qr_url if payment else None,
+            "pdf_url": payment.pdf_url if payment else None,
+            "dian_status": payment.dian_status if payment else None,
             "created_at": service.created_at,
             "updated_at": service.updated_at
         }

@@ -9,7 +9,7 @@ import {
   ClipboardList, CheckCircle2, XCircle, ArrowLeft, Search,
   LayoutGrid, List, Map as MapIcon, Radio, Video, BellRing,
   ShieldAlert, Wrench, Clock, FileText, Activity,
-  Navigation, User, Sparkles, X, Car
+  Navigation, User, Sparkles, X, Car, Download
 } from "lucide-react"
 import { motion } from "framer-motion"
 
@@ -29,7 +29,7 @@ const statusLabels: Record<string, { label: string; color: string; dotColor: str
   arrived: { label: "Llegó al sitio", color: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30", dotColor: "bg-orange-500" },
   in_progress: { label: "En Progreso", color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30", dotColor: "bg-purple-500" },
   completed: { label: "Completado", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30", dotColor: "bg-emerald-500" },
-  confirmed: { label: "Confirmado", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30", dotColor: "bg-emerald-500" },
+  confirmed: { label: "Terminado", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30", dotColor: "bg-emerald-500" },
   cancelled: { label: "Cancelado", color: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30", dotColor: "bg-rose-500" },
 }
 
@@ -525,7 +525,22 @@ function MyServicesContent() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 shrink-0 w-full sm:w-auto justify-between sm:justify-end">
+                  <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-between sm:justify-end">
+                    {service.pdf_url && (
+                      <a
+                        href={service.pdf_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 transition-colors shadow-xs"
+                        title="Ver / Descargar Factura Electrónica DIAN"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Factura {service.invoice_number || "DIAN"}</span>
+                        <Download className="w-3 h-3 opacity-70" />
+                      </a>
+                    )}
+
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border ${statusInfo.color}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dotColor}`} />
                       {statusInfo.label}
@@ -667,6 +682,26 @@ function MyServicesContent() {
                         </div>
                       )}
                     </div>
+
+                    {/* DIAN Invoice Link (if available) */}
+                    {service.pdf_url && (
+                      <div className="mb-3">
+                        <a
+                          href={service.pdf_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 transition-colors shadow-xs"
+                          title="Ver / Descargar Factura Electrónica DIAN"
+                        >
+                          <span className="inline-flex items-center gap-1.5 truncate">
+                            <FileText className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                            <span className="truncate">Factura {service.invoice_number || "DIAN"}</span>
+                          </span>
+                          <Download className="w-3.5 h-3.5 opacity-70 shrink-0" />
+                        </a>
+                      </div>
+                    )}
 
                     {/* Bottom Row: Price + CTA Button */}
                     <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200/80 dark:border-white/10">

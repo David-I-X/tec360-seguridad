@@ -9,7 +9,7 @@ import {
     ArrowLeft, Calendar, MapPin, User, Wrench, Clock, Loader2,
     FileText, XCircle, MessageSquare, Copy, Check, X, PanelRightClose,
     PanelRightOpen, Shield, Navigation, AlertTriangle, Wifi, WifiOff,
-    Star, Phone, ShieldCheck, ChevronRight, ExternalLink
+    Star, Phone, ShieldCheck, ChevronRight, ExternalLink, Download
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -61,7 +61,7 @@ const statusLabels: Record<string, { label: string; color: string; dotColor: str
     arrived: { label: "Llegó al sitio", color: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30", dotColor: "bg-orange-500" },
     in_progress: { label: "En Progreso", color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30", dotColor: "bg-purple-500" },
     completed: { label: "Completado", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30", dotColor: "bg-emerald-500" },
-    confirmed: { label: "Confirmado", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30", dotColor: "bg-emerald-500" },
+    confirmed: { label: "Terminado", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30", dotColor: "bg-emerald-500" },
     cancelled: { label: "Cancelado", color: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30", dotColor: "bg-rose-500" },
 }
 
@@ -800,6 +800,80 @@ function ServiceDetailContent() {
                                     <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">
                                         ✅ ¡Gracias por tu calificación!
                                     </p>
+                                </div>
+                            )}
+
+                            {/* Facturación Electrónica DIAN */}
+                            {(service.pdf_url || service.invoice_number) && (
+                                <div className="rounded-2xl p-4 bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-emerald-600/10 border border-emerald-500/30 space-y-3 shadow-md">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                                                <FileText className="w-5 h-5" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                                    <span>Factura Electrónica</span>
+                                                    <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-[10px] font-mono uppercase font-bold">
+                                                        DIAN
+                                                    </span>
+                                                </h4>
+                                                <p className="text-[11px] text-slate-600 dark:text-slate-400 font-mono">
+                                                    {service.invoice_number ? `N° ${service.invoice_number}` : "Documento Oficial DIAN"}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {service.dian_status && (
+                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 uppercase shrink-0">
+                                                {service.dian_status === "accepted" ? "Aprobada DIAN" : service.dian_status}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {service.cufe && (
+                                        <div className="p-2.5 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-emerald-500/20 text-[10px] space-y-0.5">
+                                            <span className="text-[9px] font-mono uppercase font-bold text-slate-400">CUFE (Código Único):</span>
+                                            <p className="font-mono text-slate-600 dark:text-slate-400 break-all select-all leading-tight">
+                                                {service.cufe}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-2 pt-1">
+                                        {service.pdf_url && (
+                                            <a
+                                                href={service.pdf_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="block"
+                                            >
+                                                <Button
+                                                    size="sm"
+                                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl gap-1.5 shadow-sm cursor-pointer"
+                                                >
+                                                    <Download className="w-3.5 h-3.5" />
+                                                    <span>Descargar PDF</span>
+                                                </Button>
+                                            </a>
+                                        )}
+                                        {service.qr_url && (
+                                            <a
+                                                href={service.qr_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="block"
+                                            >
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="w-full border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 font-bold text-xs rounded-xl gap-1.5 cursor-pointer"
+                                                >
+                                                    <ExternalLink className="w-3.5 h-3.5" />
+                                                    <span>Validar DIAN</span>
+                                                </Button>
+                                            </a>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 

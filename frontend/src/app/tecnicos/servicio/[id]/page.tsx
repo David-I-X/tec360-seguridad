@@ -11,7 +11,7 @@ import {
     Loader2, CheckCircle, Camera, X, AlertCircle, Car,
     ReceiptText, MessageSquare, Clock, PanelRightClose,
     PanelRightOpen, Shield, ExternalLink, ChevronRight,
-    Wifi, Check, Copy, Star, Wrench, ShieldCheck
+    Wifi, Check, Copy, Star, Wrench, ShieldCheck, Download, FileText
 } from "lucide-react"
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -34,7 +34,7 @@ const FullScreenServiceMap = dynamic(
         ssr: false,
         loading: () => (
             <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-400 gap-3">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
                 <span className="text-xs font-mono tracking-wider uppercase">Iniciando Enlace Satelital...</span>
             </div>
         )
@@ -49,7 +49,7 @@ const statusLabels: Record<string, { label: string; color: string; dotColor: str
     arrived: { label: "Llegó al sitio", color: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30", dotColor: "bg-orange-500" },
     in_progress: { label: "En Progreso", color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30", dotColor: "bg-purple-500" },
     completed: { label: "Completado", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30", dotColor: "bg-emerald-500" },
-    confirmed: { label: "Confirmado", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30", dotColor: "bg-emerald-500" },
+    confirmed: { label: "Terminado", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30", dotColor: "bg-emerald-500" },
     cancelled: { label: "Cancelado", color: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30", dotColor: "bg-rose-500" },
 }
 
@@ -1202,27 +1202,89 @@ function TechnicianServiceContent() {
                             </div>
 
                             {/* 10. PAYMENT / CASH REGISTER PANEL */}
-                            {(service.status === "completed" || service.status === "confirmed" || paymentInfo) && (
+                            {(service.status === "completed" || service.status === "confirmed" || paymentInfo || service.payment_status === "completed") && (
                                 <div className="rounded-2xl p-4 bg-emerald-500/10 border border-emerald-500/30 space-y-3 shadow-sm">
                                     <div className="flex items-center justify-between">
                                         <h3 className="font-bold text-xs flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
                                             <span>💳 ESTADO DEL PAGO</span>
                                         </h3>
-                                        <Badge className={paymentInfo ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30" : "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30"}>
-                                            {paymentInfo ? (paymentInfo.status === "confirmed_by_admin" ? "Validado por Admin" : "Cobrado por Técnico") : "Pago Pendiente"}
+                                        <Badge className={(paymentInfo || service.payment_status === "completed") ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30" : "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30"}>
+                                            {paymentInfo 
+                                                ? (paymentInfo.status === "confirmed_by_admin" 
+                                                    ? "Validado por Admin" 
+                                                    : paymentInfo.payment_method === "online" 
+                                                    ? "Pagado en Línea" 
+                                                    : "Cobrado por Técnico") 
+                                                : service.payment_status === "completed"
+                                                ? "Pagado"
+                                                : "Pago Pendiente"}
                                         </Badge>
                                     </div>
 
-                                    {paymentInfo ? (
+                                    {(paymentInfo || service.payment_status === "completed") ? (
                                         <div className="space-y-2 text-xs">
                                             <div className="flex justify-between items-center bg-white/70 dark:bg-slate-900/60 p-3 rounded-xl border border-emerald-500/20">
                                                 <span className="text-slate-500 dark:text-slate-400">Monto Recibido</span>
-                                                <span className="font-mono font-bold text-base text-emerald-600 dark:text-emerald-400">${paymentInfo.amount.toLocaleString()} COP</span>
+                                                <span className="font-mono font-bold text-base text-emerald-600 dark:text-emerald-400">
+                                                    ${(paymentInfo?.amount || service.final_price || service.estimated_price || 0).toLocaleString()} COP
+                                                </span>
                                             </div>
                                             <div className="flex justify-between items-center text-[10px] text-slate-500 dark:text-slate-400 px-1">
-                                                <span>Método: {paymentInfo.payment_method === 'cash' ? 'Efectivo 💵' : paymentInfo.payment_method}</span>
-                                                <span>{new Date(paymentInfo.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                <span>
+                                                    Método: {paymentInfo?.payment_method === 'cash' ? 'Efectivo 💵' : paymentInfo?.payment_method === 'online' ? 'Pago en Línea 🌐' : (paymentInfo?.payment_method || service.payment_method || 'Registrado')}
+                                                </span>
+                                                {paymentInfo?.created_at && (
+                                                    <span>{new Date(paymentInfo.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                )}
                                             </div>
+
+                                            {/* Factura Electrónica DIAN */}
+                                            {(paymentInfo?.pdf_url || service.pdf_url) && (
+                                                <div className="pt-2 border-t border-emerald-500/20 mt-2 space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                                            <FileText className="w-3.5 h-3.5 text-emerald-500" />
+                                                            <span>Factura DIAN: {paymentInfo?.invoice_number || service.invoice_number || "Emitida"}</span>
+                                                        </span>
+                                                        <span className="text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                                                            Oficial
+                                                        </span>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <a
+                                                            href={paymentInfo?.pdf_url || service.pdf_url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="block"
+                                                        >
+                                                            <Button
+                                                                size="sm"
+                                                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl gap-1.5 h-8 cursor-pointer"
+                                                            >
+                                                                <Download className="w-3 h-3" />
+                                                                <span>Ver Factura PDF</span>
+                                                            </Button>
+                                                        </a>
+                                                        {(paymentInfo?.qr_url || service.qr_url) && (
+                                                            <a
+                                                                href={paymentInfo?.qr_url || service.qr_url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="block"
+                                                            >
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="w-full border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 font-semibold text-xs rounded-xl gap-1.5 h-8 cursor-pointer"
+                                                                >
+                                                                    <ExternalLink className="w-3 h-3" />
+                                                                    <span>Validar DIAN</span>
+                                                                </Button>
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     ) : (
                                         <div className="space-y-2.5">

@@ -7,7 +7,8 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import {
     ArrowLeft, Clock, CheckCircle, XCircle, Loader2,
-    ChevronRight, Shield, Wrench, MapPin, CalendarIcon
+    ChevronRight, Shield, Wrench, MapPin, CalendarIcon,
+    FileText, Download
 } from "lucide-react"
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
 import { getUserServices } from "@/lib/api"
@@ -23,6 +24,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
     arrived: { label: "Llegó", color: "text-blue-400", icon: Shield, badge: "default" },
     in_progress: { label: "En progreso", color: "text-blue-400", icon: Wrench, badge: "default" },
     completed: { label: "Completado", color: "text-green-400", icon: CheckCircle, badge: "outline" },
+    confirmed: { label: "Terminado", color: "text-emerald-400", icon: CheckCircle, badge: "outline" },
     cancelled: { label: "Cancelado", color: "text-red-400", icon: XCircle, badge: "destructive" },
 }
 
@@ -43,7 +45,7 @@ type Filter = typeof FILTERS[number]
 function matchesFilter(status: string, filter: Filter): boolean {
     if (filter === "Todos") return true
     if (filter === "Activos") return ["pending", "quoted", "assigned", "en_route", "arrived", "in_progress"].includes(status)
-    if (filter === "Completados") return status === "completed"
+    if (filter === "Completados") return ["completed", "confirmed"].includes(status)
     if (filter === "Cancelados") return status === "cancelled"
     return true
 }
@@ -66,7 +68,7 @@ function ServiceCard({ service, index }: { service: any; index: number }) {
                 <GlassCard className="p-5 hover:border-border/60 transition-all duration-200 group-hover:bg-white/[0.04]">
                     <div className="flex items-start gap-4">
                         {/* Icon */}
-                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${service.status === "completed" ? "bg-green-500/10" :
+                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${["completed", "confirmed"].includes(service.status) ? "bg-green-500/10" :
                                 service.status === "cancelled" ? "bg-red-500/10" : "bg-blue-500/10"
                             }`}>
                             <Icon className={`w-5 h-5 ${cfg.color}`} />
@@ -112,6 +114,24 @@ function ServiceCard({ service, index }: { service: any; index: number }) {
                                     {service.technician.full_name}
                                 </p>
                             )}
+
+                            {/* Factura Electrónica DIAN */}
+                            {service.pdf_url && (
+                                <div className="mt-3 pt-2.5 border-t border-border/20 flex items-center justify-between">
+                                    <a
+                                        href={service.pdf_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-colors shadow-xs"
+                                        title="Ver Factura Electrónica DIAN"
+                                    >
+                                        <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                                        <span>Factura {service.invoice_number || "Electrónica DIAN"}</span>
+                                        <Download className="w-3 h-3 opacity-70 ml-0.5" />
+                                    </a>
+                                </div>
+                            )}
                         </div>
 
                         <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground shrink-0 mt-1 transition-colors" />
@@ -144,7 +164,7 @@ function HistorialContent() {
     const filtered = services.filter((s) => matchesFilter(s.status, filter))
 
     const active = services.filter((s) => matchesFilter(s.status, "Activos")).length
-    const completed = services.filter((s) => s.status === "completed").length
+    const completed = services.filter((s) => ["completed", "confirmed"].includes(s.status)).length
 
     return (
         <div className="max-w-2xl mx-auto">

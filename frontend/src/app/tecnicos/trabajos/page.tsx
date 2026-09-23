@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Loader2, Filter, MapPin, Calendar, ChevronRight, Star, Briefcase, ArrowLeft } from "lucide-react"
+import { Loader2, Filter, MapPin, Calendar, ChevronRight, Star, Briefcase, ArrowLeft, FileText } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
@@ -19,6 +19,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
     arrived: { label: "En sitio", color: "bg-orange-500" },
     in_progress: { label: "En Progreso", color: "bg-purple-500" },
     completed: { label: "Completado", color: "bg-green-500" },
+    confirmed: { label: "Terminado", color: "bg-emerald-600" },
     cancelled: { label: "Cancelado", color: "bg-red-500" },
 }
 
@@ -92,7 +93,7 @@ function TechnicianJobsContent() {
                         const statsData = await statsRes.json()
                         setStats({
                             total: data.items?.length || 0,
-                            completed: data.items?.filter((s: any) => s.status === "completed").length || 0,
+                            completed: data.items?.filter((s: any) => ["completed", "confirmed"].includes(s.status)).length || 0,
                             avgRating: statsData.average_rating || 0,
                         })
                     }
@@ -115,7 +116,7 @@ function TechnicianJobsContent() {
         if (statusFilter === "active") {
             if (!["assigned", "en_route", "arrived", "in_progress"].includes(service.status)) return false
         } else if (statusFilter === "completed") {
-            if (service.status !== "completed") return false
+            if (!["completed", "confirmed"].includes(service.status)) return false
         }
         // Geo filter — only if we have location and service has coords
         if (userLocation && service.service_lat && service.service_lon) {
@@ -273,6 +274,19 @@ function TechnicianJobsContent() {
                                             </div>
 
                                             <div className="flex items-center gap-2 shrink-0">
+                                                {service.pdf_url && (
+                                                    <a
+                                                        href={service.pdf_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 transition-colors"
+                                                        title="Ver Factura Electrónica DIAN"
+                                                    >
+                                                        <FileText className="w-3 h-3 text-emerald-400" />
+                                                        <span>Factura {service.invoice_number || "DIAN"}</span>
+                                                    </a>
+                                                )}
                                                 <Badge className={statusLabels[service.status]?.color}>
                                                     {statusLabels[service.status]?.label || service.status}
                                                 </Badge>

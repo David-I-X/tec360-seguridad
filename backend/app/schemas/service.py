@@ -314,6 +314,11 @@ class ServiceResponse(BaseModel):
     service_metadata: Optional[dict] = None
     payment_method: Optional[str] = None
     payment_status: Optional[str] = None
+    invoice_number: Optional[str] = None
+    cufe: Optional[str] = None
+    qr_url: Optional[str] = None
+    pdf_url: Optional[str] = None
+    dian_status: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     
@@ -369,6 +374,11 @@ class ServiceListResponse(BaseModel):
     service_metadata: Optional[dict] = None
     payment_method: Optional[str] = None
     payment_status: Optional[str] = None
+    invoice_number: Optional[str] = None
+    cufe: Optional[str] = None
+    qr_url: Optional[str] = None
+    pdf_url: Optional[str] = None
+    dian_status: Optional[str] = None
     created_at: datetime
     
     # Info mínima del cliente/técnico
