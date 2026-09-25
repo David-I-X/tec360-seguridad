@@ -319,6 +319,16 @@ class ServiceResponse(BaseModel):
     qr_url: Optional[str] = None
     pdf_url: Optional[str] = None
     dian_status: Optional[str] = None
+    tech_invoice_number: Optional[str] = None
+    tech_cufe: Optional[str] = None
+    tech_qr_url: Optional[str] = None
+    tech_pdf_url: Optional[str] = None
+    tech_dian_status: Optional[str] = None
+    commission_amount: Optional[float] = None
+    has_warranty: bool = False
+    warranty_status: Optional[str] = None
+    warranty_days_left: Optional[int] = None
+    warranty_expires_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     
@@ -379,6 +389,16 @@ class ServiceListResponse(BaseModel):
     qr_url: Optional[str] = None
     pdf_url: Optional[str] = None
     dian_status: Optional[str] = None
+    tech_invoice_number: Optional[str] = None
+    tech_cufe: Optional[str] = None
+    tech_qr_url: Optional[str] = None
+    tech_pdf_url: Optional[str] = None
+    tech_dian_status: Optional[str] = None
+    commission_amount: Optional[float] = None
+    has_warranty: bool = False
+    warranty_status: Optional[str] = None
+    warranty_days_left: Optional[int] = None
+    warranty_expires_at: Optional[datetime] = None
     created_at: datetime
     
     # Info mínima del cliente/técnico

@@ -96,7 +96,10 @@ async def on_startup():
             from sqlmodel import Session
             from app.core.database import engine
             with Session(engine) as session:
-                for col in ["invoice_number", "cufe", "qr_url", "pdf_url", "dian_status"]:
+                for col in [
+                    "invoice_number", "cufe", "qr_url", "pdf_url", "dian_status",
+                    "tech_invoice_number", "tech_cufe", "tech_qr_url", "tech_pdf_url", "tech_dian_status"
+                ]:
                     session.exec(text(f"ALTER TABLE payments ADD COLUMN IF NOT EXISTS {col} VARCHAR;"))
                 session.commit()
             logger.info("Payments DIAN columns verified/created")

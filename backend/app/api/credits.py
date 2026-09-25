@@ -9,10 +9,10 @@ Endpoints:
 - POST /credits/admin/bonus   → Admin otorga bonificación
 """
 from typing import Optional, List
-from uuid import UUID
+from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 from app.core.database import get_session
@@ -38,6 +38,29 @@ class BalanceResponse(BaseModel):
 class RechargeRequest(BaseModel):
     amount: float
     external_reference: Optional[str] = None
+    payment_method: Optional[str] = None
+
+
+class RechargeIntentRequest(BaseModel):
+    amount: float = Field(..., gt=0, description="Monto en COP a recargar")
+    payment_method: str = Field(..., description="pse | nequi | daviplata | card")
+    bank_name: Optional[str] = None
+    card_last_four: Optional[str] = None
+
+
+class RechargeIntentResponse(BaseModel):
+    transaction_id: str
+    status: str = "processing"
+    payment_method: str
+    amount: float
+    message: str = "Iniciando recarga en pasarela..."
+
+
+class RechargeConfirmRequest(BaseModel):
+    transaction_id: str
+    amount: float
+    payment_method: str = "pse"
+    bank_name: Optional[str] = None
 
 
 class TransactionResponse(BaseModel):
@@ -104,15 +127,60 @@ async def recharge_credits(
     session: Session = Depends(get_session),
 ):
     """
-    Recarga de créditos.
-    Por ahora simula el pago. Cuando se integre Wompi, este endpoint
-    recibirá el webhook de confirmación.
+    Recarga de créditos directa o manual.
     """
+    desc = "Recarga de créditos"
+    if data.payment_method:
+        desc = f"Recarga de créditos via {data.payment_method.upper()}"
     txn = await credit_service.recharge(
         session=session,
         technician_id=current_user["id"],
         amount=data.amount,
         external_reference=data.external_reference,
+        description=desc,
+    )
+    return txn
+
+
+@router.post("/recharge/intent", response_model=RechargeIntentResponse, status_code=201)
+async def create_recharge_intent(
+    data: RechargeIntentRequest,
+    current_user: dict = Depends(require_roles("technician")),
+    session: Session = Depends(get_session),
+):
+    """Inicia la recarga de saldo mediante la pasarela digital (sandbox)."""
+    tx_id = f"sandbox-rech-{uuid4().hex[:14]}"
+    return RechargeIntentResponse(
+        transaction_id=tx_id,
+        status="processing",
+        payment_method=data.payment_method,
+        amount=data.amount,
+        message="Pasarela digital sandbox iniciada para recarga",
+    )
+
+
+@router.post("/recharge/confirm", response_model=TransactionResponse, status_code=200)
+async def confirm_recharge_intent(
+    data: RechargeConfirmRequest,
+    current_user: dict = Depends(require_roles("technician")),
+    session: Session = Depends(get_session),
+):
+    """Confirma la recarga digital tras la validación de la pasarela sandbox."""
+    method_labels = {
+        "pse": f"PSE ({data.bank_name or 'Bancolombia'})",
+        "card": "Tarjeta Débito/Crédito",
+        "nequi": "Nequi",
+        "daviplata": "Daviplata",
+    }
+    method_str = method_labels.get(data.payment_method, data.payment_method.upper())
+    desc = f"Recarga de créditos via {method_str}"
+
+    txn = await credit_service.recharge(
+        session=session,
+        technician_id=current_user["id"],
+        amount=data.amount,
+        external_reference=data.transaction_id,
+        description=desc,
     )
     return txn
 

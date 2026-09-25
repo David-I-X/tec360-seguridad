@@ -58,12 +58,20 @@ class PaymentResponse(BaseModel):
     technician_name: Optional[str] = None
     service_title: Optional[str] = None
 
-    # DIAN Electronic Invoice fields
+    # DIAN Electronic Invoice fields (Factura A - Cliente)
     invoice_number: Optional[str] = None
     cufe: Optional[str] = None
     qr_url: Optional[str] = None
     pdf_url: Optional[str] = None
     dian_status: Optional[str] = None
+
+    # Factura B (Comisión al Técnico)
+    tech_invoice_number: Optional[str] = None
+    tech_cufe: Optional[str] = None
+    tech_qr_url: Optional[str] = None
+    tech_pdf_url: Optional[str] = None
+    tech_dian_status: Optional[str] = None
+    commission_amount: Optional[float] = None
 
 
 class PaymentListResponse(BaseModel):

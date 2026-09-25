@@ -877,6 +877,43 @@ function ServiceDetailContent() {
                                 </div>
                             )}
 
+                            {/* Garantía de Servicio (30 Días) */}
+                            {(["completed", "confirmed"].includes(service.status)) && (
+                                <div className={`rounded-2xl p-4 border space-y-2.5 shadow-sm ${
+                                    service.warranty_status === "active" 
+                                        ? "bg-blue-500/10 border-blue-500/30" 
+                                        : "bg-slate-500/10 border-slate-500/30"
+                                }`}>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <ShieldCheck className="w-5 h-5 text-blue-500" />
+                                            <div>
+                                                <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                                                    Garantía Tec360 (30 Días)
+                                                </h4>
+                                                <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                                                    Cobertura completa en mano de obra e instalación
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <Badge className={
+                                            service.warranty_status === "active"
+                                                ? "bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30 text-[10px]"
+                                                : "bg-slate-500/20 text-slate-400 border-slate-500/30 text-[10px]"
+                                        }>
+                                            {service.warranty_status === "active"
+                                                ? `Activa (${service.warranty_days_left ?? 30} días)`
+                                                : "Garantía Vencida"}
+                                        </Badge>
+                                    </div>
+                                    <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                                        {service.warranty_status === "active"
+                                            ? `Tu servicio cuenta con garantía técnica oficial hasta el ${service.warranty_expires_at ? format(new Date(service.warranty_expires_at), "dd 'de' MMMM, yyyy", { locale: es }) : "30 días después de finalizado"}. Si notas cualquier desajuste, contáctanos y un técnico certificado lo solucionará sin costo adicional.`
+                                            : "El periodo de garantía de 30 días posteriores al servicio ha finalizado."}
+                                    </p>
+                                </div>
+                            )}
+
                             {/* 9. Cancel Service (only for pending/quoted) */}
                             {user?.role === "client" && ["pending", "quoted"].includes(service.status) && (
                                 <AlertDialog>

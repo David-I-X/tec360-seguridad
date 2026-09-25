@@ -37,12 +37,19 @@ class PaymentBase(SQLModel):
     paid_at: Optional[datetime] = None
     confirmed_by: Optional[UUID] = None         # User ID de quien confirmó
 
-    # DIAN Electronic Invoice fields (from SaaS Vertical / Factus)
+    # DIAN Electronic Invoice fields (from SaaS Vertical / Factus) - Factura A (Cliente)
     invoice_number: Optional[str] = None        # Consecutivo DIAN (ej: SETP990018946)
     cufe: Optional[str] = None                  # Código Único de Facturación Electrónica (96 chars)
     qr_url: Optional[str] = None               # Enlace al validador oficial DIAN
     pdf_url: Optional[str] = None              # PDF con formato oficial DIAN/Factus
     dian_status: Optional[str] = None          # "accepted", "rejected", "pending"
+
+    # Factura B (Comisión de intermediación cobrada al Técnico)
+    tech_invoice_number: Optional[str] = None   # Consecutivo DIAN comisión (ej: SETP990018947)
+    tech_cufe: Optional[str] = None             # CUFE de factura de comisión al técnico
+    tech_qr_url: Optional[str] = None          # QR validador oficial DIAN factura comisión
+    tech_pdf_url: Optional[str] = None         # PDF oficial DIAN factura comisión
+    tech_dian_status: Optional[str] = None     # "accepted", "rejected", "pending"
 
 
 class Payment(PaymentBase, table=True):

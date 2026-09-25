@@ -22,7 +22,7 @@ from app.schemas.service import (
     ServiceTechnician
 )
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 from geoalchemy2.shape import to_shape
 
 class ServiceService:
@@ -140,6 +140,10 @@ class ServiceService:
                 select(Payment).where(Payment.service_id == service.id).order_by(Payment.created_at.desc())
             ).first()
 
+            if payment and payment.technician_id and not payment.tech_pdf_url and payment.invoice_number:
+                from app.services.payment_service import payment_service
+                payment = await payment_service.ensure_tech_commission_invoice(session, payment)
+
             return self._to_response(service, client=client, technician=technician, payment=payment)
             
         except HTTPException:
@@ -241,6 +245,13 @@ class ServiceService:
             select(Payment).where(Payment.service_id == s.id).order_by(Payment.created_at.desc())
         ).first()
 
+        has_warranty, w_status, w_days, w_expires = self._compute_warranty(s)
+        commission_amt = None
+        if payment and payment.amount:
+            commission_amt = round(payment.amount * 0.18, 2)
+        elif getattr(s, "final_price", None) or s.estimated_price:
+            commission_amt = round(float(getattr(s, "final_price", None) or s.estimated_price) * 0.18, 2)
+
         return ServiceListResponse(
             id=str(s.id),
             service_type=s.service_type,
@@ -266,12 +277,36 @@ class ServiceService:
             qr_url=payment.qr_url if payment else None,
             pdf_url=payment.pdf_url if payment else None,
             dian_status=payment.dian_status if payment else None,
+            tech_invoice_number=payment.tech_invoice_number if payment else None,
+            tech_cufe=payment.tech_cufe if payment else None,
+            tech_qr_url=payment.tech_qr_url if payment else None,
+            tech_pdf_url=payment.tech_pdf_url if payment else None,
+            tech_dian_status=payment.tech_dian_status if payment else None,
+            commission_amount=commission_amt,
+            has_warranty=has_warranty,
+            warranty_status=w_status,
+            warranty_days_left=w_days,
+            warranty_expires_at=w_expires,
             created_at=s.created_at,
             client_name=client.full_name if client else None,
             technician_name=technician.full_name if technician else None,
             client=client_schema,
             technician=tech_schema
         )
+
+    @staticmethod
+    def _compute_warranty(service: Service) -> tuple[bool, Optional[str], Optional[int], Optional[datetime]]:
+        """Calcula el estado de garantía de 30 días para servicios completados o terminados/confirmados."""
+        if service.status not in ["completed", "confirmed"]:
+            return False, None, None, None
+
+        base_date = service.updated_at or service.created_at
+        expires_at = base_date + timedelta(days=30)
+        now = datetime.utcnow()
+        diff = (expires_at - now).total_seconds()
+        days_left = max(0, int(diff // 86400))
+        w_status = "active" if now <= expires_at else "expired"
+        return True, w_status, days_left, expires_at
 
     async def list_available_services(
         self,
@@ -1018,6 +1053,13 @@ class ServiceService:
         if not city:
             city = "Medellín"
 
+        has_warranty, w_status, w_days, w_expires = self._compute_warranty(service)
+        commission_amt = None
+        if payment and payment.amount:
+            commission_amt = round(payment.amount * 0.18, 2)
+        elif getattr(service, "final_price", None) or service.estimated_price:
+            commission_amt = round(float(getattr(service, "final_price", None) or service.estimated_price) * 0.18, 2)
+
         response_kwargs = {
             "id": str(service.id),
             "client_id": str(service.client_id),
@@ -1045,6 +1087,16 @@ class ServiceService:
             "qr_url": payment.qr_url if payment else None,
             "pdf_url": payment.pdf_url if payment else None,
             "dian_status": payment.dian_status if payment else None,
+            "tech_invoice_number": payment.tech_invoice_number if payment else None,
+            "tech_cufe": payment.tech_cufe if payment else None,
+            "tech_qr_url": payment.tech_qr_url if payment else None,
+            "tech_pdf_url": payment.tech_pdf_url if payment else None,
+            "tech_dian_status": payment.tech_dian_status if payment else None,
+            "commission_amount": commission_amt,
+            "has_warranty": has_warranty,
+            "warranty_status": w_status,
+            "warranty_days_left": w_days,
+            "warranty_expires_at": w_expires,
             "created_at": service.created_at,
             "updated_at": service.updated_at
         }

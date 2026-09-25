@@ -1222,13 +1222,36 @@ function TechnicianServiceContent() {
                                     </div>
 
                                     {(paymentInfo || service.payment_status === "completed") ? (
-                                        <div className="space-y-2 text-xs">
-                                            <div className="flex justify-between items-center bg-white/70 dark:bg-slate-900/60 p-3 rounded-xl border border-emerald-500/20">
-                                                <span className="text-slate-500 dark:text-slate-400">Monto Recibido</span>
-                                                <span className="font-mono font-bold text-base text-emerald-600 dark:text-emerald-400">
-                                                    ${(paymentInfo?.amount || service.final_price || service.estimated_price || 0).toLocaleString()} COP
-                                                </span>
-                                            </div>
+                                        <div className="space-y-3 text-xs">
+                                            {/* Commission Breakdown */}
+                                            {(() => {
+                                                const totalAmount = paymentInfo?.amount || service.final_price || service.estimated_price || 0
+                                                const commissionAmount = paymentInfo?.commission_amount || service.commission_amount || Math.round(totalAmount * 0.18)
+                                                const netEarnings = Math.max(0, totalAmount - commissionAmount)
+                                                return (
+                                                    <div className="space-y-1.5 bg-white/70 dark:bg-slate-900/60 p-3 rounded-xl border border-emerald-500/20">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-slate-500 dark:text-slate-400">Total Cobrado al Cliente</span>
+                                                            <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
+                                                                ${totalAmount.toLocaleString()} COP
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center text-[11px] text-rose-500 dark:text-rose-400">
+                                                            <span>- Comisión Plataforma Tec360 (18%)</span>
+                                                            <span className="font-mono font-semibold">
+                                                                -${commissionAmount.toLocaleString()} COP
+                                                            </span>
+                                                        </div>
+                                                        <div className="pt-1.5 border-t border-slate-200 dark:border-white/10 flex justify-between items-center">
+                                                            <span className="font-bold text-emerald-600 dark:text-emerald-400">Tu Ganancia Neta (82%)</span>
+                                                            <span className="font-mono font-bold text-base text-emerald-600 dark:text-emerald-400">
+                                                                ${netEarnings.toLocaleString()} COP
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })()}
+
                                             <div className="flex justify-between items-center text-[10px] text-slate-500 dark:text-slate-400 px-1">
                                                 <span>
                                                     Método: {paymentInfo?.payment_method === 'cash' ? 'Efectivo 💵' : paymentInfo?.payment_method === 'online' ? 'Pago en Línea 🌐' : (paymentInfo?.payment_method || service.payment_method || 'Registrado')}
@@ -1238,16 +1261,64 @@ function TechnicianServiceContent() {
                                                 )}
                                             </div>
 
-                                            {/* Factura Electrónica DIAN */}
+                                            {/* Factura Comisión DIAN Técnico */}
+                                            {(paymentInfo?.tech_pdf_url || service.tech_pdf_url) && (
+                                                <div className="pt-2 border-t border-indigo-500/20 mt-2 space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                                            <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                                                            <span>Factura DIAN Comisión: {paymentInfo?.tech_invoice_number || service.tech_invoice_number || "Emitida"}</span>
+                                                        </span>
+                                                        <span className="text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-400">
+                                                            Oficial Tec360
+                                                        </span>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <a
+                                                            href={paymentInfo?.tech_pdf_url || service.tech_pdf_url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="block"
+                                                        >
+                                                            <Button
+                                                                size="sm"
+                                                                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl gap-1.5 h-8 cursor-pointer"
+                                                            >
+                                                                <Download className="w-3 h-3" />
+                                                                <span>Factura Comisión PDF</span>
+                                                            </Button>
+                                                        </a>
+                                                        {(paymentInfo?.tech_qr_url || service.tech_qr_url) && (
+                                                            <a
+                                                                href={paymentInfo?.tech_qr_url || service.tech_qr_url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="block"
+                                                            >
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="w-full border-indigo-500/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/10 font-semibold text-xs rounded-xl gap-1.5 h-8 cursor-pointer"
+                                                                >
+                                                                    <ExternalLink className="w-3 h-3" />
+                                                                    <span>Validar DIAN</span>
+                                                                </Button>
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Factura Electrónica Cliente DIAN */}
                                             {(paymentInfo?.pdf_url || service.pdf_url) && (
                                                 <div className="pt-2 border-t border-emerald-500/20 mt-2 space-y-2">
                                                     <div className="flex items-center justify-between">
                                                         <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                                                             <FileText className="w-3.5 h-3.5 text-emerald-500" />
-                                                            <span>Factura DIAN: {paymentInfo?.invoice_number || service.invoice_number || "Emitida"}</span>
+                                                            <span>Factura DIAN Cliente: {paymentInfo?.invoice_number || service.invoice_number || "Emitida"}</span>
                                                         </span>
                                                         <span className="text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                                                            Oficial
+                                                            Servicio
                                                         </span>
                                                     </div>
                                                     <div className="grid grid-cols-2 gap-2">
@@ -1259,10 +1330,11 @@ function TechnicianServiceContent() {
                                                         >
                                                             <Button
                                                                 size="sm"
-                                                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl gap-1.5 h-8 cursor-pointer"
+                                                                variant="outline"
+                                                                className="w-full border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 font-semibold text-xs rounded-xl gap-1.5 h-8 cursor-pointer"
                                                             >
                                                                 <Download className="w-3 h-3" />
-                                                                <span>Ver Factura PDF</span>
+                                                                <span>Factura Cliente PDF</span>
                                                             </Button>
                                                         </a>
                                                         {(paymentInfo?.qr_url || service.qr_url) && (
@@ -1299,6 +1371,36 @@ function TechnicianServiceContent() {
                                             </Button>
                                         </div>
                                     )}
+                                </div>
+                            )}
+
+                            {/* 10.5 WARRANTY STATUS CARD (30 DAYS) */}
+                            {(service.status === "completed" || service.status === "confirmed") && (
+                                <div className={`rounded-2xl p-4 border space-y-2.5 shadow-sm ${
+                                    service.warranty_status === "active" 
+                                        ? "bg-blue-500/10 border-blue-500/30" 
+                                        : "bg-slate-500/10 border-slate-500/30"
+                                }`}>
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="font-bold text-xs flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+                                            <ShieldCheck className="w-4 h-4" />
+                                            <span>GARANTÍA TÉCNICA (30 DÍAS)</span>
+                                        </h3>
+                                        <Badge className={
+                                            service.warranty_status === "active"
+                                                ? "bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                                                : "bg-slate-500/20 text-slate-400 border-slate-500/30"
+                                        }>
+                                            {service.warranty_status === "active"
+                                                ? `Activa (${service.warranty_days_left ?? 30} días restantes)`
+                                                : "Garantía Vencida"}
+                                        </Badge>
+                                    </div>
+                                    <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                                        {service.warranty_status === "active"
+                                            ? `Este servicio cuenta con garantía técnica oficial hasta el ${service.warranty_expires_at ? format(new Date(service.warranty_expires_at), "dd 'de' MMMM, yyyy", { locale: es }) : "30 días después de finalizado"}. Ante cualquier novedad reportada por el cliente durante este lapso, el trabajo está cubierto por garantía.`
+                                            : "El periodo de garantía de 30 días posteriores a la instalación ha finalizado."}
+                                    </p>
                                 </div>
                             )}
 

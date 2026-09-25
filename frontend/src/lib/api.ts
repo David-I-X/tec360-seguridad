@@ -548,15 +548,53 @@ export async function getCreditTransactions(skip = 0, limit = 50): Promise<Credi
 /**
  * Recarga créditos (simulada por ahora)
  */
-export async function rechargeCredits(amount: number, externalReference?: string): Promise<CreditTransaction> {
+export async function rechargeCredits(amount: number, externalReference?: string, paymentMethod?: string): Promise<CreditTransaction> {
   const response = await fetchWithAuth("/credits/recharge", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ amount, external_reference: externalReference }),
+    body: JSON.stringify({ amount, external_reference: externalReference, payment_method: paymentMethod }),
   })
   if (!response.ok) await handleAPIError(response)
   return response.json()
 }
+
+/**
+ * Inicia la intención de recarga de créditos en pasarela sandbox
+ */
+export async function rechargeCreditsIntent(amount: number, paymentMethod: string = "pse"): Promise<{
+  transaction_id: string;
+  status: string;
+  amount: number;
+  payment_method: string;
+}> {
+  const response = await fetchWithAuth("/credits/recharge/intent", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount, payment_method: paymentMethod }),
+  })
+  if (!response.ok) await handleAPIError(response)
+  return response.json()
+}
+
+/**
+ * Confirma la recarga de créditos una vez aprobada por la pasarela sandbox
+ */
+export async function rechargeCreditsConfirm(transactionId: string): Promise<{
+  transaction_id: string;
+  status: string;
+  amount: number;
+  balance_after: number;
+  message: string;
+}> {
+  const response = await fetchWithAuth("/credits/recharge/confirm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ transaction_id: transactionId }),
+  })
+  if (!response.ok) await handleAPIError(response)
+  return response.json()
+}
+
 
 // ============================================
 // HELPER - Verificar autenticación

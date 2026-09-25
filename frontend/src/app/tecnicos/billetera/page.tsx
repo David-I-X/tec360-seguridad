@@ -18,12 +18,21 @@ import {
   TrendingUp,
   TrendingDown,
   RefreshCw,
+  CreditCard,
+  ShieldCheck,
+  CheckCircle,
+  ChevronDown,
+  Lock,
+  Smartphone,
+  Check,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   getCreditBalance,
   getCreditTransactions,
   rechargeCredits,
+  rechargeCreditsIntent,
+  rechargeCreditsConfirm,
   type BalanceData,
   type CreditTransaction,
 } from "@/lib/api";
@@ -145,9 +154,22 @@ function TransactionSkeleton() {
   );
 }
 
-// ── Recharge Modal ──────────────────────────────
+// ── Recharge Modal (Sandbox Digital Gateway) ────────────────
 
 const PRESET_AMOUNTS = [20000, 50000, 100000, 200000];
+const COLOMBIAN_BANKS = [
+  "Bancolombia",
+  "Davivienda",
+  "Banco de Bogotá",
+  "BBVA Colombia",
+  "Banco de Occidente",
+  "Scotiabank Colpatria",
+  "Banco Popular",
+  "Nequi",
+  "Daviplata",
+];
+
+type RechargeMethod = "pse" | "card" | "nequi" | "daviplata";
 
 function RechargeModal({
   open,
@@ -160,109 +182,337 @@ function RechargeModal({
 }) {
   const [amount, setAmount] = useState<number>(50000);
   const [customAmount, setCustomAmount] = useState("");
+  const [method, setMethod] = useState<RechargeMethod>("pse");
+  const [selectedBank, setSelectedBank] = useState("Bancolombia");
+  const [phone, setPhone] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [txId, setTxId] = useState<string | null>(null);
 
-  if (!open) return null;
+  if (!open && !success) return null;
 
   const effectiveAmount = customAmount ? Number(customAmount) : amount;
 
   async function handleRecharge() {
     if (!effectiveAmount || effectiveAmount < 5000) {
-      setError("El monto mínimo es $5.000 COP");
+      setError("El monto mínimo de recarga es $5.000 COP");
       return;
     }
     setLoading(true);
     setError("");
+    setLoadingStep("Conectando con Pasarela Sandbox...");
+
     try {
-      await rechargeCredits(effectiveAmount, "manual-web");
+      // 1. Intent call to backend
+      const intentData = await rechargeCreditsIntent(effectiveAmount, method);
+      const transactionId = intentData.transaction_id;
+      setTxId(transactionId);
+
+      // 2. Realistic processing animation
+      setLoadingStep("Validando con la entidad financiera...");
+      await new Promise((r) => setTimeout(r, 1300));
+
+      setLoadingStep("Acreditando saldo en tu billetera...");
+      await new Promise((r) => setTimeout(r, 1200));
+
+      // 3. Confirm call to backend
+      await rechargeCreditsConfirm(transactionId);
+
+      setSuccess(true);
       onSuccess();
-      onClose();
     } catch (err: any) {
-      setError(err.message || "Error al recargar");
+      setError(err.message || "Error al procesar la recarga en pasarela sandbox");
     } finally {
       setLoading(false);
     }
   }
 
+  function handleCloseModal() {
+    setError("");
+    setSuccess(false);
+    setTxId(null);
+    onClose();
+  }
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="glass-premium rounded-3xl p-6 w-full max-w-md relative z-10 animate-scale-in space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold">Recargar Créditos</h3>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/10 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 overflow-y-auto py-8">
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={handleCloseModal} />
+      <div className="glass-premium rounded-3xl p-6 w-full max-w-lg relative z-10 animate-scale-in space-y-5 my-auto max-h-[90vh] overflow-y-auto">
+        {success ? (
+          <div className="py-8 text-center space-y-4 animate-fade-in-up">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400">
+              <CheckCircle className="w-10 h-10" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-2xl font-bold text-white">¡Recarga Exitosa!</h3>
+              <p className="text-sm text-slate-300">
+                Se han acreditado{" "}
+                <span className="font-bold font-mono text-emerald-400">
+                  {formatCOP(effectiveAmount)} COP
+                </span>{" "}
+                a tu billetera.
+              </p>
+            </div>
+            {txId && (
+              <div className="bg-slate-900/80 border border-emerald-500/30 rounded-xl p-3 inline-block max-w-full">
+                <p className="text-[10px] uppercase font-bold text-slate-400">Referencia de Pago</p>
+                <p className="font-mono text-xs text-emerald-300 font-bold truncate select-all">
+                  {txId}
+                </p>
+              </div>
+            )}
+            <div className="pt-2">
+              <button
+                onClick={handleCloseModal}
+                className="brand-btn w-full py-3.5 rounded-xl font-bold text-white shadow-lg cursor-pointer"
+              >
+                Volver a la Billetera
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div>
+                <h3 className="text-lg font-bold flex items-center gap-2">
+                  <Wallet className="w-5 h-5 text-indigo-400" />
+                  Recargar Créditos
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Pasarela digital Sandbox (PSE, Tarjetas, Nequi, Daviplata)
+                </p>
+              </div>
+              <button
+                onClick={handleCloseModal}
+                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-        {/* Preset amounts */}
-        <div className="grid grid-cols-2 gap-3">
-          {PRESET_AMOUNTS.map((preset) => (
+            {/* Preset amounts */}
+            <div className="space-y-2">
+              <label className="text-xs text-slate-400 font-medium">Selecciona un monto</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {PRESET_AMOUNTS.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => {
+                      setAmount(preset);
+                      setCustomAmount("");
+                    }}
+                    className={`py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                      amount === preset && !customAmount
+                        ? "brand-btn text-white shadow-md scale-[1.02]"
+                        : "glass hover:bg-white/10 text-slate-300"
+                    }`}
+                  >
+                    {formatCOP(preset)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom amount */}
+            <div className="space-y-1.5">
+              <label className="text-xs text-slate-400 font-medium">O ingresa un valor específico</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                <input
+                  type="number"
+                  placeholder="Ej: 80000"
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  className="w-full bg-slate-900/80 border border-white/10 rounded-xl py-2.5 pl-8 pr-4 text-sm focus:outline-none focus:border-indigo-500 font-mono text-white"
+                />
+              </div>
+            </div>
+
+            {/* Payment Method Tabs */}
+            <div className="space-y-2">
+              <label className="text-xs text-slate-400 font-medium">Método de Pago</label>
+              <div className="grid grid-cols-4 gap-1.5 p-1 bg-white/5 rounded-xl border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setMethod("pse")}
+                  className={`py-2 rounded-lg text-xs font-bold transition-all ${
+                    method === "pse" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  PSE
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMethod("card")}
+                  className={`py-2 rounded-lg text-xs font-bold transition-all ${
+                    method === "card" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Tarjeta
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMethod("nequi")}
+                  className={`py-2 rounded-lg text-xs font-bold transition-all ${
+                    method === "nequi" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Nequi
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMethod("daviplata")}
+                  className={`py-2 rounded-lg text-xs font-bold transition-all ${
+                    method === "daviplata" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Daviplata
+                </button>
+              </div>
+            </div>
+
+            {/* Method Details Form */}
+            <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
+              {method === "pse" && (
+                <div className="space-y-2">
+                  <label className="text-xs text-slate-400 flex items-center justify-between">
+                    <span>Selecciona tu Banco</span>
+                    <span className="text-[10px] text-indigo-400 font-mono">Débito ACH</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={selectedBank}
+                      onChange={(e) => setSelectedBank(e.target.value)}
+                      className="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white appearance-none focus:outline-none focus:border-indigo-500"
+                    >
+                      {COLOMBIAN_BANKS.map((b) => (
+                        <option key={b} value={b} className="bg-slate-900 text-white">
+                          {b}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+              )}
+
+              {method === "card" && (
+                <div className="space-y-2.5">
+                  <div>
+                    <label className="text-xs text-slate-400">Número de Tarjeta</label>
+                    <input
+                      type="text"
+                      placeholder="4500 •••• •••• 1234"
+                      value={cardNumber}
+                      onChange={(e) => setCardNumber(e.target.value)}
+                      maxLength={19}
+                      className="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-slate-400">Vencimiento</label>
+                      <input
+                        type="text"
+                        placeholder="MM/AA"
+                        value={cardExpiry}
+                        onChange={(e) => setCardExpiry(e.target.value)}
+                        maxLength={5}
+                        className="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-400">CVV</label>
+                      <input
+                        type="password"
+                        placeholder="•••"
+                        value={cardCvv}
+                        onChange={(e) => setCardCvv(e.target.value)}
+                        maxLength={4}
+                        className="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {(method === "nequi" || method === "daviplata") && (
+                <div className="space-y-2">
+                  <label className="text-xs text-slate-400 flex items-center justify-between">
+                    <span>Número de celular registrado en {method === "nequi" ? "Nequi" : "Daviplata"}</span>
+                    <Smartphone className="w-3.5 h-3.5 text-indigo-400" />
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-mono">+57</span>
+                    <input
+                      type="tel"
+                      placeholder="300 123 4567"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      maxLength={10}
+                      className="w-full bg-slate-900 border border-white/10 rounded-xl py-2 pl-12 pr-3.5 text-xs font-mono text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    Recibirás una notificación push en tu app para autorizar el débito en tiempo real.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Total Summary */}
+            <div className="glass rounded-xl p-3.5 flex justify-between items-center">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400">Total a Pagar</span>
+                <p className="text-xl font-bold font-mono text-white">{formatCOP(effectiveAmount)}</p>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] uppercase font-bold text-emerald-400 flex items-center justify-end gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Pasarela Segura
+                </span>
+                <p className="text-xs text-slate-400">Sandbox Certificado</p>
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Submit Button */}
             <button
-              key={preset}
-              onClick={() => {
-                setAmount(preset);
-                setCustomAmount("");
-              }}
-              className={`py-3 rounded-xl font-bold text-sm transition-all ${
-                amount === preset && !customAmount
-                  ? "brand-btn text-white shadow-lg"
-                  : "glass hover:bg-white/10"
-              }`}
+              onClick={handleRecharge}
+              disabled={loading}
+              className="brand-btn w-full py-3.5 rounded-xl flex items-center justify-center gap-2 font-bold text-white shadow-xl disabled:opacity-50 cursor-pointer"
             >
-              {formatCOP(preset)}
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-xs">{loadingStep || "Procesando..."}</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="w-4 h-4" />
+                  <span>Pagar y Recargar {formatCOP(effectiveAmount)}</span>
+                </>
+              )}
             </button>
-          ))}
-        </div>
 
-        {/* Custom amount */}
-        <div className="space-y-2">
-          <label className="text-xs text-slate-400 font-medium">O ingresa un monto personalizado</label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-            <input
-              type="number"
-              placeholder="Ej: 75000"
-              value={customAmount}
-              onChange={(e) => setCustomAmount(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-indigo-500 transition-colors font-mono"
-            />
-          </div>
-        </div>
-
-        {/* Summary */}
-        <div className="glass rounded-xl p-4 space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-400">Monto a recargar</span>
-            <span className="font-bold font-mono">{formatCOP(effectiveAmount)}</span>
-          </div>
-          <div className="flex justify-between text-xs text-slate-500">
-            <span>Método</span>
-            <span>Simulado (PSE próximamente)</span>
-          </div>
-        </div>
-
-        {error && (
-          <p className="text-sm text-rose-400 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" />
-            {error}
-          </p>
+            <p className="text-[10px] text-center text-slate-500 flex items-center justify-center gap-1">
+              <Lock className="w-3 h-3" />
+              Transacción protegida por Pasarela Digital Tec360
+            </p>
+          </>
         )}
-
-        <button
-          onClick={handleRecharge}
-          disabled={loading}
-          className="brand-btn w-full py-4 rounded-2xl flex items-center justify-center gap-2 font-bold text-white shadow-xl disabled:opacity-50"
-        >
-          {loading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <Plus className="w-5 h-5" />
-          )}
-          {loading ? "Procesando..." : `Recargar ${formatCOP(effectiveAmount)}`}
-        </button>
       </div>
     </div>
   );

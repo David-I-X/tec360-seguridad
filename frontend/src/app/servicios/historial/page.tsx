@@ -39,14 +39,15 @@ const TYPE_LABELS: Record<string, string> = {
     other: "Servicio Técnico",
 }
 
-const FILTERS = ["Todos", "Activos", "Completados", "Cancelados"] as const
+const FILTERS = ["Todos", "Activos", "Completados", "Con Garantía", "Cancelados"] as const
 type Filter = typeof FILTERS[number]
 
-function matchesFilter(status: string, filter: Filter): boolean {
+function matchesFilter(service: any, filter: Filter): boolean {
     if (filter === "Todos") return true
-    if (filter === "Activos") return ["pending", "quoted", "assigned", "en_route", "arrived", "in_progress"].includes(status)
-    if (filter === "Completados") return ["completed", "confirmed"].includes(status)
-    if (filter === "Cancelados") return status === "cancelled"
+    if (filter === "Activos") return ["pending", "quoted", "assigned", "en_route", "arrived", "in_progress"].includes(service.status)
+    if (filter === "Completados") return ["completed", "confirmed"].includes(service.status)
+    if (filter === "Con Garantía") return service.warranty_status === "active"
+    if (filter === "Cancelados") return service.status === "cancelled"
     return true
 }
 
@@ -78,9 +79,21 @@ function ServiceCard({ service, index }: { service: any; index: number }) {
                         <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                                 <div>
-                                    <p className="font-semibold text-sm leading-tight">
-                                        {TYPE_LABELS[service.service_type] || "Servicio"}
-                                    </p>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <p className="font-semibold text-sm leading-tight">
+                                            {TYPE_LABELS[service.service_type] || "Servicio"}
+                                        </p>
+                                        {service.warranty_status === "active" && (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full shrink-0">
+                                                🛡️ Garantía ({service.warranty_days_left}d)
+                                            </span>
+                                        )}
+                                        {service.warranty_status === "expired" && (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-500/10 border border-slate-500/20 px-2 py-0.5 rounded-full shrink-0">
+                                                Garantía Vencida
+                                            </span>
+                                        )}
+                                    </div>
                                     {service.vehicle_model && (
                                         <p className="text-xs text-muted-foreground mt-0.5">{service.vehicle_model}</p>
                                     )}
@@ -161,10 +174,11 @@ function HistorialContent() {
             .finally(() => setIsLoading(false))
     }, [])
 
-    const filtered = services.filter((s) => matchesFilter(s.status, filter))
+    const filtered = services.filter((s) => matchesFilter(s, filter))
 
-    const active = services.filter((s) => matchesFilter(s.status, "Activos")).length
+    const active = services.filter((s) => matchesFilter(s, "Activos")).length
     const completed = services.filter((s) => ["completed", "confirmed"].includes(s.status)).length
+    const warrantyCount = services.filter((s) => s.warranty_status === "active").length
 
     return (
         <div className="max-w-2xl mx-auto">
@@ -181,16 +195,20 @@ function HistorialContent() {
 
             {/* Summary pills */}
             {!isLoading && (
-                <div className="flex gap-3 mb-6">
-                    <div className="flex-1 bg-blue-500/8 border border-blue-500/15 rounded-2xl p-4 text-center">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                    <div className="bg-blue-500/8 border border-blue-500/15 rounded-2xl p-4 text-center">
                         <p className="text-2xl font-bold gradient-text">{active}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">Activos</p>
                     </div>
-                    <div className="flex-1 bg-green-500/8 border border-green-500/15 rounded-2xl p-4 text-center">
+                    <div className="bg-green-500/8 border border-green-500/15 rounded-2xl p-4 text-center">
                         <p className="text-2xl font-bold text-green-400">{completed}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">Completados</p>
                     </div>
-                    <div className="flex-1 bg-white/[0.03] border border-border/30 rounded-2xl p-4 text-center">
+                    <div className="bg-indigo-500/8 border border-indigo-500/15 rounded-2xl p-4 text-center">
+                        <p className="text-2xl font-bold text-indigo-400">{warrantyCount}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">En Garantía</p>
+                    </div>
+                    <div className="bg-white/[0.03] border border-border/30 rounded-2xl p-4 text-center">
                         <p className="text-2xl font-bold">{services.length}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">Total</p>
                     </div>

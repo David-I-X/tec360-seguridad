@@ -109,12 +109,24 @@ class PaymentService:
                                     "unit_price": commission_amount,
                                     "tax_rate": 0.19,
                                 }]
-                                await create_dian_invoice(
+                                tech_invoice = await create_dian_invoice(
                                     sas_contact_id=tech_user.sas_contact_id,
                                     items=items_commission,
                                     auto_accounting=True,
                                     invoice_type="platform_commission",
                                 )
+                                if tech_invoice:
+                                    payment_db.tech_invoice_number = tech_invoice.get("invoice_number")
+                                    payment_db.tech_cufe = tech_invoice.get("cufe")
+                                    payment_db.tech_qr_url = tech_invoice.get("qr_url")
+                                    payment_db.tech_pdf_url = tech_invoice.get("pdf_url")
+                                    payment_db.tech_dian_status = tech_invoice.get("dian_status", "accepted")
+                                    session_bg.add(payment_db)
+                                    session_bg.commit()
+                                    logger.info(
+                                        f"DIAN tech commission invoice stored for payment {pmt_id}: "
+                                        f"invoice={tech_invoice.get('invoice_number')}"
+                                    )
             except Exception as e:
                 logger.error(f"Error in background DIAN invoice trigger: {e}")
 
@@ -347,6 +359,57 @@ class PaymentService:
 
         return self._to_response(payment, session)
 
+    async def ensure_tech_commission_invoice(self, session: Session, payment: Payment) -> Payment:
+        """Genera o asegura la factura DIAN de comisión para el técnico si no está presente."""
+        if not payment or payment.tech_pdf_url or not payment.technician_id:
+            return payment
+        if payment.status not in [PaymentStatus.approved, PaymentStatus.confirmed_by_technician, PaymentStatus.confirmed_by_admin]:
+            return payment
+
+        try:
+            from app.services.sas_service import create_dian_invoice, sync_contact_to_sas
+            tech_user = session.get(User, payment.technician_id)
+            if tech_user:
+                if not tech_user.sas_contact_id:
+                    t_sas_id = await sync_contact_to_sas(tech_user)
+                    if t_sas_id:
+                        tech_user.sas_contact_id = str(t_sas_id)
+                        session.add(tech_user)
+                        session.commit()
+                if tech_user.sas_contact_id:
+                    commission_amount = round(payment.amount * 0.18, 2)
+                    service = session.get(Service, payment.service_id)
+                    svc_title = service.title if service else "Servicio"
+                    svc_type = service.service_type if service else "servicio"
+                    items_commission = [{
+                        "sku": "platform_fee",
+                        "description": (
+                            f"Comisión de intermediación por servicio "
+                            f"{svc_title or svc_type} #{str(payment.service_id)[:8]}"
+                        ),
+                        "quantity": 1,
+                        "unit_price": commission_amount,
+                        "tax_rate": 0.19,
+                    }]
+                    tech_invoice = await create_dian_invoice(
+                        sas_contact_id=tech_user.sas_contact_id,
+                        items=items_commission,
+                        auto_accounting=True,
+                        invoice_type="platform_commission",
+                    )
+                    if tech_invoice:
+                        payment.tech_invoice_number = tech_invoice.get("invoice_number")
+                        payment.tech_cufe = tech_invoice.get("cufe")
+                        payment.tech_qr_url = tech_invoice.get("qr_url")
+                        payment.tech_pdf_url = tech_invoice.get("pdf_url")
+                        payment.tech_dian_status = tech_invoice.get("dian_status", "accepted")
+                        session.add(payment)
+                        session.commit()
+                        session.refresh(payment)
+        except Exception as e:
+            logger.warning(f"Error asegurando factura DIAN de comisión: {e}")
+        return payment
+
     # ── Queries ───────────────────────────────────────────
 
     async def get_service_payment(
@@ -361,6 +424,8 @@ class PaymentService:
 
         if not payment:
             return None
+
+        payment = await self.ensure_tech_commission_invoice(session, payment)
 
         return self._to_response(payment, session)
 
@@ -414,12 +479,19 @@ class PaymentService:
             client_name=client.full_name if client else None,
             technician_name=technician.full_name if technician else None,
             service_title=service.title if service else None,
-            # DIAN fields
+            # DIAN fields (Factura A - Cliente)
             invoice_number=payment.invoice_number,
             cufe=payment.cufe,
             qr_url=payment.qr_url,
             pdf_url=payment.pdf_url,
             dian_status=payment.dian_status,
+            # DIAN fields (Factura B - Técnico)
+            tech_invoice_number=payment.tech_invoice_number,
+            tech_cufe=payment.tech_cufe,
+            tech_qr_url=payment.tech_qr_url,
+            tech_pdf_url=payment.tech_pdf_url,
+            tech_dian_status=payment.tech_dian_status,
+            commission_amount=round(payment.amount * 0.18, 2),
         )
 
     # ── Technician Stats ──────────────────────────────────

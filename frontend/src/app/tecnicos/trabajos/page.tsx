@@ -34,7 +34,7 @@ const typeLabels: Record<string, string> = {
     other: "🔧 Otro",
 }
 
-type StatusFilter = "all" | "active" | "completed"
+type StatusFilter = "all" | "active" | "completed" | "warranty_active" | "warranty_expired"
 type Radius = 5 | 10 | 20 | 50
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -117,6 +117,10 @@ function TechnicianJobsContent() {
             if (!["assigned", "en_route", "arrived", "in_progress"].includes(service.status)) return false
         } else if (statusFilter === "completed") {
             if (!["completed", "confirmed"].includes(service.status)) return false
+        } else if (statusFilter === "warranty_active") {
+            if (service.warranty_status !== "active") return false
+        } else if (statusFilter === "warranty_expired") {
+            if (service.warranty_status !== "expired") return false
         }
         // Geo filter — only if we have location and service has coords
         if (userLocation && service.service_lat && service.service_lon) {
@@ -130,6 +134,8 @@ function TechnicianJobsContent() {
         { key: "all", label: "Todos" },
         { key: "active", label: "Activos" },
         { key: "completed", label: "Completados" },
+        { key: "warranty_active", label: "🛡️ Garantía Activa (30d)" },
+        { key: "warranty_expired", label: "Garantía Vencida" },
     ]
 
     if (isLoading) {
@@ -249,11 +255,21 @@ function TechnicianJobsContent() {
                                             <div className={`w-3 h-3 rounded-full shrink-0 ${statusLabels[service.status]?.color || "bg-gray-400"}`} />
 
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 mb-1">
+                                                <div className="flex flex-wrap items-center gap-2 mb-1">
                                                     <h3 className="font-semibold truncate">{service.title}</h3>
-                                                    <Badge variant="secondary" className="shrink-0">
+                                                    <Badge variant="secondary" className="shrink-0 text-xs">
                                                         {typeLabels[service.service_type] || service.service_type}
                                                     </Badge>
+                                                    {service.warranty_status === "active" && (
+                                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/30 px-2 py-0.5 rounded-full shrink-0">
+                                                            🛡️ Garantía ({service.warranty_days_left}d)
+                                                        </span>
+                                                    )}
+                                                    {service.warranty_status === "expired" && (
+                                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-500/10 border border-slate-500/30 px-2 py-0.5 rounded-full shrink-0">
+                                                            🛡️ Garantía Vencida
+                                                        </span>
+                                                    )}
                                                 </div>
 
                                                 <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
@@ -267,13 +283,33 @@ function TechnicianJobsContent() {
                                                     </span>
                                                     {service.estimated_price && (
                                                         <span className="font-medium text-green-500">
-                                                            ${service.estimated_price.toLocaleString()}
+                                                            Cobro: ${service.estimated_price.toLocaleString()}
+                                                        </span>
+                                                    )}
+                                                    {service.commission_amount && (
+                                                        <span className="font-mono text-xs text-indigo-400">
+                                                            Comisión: ${Number(service.commission_amount).toLocaleString()}
                                                         </span>
                                                     )}
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-2 shrink-0">
+                                            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 shrink-0">
+                                                {/* Factura Comisión DIAN Técnico */}
+                                                {service.tech_pdf_url && (
+                                                    <a
+                                                        href={service.tech_pdf_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30 transition-colors"
+                                                        title="Ver Factura Comisión DIAN"
+                                                    >
+                                                        <FileText className="w-3 h-3 text-indigo-400" />
+                                                        <span>Comisión {service.tech_invoice_number || "DIAN"}</span>
+                                                    </a>
+                                                )}
+                                                {/* Factura Cliente DIAN */}
                                                 {service.pdf_url && (
                                                     <a
                                                         href={service.pdf_url}
@@ -281,7 +317,7 @@ function TechnicianJobsContent() {
                                                         rel="noopener noreferrer"
                                                         onClick={(e) => e.stopPropagation()}
                                                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 transition-colors"
-                                                        title="Ver Factura Electrónica DIAN"
+                                                        title="Ver Factura Servicio DIAN"
                                                     >
                                                         <FileText className="w-3 h-3 text-emerald-400" />
                                                         <span>Factura {service.invoice_number || "DIAN"}</span>
@@ -290,7 +326,7 @@ function TechnicianJobsContent() {
                                                 <Badge className={statusLabels[service.status]?.color}>
                                                     {statusLabels[service.status]?.label || service.status}
                                                 </Badge>
-                                                <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                                                <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors hidden sm:block" />
                                             </div>
                                         </div>
                                     </GlassCard>
