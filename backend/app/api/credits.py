@@ -8,7 +8,7 @@ Endpoints:
 - GET  /credits/check/{service_id} → ¿Puede aceptar este servicio?
 - POST /credits/admin/bonus   → Admin otorga bonificación
 """
-from typing import Optional, List
+from typing import Optional, List, Union
 from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session
@@ -36,14 +36,14 @@ class BalanceResponse(BaseModel):
 
 
 class RechargeRequest(BaseModel):
-    amount: float
+    amount: float = 50000.0
     external_reference: Optional[str] = None
     payment_method: Optional[str] = None
 
 
 class RechargeIntentRequest(BaseModel):
-    amount: float = Field(..., gt=0, description="Monto en COP a recargar")
-    payment_method: str = Field(..., description="pse | nequi | daviplata | card")
+    amount: float = Field(default=50000.0, gt=0, description="Monto en COP a recargar")
+    payment_method: str = Field(default="pse", description="pse | nequi | daviplata | card")
     bank_name: Optional[str] = None
     card_last_four: Optional[str] = None
 
@@ -58,19 +58,28 @@ class RechargeIntentResponse(BaseModel):
 
 class RechargeConfirmRequest(BaseModel):
     transaction_id: str
-    amount: float
-    payment_method: str = "pse"
+    amount: Optional[float] = 50000.0
+    payment_method: Optional[str] = "pse"
     bank_name: Optional[str] = None
 
 
+class RechargeConfirmResponse(BaseModel):
+    id: Optional[str] = None
+    transaction_id: str
+    status: str = "completed"
+    amount: float
+    balance_after: float
+    message: str = "Recarga de saldo acreditada exitosamente"
+
+
 class TransactionResponse(BaseModel):
-    id: UUID
-    technician_id: UUID
+    id: Union[UUID, str]
+    technician_id: Union[UUID, str]
     transaction_type: str
     amount: float
     balance_after: float
-    service_id: Optional[UUID] = None
-    description: str
+    service_id: Optional[Union[UUID, str]] = None
+    description: str = ""
     external_reference: Optional[str] = None
     created_at: datetime
 
@@ -98,7 +107,7 @@ class AdminBonusRequest(BaseModel):
 
 @router.get("/balance", response_model=BalanceResponse)
 async def get_my_balance(
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session),
 ):
     """Obtiene el saldo de créditos del técnico autenticado."""
@@ -110,7 +119,7 @@ async def get_my_balance(
 async def get_my_transactions(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session),
 ):
     """Historial de movimientos de créditos del técnico."""
@@ -123,7 +132,7 @@ async def get_my_transactions(
 @router.post("/recharge", response_model=TransactionResponse, status_code=201)
 async def recharge_credits(
     data: RechargeRequest,
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session),
 ):
     """
@@ -132,10 +141,11 @@ async def recharge_credits(
     desc = "Recarga de créditos"
     if data.payment_method:
         desc = f"Recarga de créditos via {data.payment_method.upper()}"
+    effective_amount = data.amount if (data.amount and data.amount > 0) else 50000.0
     txn = await credit_service.recharge(
         session=session,
         technician_id=current_user["id"],
-        amount=data.amount,
+        amount=effective_amount,
         external_reference=data.external_reference,
         description=desc,
     )
@@ -145,24 +155,25 @@ async def recharge_credits(
 @router.post("/recharge/intent", response_model=RechargeIntentResponse, status_code=201)
 async def create_recharge_intent(
     data: RechargeIntentRequest,
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session),
 ):
     """Inicia la recarga de saldo mediante la pasarela digital (sandbox)."""
     tx_id = f"sandbox-rech-{uuid4().hex[:14]}"
+    effective_amount = data.amount if (data.amount and data.amount > 0) else 50000.0
     return RechargeIntentResponse(
         transaction_id=tx_id,
         status="processing",
         payment_method=data.payment_method,
-        amount=data.amount,
+        amount=effective_amount,
         message="Pasarela digital sandbox iniciada para recarga",
     )
 
 
-@router.post("/recharge/confirm", response_model=TransactionResponse, status_code=200)
+@router.post("/recharge/confirm", response_model=RechargeConfirmResponse, status_code=200)
 async def confirm_recharge_intent(
     data: RechargeConfirmRequest,
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session),
 ):
     """Confirma la recarga digital tras la validación de la pasarela sandbox."""
@@ -172,23 +183,32 @@ async def confirm_recharge_intent(
         "nequi": "Nequi",
         "daviplata": "Daviplata",
     }
-    method_str = method_labels.get(data.payment_method, data.payment_method.upper())
+    method_str = method_labels.get(data.payment_method, (data.payment_method or "SANDBOX").upper())
     desc = f"Recarga de créditos via {method_str}"
+
+    effective_amount = data.amount if (data.amount and data.amount > 0) else 50000.0
 
     txn = await credit_service.recharge(
         session=session,
         technician_id=current_user["id"],
-        amount=data.amount,
+        amount=effective_amount,
         external_reference=data.transaction_id,
         description=desc,
     )
-    return txn
+    return RechargeConfirmResponse(
+        id=str(txn.id),
+        transaction_id=data.transaction_id,
+        status="completed",
+        amount=effective_amount,
+        balance_after=txn.balance_after,
+        message="Recarga de saldo acreditada exitosamente",
+    )
 
 
 @router.get("/check/{service_id}", response_model=CanAcceptResponse)
 async def check_can_accept(
     service_id: str,
-    current_user: dict = Depends(require_roles("technician")),
+    current_user: dict = Depends(require_roles("technician", "reaction_team")),
     session: Session = Depends(get_session),
 ):
     """Verifica si el técnico puede aceptar un servicio dado su saldo."""

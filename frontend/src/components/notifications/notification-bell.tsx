@@ -28,10 +28,15 @@ export function NotificationBell() {
 
     // Fetch unread count on mount and periodically
     useEffect(() => {
+        if (!user) return
         fetchUnreadCount()
-        const interval = setInterval(fetchUnreadCount, 10000) // Every 10 seconds
+        const interval = setInterval(() => {
+            if (typeof document !== "undefined" && document.visibilityState === "visible") {
+                fetchUnreadCount()
+            }
+        }, 15000)
         return () => clearInterval(interval)
-    }, [])
+    }, [user])
 
     // Listen for live Push notifications from Service Worker
     useEffect(() => {

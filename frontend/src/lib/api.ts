@@ -538,7 +538,9 @@ export async function getCreditBalance(): Promise<BalanceData> {
  * Obtiene el historial de transacciones del técnico
  */
 export async function getCreditTransactions(skip = 0, limit = 50): Promise<CreditTransaction[]> {
-  const response = await fetchWithAuth(`/credits/transactions?skip=${skip}&limit=${limit}`, {
+  const safeSkip = Math.max(0, Number(skip) || 0)
+  const safeLimit = Math.min(200, Math.max(1, Number(limit) || 50))
+  const response = await fetchWithAuth(`/credits/transactions?skip=${safeSkip}&limit=${safeLimit}`, {
     method: "GET",
   })
   if (!response.ok) await handleAPIError(response)
@@ -549,10 +551,11 @@ export async function getCreditTransactions(skip = 0, limit = 50): Promise<Credi
  * Recarga créditos (simulada por ahora)
  */
 export async function rechargeCredits(amount: number, externalReference?: string, paymentMethod?: string): Promise<CreditTransaction> {
+  const safeAmount = Math.max(10000, Number(amount) || 50000)
   const response = await fetchWithAuth("/credits/recharge", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ amount, external_reference: externalReference, payment_method: paymentMethod }),
+    body: JSON.stringify({ amount: safeAmount, external_reference: externalReference, payment_method: paymentMethod }),
   })
   if (!response.ok) await handleAPIError(response)
   return response.json()
@@ -567,10 +570,11 @@ export async function rechargeCreditsIntent(amount: number, paymentMethod: strin
   amount: number;
   payment_method: string;
 }> {
+  const safeAmount = Math.max(10000, Number(amount) || 50000)
   const response = await fetchWithAuth("/credits/recharge/intent", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ amount, payment_method: paymentMethod }),
+    body: JSON.stringify({ amount: safeAmount, payment_method: paymentMethod || "pse" }),
   })
   if (!response.ok) await handleAPIError(response)
   return response.json()
@@ -579,17 +583,26 @@ export async function rechargeCreditsIntent(amount: number, paymentMethod: strin
 /**
  * Confirma la recarga de créditos una vez aprobada por la pasarela sandbox
  */
-export async function rechargeCreditsConfirm(transactionId: string): Promise<{
+export async function rechargeCreditsConfirm(
+  transactionId: string,
+  amount?: number,
+  paymentMethod: string = "pse"
+): Promise<{
   transaction_id: string;
   status: string;
   amount: number;
   balance_after: number;
   message: string;
 }> {
+  const safeAmount = Math.max(10000, Number(amount) || 50000)
   const response = await fetchWithAuth("/credits/recharge/confirm", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ transaction_id: transactionId }),
+    body: JSON.stringify({
+      transaction_id: transactionId,
+      amount: safeAmount,
+      payment_method: paymentMethod || "pse",
+    }),
   })
   if (!response.ok) await handleAPIError(response)
   return response.json()

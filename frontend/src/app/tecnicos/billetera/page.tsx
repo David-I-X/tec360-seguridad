@@ -221,7 +221,7 @@ function RechargeModal({
       await new Promise((r) => setTimeout(r, 1200));
 
       // 3. Confirm call to backend
-      await rechargeCreditsConfirm(transactionId);
+      await rechargeCreditsConfirm(transactionId, effectiveAmount, method);
 
       setSuccess(true);
       onSuccess();
