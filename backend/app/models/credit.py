@@ -62,5 +62,5 @@ class CreditTransaction(SQLModel, table=True):
 
 
 # ── Constants ──
-COMMISSION_RATE = 0.18  # 18% del valor del servicio
+COMMISSION_RATE = 0.10  # 10% del valor del servicio
 FREE_SERVICES_LIMIT = 3  # Primeros 3 servicios gratis

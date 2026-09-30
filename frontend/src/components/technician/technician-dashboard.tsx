@@ -468,7 +468,7 @@ function ServiceCard({ service, onAction, onQuote, isProcessing, variant }: any)
                 {/* Commission info for mine variant */}
                 {variant === "mine" && service.commission_amount && (
                     <div className="flex items-center justify-between p-2 rounded-lg bg-indigo-500/5 border border-indigo-500/20 text-xs">
-                        <span className="text-muted-foreground">Comisión Tec360 (18%)</span>
+                        <span className="text-muted-foreground">Comisión Tec360 (10%)</span>
                         <span className="font-mono font-bold text-indigo-400">
                             ${Number(service.commission_amount).toLocaleString()}
                         </span>

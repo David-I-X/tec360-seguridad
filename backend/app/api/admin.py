@@ -365,7 +365,7 @@ async def platform_stats(
     # Real Revenue connected to SaaS Vertical (Contabilidad)
     # Under DIAN Concept 1222/2024, Tec360's real revenue is the platform commission,
     # tracked directly in the SaaS Vertical accounting ledger.
-    real_revenue = gross_volume * 0.18  # Platform commission default (18%)
+    real_revenue = gross_volume * 0.10  # Platform commission default (10%)
     accounting_connected = False
     month_income = 0.0
     month_expenses = 0.0

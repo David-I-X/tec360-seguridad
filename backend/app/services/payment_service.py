@@ -98,7 +98,7 @@ class PaymentService:
                                     session_bg.add(tech_user)
                                     session_bg.commit()
                             if tech_user.sas_contact_id:
-                                commission_amount = round(pmt_amount * 0.18, 2)
+                                commission_amount = round(pmt_amount * 0.10, 2)
                                 items_commission = [{
                                     "sku": "platform_fee",
                                     "description": (
@@ -377,7 +377,7 @@ class PaymentService:
                         session.add(tech_user)
                         session.commit()
                 if tech_user.sas_contact_id:
-                    commission_amount = round(payment.amount * 0.18, 2)
+                    commission_amount = round(payment.amount * 0.10, 2)
                     service = session.get(Service, payment.service_id)
                     svc_title = service.title if service else "Servicio"
                     svc_type = service.service_type if service else "servicio"
@@ -491,7 +491,7 @@ class PaymentService:
             tech_qr_url=payment.tech_qr_url,
             tech_pdf_url=payment.tech_pdf_url,
             tech_dian_status=payment.tech_dian_status,
-            commission_amount=round(payment.amount * 0.18, 2),
+            commission_amount=round(payment.amount * 0.10, 2),
         )
 
     # ── Technician Stats ──────────────────────────────────

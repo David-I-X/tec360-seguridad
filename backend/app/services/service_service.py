@@ -248,9 +248,9 @@ class ServiceService:
         has_warranty, w_status, w_days, w_expires = self._compute_warranty(s)
         commission_amt = None
         if payment and payment.amount:
-            commission_amt = round(payment.amount * 0.18, 2)
+            commission_amt = round(payment.amount * 0.10, 2)
         elif getattr(s, "final_price", None) or s.estimated_price:
-            commission_amt = round(float(getattr(s, "final_price", None) or s.estimated_price) * 0.18, 2)
+            commission_amt = round(float(getattr(s, "final_price", None) or s.estimated_price) * 0.10, 2)
 
         return ServiceListResponse(
             id=str(s.id),
@@ -1056,9 +1056,9 @@ class ServiceService:
         has_warranty, w_status, w_days, w_expires = self._compute_warranty(service)
         commission_amt = None
         if payment and payment.amount:
-            commission_amt = round(payment.amount * 0.18, 2)
+            commission_amt = round(payment.amount * 0.10, 2)
         elif getattr(service, "final_price", None) or service.estimated_price:
-            commission_amt = round(float(getattr(service, "final_price", None) or service.estimated_price) * 0.18, 2)
+            commission_amt = round(float(getattr(service, "final_price", None) or service.estimated_price) * 0.10, 2)
 
         response_kwargs = {
             "id": str(service.id),

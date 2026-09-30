@@ -37,7 +37,7 @@ const TERMS_SECTIONS = [
     title: 'Modelo Económico',
     icon: 'wallet-outline' as const,
     items: [
-      'Comisión de plataforma del 18% sobre cada servicio',
+      'Comisión de plataforma del 10% sobre cada servicio',
       'IVA del 19% aplicable según normativa DIAN',
       'Billetera virtual para gestión de pagos y retiros',
       'Facturación electrónica conforme a la regulación colombiana',

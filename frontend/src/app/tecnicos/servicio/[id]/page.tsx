@@ -1226,7 +1226,7 @@ function TechnicianServiceContent() {
                                             {/* Commission Breakdown */}
                                             {(() => {
                                                 const totalAmount = paymentInfo?.amount || service.final_price || service.estimated_price || 0
-                                                const commissionAmount = paymentInfo?.commission_amount || service.commission_amount || Math.round(totalAmount * 0.18)
+                                                const commissionAmount = paymentInfo?.commission_amount || service.commission_amount || Math.round(totalAmount * 0.10)
                                                 const netEarnings = Math.max(0, totalAmount - commissionAmount)
                                                 return (
                                                     <div className="space-y-1.5 bg-white/70 dark:bg-slate-900/60 p-3 rounded-xl border border-emerald-500/20">
@@ -1237,7 +1237,7 @@ function TechnicianServiceContent() {
                                                             </span>
                                                         </div>
                                                         <div className="flex justify-between items-center text-[11px] text-rose-500 dark:text-rose-400">
-                                                            <span>- Comisión Plataforma Tec360 (18%)</span>
+                                                            <span>- Comisión Plataforma Tec360 (10%)</span>
                                                             <span className="font-mono font-semibold">
                                                                 -${commissionAmount.toLocaleString()} COP
                                                             </span>

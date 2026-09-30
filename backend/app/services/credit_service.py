@@ -2,7 +2,7 @@
 Servicio de Créditos — Lógica de negocio para el sistema de comisiones.
 
 Reglas:
-- Comisión = 18% del valor del servicio
+- Comisión = 10% del valor del servicio
 - Primeros 3 servicios completados son GRATIS
 - Saldo mínimo = comisión de 1 servicio para poder aceptar
 - Saldo 0 → técnico bloqueado hasta recargar

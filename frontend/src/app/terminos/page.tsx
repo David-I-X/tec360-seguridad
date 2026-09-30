@@ -116,13 +116,13 @@ export default function TerminosPage() {
               <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-xl space-y-2">
                 <h3 className="font-bold text-white">💼 Billetera Digital &amp; Comisión Tecnológica</h3>
                 <p className="text-slate-400">
-                  El Técnico mantiene un saldo prepagado en su billetera virtual interna. Por cada servicio aceptado y completado a través de la plataforma, el sistema debita automáticamente una <strong>comisión por intermediación tecnológica del 18%</strong> sobre el valor acordado.
+                  El Técnico mantiene un saldo prepagado en su billetera virtual interna. Por cada servicio aceptado y completado a través de la plataforma, el sistema debita automáticamente una <strong>comisión por intermediación tecnológica del 10%</strong> sobre el valor acordado.
                 </p>
               </div>
               <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-xl space-y-2">
                 <h3 className="font-bold text-white">🧾 Facturación Electrónica DIAN</h3>
                 <p className="text-slate-400">
-                  TrackTec S.A.S. emite la <strong>Factura Electrónica de Venta correspondiente única y exclusivamente al valor de la comisión tecnológica del 18%</strong>, liquidando el IVA correspondiente (19% sobre la comisión) bajo el Régimen Simple de Tributación (RST - Responsabilidad 47) y código de actividad CIIU 6209A.
+                  TrackTec S.A.S. emite la <strong>Factura Electrónica de Venta correspondiente única y exclusivamente al valor de la comisión tecnológica del 10%</strong>, liquidando el IVA correspondiente (19% sobre la comisión) bajo el Régimen Simple de Tributación (RST - Responsabilidad 47) y código de actividad CIIU 6209A.
                 </p>
               </div>
             </div>
