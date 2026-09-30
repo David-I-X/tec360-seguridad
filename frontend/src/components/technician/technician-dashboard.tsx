@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Loader2, MapPin, Calendar, CheckCircle, Briefcase, FileText, Star, DollarSign, Wrench, RefreshCw, ArrowLeft, User, Clock, Car } from "lucide-react"
+import { Loader2, MapPin, Calendar, CheckCircle, Briefcase, FileText, Star, DollarSign, Wrench, RefreshCw, ArrowLeft, User, Clock, Car, Filter } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -26,8 +26,11 @@ const statusMap: Record<string, { label: string; color: string }> = {
     arrived: { label: "Llegó", color: "bg-orange-500" },
     in_progress: { label: "En Progreso", color: "bg-purple-500" },
     completed: { label: "Completado", color: "bg-green-500" },
+    confirmed: { label: "Completado", color: "bg-green-500" },
     cancelled: { label: "Cancelado", color: "bg-red-500" },
 }
+
+type MyServicesFilter = "all" | "active" | "completed" | "warranty_active" | "warranty_expired"
 
 export function TechnicianDashboard() {
     const { user } = useAuth()
@@ -38,6 +41,7 @@ export function TechnicianDashboard() {
     const [myServices, setMyServices] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [processingId, setProcessingId] = useState<string | null>(null)
+    const [myServicesFilter, setMyServicesFilter] = useState<MyServicesFilter>("all")
 
     const fetchData = async () => {
         try {
@@ -104,7 +108,29 @@ export function TechnicianDashboard() {
 
     // Stats
     const activeCount = myServices.filter(s => ["assigned", "en_route", "arrived", "in_progress"].includes(s.status)).length
-    const completedCount = myServices.filter(s => s.status === "completed").length
+    const completedCount = myServices.filter(s => ["completed", "confirmed"].includes(s.status)).length
+
+    // Filter "Mis Trabajos"
+    const filteredMyServices = myServices.filter((service) => {
+        if (myServicesFilter === "active") {
+            return ["assigned", "en_route", "arrived", "in_progress"].includes(service.status)
+        } else if (myServicesFilter === "completed") {
+            return ["completed", "confirmed"].includes(service.status)
+        } else if (myServicesFilter === "warranty_active") {
+            return service.warranty_status === "active"
+        } else if (myServicesFilter === "warranty_expired") {
+            return service.warranty_status === "expired"
+        }
+        return true
+    })
+
+    const myFilterButtons: { key: MyServicesFilter; label: string }[] = [
+        { key: "all", label: "Todos" },
+        { key: "active", label: "Activos" },
+        { key: "completed", label: "Completados" },
+        { key: "warranty_active", label: "🛡️ Garantía (30d)" },
+        { key: "warranty_expired", label: "Garantía Vencida" },
+    ]
 
     if (isLoading && availableServices.length === 0 && myServices.length === 0) {
         return (
@@ -297,7 +323,23 @@ export function TechnicianDashboard() {
 
                 {/* My services */}
                 <TabsContent value="mine" className="space-y-4">
-                    {myServices.length === 0 ? (
+                    {/* Filter bar */}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+                        {myFilterButtons.map((btn) => (
+                            <Button
+                                key={btn.key}
+                                variant={myServicesFilter === btn.key ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setMyServicesFilter(btn.key)}
+                                className="shrink-0 text-xs"
+                            >
+                                {btn.label}
+                            </Button>
+                        ))}
+                    </div>
+
+                    {filteredMyServices.length === 0 ? (
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}>
                             <GlassCard className="p-12 text-center border-dashed border-2 bg-gradient-to-b from-white/[0.01] to-transparent">
                                 <div className="flex flex-col items-center gap-5 max-w-sm mx-auto">
@@ -308,9 +350,14 @@ export function TechnicianDashboard() {
                                         </div>
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-bold mb-1">Tu agenda está vacía</h3>
+                                        <h3 className="text-lg font-bold mb-1">
+                                            {myServicesFilter !== "all" ? "Sin resultados para este filtro" : "Tu agenda está vacía"}
+                                        </h3>
                                         <p className="text-sm text-muted-foreground leading-relaxed">
-                                            Actualmente no tienes ningún trabajo asignado. Revisa la pestaña de "Disponibles" para aceptar nuevos retos.
+                                            {myServicesFilter !== "all"
+                                                ? `No hay trabajos ${myFilterButtons.find(b => b.key === myServicesFilter)?.label.toLowerCase() || ""}.`
+                                                : 'Actualmente no tienes ningún trabajo asignado. Revisa la pestaña de "Disponibles" para aceptar nuevos retos.'
+                                            }
                                         </p>
                                     </div>
                                 </div>
@@ -319,7 +366,7 @@ export function TechnicianDashboard() {
                     ) : (
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             <AnimatePresence>
-                                {myServices.map((service, i) => (
+                                {filteredMyServices.map((service, i) => (
                                     <motion.div
                                         key={service.id}
                                         initial={{ opacity: 0, y: 20 }}
@@ -344,6 +391,7 @@ export function TechnicianDashboard() {
 
 function ServiceCard({ service, onAction, onQuote, isProcessing, variant }: any) {
     const status = statusMap[service.status] || { label: service.status, color: "bg-gray-500" }
+    const isCompleted = ["completed", "confirmed"].includes(service.status)
 
     // Formatting price
     const formattedPrice = service.estimated_price 
@@ -362,9 +410,22 @@ function ServiceCard({ service, onAction, onQuote, isProcessing, variant }: any)
             
             <CardHeader className="pb-2 pt-5">
                 <div className="flex justify-between items-start mb-2">
-                    <Badge className={`${variant === "available" ? "bg-amber-500 text-white border-0" : status.color} hover:opacity-90 transition-opacity`}>
-                        {variant === "available" ? "Disponible" : status.label}
-                    </Badge>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge className={`${variant === "available" ? "bg-amber-500 text-white border-0" : status.color} hover:opacity-90 transition-opacity`}>
+                            {variant === "available" ? "Disponible" : status.label}
+                        </Badge>
+                        {/* Warranty badge for mine variant */}
+                        {variant === "mine" && service.warranty_status === "active" && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/30 px-1.5 py-0.5 rounded-full">
+                                🛡️ {service.warranty_days_left}d
+                            </span>
+                        )}
+                        {variant === "mine" && service.warranty_status === "expired" && isCompleted && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-500/10 border border-slate-500/30 px-1.5 py-0.5 rounded-full">
+                                🛡️ Vencida
+                            </span>
+                        )}
+                    </div>
                     {formattedPrice && (
                         <span className="flex items-center gap-1 font-black text-green-500/90 dark:text-green-400 text-lg tracking-tight">
                             {formattedPrice}
@@ -404,10 +465,20 @@ function ServiceCard({ service, onAction, onQuote, isProcessing, variant }: any)
                     )}
                 </div>
 
+                {/* Commission info for mine variant */}
+                {variant === "mine" && service.commission_amount && (
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-indigo-500/5 border border-indigo-500/20 text-xs">
+                        <span className="text-muted-foreground">Comisión Tec360 (18%)</span>
+                        <span className="font-mono font-bold text-indigo-400">
+                            ${Number(service.commission_amount).toLocaleString()}
+                        </span>
+                    </div>
+                )}
+
                 {/* Description */}
                 {service.description && service.description.toLowerCase() !== "sin descripción" && (
                     <p className="line-clamp-2 text-xs text-muted-foreground italic border-l-2 border-muted-foreground/30 pl-2 ml-1">
-                        "{service.description}"
+                        &quot;{service.description}&quot;
                     </p>
                 )}
 
@@ -418,6 +489,38 @@ function ServiceCard({ service, onAction, onQuote, isProcessing, variant }: any)
                         <span className="text-xs font-semibold leading-none truncate">
                             {service.vehicle_model || "Vehículo"} {service.vehicle_plate ? `• ${service.vehicle_plate.toUpperCase()}` : ""}
                         </span>
+                    </div>
+                )}
+
+                {/* Invoice buttons for mine variant */}
+                {variant === "mine" && isCompleted && (service.tech_pdf_url || service.pdf_url) && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                        {service.tech_pdf_url && (
+                            <a
+                                href={service.tech_pdf_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30 transition-colors"
+                                title="Ver Factura Comisión DIAN"
+                            >
+                                <FileText className="w-3 h-3" />
+                                Comisión {service.tech_invoice_number || "DIAN"}
+                            </a>
+                        )}
+                        {service.pdf_url && (
+                            <a
+                                href={service.pdf_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 transition-colors"
+                                title="Ver Factura Servicio DIAN"
+                            >
+                                <FileText className="w-3 h-3" />
+                                Factura {service.invoice_number || "DIAN"}
+                            </a>
+                        )}
                     </div>
                 )}
             </CardContent>

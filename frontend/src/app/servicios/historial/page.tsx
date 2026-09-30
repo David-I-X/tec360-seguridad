@@ -24,7 +24,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
     arrived: { label: "Llegó", color: "text-blue-400", icon: Shield, badge: "default" },
     in_progress: { label: "En progreso", color: "text-blue-400", icon: Wrench, badge: "default" },
     completed: { label: "Completado", color: "text-green-400", icon: CheckCircle, badge: "outline" },
-    confirmed: { label: "Terminado", color: "text-emerald-400", icon: CheckCircle, badge: "outline" },
+    confirmed: { label: "Completado", color: "text-green-400", icon: CheckCircle, badge: "outline" },
     cancelled: { label: "Cancelado", color: "text-red-400", icon: XCircle, badge: "destructive" },
 }
 

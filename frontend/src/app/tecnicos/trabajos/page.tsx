@@ -19,7 +19,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
     arrived: { label: "En sitio", color: "bg-orange-500" },
     in_progress: { label: "En Progreso", color: "bg-purple-500" },
     completed: { label: "Completado", color: "bg-green-500" },
-    confirmed: { label: "Terminado", color: "bg-emerald-600" },
+    confirmed: { label: "Completado", color: "bg-green-500" },
     cancelled: { label: "Cancelado", color: "bg-red-500" },
 }
 
