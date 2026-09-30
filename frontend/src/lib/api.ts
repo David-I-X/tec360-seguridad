@@ -11,22 +11,35 @@ export function getApiBaseUrl(): string {
   if (typeof window !== "undefined") {
     const hostname = window.location.hostname
     const envUrl = process.env.NEXT_PUBLIC_API_URL || ""
-    if (envUrl.includes("tec-360.tech")) {
-      return envUrl
+
+    // In production or on domain (e.g. tec-360.tech), always route through /api (port 443 via Nginx)
+    if (
+      hostname.includes("tec-360.tech") ||
+      envUrl === "/api" ||
+      (!hostname.includes("localhost") &&
+        !hostname.includes("127.0.0.1") &&
+        !hostname.match(/^192\.168\./) &&
+        !hostname.match(/^10\./))
+    ) {
+      return "/api"
     }
+
     if (hostname === "localhost" || hostname === "127.0.0.1") {
       return "http://localhost:8000"
     }
-    if (hostname) {
+
+    // Local network IP (e.g. 192.168.x.x) during development from mobile phone
+    if (hostname.match(/^192\.168\./) || hostname.match(/^10\./)) {
       const protocol = window.location.protocol
       return `${protocol}//${hostname}:8000`
     }
   }
+
   const envUrl = process.env.NEXT_PUBLIC_API_URL || ""
-  if (envUrl && !envUrl.includes("192.168.1.1")) {
+  if (envUrl && envUrl !== "http://localhost:8000") {
     return envUrl
   }
-  return "http://localhost:8000"
+  return "/api"
 }
 
 // URL base del backend
@@ -192,8 +205,16 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const baseUrl = getApiBaseUrl();
-  const endpointUrl = url.startsWith("http") ? url : `${baseUrl}${url}`;
+  const baseUrl = getApiBaseUrl().replace(/\/$/, "");
+  let endpointUrl = url;
+  if (!url.startsWith("http")) {
+    if (baseUrl === "/api" && url.startsWith("/api/")) {
+      endpointUrl = url;
+    } else {
+      const cleanPath = url.startsWith("/") ? url : `/${url}`;
+      endpointUrl = `${baseUrl}${cleanPath}`;
+    }
+  }
   let response = await fetch(endpointUrl, { ...options, headers });
 
   if (response.status === 401) {

@@ -7,16 +7,30 @@
 function getWsUrl(): string {
     if (typeof window !== "undefined") {
         const hostname = window.location.hostname
-        if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {
-            const envUrl = process.env.NEXT_PUBLIC_API_URL || ""
-            if (!envUrl.includes("tec-360.tech")) {
-                const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:"
-                return `${wsProto}//${hostname}:8000`
-            }
+        const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:"
+
+        // In production on tec-360.tech or any domain, route WebSocket through /api via Nginx (port 443)
+        if (
+            hostname.includes("tec-360.tech") ||
+            (!hostname.includes("localhost") &&
+             !hostname.includes("127.0.0.1") &&
+             !hostname.match(/^192\.168\./) &&
+             !hostname.match(/^10\./))
+        ) {
+            return `${wsProto}//${hostname}/api`
+        }
+
+        // Local development:
+        if (hostname === "localhost" || hostname === "127.0.0.1") {
+            return "ws://localhost:8000"
+        }
+
+        // Local network IP during dev:
+        if (hostname.match(/^192\.168\./) || hostname.match(/^10\./)) {
+            return `${wsProto}//${hostname}:8000`
         }
     }
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
-    // Replace http:// with ws:// and https:// with wss://
     return apiUrl.replace(/^http/, "ws")
 }
 
