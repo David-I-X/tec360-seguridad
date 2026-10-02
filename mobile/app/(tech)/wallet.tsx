@@ -1,10 +1,10 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Modal, TextInput, Platform, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Modal, TextInput, Platform, KeyboardAvoidingView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, RADIUS, FONTS, SHADOWS } from '@/constants/theme';
-import { fetchWithAuth } from '@/lib/api';
+import { fetchWithAuth, rechargeCreditsIntent, rechargeCreditsConfirm } from '@/lib/api';
 import { useFocusEffect } from 'expo-router';
 
 interface BalanceData {
@@ -33,7 +33,14 @@ export default function WalletScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [rechargeModalVisible, setRechargeModalVisible] = useState(false);
   const [customAmount, setCustomAmount] = useState('50000');
+  const [paymentMethod, setPaymentMethod] = useState<'pse' | 'nequi' | 'daviplata' | 'card'>('pse');
   const [isRecharging, setIsRecharging] = useState(false);
+  const [rechargeError, setRechargeError] = useState<string | null>(null);
+  const [rechargeSuccess, setRechargeSuccess] = useState<{
+    txId: string;
+    amount: number;
+    balanceAfter: number;
+  } | null>(null);
 
   const fetchData = async () => {
     try {
@@ -65,24 +72,34 @@ export default function WalletScreen() {
 
   const handleRecharge = async () => {
     const amount = Number(customAmount);
-    if (!amount || amount < 5000) return;
+    if (!amount || amount < 10000) {
+      setRechargeError('El monto mínimo de recarga es $10.000 COP');
+      return;
+    }
 
     setIsRecharging(true);
+    setRechargeError(null);
+
     try {
-      const res = await fetchWithAuth('/credits/recharge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount,
-          payment_method: 'simulated-mobile'
-        })
+      // 1. Iniciar intención de recarga
+      const intent = await rechargeCreditsIntent(amount, paymentMethod);
+      
+      // 2. Simulación de procesamiento bancario seguro (1.5s)
+      await new Promise(r => setTimeout(r, 1500));
+
+      // 3. Confirmar recarga con pasarela
+      const confirmRes = await rechargeCreditsConfirm(intent.transaction_id, amount, paymentMethod);
+
+      setRechargeSuccess({
+        txId: confirmRes.transaction_id,
+        amount: confirmRes.amount || amount,
+        balanceAfter: confirmRes.balance_after,
       });
-      if (res.ok) {
-        setRechargeModalVisible(false);
-        fetchData();
-      }
-    } catch (e) {
+
+      fetchData();
+    } catch (e: any) {
       console.error('Error recharging:', e);
+      setRechargeError(e.message || 'Error al procesar la recarga. Intenta nuevamente.');
     } finally {
       setIsRecharging(false);
     }
@@ -224,49 +241,136 @@ export default function WalletScreen() {
       <Modal visible={rechargeModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Recargar Créditos</Text>
-              <TouchableOpacity onPress={() => setRechargeModalVisible(false)}>
-                <Ionicons name="close" size={24} color={COLORS.text} />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.presetAmounts}>
-              {[20000, 50000, 100000].map(amount => (
-                <TouchableOpacity 
-                  key={amount} 
-                  style={[styles.presetBtn, Number(customAmount) === amount && styles.presetBtnActive]}
-                  onPress={() => setCustomAmount(amount.toString())}
-                >
-                  <Text style={[styles.presetText, Number(customAmount) === amount && styles.presetTextActive]}>
-                    {formatCOP(amount)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.inputLabel}>O ingresa un monto personalizado</Text>
-            <View style={styles.inputWrap}>
-              <Text style={styles.currencySymbol}>$</Text>
-              <TextInput
-                style={styles.amountInput}
-                keyboardType="numeric"
-                value={customAmount}
-                onChangeText={setCustomAmount}
-              />
-            </View>
-
-            <TouchableOpacity 
-              style={[styles.payBtn, isRecharging && { opacity: 0.7 }]} 
-              onPress={handleRecharge}
-              disabled={isRecharging}
-            >
-              <LinearGradient colors={['#7c3aed', '#6d28d9']} style={styles.payBtnGradient}>
-                <Text style={styles.payBtnText}>
-                  {isRecharging ? 'Procesando...' : `Pagar ${formatCOP(Number(customAmount) || 0)}`}
+            {rechargeSuccess ? (
+              <View style={styles.successBox}>
+                <Ionicons name="checkmark-circle" size={60} color={COLORS.green} />
+                <Text style={styles.successTitle}>¡Recarga Exitosa!</Text>
+                <Text style={styles.successSubtitle}>
+                  Se agregaron {formatCOP(rechargeSuccess.amount)} a tu saldo disponible.
                 </Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                <View style={styles.successDetails}>
+                  <Text style={styles.successDetailText}>
+                    Referencia: {rechargeSuccess.txId}
+                  </Text>
+                  <Text style={styles.successDetailText}>
+                    Nuevo Saldo: {formatCOP(rechargeSuccess.balanceAfter)}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.closeSuccessBtn}
+                  onPress={() => {
+                    setRechargeSuccess(null);
+                    setRechargeModalVisible(false);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient colors={['#7c3aed', '#6d28d9']} style={styles.payBtnGradient}>
+                    <Text style={styles.payBtnText}>Entendido</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Recargar Créditos</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (!isRecharging) {
+                        setRechargeError(null);
+                        setRechargeModalVisible(false);
+                      }
+                    }}
+                  >
+                    <Ionicons name="close" size={24} color={COLORS.text} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Métodos de Pago */}
+                <Text style={styles.inputLabel}>Selecciona método de pago</Text>
+                <View style={styles.methodSelectorRow}>
+                  {[
+                    { id: 'pse', label: 'PSE', icon: 'business-outline' },
+                    { id: 'nequi', label: 'Nequi', icon: 'phone-portrait-outline' },
+                    { id: 'daviplata', label: 'Daviplata', icon: 'wallet-outline' },
+                    { id: 'card', label: 'Tarjeta', icon: 'card-outline' },
+                  ].map(m => {
+                    const active = paymentMethod === m.id;
+                    return (
+                      <TouchableOpacity
+                        key={m.id}
+                        style={[styles.methodChip, active && styles.methodChipActive]}
+                        onPress={() => setPaymentMethod(m.id as any)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name={m.icon as any}
+                          size={16}
+                          color={active ? '#fff' : COLORS.textMuted}
+                        />
+                        <Text style={[styles.methodChipText, active && styles.methodChipTextActive]}>
+                          {m.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Presets */}
+                <Text style={styles.inputLabel}>Monto a recargar</Text>
+                <View style={styles.presetAmounts}>
+                  {[20000, 50000, 100000, 200000].map(amount => (
+                    <TouchableOpacity 
+                      key={amount} 
+                      style={[styles.presetBtn, Number(customAmount) === amount && styles.presetBtnActive]}
+                      onPress={() => setCustomAmount(amount.toString())}
+                    >
+                      <Text style={[styles.presetText, Number(customAmount) === amount && styles.presetTextActive]}>
+                        {formatCOP(amount)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <View style={styles.inputWrap}>
+                  <Text style={styles.currencySymbol}>$</Text>
+                  <TextInput
+                    style={styles.amountInput}
+                    keyboardType="numeric"
+                    value={customAmount}
+                    onChangeText={setCustomAmount}
+                    placeholder="50000"
+                    placeholderTextColor="#555872"
+                  />
+                </View>
+
+                {rechargeError && (
+                  <View style={styles.errorBox}>
+                    <Ionicons name="alert-circle" size={16} color="#f87171" />
+                    <Text style={styles.errorText}>{rechargeError}</Text>
+                  </View>
+                )}
+
+                <TouchableOpacity 
+                  style={[styles.payBtn, isRecharging && { opacity: 0.7 }]} 
+                  onPress={handleRecharge}
+                  disabled={isRecharging}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient colors={['#7c3aed', '#6d28d9']} style={styles.payBtnGradient}>
+                    {isRecharging ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <ActivityIndicator color="#fff" size="small" />
+                        <Text style={styles.payBtnText}>Conectando pasarela...</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.payBtnText}>
+                        Pagar {formatCOP(Number(customAmount) || 0)} COP
+                      </Text>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </>
+            )}
           </KeyboardAvoidingView>
         </View>
       </Modal>
@@ -335,4 +439,45 @@ const styles = StyleSheet.create({
   payBtn: { borderRadius: RADIUS.md, overflow: 'hidden' },
   payBtnGradient: { paddingVertical: SPACING.md, alignItems: 'center' },
   payBtnText: { color: '#fff', fontSize: FONTS.sizes.md, fontWeight: 'bold' },
+  methodSelectorRow: { flexDirection: 'row', gap: 8, marginBottom: SPACING.lg },
+  methodChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  methodChipActive: { backgroundColor: '#7c3aed', borderColor: '#a78bfa' },
+  methodChipText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
+  methodChipTextActive: { color: '#fff', fontWeight: '700' },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    padding: 10,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.md,
+  },
+  errorText: { color: '#f87171', fontSize: 12, flex: 1 },
+  successBox: { alignItems: 'center', paddingVertical: SPACING.md },
+  successTitle: { color: COLORS.text, fontSize: 20, fontWeight: '800', marginTop: 12 },
+  successSubtitle: { color: COLORS.textSecondary, fontSize: 13, textAlign: 'center', marginTop: 6, paddingHorizontal: 16 },
+  successDetails: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: RADIUS.md,
+    padding: 14,
+    width: '100%',
+    marginVertical: 18,
+    gap: 6,
+  },
+  successDetailText: { color: '#cbd5e1', fontSize: 12, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  closeSuccessBtn: { width: '100%', borderRadius: RADIUS.md, overflow: 'hidden' },
 });

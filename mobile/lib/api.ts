@@ -144,7 +144,16 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const endpointUrl = url.startsWith("http") ? url : `${API_URL}${url}`;
+  const base = API_URL.replace(/\/$/, "");
+  let endpointUrl = url;
+  if (!url.startsWith("http")) {
+    if (base.endsWith("/api") && url.startsWith("/api/")) {
+      endpointUrl = `${base.replace(/\/api$/, "")}${url}`;
+    } else {
+      const cleanPath = url.startsWith("/") ? url : `/${url}`;
+      endpointUrl = `${base}${cleanPath}`;
+    }
+  }
   let response = await fetch(endpointUrl, { ...options, headers });
 
   if (response.status === 401) {
@@ -310,6 +319,166 @@ export async function updateServiceStatus(serviceId: string, status: string): Pr
     body: JSON.stringify({ status }),
   });
   if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+// ============================================
+// CREDITS / BILLETERA ENDPOINTS
+// ============================================
+
+export interface BalanceData {
+  balance: number;
+  total_recharged: number;
+  total_consumed: number;
+  free_services_remaining: number;
+  can_accept_services: boolean;
+  commission_rate: number;
+}
+
+export interface CreditTransaction {
+  id: string;
+  technician_id: string;
+  transaction_type: string;
+  amount: number;
+  balance_after: number;
+  service_id: string | null;
+  description: string;
+  external_reference: string | null;
+  created_at: string;
+}
+
+export async function getCreditBalance(): Promise<BalanceData> {
+  const response = await fetchWithAuth("/credits/balance", { method: "GET" });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function getCreditTransactions(skip = 0, limit = 50): Promise<CreditTransaction[]> {
+  const safeSkip = Math.max(0, Number(skip) || 0);
+  const safeLimit = Math.min(200, Math.max(1, Number(limit) || 50));
+  const response = await fetchWithAuth(`/credits/transactions?skip=${safeSkip}&limit=${safeLimit}`, {
+    method: "GET",
+  });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function rechargeCredits(
+  amount: number,
+  externalReference?: string,
+  paymentMethod?: string
+): Promise<CreditTransaction> {
+  const safeAmount = Math.max(10000, Number(amount) || 50000);
+  const response = await fetchWithAuth("/credits/recharge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      amount: safeAmount,
+      external_reference: externalReference,
+      payment_method: paymentMethod,
+    }),
+  });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function rechargeCreditsIntent(
+  amount: number,
+  paymentMethod: string = "pse"
+): Promise<{
+  transaction_id: string;
+  status: string;
+  amount: number;
+  payment_method: string;
+}> {
+  const safeAmount = Math.max(10000, Number(amount) || 50000);
+  const response = await fetchWithAuth("/credits/recharge/intent", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount: safeAmount, payment_method: paymentMethod || "pse" }),
+  });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function rechargeCreditsConfirm(
+  transactionId: string,
+  amount?: number,
+  paymentMethod: string = "pse"
+): Promise<{
+  transaction_id: string;
+  status: string;
+  amount: number;
+  balance_after: number;
+  message: string;
+}> {
+  const safeAmount = Math.max(10000, Number(amount) || 50000);
+  const response = await fetchWithAuth("/credits/recharge/confirm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      transaction_id: transactionId,
+      amount: safeAmount,
+      payment_method: paymentMethod || "pse",
+    }),
+  });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+// ============================================
+// DIGITAL PAYMENTS & DIAN ENDPOINTS
+// ============================================
+
+export async function createDigitalPaymentIntent(
+  serviceId: string,
+  amount: number,
+  paymentMethod: string = "pse"
+): Promise<{
+  transaction_id: string;
+  status: string;
+  amount: number;
+  payment_method: string;
+}> {
+  const response = await fetchWithAuth("/payments/digital/intent", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      service_id: serviceId,
+      amount: Number(amount),
+      payment_method: paymentMethod,
+    }),
+  });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function confirmDigitalPayment(
+  transactionId: string
+): Promise<{
+  transaction_id: string;
+  status: string;
+  service_id: string;
+  amount: number;
+  invoice_number?: string;
+  cufe?: string;
+  pdf_url?: string;
+  qr_url?: string;
+}> {
+  const response = await fetchWithAuth("/payments/digital/confirm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ transaction_id: transactionId }),
+  });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function getPaymentByServiceId(serviceId: string): Promise<any> {
+  const response = await fetchWithAuth(`/payments/service/${serviceId}`, {
+    method: "GET",
+  });
+  if (!response.ok) return null;
   return response.json();
 }
 

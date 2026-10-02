@@ -21,7 +21,7 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; d
   arrived:     { label: 'Llegó al sitio',   color: '#fb923c', bg: 'rgba(251,146,60,0.15)', dot: '#fb923c' },
   in_progress: { label: 'En Progreso',      color: '#c084fc', bg: 'rgba(192,132,252,0.15)', dot: '#c084fc' },
   completed:   { label: 'Completado',       color: '#34d399', bg: 'rgba(52,211,153,0.15)', dot: '#34d399' },
-  confirmed:   { label: 'Confirmado',       color: '#34d399', bg: 'rgba(52,211,153,0.15)', dot: '#34d399' },
+  confirmed:   { label: 'Completado',       color: '#34d399', bg: 'rgba(52,211,153,0.15)', dot: '#34d399' },
   cancelled:   { label: 'Cancelado',        color: '#f87171', bg: 'rgba(248,113,113,0.15)', dot: '#f87171' },
 };
 

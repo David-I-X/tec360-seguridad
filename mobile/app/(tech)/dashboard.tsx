@@ -42,7 +42,7 @@ export default function TechDashboardScreen() {
       setMyActiveService(active || null);
 
       // Stats
-      const completed = myServices.filter((s: any) => s.status === 'completed').length;
+      const completed = myServices.filter((s: any) => ['completed', 'confirmed'].includes(s.status)).length;
       setStats({ completed, rating: user?.average_rating || 0 });
 
       // Earnings (if payments enabled)

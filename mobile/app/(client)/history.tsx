@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, ScrollView,
+  ActivityIndicator, RefreshControl, ScrollView, Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { fetchWithAuth } from '@/lib/api';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   completed:   { label: 'Completado',  color: '#22c55e', bg: 'rgba(34,197,94,0.15)' },
+  confirmed:   { label: 'Completado',  color: '#22c55e', bg: 'rgba(34,197,94,0.15)' },
   cancelled:   { label: 'Cancelado',   color: '#ef4444', bg: 'rgba(239,68,68,0.15)' },
 };
 
@@ -32,7 +33,9 @@ export default function HistoryScreen() {
       const data = await res.json();
       const list = data.services || data.items || [];
       // Only keep history items
-      const historyList = (Array.isArray(list) ? list : []).filter(s => ['completed', 'cancelled'].includes(s.status));
+      const historyList = (Array.isArray(list) ? list : []).filter(s =>
+        ['completed', 'confirmed', 'cancelled'].includes(s.status)
+      );
       setServices(historyList);
     } catch (e) {
       console.error(e);
@@ -48,7 +51,7 @@ export default function HistoryScreen() {
 
   const filtered = services.filter(s => {
     if (filter === 'all') return true;
-    if (filter === 'completed') return s.status === 'completed';
+    if (filter === 'completed') return ['completed', 'confirmed'].includes(s.status);
     if (filter === 'cancelled') return s.status === 'cancelled';
     return true;
   });
@@ -61,7 +64,10 @@ export default function HistoryScreen() {
 
   const renderServiceCard = ({ item }: { item: any }) => {
     const cfg = statusConfig[item.status] || statusConfig.completed;
+    const isCompleted = ['completed', 'confirmed'].includes(item.status);
     const date = item.created_at ? new Date(item.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) : '';
+    const hasActiveWarranty = isCompleted && (item.warranty_status === 'active' || (item.warranty_days_left ?? 30) > 0);
+    const hasExpiredWarranty = isCompleted && (item.warranty_status === 'expired' || item.warranty_days_left === 0);
 
     return (
       <TouchableOpacity
@@ -87,6 +93,36 @@ export default function HistoryScreen() {
           </View>
           <Ionicons name="chevron-forward" size={18} color="#555872" />
         </View>
+
+        {/* Warranty and DIAN Invoices Row */}
+        {isCompleted && (
+          <View style={styles.bottomCardRow}>
+            {hasActiveWarranty && (
+              <View style={styles.warrantyBadgeActive}>
+                <Ionicons name="shield-checkmark" size={12} color="#22c55e" />
+                <Text style={styles.warrantyBadgeTextActive}>
+                  Garantía: {item.warranty_days_left ?? 30}d
+                </Text>
+              </View>
+            )}
+            {hasExpiredWarranty && (
+              <View style={styles.warrantyBadgeExpired}>
+                <Ionicons name="shield-outline" size={12} color="#9ca3af" />
+                <Text style={styles.warrantyBadgeTextExpired}>Garantía Vencida</Text>
+              </View>
+            )}
+            {item.pdf_url && (
+              <TouchableOpacity
+                style={styles.invoiceBtn}
+                onPress={() => Linking.openURL(item.pdf_url)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="document-text-outline" size={12} color="#22c55e" />
+                <Text style={styles.invoiceBtnText}>Factura DIAN</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
@@ -147,7 +183,7 @@ const styles = StyleSheet.create({
   filterChipActive: { backgroundColor: 'rgba(139,92,246,0.15)', borderColor: '#8b5cf6' },
   filterText: { color: '#555872', fontSize: 13, fontWeight: '600' },
   filterTextActive: { color: '#8b5cf6' },
-  serviceCard: { backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 20, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
+  serviceCard: { backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 20, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   cardContent: { flex: 1 },
@@ -157,6 +193,48 @@ const styles = StyleSheet.create({
   metaText: { color: '#555872', fontSize: 13 },
   statusBadge: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
   statusText: { fontSize: 11, fontWeight: '700' },
+  bottomCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  warrantyBadgeActive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(34,197,94,0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  warrantyBadgeTextActive: { color: '#22c55e', fontSize: 11, fontWeight: '600' },
+  warrantyBadgeExpired: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(107,114,128,0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  warrantyBadgeTextExpired: { color: '#9ca3af', fontSize: 11, fontWeight: '500' },
+  invoiceBtn: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(34,197,94,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(34,197,94,0.3)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  invoiceBtnText: { color: '#4ade80', fontSize: 11, fontWeight: '600' },
   emptyContainer: { alignItems: 'center', paddingTop: 60 },
   emptyEmoji: { fontSize: 48, marginBottom: 16 },
   emptyTitle: { color: '#f0f0f5', fontSize: 18, fontWeight: '700' },

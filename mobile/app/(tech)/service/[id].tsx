@@ -296,7 +296,7 @@ export default function TechServiceScreen() {
 
   // Check if payment already registered for this service
   useEffect(() => {
-    if (!service || service.status !== 'completed') return;
+    if (!service || !['completed', 'confirmed'].includes(service.status)) return;
     (async () => {
       try {
         const res = await fetchWithAuth(`/payments/service/${id}`);
@@ -617,48 +617,141 @@ export default function TechServiceScreen() {
           </TouchableOpacity>
         )}
 
-        {service?.status === 'completed' && (
-          <View style={styles.completedBanner}>
-            <Text style={{ fontSize: 36, marginBottom: 8 }}>🎉</Text>
-            <Text style={{ color: '#22c55e', fontSize: 18, fontWeight: '700' }}>Servicio completado</Text>
-            {!paymentRegistered ? (
-              <TouchableOpacity
-                style={[styles.actionBtn, { marginTop: 16, width: '100%' }, isRegisteringPayment && { opacity: 0.6 }]}
-                disabled={isRegisteringPayment}
-                activeOpacity={0.8}
-                onPress={() => {
-                  const defaultAmount = service?.estimated_price ? String(service.estimated_price) : '';
-                  Alert.prompt
-                    ? Alert.prompt('💰 Registrar Cobro', 'Ingresa el monto recibido en COP:', [
-                        { text: 'Cancelar', style: 'cancel' },
-                        { text: 'Confirmar', onPress: (val?: string) => registerCashPayment(val || defaultAmount) },
-                      ], 'plain-text', defaultAmount, 'number-pad')
-                    : Alert.alert('💰 Registrar Cobro', `¿Confirmar cobro de $${defaultAmount || '0'} COP?`, [
-                        { text: 'Cancelar', style: 'cancel' },
-                        { text: 'Confirmar', onPress: () => registerCashPayment(defaultAmount) },
-                      ]);
-                }}
-              >
-                <LinearGradient colors={['#f59e0b', '#d97706']} style={styles.actionGradient}>
-                  {isRegisteringPayment ? <ActivityIndicator color="#fff" /> : (
-                    <>
-                      <Text style={styles.actionEmoji}>💰</Text>
-                      <Text style={styles.actionText}>Registrar Cobro</Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            ) : (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
-                <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                <Text style={{ color: '#22c55e', fontSize: 14, fontWeight: '600' }}>Pago registrado</Text>
+        {['completed', 'confirmed'].includes(service?.status) && (() => {
+          const totalAmount = Number(service?.estimated_price || service?.final_price || 0);
+          const commissionAmount = Number(service?.commission_amount || Math.round(totalAmount * 0.10));
+          const netEarnings = Math.max(0, totalAmount - commissionAmount);
+          const hasActiveWarranty = service?.warranty_status === 'active' || (service?.warranty_days_left ?? 30) > 0;
+          const hasExpiredWarranty = service?.warranty_status === 'expired' || service?.warranty_days_left === 0;
+
+          return (
+            <View style={styles.completedContainer}>
+              <View style={styles.completedBanner}>
+                <Text style={{ fontSize: 36, marginBottom: 8 }}>🎉</Text>
+                <Text style={{ color: '#22c55e', fontSize: 18, fontWeight: '700' }}>Servicio completado</Text>
+                {!paymentRegistered ? (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { marginTop: 16, width: '100%' }, isRegisteringPayment && { opacity: 0.6 }]}
+                    disabled={isRegisteringPayment}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      const defaultAmount = service?.estimated_price ? String(service.estimated_price) : '';
+                      Alert.prompt
+                        ? Alert.prompt('💰 Registrar Cobro', 'Ingresa el monto recibido en COP:', [
+                            { text: 'Cancelar', style: 'cancel' },
+                            { text: 'Confirmar', onPress: (val?: string) => registerCashPayment(val || defaultAmount) },
+                          ], 'plain-text', defaultAmount, 'number-pad')
+                        : Alert.alert('💰 Registrar Cobro', `¿Confirmar cobro de $${defaultAmount || '0'} COP?`, [
+                            { text: 'Cancelar', style: 'cancel' },
+                            { text: 'Confirmar', onPress: () => registerCashPayment(defaultAmount) },
+                          ]);
+                    }}
+                  >
+                    <LinearGradient colors={['#f59e0b', '#d97706']} style={styles.actionGradient}>
+                      {isRegisteringPayment ? <ActivityIndicator color="#fff" /> : (
+                        <>
+                          <Text style={styles.actionEmoji}>💰</Text>
+                          <Text style={styles.actionText}>Registrar Cobro</Text>
+                        </>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                    <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+                    <Text style={{ color: '#22c55e', fontSize: 14, fontWeight: '600' }}>Pago registrado</Text>
+                  </View>
+                )}
               </View>
-            )}
-          </View>
-        )}
+
+              {/* Warranty Banner */}
+              <View style={styles.warrantyBox}>
+                {hasActiveWarranty ? (
+                  <View style={styles.warrantyContentActive}>
+                    <Ionicons name="shield-checkmark" size={22} color="#22c55e" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.warrantyTitleActive}>Garantía de Servicio Activa</Text>
+                      <Text style={styles.warrantySubActive}>
+                        Respaldado durante 30 días ({service?.warranty_days_left ?? 30} días restantes)
+                      </Text>
+                    </View>
+                  </View>
+                ) : hasExpiredWarranty ? (
+                  <View style={styles.warrantyContentExpired}>
+                    <Ionicons name="shield-outline" size={22} color="#6b7280" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.warrantyTitleExpired}>Garantía de 30 días Finalizada</Text>
+                      <Text style={styles.warrantySubExpired}>El tiempo de cobertura post-servicio ha concluido</Text>
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+
+              {/* Financial Settlement Breakdown (10% Commission) */}
+              {totalAmount > 0 && (
+                <View style={styles.financialCard}>
+                  <Text style={styles.financialTitle}>LIQUIDACIÓN DEL SERVICIO</Text>
+                  <View style={styles.financialRow}>
+                    <Text style={styles.financialLabel}>Valor total del servicio:</Text>
+                    <Text style={styles.financialValue}>${totalAmount.toLocaleString('es-CO')} COP</Text>
+                  </View>
+                  <View style={styles.financialRow}>
+                    <Text style={styles.financialLabel}>Comisión Tec360 (10%):</Text>
+                    <Text style={[styles.financialValue, { color: '#f87171' }]}>
+                      -${commissionAmount.toLocaleString('es-CO')} COP
+                    </Text>
+                  </View>
+                  <View style={[styles.financialRow, styles.financialTotalRow]}>
+                    <Text style={styles.financialTotalLabel}>Tu ganancia neta (90%):</Text>
+                    <Text style={styles.financialTotalValue}>${netEarnings.toLocaleString('es-CO')} COP</Text>
+                  </View>
+                </View>
+              )}
+
+              {/* DIAN Electronic Invoices */}
+              {(service?.tech_pdf_url || service?.pdf_url) && (
+                <View style={styles.invoicesCard}>
+                  <Text style={styles.invoicesTitle}>FACTURACIÓN ELECTRÓNICA DIAN</Text>
+                  {service?.tech_pdf_url && (
+                    <TouchableOpacity
+                      style={styles.techInvoiceActionBtn}
+                      onPress={() => Linking.openURL(service.tech_pdf_url)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="receipt" size={18} color="#a78bfa" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.techInvoiceActionText}>Factura de Comisión Tec360</Text>
+                        <Text style={styles.techInvoiceActionSub}>
+                          {service.tech_invoice_number ? `N° ${service.tech_invoice_number} · ` : ''}Descargar PDF DIAN
+                        </Text>
+                      </View>
+                      <Ionicons name="download-outline" size={18} color="#a78bfa" />
+                    </TouchableOpacity>
+                  )}
+                  {service?.pdf_url && (
+                    <TouchableOpacity
+                      style={styles.clientInvoiceActionBtn}
+                      onPress={() => Linking.openURL(service.pdf_url)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="document-text" size={18} color="#4ade80" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.clientInvoiceActionText}>Factura de Servicio del Cliente</Text>
+                        <Text style={styles.clientInvoiceActionSub}>
+                          {service.invoice_number ? `N° ${service.invoice_number} · ` : ''}Descargar PDF DIAN
+                        </Text>
+                      </View>
+                      <Ionicons name="download-outline" size={18} color="#4ade80" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            </View>
+          );
+        })()}
 
         {/* Secondary Actions (Report Incident / Price Adjustment) */}
-        {service?.status !== 'completed' && service?.status !== 'cancelled' && (
+        {!['completed', 'confirmed', 'cancelled'].includes(service?.status) && (
           <View style={styles.secondaryActionsContainer}>
             <TouchableOpacity 
               style={styles.secondaryBtn}
@@ -884,4 +977,83 @@ const styles = StyleSheet.create({
   supportBtnInner: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: RADIUS.lg, padding: SPACING.lg, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)' },
   supportBtnTitle: { color: COLORS.text, fontSize: 14, fontWeight: FONTS.weights.bold },
   supportBtnSub: { color: COLORS.textSecondary, fontSize: FONTS.sizes.xs, marginTop: 1 },
+  completedContainer: { marginTop: SPACING.sm, gap: 12 },
+  warrantyBox: { marginTop: 4 },
+  warrantyContentActive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(34,197,94,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(34,197,94,0.3)',
+    borderRadius: 16,
+    padding: 16,
+  },
+  warrantyTitleActive: { color: '#22c55e', fontSize: 14, fontWeight: '700' },
+  warrantySubActive: { color: '#86efac', fontSize: 12, marginTop: 2 },
+  warrantyContentExpired: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(107,114,128,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(107,114,128,0.25)',
+    borderRadius: 16,
+    padding: 16,
+  },
+  warrantyTitleExpired: { color: '#9ca3af', fontSize: 14, fontWeight: '700' },
+  warrantySubExpired: { color: '#6b7280', fontSize: 12, marginTop: 2 },
+  financialCard: {
+    backgroundColor: 'rgba(10,14,28,0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(80,60,160,0.3)',
+    borderRadius: 18,
+    padding: 18,
+    gap: 10,
+  },
+  financialTitle: { color: '#8b8fa3', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  financialRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  financialLabel: { color: '#cbd5e1', fontSize: 13 },
+  financialValue: { color: '#f0f0f5', fontSize: 13, fontWeight: '700' },
+  financialTotalRow: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+    paddingTop: 10,
+    marginTop: 4,
+  },
+  financialTotalLabel: { color: '#22c55e', fontSize: 15, fontWeight: '800' },
+  financialTotalValue: { color: '#22c55e', fontSize: 16, fontWeight: '800' },
+  invoicesCard: {
+    backgroundColor: 'rgba(10,14,28,0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(80,60,160,0.3)',
+    borderRadius: 18,
+    padding: 18,
+    gap: 12,
+  },
+  invoicesTitle: { color: '#8b8fa3', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  techInvoiceActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(139,92,246,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.35)',
+    borderRadius: 14,
+    padding: 14,
+  },
+  techInvoiceActionText: { color: '#c4b5fd', fontSize: 13, fontWeight: '700' },
+  techInvoiceActionSub: { color: '#8b5cf6', fontSize: 11, marginTop: 2 },
+  clientInvoiceActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(34,197,94,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(34,197,94,0.35)',
+    borderRadius: 14,
+    padding: 14,
+  },
+  clientInvoiceActionText: { color: '#86efac', fontSize: 13, fontWeight: '700' },
+  clientInvoiceActionSub: { color: '#22c55e', fontSize: 11, marginTop: 2 },
 });

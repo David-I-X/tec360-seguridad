@@ -42,7 +42,7 @@ const statusInfo: Record<string, { label: string; color: string; icon: keyof typ
   arrived: { label: 'Llegó al sitio', color: '#fb923c', icon: 'location-outline' },
   in_progress: { label: 'En Progreso', color: '#c084fc', icon: 'construct-outline' },
   completed: { label: 'Completado', color: '#34d399', icon: 'checkmark-circle-outline' },
-  confirmed: { label: 'Confirmado', color: '#34d399', icon: 'checkmark-circle' },
+  confirmed: { label: 'Completado', color: '#34d399', icon: 'checkmark-circle' },
   cancelled: { label: 'Cancelado', color: '#f87171', icon: 'close-circle-outline' },
 };
 
@@ -784,6 +784,67 @@ export default function ServiceDetailScreen() {
                     <Text style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', marginTop: 2 }}>Gracias por confiar en Tec360 Seguridad.</Text>
                   </>
                 )}
+
+                {/* 30-Day Warranty Card */}
+                {(() => {
+                  const hasActiveWarranty = service?.warranty_status === 'active' || (service?.warranty_days_left ?? 30) > 0;
+                  const hasExpiredWarranty = service?.warranty_status === 'expired' || service?.warranty_days_left === 0;
+
+                  if (hasActiveWarranty) {
+                    return (
+                      <View style={styles.clientWarrantyCardActive}>
+                        <Ionicons name="shield-checkmark" size={20} color="#22c55e" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.clientWarrantyTitleActive}>Garantía de Satisfacción Activa</Text>
+                          <Text style={styles.clientWarrantySubActive}>
+                            Tu servicio cuenta con {service?.warranty_days_left ?? 30} días restantes de respaldo técnico garantizado por Tec360.
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  } else if (hasExpiredWarranty) {
+                    return (
+                      <View style={styles.clientWarrantyCardExpired}>
+                        <Ionicons name="shield-outline" size={20} color="#9ca3af" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.clientWarrantyTitleExpired}>Garantía de 30 días Finalizada</Text>
+                          <Text style={styles.clientWarrantySubExpired}>
+                            El periodo de cobertura y respaldo técnico post-servicio ha concluido.
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  }
+                  return null;
+                })()}
+
+                {/* DIAN Electronic Invoice Card */}
+                {service?.pdf_url && (
+                  <View style={styles.clientInvoiceCard}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={styles.clientInvoiceIconBox}>
+                        <Ionicons name="receipt" size={20} color="#22c55e" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.clientInvoiceTitle}>Factura Electrónica DIAN</Text>
+                        <Text style={styles.clientInvoiceSub}>
+                          {service.invoice_number ? `Factura N° ${service.invoice_number} · ` : ''}Documento oficial de tu servicio
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.clientInvoiceDownloadBtn}
+                      onPress={() => Linking.openURL(service.pdf_url)}
+                      activeOpacity={0.8}
+                    >
+                      <LinearGradient colors={['#22c55e', '#16a34a']} style={styles.clientInvoiceDownloadGradient}>
+                        <Ionicons name="download-outline" size={16} color="#fff" />
+                        <Text style={styles.clientInvoiceDownloadText}>Descargar Factura PDF</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
                 {canRate && (
                   <TouchableOpacity onPress={() => setShowRating(true)} activeOpacity={0.8} style={{ marginTop: 12, width: '100%' }}>
                     <LinearGradient colors={['#f59e0b', '#d97706']} style={styles.actionButton}>
@@ -855,6 +916,7 @@ export default function ServiceDetailScreen() {
 
       <PaymentModal
         visible={showPaymentModal}
+        serviceId={id!}
         onClose={() => setShowPaymentModal(false)}
         amount={service?.estimated_price || 0}
         onConfirm={(method) => handleConfirmPayment(method)}
@@ -1599,5 +1661,97 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 11,
     marginTop: 1,
+  },
+
+  // Warranty & DIAN Cards for Client
+  clientWarrantyCardActive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(34,197,94,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(34,197,94,0.3)',
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 12,
+    width: '100%',
+  },
+  clientWarrantyTitleActive: {
+    color: '#22c55e',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  clientWarrantySubActive: {
+    color: '#86efac',
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  clientWarrantyCardExpired: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(107,114,128,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(107,114,128,0.25)',
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 12,
+    width: '100%',
+  },
+  clientWarrantyTitleExpired: {
+    color: '#9ca3af',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  clientWarrantySubExpired: {
+    color: '#6b7280',
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  clientInvoiceCard: {
+    backgroundColor: 'rgba(10,14,28,0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(34,197,94,0.3)',
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 12,
+    width: '100%',
+    gap: 12,
+  },
+  clientInvoiceIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(34,197,94,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clientInvoiceTitle: {
+    color: '#f0f0f5',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  clientInvoiceSub: {
+    color: '#8b8fa3',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  clientInvoiceDownloadBtn: {
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  clientInvoiceDownloadGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+  },
+  clientInvoiceDownloadText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });
