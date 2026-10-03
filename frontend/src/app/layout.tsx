@@ -10,14 +10,15 @@ import "./globals.css"
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   themeColor: "#0f172a",
 }
 
 // ✅ Metadata completa + SEO + PWA
 export const metadata: Metadata = {
   metadataBase: new URL("https://tec-360.tech"),
+  alternates: {
+    canonical: "https://tec-360.tech",
+  },
   title: {
     default: "Tec360 Seguridad - Instalación de GPS, Alarmas y Cámaras por Técnicos Certificados",
     template: "%s | Tec360 Seguridad"
@@ -44,12 +45,21 @@ export const metadata: Metadata = {
     siteName: "Tec360 Seguridad",
     locale: "es_CO",
     type: "website",
+    images: [
+      {
+        url: "/icons/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Tec360 Seguridad - Plataforma Telemática y Técnicos Certificados SENA",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Tec360 Seguridad - Técnicos Certificados SENA",
     description: "Instalación y mantenimiento de sistemas de seguridad electrónica por técnicos certificados por el SENA.",
-    creator: "@tec360", // Replace with actual Twitter handle if exists
+    creator: "@tec360",
+    images: ["/icons/og-image.png"],
   },
   robots: {
     index: true,
@@ -70,13 +80,46 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      {
-        url: "/icons/icon.svg",
-        type: "image/svg+xml",
-      },
+      { url: "/favicon.ico" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
     ],
-    apple: "/icons/icon.svg",
+    apple: [
+      { url: "/icons/icon-192x192.png" },
+    ],
   },
+}
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SecurityService",
+  name: "Tec360 Seguridad",
+  image: "https://tec-360.tech/icons/og-image.png",
+  logo: "https://tec-360.tech/icons/icon-512x512.png",
+  url: "https://tec-360.tech",
+  telephone: "+573052156601",
+  email: "tracktec.soporte@gmail.com",
+  priceRange: "$$",
+  address: {
+    "@type": "PostalAddress",
+    addressLocality: "Medellín",
+    addressRegion: "Antioquia",
+    addressCountry: "CO"
+  },
+  geo: {
+    "@type": "GeoCoordinates",
+    latitude: 6.2442,
+    longitude: -75.5812
+  },
+  openingHoursSpecification: [
+    {
+      "@type": "OpeningHoursSpecification",
+      dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+      opens: "07:00",
+      closes: "19:00"
+    }
+  ],
+  description: "Servicio profesional de instalación de GPS vehicular, cámaras de seguridad y sistemas de alarmas en Colombia. Conecta con técnicos certificados por el SENA a domicilio."
 }
 
 export default function RootLayout({
@@ -86,6 +129,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body
         className="font-sans antialiased"
       >

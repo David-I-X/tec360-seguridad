@@ -93,7 +93,7 @@ export default function EliminarCuentaPage() {
 
             <div className="mt-8 pt-6 border-t border-slate-800 text-xs text-slate-400 flex items-center gap-2">
               <ShieldAlert className="w-4 h-4 text-slate-500" />
-              <span>También puedes solicitarlo directamente escribiendo a <strong>soporte@tec-360.tech</strong></span>
+              <span>También puedes solicitarlo directamente escribiendo a <strong>tracktec.soporte@gmail.com</strong></span>
             </div>
           </div>
         )}

@@ -760,30 +760,31 @@ export function Hero() {
               Protección vehicular avanzada en Colombia. Hardware telemático de alta precisión con GPS 4G anti-jammer, dashcams HD y corte de corriente remoto, respaldado por un centro de respuesta táctica 24/7 y técnicos certificados.
             </motion.p>
 
-            {/* CTAs */}
+            {/* CTA Unificada con clara jerarquía dominante */}
             <motion.div
               initial="hidden"
               animate="visible"
               custom={3}
               variants={fadeUp}
-              className="flex flex-col sm:flex-row gap-3.5 mt-2 items-center lg:items-start"
+              className="flex flex-col sm:flex-row gap-3 mt-2 items-center lg:items-start"
             >
               <Link href="/servicios/nuevo?tipo=instalacion" className="w-full sm:w-auto">
                 <Button
                   size="lg"
-                  className="w-full sm:w-auto bg-violet-600 hover:bg-violet-700 text-white px-7 py-6 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-2 shadow-xl shadow-violet-600/30 hover:shadow-violet-600/50 cursor-pointer"
+                  className="w-full sm:w-auto bg-gradient-to-r from-violet-600 via-indigo-600 to-violet-700 hover:from-violet-500 hover:to-indigo-500 text-white px-8 py-6 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-2.5 shadow-2xl shadow-violet-600/40 hover:shadow-violet-600/60 hover:-translate-y-0.5 cursor-pointer ring-2 ring-violet-400/20"
                 >
-                  Activar Protección 360°
+                  <Zap className="h-4 w-4 text-cyan-300 fill-cyan-300 animate-pulse" />
+                  <span>Activar Protección 360°</span>
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
-              <Link href="/servicios" className="w-full sm:w-auto">
+              <Link href="/servicios" className="w-full sm:w-auto text-center">
                 <Button
                   size="lg"
-                  variant="outline"
-                  className="w-full sm:w-auto border-slate-300 dark:border-white/15 bg-white dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-900 dark:text-white px-7 py-6 rounded-xl font-bold text-base backdrop-blur-md cursor-pointer"
+                  variant="ghost"
+                  className="w-full sm:w-auto text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5 px-6 py-6 rounded-xl font-medium text-sm transition-all cursor-pointer"
                 >
-                  Explorar Servicios &amp; Cobertura
+                  O explorar servicios &rarr;
                 </Button>
               </Link>
             </motion.div>

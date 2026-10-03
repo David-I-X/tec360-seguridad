@@ -515,12 +515,14 @@ function Footer() {
             <ul className="space-y-2.5 text-sm text-slate-600 dark:text-slate-400">
               <li className="flex items-center gap-2">
                 <span className="text-[10px] font-mono font-bold text-violet-400 bg-violet-950/60 border border-violet-500/30 px-1.5 py-0.5 rounded">24/7</span>
-                <span className="font-mono text-slate-800 dark:text-slate-200 text-xs font-semibold">Línea Nacional: (604) 360-0000</span>
+                <a href="tel:+573052156601" className="font-mono text-slate-800 dark:text-slate-200 text-xs font-semibold hover:text-violet-600 dark:hover:text-violet-400 transition-colors">
+                  Línea de Atención: +57 (305) 215-6601
+                </a>
               </li>
               <li className="flex items-center gap-2">
                 <span className="text-base">📧</span>
-                <a href="mailto:soporte@tec360seguridad.com" className="hover:text-violet-600 dark:hover:text-white transition-colors truncate">
-                  soporte@tec360seguridad.com
+                <a href="mailto:tracktec.soporte@gmail.com" className="hover:text-violet-600 dark:hover:text-white transition-colors truncate">
+                  tracktec.soporte@gmail.com
                 </a>
               </li>
               <li className="flex items-center gap-2">

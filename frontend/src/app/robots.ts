@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/admin/', '/api/', '/configuracion/'],
+      disallow: ['/admin/', '/api/', '/configuracion/', '/tecnicos/', '/auth/'],
     },
     sitemap: 'https://tec-360.tech/sitemap.xml',
   }
