@@ -4,9 +4,9 @@ test.describe('Nueva Solicitud de Servicio', () => {
   test('debe cargar la página de nueva solicitud o redirigir a login', async ({ page }) => {
     await page.goto('/servicios/nuevo');
     
-    // Should show form or redirect to login
+    // Should show form or redirect to login/auth
     const isForm = page.url().includes('/nuevo') || page.url().includes('/nueva');
-    const isLogin = page.url().includes('/login');
+    const isLogin = page.url().includes('/login') || page.url().includes('/auth');
     expect(isForm || isLogin).toBe(true);
   });
 

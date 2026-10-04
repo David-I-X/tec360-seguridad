@@ -4,17 +4,17 @@ test.describe('Panel de Administración', () => {
   test('debe cargar el dashboard admin', async ({ page }) => {
     await page.goto('/admin');
     
-    // Should either show admin content or redirect to login
+    // Should either show admin content or redirect to login/auth
     const isAdmin = page.url().includes('/admin');
-    const isLogin = page.url().includes('/login');
+    const isLogin = page.url().includes('/login') || page.url().includes('/auth');
     expect(isAdmin || isLogin).toBe(true);
   });
 
   test('debe mostrar navegación del admin', async ({ page }) => {
     await page.goto('/admin');
     
-    // If redirected to login, that's also valid (auth required)
-    if (page.url().includes('/login')) {
+    // If redirected to login/auth, that's also valid (auth required)
+    if (page.url().includes('/login') || page.url().includes('/auth')) {
       test.skip();
       return;
     }
