@@ -5,6 +5,7 @@ import { AuthProvider } from "@/lib/auth-context"
 import { ServiceWorkerRegistration } from "@/components/pwa/sw-register"
 import { PushAutoRegister } from "@/components/pwa/push-auto-register"
 import { Navbar } from "@/components/navbar"
+import { AnalyticsProvider } from "@/components/analytics/analytics-provider"
 import "./globals.css"
 // ✅ Viewport (Next.js 16 — export separado)
 export const viewport: Viewport = {
@@ -154,6 +155,9 @@ export default function RootLayout({
 
           {/* ✅ PWA Service Worker */}
           <ServiceWorkerRegistration />
+
+          {/* ✅ Analítica Ultraligera (GA4 + Microsoft Clarity) */}
+          <AnalyticsProvider />
         </ThemeProvider>
       </body>
     </html>
