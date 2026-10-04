@@ -9,9 +9,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Marker } from 'react-native-maps';
 import { TecMapView, FleetMarker } from '@/components/map';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth-context';
 import { fetchWithAuth, API_URL } from '@/lib/api';
-import { COLORS, SPACING, FONTS } from '@/constants/theme';
+import { COLORS, SPACING, FONTS, NEU, RADIUS } from '@/constants/theme';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   pending:     { label: 'Pendiente',        color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', dot: '#f59e0b' },
@@ -62,6 +63,7 @@ function formatServiceDate(dateStr?: string | null): string {
 
 export default function ServicesScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [services, setServices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -173,7 +175,7 @@ export default function ServicesScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
       {/* ── Header ── */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
@@ -702,7 +704,7 @@ const darkMapStyle = [
 ];
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg, paddingTop: 54 },
+  container: { flex: 1, backgroundColor: COLORS.bg },
   fullscreenMap: {
     position: 'absolute',
     top: 0,
@@ -772,14 +774,12 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   searchBox: {
+    ...NEU.inset,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(18,22,40,0.85)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(80,60,160,0.25)',
+    borderRadius: RADIUS.md,
     paddingHorizontal: 12,
-    height: 40,
+    height: 42,
   },
   searchIcon: {
     marginRight: 8,
@@ -794,12 +794,10 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   viewModeToggle: {
+    ...NEU.raisedSm,
     flexDirection: 'row',
-    backgroundColor: 'rgba(18,22,40,0.85)',
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     padding: 3,
-    borderWidth: 1,
-    borderColor: 'rgba(80,60,160,0.25)',
   },
   viewModeBtn: {
     flex: 1,
@@ -808,10 +806,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 6,
-    borderRadius: 9,
+    borderRadius: RADIUS.sm,
   },
   viewModeBtnActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primaryDark,
+    boxShadow: NEU.accent.boxShadow,
   },
   viewModeText: {
     color: COLORS.textMuted,
@@ -819,7 +818,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   viewModeTextActive: {
-    color: '#fff',
+    color: COLORS.onPrimary,
   },
 
   // HUD Metrics Strip (4 columns)
@@ -830,12 +829,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   hudCard: {
+    ...NEU.raisedSm,
     flex: 1,
-    backgroundColor: 'rgba(10,14,28,0.85)',
-    borderRadius: 14,
+    borderRadius: RADIUS.md,
     padding: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
   },
   hudHeaderRow: {
     flexDirection: 'row',
@@ -991,16 +988,13 @@ const styles = StyleSheet.create({
 
   // Service Card (Cuadrícula / Lista)
   serviceCard: {
-    backgroundColor: 'rgba(10,14,28,0.85)',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(80,60,160,0.2)',
+    ...NEU.raised,
+    borderRadius: RADIUS.xl,
+    padding: 16,
+    marginBottom: 14,
   },
   serviceCardLive: {
-    borderColor: 'rgba(52,211,153,0.4)',
-    backgroundColor: 'rgba(52,211,153,0.03)',
+    backgroundColor: COLORS.surfaceHigh,
   },
   cardHeaderRow: {
     flexDirection: 'row',

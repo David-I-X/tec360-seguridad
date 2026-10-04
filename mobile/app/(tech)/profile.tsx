@@ -5,15 +5,19 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useAuth } from '@/lib/auth-context';
 import { fetchWithAuth, API_URL } from '@/lib/api';
-import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
+import { COLORS, NEU, RADIUS } from '@/constants/theme';
+import { NeuIcon } from '@/components/neu';
+
+type IconName = keyof typeof Ionicons.glyphMap;
 
 export default function TechProfileScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user, refreshUser, logout } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [stats, setStats] = useState({ completed: 0, total: 0 });
@@ -27,7 +31,7 @@ export default function TechProfileScreen() {
         const list = data.services || data.items || [];
         setStats({
           total: list.length,
-          completed: list.filter((s: any) => s.status === 'completed').length,
+          completed: list.filter((s: any) => s.status === 'completed' || s.status === 'confirmed').length,
         });
       } catch (e) { console.error(e); }
     })();
@@ -63,145 +67,215 @@ export default function TechProfileScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert('Cerrar sesión', '¿Deseas salir de tu cuenta?', [
+    Alert.alert('Cerrar sesión', '¿Deseas salir de tu cuenta de técnico?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Salir', style: 'destructive', onPress: logout },
     ]);
   };
 
+  const renderMenuItem = (
+    icon: IconName,
+    title: string,
+    onPress: () => void,
+    color: string = COLORS.textSecondary,
+    destructive: boolean = false,
+  ) => (
+    <TouchableOpacity
+      style={styles.menuItem}
+      onPress={onPress}
+      activeOpacity={0.75}
+    >
+      <NeuIcon name={icon} color={color} size={36} inset />
+      <Text style={[styles.menuText, destructive && { color: COLORS.red }]}>{title}</Text>
+      <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+    </TouchableOpacity>
+  );
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120 }}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
+      showsVerticalScrollIndicator={false}
+    >
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Mi Perfil</Text>
       </View>
 
-      {/* Avatar */}
-      <View style={styles.avatarContainer}>
-        <TouchableOpacity onPress={handleChangeAvatar} activeOpacity={0.8}>
+      {/* Profile Card */}
+      <View style={styles.avatarCard}>
+        <TouchableOpacity onPress={handleChangeAvatar} activeOpacity={0.8} style={styles.avatarWrap}>
           {user?.avatar_url ? (
             <Image
               source={{ uri: user.avatar_url.startsWith('http') ? user.avatar_url : `${staticUrl}${user.avatar_url}` }}
               style={styles.avatar}
             />
           ) : (
-            <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.avatar}>
+            <View style={[styles.avatar, styles.avatarFallback]}>
               <Text style={styles.avatarText}>{user?.full_name?.[0] || 'T'}</Text>
-            </LinearGradient>
+            </View>
           )}
           <View style={styles.cameraIcon}>
-            {isUploading ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="camera" size={14} color="#fff" />}
+            {isUploading ? (
+              <ActivityIndicator size="small" color={COLORS.onPrimary} />
+            ) : (
+              <Ionicons name="camera" size={13} color={COLORS.onPrimary} />
+            )}
           </View>
         </TouchableOpacity>
-        <Text style={styles.name}>{user?.full_name}</Text>
-        <Text style={styles.phone}>{user?.phone}</Text>
-        {user?.email && <Text style={styles.email}>{user.email}</Text>}
+        <Text style={styles.name} numberOfLines={1}>{user?.full_name || 'Técnico'}</Text>
+        <Text style={styles.phone}>{user?.phone || 'Sin teléfono'}</Text>
+        {user?.email && <Text style={styles.email} numberOfLines={1}>{user.email}</Text>}
       </View>
 
-      {/* Stats */}
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Ionicons name="briefcase" size={22} color="#8b5cf6" />
+      {/* Stats Panel */}
+      <View style={styles.statsPanel}>
+        <View style={styles.statCell}>
           <Text style={styles.statNumber}>{stats.total}</Text>
           <Text style={styles.statLabel}>Servicios</Text>
         </View>
-        <View style={styles.statCard}>
-          <Ionicons name="checkmark-done" size={22} color="#22c55e" />
+        <View style={styles.statDivider} />
+        <View style={styles.statCell}>
           <Text style={styles.statNumber}>{stats.completed}</Text>
           <Text style={styles.statLabel}>Completados</Text>
         </View>
-        <View style={styles.statCard}>
-          <Ionicons name="star" size={22} color="#eab308" />
-          <Text style={styles.statNumber}>{(user as any)?.average_rating?.toFixed(1) || '—'}</Text>
-          <Text style={styles.statLabel}>Rating</Text>
+        <View style={styles.statDivider} />
+        <View style={styles.statCell}>
+          <View style={styles.ratingRow}>
+            <Ionicons name="star" size={14} color={COLORS.yellow} />
+            <Text style={styles.statNumber}>{(user as any)?.average_rating?.toFixed(1) || '—'}</Text>
+          </View>
+          <Text style={styles.statLabel}>Calificación</Text>
         </View>
       </View>
 
       {/* Menu Items */}
+      <Text style={styles.sectionTitle}>GESTIÓN</Text>
       <View style={styles.menuSection}>
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(tech)/edit-profile' as any)}>
-          <Ionicons name="person-outline" size={20} color="#8b8fa3" />
-          <Text style={styles.menuText}>Editar Perfil</Text>
-          <Ionicons name="chevron-forward" size={18} color="#555872" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(tech)/quotations' as any)}>
-          <Ionicons name="pricetags-outline" size={20} color="#8b8fa3" />
-          <Text style={styles.menuText}>Mis Cotizaciones</Text>
-          <Ionicons name="chevron-forward" size={18} color="#555872" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(tech)/support' as any)}>
-          <Ionicons name="help-circle-outline" size={20} color="#8b8fa3" />
-          <Text style={styles.menuText}>Soporte</Text>
-          <Ionicons name="chevron-forward" size={18} color="#555872" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(client)/privacy' as any)}>
-          <Ionicons name="shield-checkmark-outline" size={20} color="#8b8fa3" />
-          <Text style={styles.menuText}>Privacidad</Text>
-          <Ionicons name="chevron-forward" size={18} color="#555872" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(client)/terms' as any)}>
-          <Ionicons name="document-text-outline" size={20} color="#8b8fa3" />
-          <Text style={styles.menuText}>Términos y Condiciones</Text>
-          <Ionicons name="chevron-forward" size={18} color="#555872" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => {
-            Alert.alert(
-              'Eliminar Cuenta',
-              '¿Estás seguro de que deseas eliminar tu cuenta de técnico permanentemente? Esta acción borrará tus datos y no se puede deshacer.',
-              [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                  text: 'Eliminar',
-                  style: 'destructive',
-                  onPress: async () => {
-                    try {
-                      await fetchWithAuth('/auth/me', { method: 'DELETE' });
-                      Alert.alert('Cuenta Eliminada', 'Tu cuenta y datos han sido eliminados.');
-                      logout();
-                    } catch (e: any) {
-                      Alert.alert('Error', e.message || 'No se pudo eliminar la cuenta');
-                    }
-                  },
+        {renderMenuItem('person-outline', 'Editar perfil', () => router.push('/(tech)/edit-profile' as any))}
+        {renderMenuItem('pricetags-outline', 'Mis cotizaciones', () => router.push('/(tech)/quotations' as any))}
+        {renderMenuItem('help-circle-outline', 'Soporte técnico', () => router.push('/(tech)/support' as any))}
+      </View>
+
+      <Text style={styles.sectionTitle}>LEGAL Y CUENTA</Text>
+      <View style={styles.menuSection}>
+        {renderMenuItem('shield-checkmark-outline', 'Privacidad', () => router.push('/(client)/privacy' as any))}
+        {renderMenuItem('document-text-outline', 'Términos y condiciones', () => router.push('/(client)/terms' as any))}
+        {renderMenuItem('trash-outline', 'Eliminar cuenta', () => {
+          Alert.alert(
+            'Eliminar cuenta',
+            'Esta acción borrará tus datos permanentemente y no se puede deshacer.',
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              {
+                text: 'Eliminar',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await fetchWithAuth('/auth/me', { method: 'DELETE' });
+                    Alert.alert('Cuenta eliminada', 'Tus datos han sido eliminados.');
+                    logout();
+                  } catch (e: any) {
+                    Alert.alert('Error', e.message || 'No se pudo eliminar la cuenta');
+                  }
                 },
-              ]
-            );
-          }}
-        >
-          <Ionicons name="trash-outline" size={20} color="#ef4444" />
-          <Text style={[styles.menuText, { color: '#ef4444' }]}>Eliminar Cuenta</Text>
-          <Ionicons name="chevron-forward" size={18} color="#555872" />
-        </TouchableOpacity>
+              },
+            ],
+          );
+        }, COLORS.red, true)}
       </View>
 
       {/* Logout */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-        <Text style={styles.logoutText}>Cerrar Sesión</Text>
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
+        <Ionicons name="log-out-outline" size={18} color={COLORS.red} />
+        <Text style={styles.logoutText}>Cerrar sesión</Text>
       </TouchableOpacity>
+
+      <Text style={styles.version}>Tec360 Seguridad · v1.0.0</Text>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
-  header: { paddingTop: 60, paddingHorizontal: SPACING.lg, paddingBottom: 10 },
-  headerTitle: { color: COLORS.text, fontSize: FONTS.sizes.xxl, fontWeight: '800' },
-  avatarContainer: { alignItems: 'center', paddingVertical: SPACING.lg },
-  avatar: { width: 96, height: 96, borderRadius: 48, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
-  avatarText: { color: '#fff', fontSize: FONTS.sizes.title, fontWeight: '800' },
-  cameraIcon: { position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: COLORS.bg },
-  name: { color: COLORS.text, fontSize: 22, fontWeight: '800', marginTop: SPACING.md },
-  phone: { color: COLORS.textSecondary, fontSize: FONTS.sizes.sm, marginTop: SPACING.xs },
-  email: { color: COLORS.textMuted, fontSize: 13, marginTop: 2 },
-  statsRow: { flexDirection: 'row', gap: SPACING.md, paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg },
-  statCard: { flex: 1, backgroundColor: COLORS.bgCard, borderRadius: RADIUS.lg, padding: SPACING.lg, alignItems: 'center', gap: SPACING.sm, borderWidth: 1, borderColor: COLORS.border },
-  statNumber: { color: COLORS.text, fontSize: FONTS.sizes.xl, fontWeight: '800' },
-  statLabel: { color: COLORS.textMuted, fontSize: 11 },
-  menuSection: { marginHorizontal: SPACING.lg, backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 18, overflow: 'hidden', marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.border },
-  menuItem: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingHorizontal: SPACING.lg, paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: COLORS.borderLight },
-  menuText: { flex: 1, color: COLORS.text, fontSize: 15, fontWeight: FONTS.weights.semibold },
-  logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, marginHorizontal: SPACING.lg, paddingVertical: SPACING.md, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', backgroundColor: 'rgba(239,68,68,0.08)' },
-  logoutText: { color: COLORS.red, fontSize: 15, fontWeight: FONTS.weights.bold },
+  content: { paddingBottom: 110, paddingHorizontal: 20 },
+  header: { marginBottom: 18 },
+  headerTitle: { color: COLORS.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+
+  avatarCard: {
+    ...NEU.raised,
+    alignItems: 'center',
+    borderRadius: RADIUS.xl,
+    paddingVertical: 22,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+  },
+  avatarWrap: { ...NEU.raisedSm, width: 88, height: 88, borderRadius: 44, padding: 4, marginBottom: 12 },
+  avatar: { width: 80, height: 80, borderRadius: 40, overflow: 'hidden' },
+  avatarFallback: { backgroundColor: COLORS.primaryDark, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: COLORS.onPrimary, fontSize: 28, fontWeight: '800' },
+  cameraIcon: {
+    position: 'absolute', bottom: 0, right: 0,
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: COLORS.primaryDark,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: COLORS.surface,
+  },
+  name: { color: COLORS.text, fontSize: 20, fontWeight: '800' },
+  phone: { color: COLORS.textSecondary, fontSize: 13, marginTop: 3 },
+  email: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
+
+  statsPanel: {
+    ...NEU.inset,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: RADIUS.xl,
+    paddingVertical: 18,
+    marginBottom: 24,
+  },
+  statCell: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 6 },
+  statDivider: { width: 1, alignSelf: 'stretch', backgroundColor: COLORS.border },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  statNumber: { color: COLORS.text, fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  statLabel: { color: COLORS.textSecondary, fontSize: 12 },
+
+  sectionTitle: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    marginBottom: 8,
+    marginTop: 6,
+    paddingHorizontal: 4,
+  },
+  menuSection: {
+    ...NEU.raised,
+    borderRadius: RADIUS.xl,
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  menuText: { flex: 1, color: COLORS.text, fontSize: 15, fontWeight: '600' },
+
+  logoutButton: {
+    ...NEU.raisedSm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.surface,
+    marginTop: 4,
+  },
+  logoutText: { color: COLORS.red, fontSize: 15, fontWeight: '700' },
+  version: { textAlign: 'center', color: COLORS.textMuted, fontSize: 11, marginTop: 20 },
 });

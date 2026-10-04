@@ -4,10 +4,13 @@ import {
   ActivityIndicator, RefreshControl, Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchWithAuth } from '@/lib/api';
-import { COLORS, SPACING, RADIUS, FONTS } from '@/constants/theme';
+import { COLORS, NEU, RADIUS } from '@/constants/theme';
+import { NeuIcon } from '@/components/neu';
+
+type IconName = keyof typeof Ionicons.glyphMap;
 
 interface Notification {
   id: string;
@@ -19,127 +22,90 @@ interface Notification {
   created_at: string;
 }
 
-// ────────────────────────── helpers ──────────────────────────
 function timeAgo(dateStr: string): string {
   const now = new Date();
   const date = new Date(dateStr);
   const diffMs = now.getTime() - date.getTime();
   const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return 'Ahora mismo';
-  if (diffMin < 60) return `Hace ${diffMin} min`;
+  if (diffMin < 1) return 'Ahora';
+  if (diffMin < 60) return `${diffMin}m`;
   const diffHrs = Math.floor(diffMin / 60);
-  if (diffHrs < 24) return `Hace ${diffHrs}h`;
+  if (diffHrs < 24) return `${diffHrs}h`;
   const diffDays = Math.floor(diffHrs / 24);
-  if (diffDays < 7) return `Hace ${diffDays}d`;
+  if (diffDays < 7) return `${diffDays}d`;
   return date.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
 }
 
-interface TypeConfig {
-  icon: string;
-  color: string;
-  gradient: [string, string];
-  accentColor: string;
-  label: string;
-}
-
-function getTypeConfig(type: string, title: string): TypeConfig {
+function getTypeConfig(type: string, title: string): { icon: IconName; color: string; label: string } {
   const titleLower = title.toLowerCase();
   if (type === 'service' || titleLower.includes('nueva solicitud') || titleLower.includes('disponible')) {
-    return { icon: 'construct', color: '#8b5cf6', gradient: ['#4c1d95', '#6d28d9'], accentColor: '#8b5cf6', label: 'Solicitud' };
+    return { icon: 'construct-outline', color: COLORS.primaryLight, label: 'Servicio' };
   }
   if (titleLower.includes('camino') || titleLower.includes('en_route')) {
-    return { icon: 'car', color: '#3b82f6', gradient: ['#1e3a8a', '#1d4ed8'], accentColor: '#3b82f6', label: 'En camino' };
+    return { icon: 'car-outline', color: COLORS.blue, label: 'En camino' };
   }
   if (titleLower.includes('llegó') || titleLower.includes('arrived') || titleLower.includes('llegado')) {
-    return { icon: 'location', color: '#10b981', gradient: ['#064e3b', '#059669'], accentColor: '#10b981', label: 'Llegada' };
+    return { icon: 'location-outline', color: COLORS.green, label: 'En sitio' };
   }
   if (titleLower.includes('completado') || titleLower.includes('califica')) {
-    return { icon: 'star', color: '#f59e0b', gradient: ['#78350f', '#b45309'], accentColor: '#f59e0b', label: 'Completado' };
+    return { icon: 'star-outline', color: COLORS.yellow, label: 'Finalizado' };
   }
   if (titleLower.includes('cancelado') || type === 'alert') {
-    return { icon: 'warning', color: '#ef4444', gradient: ['#7f1d1d', '#b91c1c'], accentColor: '#ef4444', label: 'Alerta' };
+    return { icon: 'alert-circle-outline', color: COLORS.red, label: 'Alerta' };
   }
   if (type === 'status') {
-    return { icon: 'clipboard', color: '#06b6d4', gradient: ['#164e63', '#0e7490'], accentColor: '#06b6d4', label: 'Estado' };
+    return { icon: 'clipboard-outline', color: COLORS.blue, label: 'Estado' };
   }
-  return { icon: 'notifications', color: '#8b5cf6', gradient: ['#1e1b4b', '#312e81'], accentColor: '#8b5cf6', label: 'Info' };
+  return { icon: 'notifications-outline', color: COLORS.primaryLight, label: 'Aviso' };
 }
 
-// ────────────────────────── animated card ──────────────────────────
 function NotifCard({ item, onPress, index }: { item: Notification; onPress: () => void; index: number }) {
-  const slideAnim = useRef(new Animated.Value(60)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 350,
-        delay: index * 60,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: 1,
-        duration: 300,
-        delay: index * 60,
-        useNativeDriver: true,
-      }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 280, delay: Math.min(index * 40, 240), useNativeDriver: true }),
+      Animated.timing(opacityAnim, { toValue: 1, duration: 240, delay: Math.min(index * 40, 240), useNativeDriver: true }),
     ]).start();
   }, []);
 
   const cfg = getTypeConfig(item.notification_type, item.title);
 
   return (
-    <Animated.View style={{ transform: [{ translateX: slideAnim }], opacity: opacityAnim }}>
+    <Animated.View style={{ transform: [{ translateY: slideAnim }], opacity: opacityAnim }}>
       <TouchableOpacity
         style={[styles.card, !item.is_read && styles.cardUnread]}
         onPress={onPress}
-        activeOpacity={0.75}
+        activeOpacity={0.8}
       >
-        {/* Left accent bar */}
-        <View style={[styles.accentBar, { backgroundColor: cfg.accentColor }]} />
-
-        {/* Icon with gradient circle */}
-        <LinearGradient
-          colors={cfg.gradient}
-          style={styles.iconCircle}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Ionicons name={cfg.icon as any} size={18} color="#fff" />
-        </LinearGradient>
-
-        {/* Content */}
+        <NeuIcon name={cfg.icon} color={cfg.color} size={42} inset={item.is_read} />
         <View style={styles.cardContent}>
           <View style={styles.cardRow}>
             <Text style={[styles.cardTitle, !item.is_read && styles.cardTitleUnread]} numberOfLines={1}>
               {item.title}
             </Text>
-            {!item.is_read && <View style={[styles.dot, { backgroundColor: cfg.accentColor }]} />}
+            {!item.is_read && <View style={styles.dot} />}
           </View>
-          <Text style={styles.cardMessage} numberOfLines={2}>
-            {item.message}
-          </Text>
+          <Text style={styles.cardMessage} numberOfLines={2}>{item.message}</Text>
           <View style={styles.cardMeta}>
-            <View style={[styles.typePill, { backgroundColor: `${cfg.accentColor}18` }]}>
-              <Text style={[styles.typePillText, { color: cfg.accentColor }]}>{cfg.label}</Text>
+            <View style={styles.typePill}>
+              <Text style={[styles.typePillText, { color: cfg.color }]}>{cfg.label}</Text>
             </View>
             <Text style={styles.cardTime}>{timeAgo(item.created_at)}</Text>
           </View>
         </View>
-
-        {/* Arrow hint for tappable */}
         {item.service_id && (
-          <Ionicons name="chevron-forward" size={14} color="#3a3f5c" style={{ marginLeft: 4 }} />
+          <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} style={{ marginLeft: 6 }} />
         )}
       </TouchableOpacity>
     </Animated.View>
   );
 }
 
-// ────────────────────────── main screen ──────────────────────────
 export default function NotificationsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -162,7 +128,7 @@ export default function NotificationsScreen() {
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
 
   useEffect(() => {
-    const interval = setInterval(fetchNotifications, 15000);
+    const interval = setInterval(fetchNotifications, 20000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
@@ -198,37 +164,22 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
       {/* Header */}
-      <LinearGradient colors={['#0a0e1c', '#050810']} style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Notificaciones</Text>
-          {unreadCount > 0 && (
-            <Text style={styles.headerSub}>{unreadCount} sin leer</Text>
-          )}
+      <View style={styles.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>Alertas</Text>
+          <Text style={styles.headerSub}>
+            {unreadCount > 0 ? `${unreadCount} sin leer` : 'Al día con tus servicios'}
+          </Text>
         </View>
         {unreadCount > 0 && (
-          <TouchableOpacity onPress={handleMarkAllRead} style={styles.markAllBtn}>
-            <Ionicons name="checkmark-done" size={14} color="#8b5cf6" />
-            <Text style={styles.markAllText}>Todo leído</Text>
+          <TouchableOpacity onPress={handleMarkAllRead} style={styles.markAllBtn} activeOpacity={0.8}>
+            <Ionicons name="checkmark-done" size={14} color={COLORS.primaryLight} />
+            <Text style={styles.markAllText}>Marcar leídas</Text>
           </TouchableOpacity>
         )}
-      </LinearGradient>
-
-      {/* Unread banner */}
-      {unreadCount > 0 && (
-        <LinearGradient
-          colors={['rgba(139,92,246,0.12)', 'rgba(139,92,246,0.04)']}
-          style={styles.unreadBanner}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-        >
-          <Ionicons name="notifications" size={13} color="#a78bfa" />
-          <Text style={styles.unreadBannerText}>
-            {unreadCount} {unreadCount === 1 ? 'notificación nueva' : 'notificaciones nuevas'}
-          </Text>
-        </LinearGradient>
-      )}
+      </View>
 
       {/* List */}
       <FlatList
@@ -237,21 +188,21 @@ export default function NotificationsScreen() {
           <NotifCard item={item} onPress={() => handlePress(item)} index={index} />
         )}
         keyExtractor={item => item.id}
-        contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm }}
+        contentContainerStyle={{ paddingBottom: 110, paddingHorizontal: 20, paddingTop: 4 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => { setRefreshing(true); fetchNotifications(); }}
             tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+            progressBackgroundColor={COLORS.surface}
           />
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <LinearGradient colors={['#1e1b4b', '#0f0d2c']} style={styles.emptyIcon}>
-              <Ionicons name="notifications-off-outline" size={36} color="#6d28d9" />
-            </LinearGradient>
+            <NeuIcon name="notifications-off-outline" color={COLORS.textSecondary} size={72} inset />
             <Text style={styles.emptyTitle}>Sin notificaciones</Text>
-            <Text style={styles.emptyText}>Cuando recibas alertas de servicios, aparecerán aquí.</Text>
+            <Text style={styles.emptyText}>Aquí verás las actualizaciones de tus servicios en tiempo real.</Text>
           </View>
         }
       />
@@ -259,76 +210,47 @@ export default function NotificationsScreen() {
   );
 }
 
-// ────────────────────────── styles ──────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   centered: { flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SPACING.lg, paddingTop: 60, paddingBottom: SPACING.md,
-    borderBottomWidth: 1, borderBottomColor: COLORS.borderLight,
+    paddingHorizontal: 20, paddingBottom: 16,
   },
   headerTitle: { color: COLORS.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
-  headerSub: { color: COLORS.primary, fontSize: FONTS.sizes.xs, fontWeight: '600', marginTop: 2 },
+  headerSub: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
   markAllBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(139,92,246,0.12)', borderRadius: 20,
-    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
-    borderWidth: 1, borderColor: COLORS.primaryBorder,
-  },
-  markAllText: { color: COLORS.primary, fontSize: 11, fontWeight: '700' },
-
-  unreadBanner: {
+    ...NEU.raisedSm,
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    marginHorizontal: SPACING.lg, marginTop: RADIUS.md, marginBottom: SPACING.xs,
-    borderRadius: RADIUS.md, paddingHorizontal: SPACING.md, paddingVertical: 9,
-    borderWidth: 1, borderColor: 'rgba(139,92,246,0.2)',
+    borderRadius: RADIUS.round, paddingHorizontal: 12, paddingVertical: 8,
   },
-  unreadBannerText: { color: COLORS.primaryLight, fontSize: FONTS.sizes.xs, fontWeight: '600' },
+  markAllText: { color: COLORS.primaryLight, fontSize: 12, fontWeight: '700' },
 
-  // Card
   card: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.bgCard,
-    borderRadius: 18, marginBottom: SPACING.lg,
-    borderWidth: 1, borderColor: 'rgba(50,45,90,0.4)',
-    paddingRight: SPACING.md, paddingLeft: SPACING.md, paddingVertical: SPACING.md,
-    overflow: 'hidden',
+    ...NEU.raised,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderRadius: RADIUS.xl, marginBottom: 12,
+    padding: 14,
   },
   cardUnread: {
-    backgroundColor: 'rgba(16,12,36,0.95)',
-    borderColor: COLORS.primaryBorder,
-  },
-  accentBar: {
-    width: 3, alignSelf: 'stretch', borderRadius: SPACING.xs, marginRight: SPACING.md, marginLeft: 0,
-  },
-  iconCircle: {
-    width: 42, height: 42, borderRadius: 14,
-    justifyContent: 'center', alignItems: 'center',
-    marginRight: SPACING.md, flexShrink: 0,
-  },
-  dot: {
-    width: SPACING.sm, height: SPACING.sm, borderRadius: SPACING.xs, marginLeft: 6, flexShrink: 0,
+    backgroundColor: COLORS.surfaceHigh,
   },
   cardContent: { flex: 1 },
-  cardRow: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.xs },
-  cardTitle: { color: '#b0b4cc', fontSize: FONTS.sizes.sm, fontWeight: '600', flex: 1 },
+  cardRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 3 },
+  cardTitle: { color: COLORS.textSecondary, fontSize: 14, fontWeight: '600', flex: 1 },
   cardTitleUnread: { color: COLORS.text, fontWeight: '700' },
-  cardMessage: { color: '#6e7491', fontSize: 13, lineHeight: FONTS.sizes.lg, marginBottom: SPACING.sm },
+  cardMessage: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 18, marginBottom: 6 },
   cardMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   typePill: {
-    borderRadius: 20, paddingHorizontal: SPACING.sm, paddingVertical: 3,
+    ...NEU.inset,
+    borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2,
   },
-  typePillText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
-  cardTime: { color: '#3a3f5c', fontSize: 11, fontWeight: '500' },
+  typePillText: { fontSize: 11, fontWeight: '700' },
+  cardTime: { color: COLORS.textMuted, fontSize: 11, fontVariant: ['tabular-nums'] },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.primaryLight, marginLeft: 6 },
 
-  // Empty
-  emptyState: { alignItems: 'center', paddingTop: 80, gap: SPACING.md },
-  emptyIcon: {
-    width: 80, height: 80, borderRadius: RADIUS.xl,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  emptyTitle: { color: COLORS.textSecondary, fontSize: 17, fontWeight: '700' },
-  emptyText: { color: '#3a3f5c', fontSize: 13, textAlign: 'center', maxWidth: 240, lineHeight: 20 },
+  emptyState: { alignItems: 'center', paddingTop: 64, gap: 8 },
+  emptyTitle: { color: COLORS.text, fontSize: 18, fontWeight: '700', marginTop: 14 },
+  emptyText: { color: COLORS.textSecondary, fontSize: 13, textAlign: 'center', maxWidth: 260, lineHeight: 18 },
 });

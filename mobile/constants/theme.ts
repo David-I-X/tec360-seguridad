@@ -1,62 +1,105 @@
 /**
- * Tec360 — Design System / Theme
- * Dark sci-fi purple theme with high contrast
+ * Tec360 — Design System (Mobile)
+ * Dark Neumorphism: charcoal surfaces carved by paired light/dark shadows,
+ * one violet accent for action and state. Elevation is declared ONCE per
+ * element: relief shadow OR border, never both.
+ *
+ * Relief shadows use the RN `boxShadow` style (New Architecture, RN ≥ 0.76).
+ * Raised surfaces are also a hair lighter than the page so they stay legible
+ * even if a shadow fails to render.
  */
 
 export const COLORS = {
-  // ─── Backgrounds ───────────────────────
-  bg:           '#050810',      // Deepest background
-  bgCard:       'rgba(10,14,28,0.85)',
-  bgCardLight:  'rgba(18,22,40,0.7)',
-  bgOverlay:    'rgba(5,8,16,0.9)',
+  // ─── Surfaces (charcoal, cool tint) ────
+  bg:           '#1A1C23',      // Page ground
+  surface:      '#1F2129',      // Raised card / control
+  surfaceHigh:  '#272A34',      // Active chip, selected row
+  sunken:       '#15171D',      // Inset wells: inputs, tracks, search
+  bgCard:       '#1F2129',      // (legacy key) = surface
+  bgCardLight:  '#272A34',      // (legacy key) = surfaceHigh
+  bgOverlay:    'rgba(14,15,20,0.92)',
 
-  // ─── Primary (Purple) ─────────────────
+  // ─── Primary (Tec360 violet) ───────────
   primary:      '#8b5cf6',
   primaryLight: '#a78bfa',
-  primaryDark:  '#7c3aed',
-  primaryMuted: 'rgba(139,92,246,0.15)',
-  primaryBorder:'rgba(139,92,246,0.25)',
+  primaryDark:  '#7c3aed',      // Fill for buttons with white labels (5.7:1)
+  primaryMuted: 'rgba(139,92,246,0.14)',
+  primaryBorder:'rgba(139,92,246,0.28)',
 
-  // ─── Accent ────────────────────────────
-  green:        '#22c55e',
-  greenMuted:   'rgba(34,197,94,0.15)',
-  greenBorder:  'rgba(34,197,94,0.25)',
-  yellow:       '#eab308',
-  orange:       '#f97316',
-  red:          '#ef4444',
-  redMuted:     'rgba(239,68,68,0.1)',
+  // ─── Status ────────────────────────────
+  green:        '#34d399',
+  greenMuted:   'rgba(52,211,153,0.14)',
+  greenBorder:  'rgba(52,211,153,0.28)',
+  yellow:       '#fbbf24',
+  orange:       '#fb923c',
+  red:          '#f87171',
+  redMuted:     'rgba(248,113,113,0.12)',
+  blue:         '#60a5fa',
 
-  // ─── Text ──────────────────────────────
-  text:         '#f0f0f5',
-  textSecondary:'#8b8fa3',
-  textMuted:    '#555872',
+  // ─── Text (all ≥ 4.5:1 on bg) ──────────
+  text:         '#ECEDF3',
+  textSecondary:'#ABAEC2',
+  textMuted:    '#8487A0',
+  onPrimary:    '#FFFFFF',
 
-  // ─── Borders ───────────────────────────
-  border:       'rgba(80,60,160,0.2)',
-  borderLight:  'rgba(80,60,160,0.12)',
+  // ─── Hairlines (only where no relief) ──
+  border:       'rgba(255,255,255,0.06)',
+  borderLight:  'rgba(255,255,255,0.04)',
+} as const;
+
+/**
+ * Relief recipes. Light comes from the top-left.
+ * Spread these into a style: `{ ...NEU.raised }`.
+ */
+export const NEU = {
+  /** Cards, list rows, panels */
+  raised: {
+    backgroundColor: COLORS.surface,
+    boxShadow: '-5px -5px 12px rgba(255,255,255,0.035), 6px 6px 14px rgba(0,0,0,0.55)',
+  },
+  /** Small controls: chips, icon buttons, toggles */
+  raisedSm: {
+    backgroundColor: COLORS.surface,
+    boxShadow: '-3px -3px 7px rgba(255,255,255,0.03), 4px 4px 9px rgba(0,0,0,0.5)',
+  },
+  /** Carved wells: inputs, search, progress tracks, pressed state */
+  inset: {
+    backgroundColor: COLORS.sunken,
+    boxShadow: 'inset 3px 3px 7px rgba(0,0,0,0.6), inset -2px -2px 6px rgba(255,255,255,0.035)',
+  },
+  /** The single violet action: FAB and primary buttons */
+  accent: {
+    backgroundColor: COLORS.primaryDark,
+    boxShadow: '0px 10px 22px rgba(124,58,237,0.42), -3px -3px 8px rgba(255,255,255,0.04)',
+  },
+  /** Floating tab bar pill */
+  dock: {
+    backgroundColor: COLORS.surface,
+    boxShadow: '-6px -6px 16px rgba(255,255,255,0.03), 10px 12px 26px rgba(0,0,0,0.6)',
+  },
 } as const;
 
 export const GRADIENTS = {
-  primary:  ['#7c3aed', '#a855f7'] as [string, string],
-  accent:   ['#6d28d9', '#8b5cf6'] as [string, string],
-  success:  ['#16a34a', '#22c55e'] as [string, string],
-  surface:  ['rgba(139,92,246,0.12)', 'rgba(139,92,246,0.04)'] as [string, string],
+  primary:  ['#8b5cf6', '#6d28d9'] as [string, string],
+  accent:   ['#7c3aed', '#8b5cf6'] as [string, string],
+  success:  ['#10b981', '#34d399'] as [string, string],
+  surface:  ['#22252E', '#1C1E26'] as [string, string],
 } as const;
 
 export const SHADOWS = {
   primary: {
     shadowColor: '#7c3aed',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
     elevation: 10,
   },
   card: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 6, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 6,
   },
 } as const;
 
@@ -70,9 +113,9 @@ export const SPACING = {
 } as const;
 
 export const RADIUS = {
-  sm: 8,
-  md: 12,
-  lg: 16,
+  sm: 10,
+  md: 14,
+  lg: 18,
   xl: 24,
   round: 9999,
 } as const;
@@ -85,7 +128,7 @@ export const FONTS = {
     lg: 18,
     xl: 20,
     xxl: 24,
-    title: 32,
+    title: 30,
   },
   weights: {
     normal: '400',
@@ -94,3 +137,6 @@ export const FONTS = {
     bold: '700',
   }
 } as const;
+
+/** Bottom space screens must reserve so content clears the floating dock. */
+export const DOCK_CLEARANCE = 112;

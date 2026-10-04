@@ -1303,7 +1303,7 @@ const styles = StyleSheet.create({
   photoButtonText: { color: COLORS.primary, fontSize: 13, fontWeight: FONTS.weights.semibold },
   photoPreview: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: SPACING.sm },
   photoPreviewText: { color: COLORS.green, fontSize: 13 },
-  bottomActions: { flexDirection: 'row', gap: SPACING.md, paddingHorizontal: 20, paddingBottom: 36, paddingTop: SPACING.md, backgroundColor: COLORS.bg, borderTopWidth: 1, borderTopColor: COLORS.border },
+  bottomActions: { flexDirection: 'row', gap: SPACING.md, paddingHorizontal: 20, paddingBottom: 16, paddingTop: SPACING.md, backgroundColor: COLORS.bg, borderTopWidth: 1, borderTopColor: COLORS.border },
   backBtn: { justifyContent: 'center', paddingHorizontal: 20 },
   backBtnText: { color: COLORS.textSecondary, fontSize: 15, fontWeight: FONTS.weights.semibold },
   nextBtn: { flex: 1, borderRadius: RADIUS.lg, overflow: 'hidden' },

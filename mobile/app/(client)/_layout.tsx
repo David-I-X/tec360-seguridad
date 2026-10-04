@@ -1,73 +1,38 @@
-import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Tabs, useRouter } from 'expo-router';
 import { COLORS } from '@/constants/theme';
+import { NeuTabBar, DockTab } from '@/components/neu';
+
+const CLIENT_TABS: DockTab[] = [
+  { name: 'services',      label: 'Servicios', icon: 'home-outline',          iconActive: 'home' },
+  { name: 'notifications', label: 'Alertas',   icon: 'notifications-outline', iconActive: 'notifications' },
+  { name: 'history',       label: 'Historial', icon: 'calendar-outline',      iconActive: 'calendar' },
+  { name: 'settings',      label: 'Ajustes',   icon: 'settings-outline',      iconActive: 'settings' },
+];
 
 export default function ClientLayout() {
+  const router = useRouter();
+
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textMuted,
-        tabBarStyle: {
-          backgroundColor: COLORS.bg,
-          borderTopColor: COLORS.border,
-          borderTopWidth: 1,
-          height: 88,
-          paddingBottom: 28,
-          paddingTop: 8,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-        },
-      }}
+      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: COLORS.bg } }}
+      tabBar={(props) => (
+        <NeuTabBar
+          {...props}
+          tabs={CLIENT_TABS}
+          action={{
+            label: 'Solicitar nuevo servicio',
+            icon: 'add',
+            activeRoute: 'new-service',
+            onPress: () => router.navigate('/(client)/new-service' as any),
+          }}
+        />
+      )}
     >
-      <Tabs.Screen
-        name="services"
-        options={{
-          title: 'Servicios',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="new-service"
-        options={{
-          title: 'Nuevo',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="add-circle-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="notifications"
-        options={{
-          title: 'Alertas',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="notifications-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="history"
-        options={{
-          title: 'Historial',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="time-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Ajustes',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="services" options={{ title: 'Servicios' }} />
+      <Tabs.Screen name="notifications" options={{ title: 'Alertas' }} />
+      <Tabs.Screen name="new-service" options={{ title: 'Nuevo' }} />
+      <Tabs.Screen name="history" options={{ title: 'Historial' }} />
+      <Tabs.Screen name="settings" options={{ title: 'Ajustes' }} />
       {/* Hidden routes */}
       <Tabs.Screen name="service/[id]" options={{ href: null }} />
       <Tabs.Screen name="waiting/[id]" options={{ href: null }} />

@@ -5,17 +5,28 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth-context';
 import { fetchWithAuth, API_URL } from '@/lib/api';
+import { COLORS, NEU, RADIUS } from '@/constants/theme';
+import { NeuIcon, NeuButton } from '@/components/neu';
 
-const typeEmoji: Record<string, string> = {
-  camera_installation: '📹', alarm_installation: '🔔', gps_installation: '📍',
-  camera_maintenance: '📹', alarm_maintenance: '🔔', gps_maintenance: '📍', other: '🔧',
+type IconName = keyof typeof Ionicons.glyphMap;
+
+const typeIcon: Record<string, { icon: IconName; color: string }> = {
+  camera_installation: { icon: 'videocam', color: '#c084fc' },
+  camera_maintenance:  { icon: 'videocam', color: '#c084fc' },
+  alarm_installation:  { icon: 'notifications', color: COLORS.yellow },
+  alarm_maintenance:   { icon: 'notifications', color: COLORS.yellow },
+  gps_installation:    { icon: 'radio', color: COLORS.blue },
+  gps_maintenance:     { icon: 'radio', color: COLORS.blue },
+  vehicle_recovery:    { icon: 'shield-half', color: COLORS.red },
+  other:               { icon: 'construct', color: COLORS.textSecondary },
 };
 
 export default function TechDashboardScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [isOnline, setIsOnline] = useState(true);
   const [availableServices, setAvailableServices] = useState<any[]>([]);
@@ -24,6 +35,7 @@ export default function TechDashboardScreen() {
   const [earnings, setEarnings] = useState({ total: 0, pending: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -63,6 +75,7 @@ export default function TechDashboardScreen() {
   useEffect(() => { load(); }, [load]);
 
   const handleAcceptService = async (serviceId: string) => {
+    setAcceptingId(serviceId);
     try {
       const res = await fetchWithAuth(`/services/${serviceId}/accept`, { method: 'POST' });
       if (!res.ok) {
@@ -73,49 +86,55 @@ export default function TechDashboardScreen() {
       Alert.alert('¡Servicio Aceptado!', 'El servicio ha sido asignado a tu cuenta.');
     } catch (e: any) {
       Alert.alert('No se pudo aceptar', e.message || 'Error al aceptar el servicio');
+    } finally {
+      setAcceptingId(null);
     }
   };
 
   const staticUrl = API_URL.replace(/\/api\/?$/, '');
 
   if (isLoading) {
-    return <View style={styles.centered}><ActivityIndicator size="large" color="#8b5cf6" /></View>;
+    return <View style={styles.centered}><ActivityIndicator size="large" color={COLORS.primary} /></View>;
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
       <FlatList
         data={isOnline ? availableServices : []}
         keyExtractor={item => item.id?.toString()}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#8b5cf6" />}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={COLORS.primary} colors={[COLORS.primary]} progressBackgroundColor={COLORS.surface} />}
+        contentContainerStyle={{ paddingBottom: 32 }}
         ListHeaderComponent={
           <>
             {/* Header */}
             <View style={styles.header}>
-              <View style={styles.headerLeft}>
+              <View style={styles.avatarRing}>
                 {user?.avatar_url ? (
                   <Image source={{ uri: user.avatar_url.startsWith('http') ? user.avatar_url : `${staticUrl}${user.avatar_url}` }} style={styles.avatar} />
                 ) : (
-                  <LinearGradient colors={['#8b5cf6', '#a855f7']} style={styles.avatar}>
+                  <View style={[styles.avatar, styles.avatarFallback]}>
                     <Text style={styles.avatarText}>{user?.full_name?.[0] || 'T'}</Text>
-                  </LinearGradient>
+                  </View>
                 )}
-                <View>
-                  <Text style={styles.greeting}>Hola, {user?.full_name?.split(' ')[0]} 👋</Text>
-                  <Text style={styles.role}>Técnico certificado</Text>
-                </View>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.greeting} numberOfLines={1}>Hola, {user?.full_name?.split(' ')[0]}</Text>
+                <Text style={styles.role}>Técnico certificado</Text>
               </View>
             </View>
 
-            {/* Online Toggle */}
+            {/* Availability: the one control a technician touches every shift */}
             <View style={styles.toggleCard}>
-              <View style={styles.toggleLeft}>
-                <View style={[styles.onlineDot, { backgroundColor: isOnline ? '#22c55e' : '#555872' }]} />
+              <View style={[styles.statusWell, isOnline && styles.statusWellOn]}>
+                <View style={[styles.onlineDot, { backgroundColor: isOnline ? COLORS.green : COLORS.textMuted }]} />
+              </View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.toggleText}>{isOnline ? 'En línea' : 'Fuera de línea'}</Text>
+                <Text style={styles.toggleHint}>{isOnline ? 'Recibes solicitudes cercanas' : 'No recibirás solicitudes'}</Text>
               </View>
               <Switch
                 value={isOnline}
+                accessibilityLabel="Disponibilidad para recibir servicios"
                 onValueChange={async (val) => {
                   setIsOnline(val);
                   try {
@@ -129,26 +148,31 @@ export default function TechDashboardScreen() {
                     console.error('Failed to update availability:', e);
                   }
                 }}
-                trackColor={{ false: '#334155', true: 'rgba(34,197,94,0.3)' }}
-                thumbColor={isOnline ? '#22c55e' : '#555872'}
+                trackColor={{ false: COLORS.sunken, true: 'rgba(52,211,153,0.35)' }}
+                thumbColor={isOnline ? COLORS.green : COLORS.textMuted}
+                ios_backgroundColor={COLORS.sunken}
               />
             </View>
 
-            {/* Stats */}
-            <View style={styles.statsRow}>
-              <View style={styles.statCard}>
-                <Ionicons name="checkmark-done" size={20} color="#22c55e" />
+            {/* Shift summary: one carved panel, three readings */}
+            <View style={styles.statsPanel}>
+              <View style={styles.statCell}>
                 <Text style={styles.statNumber}>{stats.completed}</Text>
                 <Text style={styles.statLabel}>Completados</Text>
               </View>
-              <View style={styles.statCard}>
-                <Ionicons name="star" size={20} color="#eab308" />
-                <Text style={styles.statNumber}>{(stats.rating || 0).toFixed(1)}</Text>
-                <Text style={styles.statLabel}>Rating</Text>
+              <View style={styles.statDivider} />
+              <View style={styles.statCell}>
+                <View style={styles.ratingRow}>
+                  <Ionicons name="star" size={14} color={COLORS.yellow} />
+                  <Text style={styles.statNumber}>{(stats.rating || 0).toFixed(1)}</Text>
+                </View>
+                <Text style={styles.statLabel}>Calificación</Text>
               </View>
-              <View style={styles.statCard}>
-                <Ionicons name="cash" size={20} color="#f59e0b" />
-                <Text style={[styles.statNumber, { fontSize: 16 }]}>${earnings.total.toLocaleString('es-CO')}</Text>
+              <View style={styles.statDivider} />
+              <View style={styles.statCell}>
+                <Text style={[styles.statNumber, styles.statMoney]} numberOfLines={1} adjustsFontSizeToFit>
+                  ${earnings.total.toLocaleString('es-CO')}
+                </Text>
                 <Text style={styles.statLabel}>Cobrado</Text>
               </View>
             </View>
@@ -158,69 +182,75 @@ export default function TechDashboardScreen() {
               <TouchableOpacity
                 style={styles.activeCard}
                 onPress={() => router.push(`/(tech)/service/${myActiveService.id}` as any)}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={`Abrir servicio en curso: ${myActiveService.title}`}
               >
-                <LinearGradient colors={['rgba(139,92,246,0.15)', 'rgba(99,102,241,0.1)']} style={styles.activeCardGradient}>
-                  <View style={styles.activeCardHeader}>
-                    <View style={styles.liveBadge}>
-                      <View style={styles.livePulse} />
-                      <Text style={styles.liveText}>SERVICIO ACTIVO</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color="#8b5cf6" />
+                <NeuIcon name="navigate" color={COLORS.primaryLight} size={48} inset />
+                <View style={{ flex: 1 }}>
+                  <View style={styles.liveBadge}>
+                    <View style={styles.livePulse} />
+                    <Text style={styles.liveText}>En curso</Text>
                   </View>
-                  <Text style={styles.activeCardTitle}>{myActiveService.title}</Text>
+                  <Text style={styles.activeCardTitle} numberOfLines={1}>{myActiveService.title}</Text>
                   <View style={styles.activeCardMeta}>
-                    <Ionicons name="location" size={14} color="#555872" />
-                    <Text style={styles.activeCardLocation}>{myActiveService.service_city || myActiveService.service_address}</Text>
+                    <Ionicons name="location-outline" size={13} color={COLORS.textMuted} />
+                    <Text style={styles.activeCardLocation} numberOfLines={1}>{myActiveService.service_city || myActiveService.service_address}</Text>
                   </View>
-                </LinearGradient>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.primaryLight} />
               </TouchableOpacity>
             )}
 
             {/* Available Services */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Servicios Disponibles</Text>
-              <Text style={styles.sectionCount}>{availableServices.length}</Text>
+              <Text style={styles.sectionTitle}>Servicios disponibles</Text>
+              <View style={styles.countWell}>
+                <Text style={styles.sectionCount}>{isOnline ? availableServices.length : 0}</Text>
+              </View>
             </View>
           </>
         }
-        renderItem={({ item }) => (
-          <View style={styles.serviceCard}>
-            <View style={styles.cardRow}>
-              <Text style={styles.cardEmoji}>{typeEmoji[item.service_type] || '🔧'}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{item.title}</Text>
-                <View style={styles.cardMeta}>
-                  <Ionicons name="location-outline" size={13} color="#555872" />
-                  <Text style={styles.cardMetaText}>{item.service_city || 'Sin ubicación'}</Text>
-                  {(item.scheduled_date || item.requested_date || item.created_at) && (
-                    <>
-                      <Text style={{ color: '#555872' }}>·</Text>
-                      <Ionicons name="time-outline" size={13} color="#555872" />
-                      <Text style={styles.cardMetaText}>
-                        {new Date(item.scheduled_date || item.requested_date || item.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                      </Text>
-                    </>
-                  )}
+        renderItem={({ item }) => {
+          const t = typeIcon[item.service_type] || typeIcon.other;
+          return (
+            <View style={styles.serviceCard}>
+              <View style={styles.cardRow}>
+                <NeuIcon name={t.icon} color={t.color} size={46} inset />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+                  <View style={styles.cardMeta}>
+                    <Ionicons name="location-outline" size={13} color={COLORS.textMuted} />
+                    <Text style={styles.cardMetaText}>{item.service_city || 'Sin ubicación'}</Text>
+                    {(item.scheduled_date || item.requested_date || item.created_at) && (
+                      <>
+                        <Text style={styles.cardMetaSep}>·</Text>
+                        <Ionicons name="time-outline" size={13} color={COLORS.textMuted} />
+                        <Text style={styles.cardMetaText}>
+                          {new Date(item.scheduled_date || item.requested_date || item.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </Text>
+                      </>
+                    )}
+                  </View>
                 </View>
+                {item.estimated_price && (
+                  <Text style={styles.cardPrice}>${item.estimated_price.toLocaleString('es-CO')}</Text>
+                )}
               </View>
-              {item.estimated_price && (
-                <Text style={styles.cardPrice}>${item.estimated_price.toLocaleString('es-CO')}</Text>
-              )}
+              <NeuButton
+                label="Aceptar servicio"
+                icon="checkmark-circle"
+                loading={acceptingId === item.id}
+                onPress={() => handleAcceptService(item.id)}
+              />
             </View>
-            <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAcceptService(item.id)} activeOpacity={0.8}>
-              <LinearGradient colors={['#22c55e', '#16a34a']} style={styles.acceptGradient}>
-                <Ionicons name="checkmark-circle" size={16} color="#fff" />
-                <Text style={styles.acceptText}>Aceptar</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        )}
+          );
+        }}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyEmoji}>{isOnline ? '📭' : '😴'}</Text>
+            <NeuIcon name={isOnline ? 'file-tray-outline' : 'moon-outline'} color={COLORS.textSecondary} size={76} inset />
             <Text style={styles.emptyTitle}>{isOnline ? 'Sin servicios disponibles' : 'Estás fuera de línea'}</Text>
-            <Text style={styles.emptySubtitle}>{isOnline ? 'Espera nuevas solicitudes de clientes' : 'Activa tu estado para recibir servicios'}</Text>
+            <Text style={styles.emptySubtitle}>{isOnline ? 'Te avisaremos apenas un cliente cercano solicite un servicio.' : 'Activa tu disponibilidad para empezar a recibir servicios.'}</Text>
           </View>
         }
       />
@@ -229,47 +259,54 @@ export default function TechDashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#050810', paddingTop: 60 },
-  centered: { flex: 1, backgroundColor: '#050810', justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, marginBottom: 24 },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  avatar: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
-  avatarText: { color: '#fff', fontSize: 20, fontWeight: '800' },
-  greeting: { color: '#f0f0f5', fontSize: 20, fontWeight: '700' },
-  role: { color: '#555872', fontSize: 13, marginTop: 4 },
-  toggleCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: 24, backgroundColor: 'rgba(10,14,28,0.85)', borderRadius: 20, padding: 20, marginBottom: 24, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
-  toggleLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  onlineDot: { width: 12, height: 12, borderRadius: 6 },
-  toggleText: { color: '#f0f0f5', fontSize: 16, fontWeight: '600' },
-  statsRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 24, marginBottom: 24 },
-  statCard: { flex: 1, backgroundColor: 'rgba(10,14,28,0.85)', borderRadius: 20, padding: 20, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
-  statNumber: { color: '#f0f0f5', fontSize: 24, fontWeight: '800' },
-  statLabel: { color: '#555872', fontSize: 12 },
-  activeCard: { marginHorizontal: 24, marginBottom: 24, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(139,92,246,0.3)' },
-  activeCardGradient: { padding: 20 },
-  activeCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(139,92,246,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
-  livePulse: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#8b5cf6' },
-  liveText: { color: '#8b5cf6', fontSize: 11, fontWeight: '800' },
-  activeCardTitle: { color: '#f0f0f5', fontSize: 18, fontWeight: '700' },
-  activeCardMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  activeCardLocation: { color: '#555872', fontSize: 14 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 16 },
-  sectionTitle: { color: '#f0f0f5', fontSize: 18, fontWeight: '700' },
-  sectionCount: { color: '#8b5cf6', fontSize: 16, fontWeight: '700' },
-  serviceCard: { backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 20, padding: 20, marginBottom: 16, marginHorizontal: 24, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 16 },
-  cardEmoji: { fontSize: 28 },
-  cardTitle: { color: '#f0f0f5', fontSize: 16, fontWeight: '700' },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  cardMetaText: { color: '#555872', fontSize: 13 },
-  cardPrice: { color: '#22c55e', fontSize: 18, fontWeight: '800' },
-  acceptBtn: { borderRadius: 16, overflow: 'hidden' },
-  acceptGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 16 },
-  acceptText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  emptyContainer: { alignItems: 'center', paddingTop: 48, paddingHorizontal: 24 },
-  emptyEmoji: { fontSize: 56, marginBottom: 16 },
-  emptyTitle: { color: '#f0f0f5', fontSize: 18, fontWeight: '700' },
-  emptySubtitle: { color: '#555872', fontSize: 14, marginTop: 8, textAlign: 'center' },
-});
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  centered: { flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' },
 
+  header: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 24, marginBottom: 28 },
+  avatarRing: { ...NEU.raisedSm, width: 60, height: 60, borderRadius: 30, padding: 4 },
+  avatar: { width: 52, height: 52, borderRadius: 26, overflow: 'hidden' },
+  avatarFallback: { backgroundColor: COLORS.primaryDark, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: COLORS.onPrimary, fontSize: 20, fontWeight: '800' },
+  greeting: { color: COLORS.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
+  role: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
+
+  toggleCard: { ...NEU.raised, flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: 24, borderRadius: RADIUS.xl, padding: 18, marginBottom: 20 },
+  statusWell: { ...NEU.inset, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  statusWellOn: { backgroundColor: '#13221D' },
+  onlineDot: { width: 12, height: 12, borderRadius: 6 },
+  toggleText: { color: COLORS.text, fontSize: 16, fontWeight: '700' },
+  toggleHint: { color: COLORS.textSecondary, fontSize: 12, marginTop: 2 },
+
+  statsPanel: { ...NEU.inset, flexDirection: 'row', alignItems: 'center', marginHorizontal: 24, borderRadius: RADIUS.xl, paddingVertical: 18, marginBottom: 24 },
+  statCell: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 6 },
+  statDivider: { width: 1, alignSelf: 'stretch', backgroundColor: COLORS.border },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  statNumber: { color: COLORS.text, fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  statMoney: { fontSize: 18 },
+  statLabel: { color: COLORS.textSecondary, fontSize: 12 },
+
+  activeCard: { ...NEU.raised, flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: 24, marginBottom: 28, borderRadius: RADIUS.xl, padding: 16 },
+  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  livePulse: { width: 7, height: 7, borderRadius: 4, backgroundColor: COLORS.green },
+  liveText: { color: COLORS.green, fontSize: 12, fontWeight: '700' },
+  activeCardTitle: { color: COLORS.text, fontSize: 16, fontWeight: '700' },
+  activeCardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  activeCardLocation: { color: COLORS.textSecondary, fontSize: 13, flexShrink: 1 },
+
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 16 },
+  sectionTitle: { color: COLORS.text, fontSize: 18, fontWeight: '700', letterSpacing: -0.3 },
+  countWell: { ...NEU.inset, minWidth: 34, height: 28, borderRadius: 14, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
+  sectionCount: { color: COLORS.primaryLight, fontSize: 14, fontWeight: '800', fontVariant: ['tabular-nums'] },
+
+  serviceCard: { ...NEU.raised, borderRadius: RADIUS.xl, padding: 18, marginBottom: 20, marginHorizontal: 24 },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 },
+  cardTitle: { color: COLORS.text, fontSize: 16, fontWeight: '700' },
+  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, flexWrap: 'wrap' },
+  cardMetaText: { color: COLORS.textSecondary, fontSize: 13 },
+  cardMetaSep: { color: COLORS.textMuted, marginHorizontal: 2 },
+  cardPrice: { color: COLORS.green, fontSize: 17, fontWeight: '800', fontVariant: ['tabular-nums'] },
+
+  emptyContainer: { alignItems: 'center', paddingTop: 36, paddingHorizontal: 32, gap: 6 },
+  emptyTitle: { color: COLORS.text, fontSize: 18, fontWeight: '700', marginTop: 18 },
+  emptySubtitle: { color: COLORS.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 20 },
+});

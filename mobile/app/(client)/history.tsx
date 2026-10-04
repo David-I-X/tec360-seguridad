@@ -5,23 +5,35 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchWithAuth } from '@/lib/api';
+import { COLORS, NEU, RADIUS } from '@/constants/theme';
+import { NeuIcon } from '@/components/neu';
+
+type IconName = keyof typeof Ionicons.glyphMap;
 
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
-  completed:   { label: 'Completado',  color: '#22c55e', bg: 'rgba(34,197,94,0.15)' },
-  confirmed:   { label: 'Completado',  color: '#22c55e', bg: 'rgba(34,197,94,0.15)' },
-  cancelled:   { label: 'Cancelado',   color: '#ef4444', bg: 'rgba(239,68,68,0.15)' },
+  completed: { label: 'Completado', color: COLORS.green, bg: 'rgba(52,211,153,0.14)' },
+  confirmed: { label: 'Completado', color: COLORS.green, bg: 'rgba(52,211,153,0.14)' },
+  cancelled: { label: 'Cancelado',  color: COLORS.red,   bg: 'rgba(248,113,113,0.14)' },
 };
 
-const typeEmoji: Record<string, string> = {
-  camera_installation: '📹', alarm_installation: '🔔', gps_installation: '📍',
-  camera_maintenance: '📹', alarm_maintenance: '🔔', gps_maintenance: '📍', other: '🔧',
+const typeIcon: Record<string, { icon: IconName; color: string }> = {
+  camera_installation: { icon: 'videocam-outline', color: '#c084fc' },
+  camera_maintenance:  { icon: 'videocam-outline', color: '#c084fc' },
+  alarm_installation:  { icon: 'notifications-outline', color: COLORS.yellow },
+  alarm_maintenance:   { icon: 'notifications-outline', color: COLORS.yellow },
+  gps_installation:    { icon: 'radio-outline', color: COLORS.blue },
+  gps_maintenance:     { icon: 'radio-outline', color: COLORS.blue },
+  vehicle_recovery:    { icon: 'shield-half-outline', color: COLORS.red },
+  other:               { icon: 'construct-outline', color: COLORS.textSecondary },
 };
 
 type FilterKey = 'all' | 'completed' | 'cancelled';
 
 export default function HistoryScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [services, setServices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -32,7 +44,6 @@ export default function HistoryScreen() {
       const res = await fetchWithAuth('/services?page_size=50');
       const data = await res.json();
       const list = data.services || data.items || [];
-      // Only keep history items
       const historyList = (Array.isArray(list) ? list : []).filter(s =>
         ['completed', 'confirmed', 'cancelled'].includes(s.status)
       );
@@ -57,7 +68,7 @@ export default function HistoryScreen() {
   });
 
   const filters: { key: FilterKey; label: string }[] = [
-    { key: 'all', label: 'Todos' },
+    { key: 'all', label: `Todos (${services.length})` },
     { key: 'completed', label: 'Completados' },
     { key: 'cancelled', label: 'Cancelados' },
   ];
@@ -68,30 +79,26 @@ export default function HistoryScreen() {
     const date = item.created_at ? new Date(item.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) : '';
     const hasActiveWarranty = isCompleted && (item.warranty_status === 'active' || (item.warranty_days_left ?? 30) > 0);
     const hasExpiredWarranty = isCompleted && (item.warranty_status === 'expired' || item.warranty_days_left === 0);
+    const t = typeIcon[item.service_type] || typeIcon.other;
 
     return (
       <TouchableOpacity
         style={styles.serviceCard}
         onPress={() => router.push(`/(client)/service/${item.id}` as any)}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
       >
         <View style={styles.cardRow}>
-          <View style={[styles.dot, { backgroundColor: cfg.color }]} />
+          <NeuIcon name={t.icon} color={t.color} size={42} inset />
           <View style={styles.cardContent}>
-            <View style={styles.cardTitleRow}>
-              <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-            </View>
+            <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
             <View style={styles.cardMeta}>
-              <Text style={styles.metaText}>
-                {typeEmoji[item.service_type] || '🔧'} {item.service_city || 'Sin ubicación'}
-              </Text>
-              <Text style={styles.metaText}>📅 {date}</Text>
+              <Text style={styles.metaText} numberOfLines={1}>{item.service_city || 'Medellín'}</Text>
+              {date ? <Text style={styles.metaText}>· {date}</Text> : null}
             </View>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: cfg.bg }]}>
             <Text style={[styles.statusText, { color: cfg.color }]}>{cfg.label}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color="#555872" />
         </View>
 
         {/* Warranty and DIAN Invoices Row */}
@@ -99,25 +106,26 @@ export default function HistoryScreen() {
           <View style={styles.bottomCardRow}>
             {hasActiveWarranty && (
               <View style={styles.warrantyBadgeActive}>
-                <Ionicons name="shield-checkmark" size={12} color="#22c55e" />
-                <Text style={styles.warrantyBadgeTextActive}>
-                  Garantía: {item.warranty_days_left ?? 30}d
-                </Text>
+                <Ionicons name="shield-checkmark" size={12} color={COLORS.green} />
+                <Text style={styles.warrantyBadgeTextActive}>Garantía activa ({item.warranty_days_left ?? 30}d)</Text>
               </View>
             )}
             {hasExpiredWarranty && (
               <View style={styles.warrantyBadgeExpired}>
-                <Ionicons name="shield-outline" size={12} color="#9ca3af" />
-                <Text style={styles.warrantyBadgeTextExpired}>Garantía Vencida</Text>
+                <Ionicons name="shield-outline" size={12} color={COLORS.textMuted} />
+                <Text style={styles.warrantyBadgeTextExpired}>Garantía vencida</Text>
               </View>
             )}
-            {item.pdf_url && (
+            {item.factus_bill_number && (
               <TouchableOpacity
                 style={styles.invoiceBtn}
-                onPress={() => Linking.openURL(item.pdf_url)}
-                activeOpacity={0.7}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  Linking.openURL(`https://api.factus.com.co/v1/bills/download-pdf/${item.factus_bill_number}`);
+                }}
+                activeOpacity={0.8}
               >
-                <Ionicons name="document-text-outline" size={12} color="#22c55e" />
+                <Ionicons name="receipt-outline" size={12} color={COLORS.green} />
                 <Text style={styles.invoiceBtnText}>Factura DIAN</Text>
               </TouchableOpacity>
             )}
@@ -130,42 +138,60 @@ export default function HistoryScreen() {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Historial de Servicios</Text>
+        <Text style={styles.headerTitle}>Historial</Text>
+        <View style={styles.countWell}>
+          <Text style={styles.headerCount}>{filtered.length}</Text>
+        </View>
       </View>
 
-      {/* Filters */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={{ gap: 8 }}>
-        {filters.map(f => (
-          <TouchableOpacity
-            key={f.key}
-            style={[styles.filterChip, filter === f.key && styles.filterChipActive]}
-            onPress={() => setFilter(f.key)}
-          >
-            <Text style={[styles.filterText, filter === f.key && styles.filterTextActive]}>{f.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {/* Filter Row */}
+      <View style={{ maxHeight: 44, marginBottom: 16 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          {filters.map((f) => {
+            const active = filter === f.key;
+            return (
+              <TouchableOpacity
+                key={f.key}
+                style={[styles.filterChip, active ? styles.filterChipActive : NEU.raisedSm]}
+                onPress={() => setFilter(f.key)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.filterText, active && styles.filterTextActive]}>{f.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       {/* List */}
       <FlatList
         data={filtered}
         renderItem={renderServiceCard}
         keyExtractor={item => item.id?.toString()}
-        contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 24 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8b5cf6" />}
+        contentContainerStyle={{ paddingBottom: 110, paddingHorizontal: 20 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+            progressBackgroundColor={COLORS.surface}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyEmoji}>🗄️</Text>
+            <NeuIcon name="archive-outline" color={COLORS.textSecondary} size={72} inset />
             <Text style={styles.emptyTitle}>Sin historial</Text>
-            <Text style={styles.emptySubtitle}>Aún no tienes servicios completados</Text>
+            <Text style={styles.emptySubtitle}>Aún no tienes servicios completados en esta sección.</Text>
           </View>
         }
       />
@@ -174,25 +200,41 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#050810', paddingTop: 60 },
-  centered: { flex: 1, backgroundColor: '#050810', justifyContent: 'center', alignItems: 'center' },
-  header: { paddingHorizontal: 24, marginBottom: 20 },
-  headerTitle: { color: '#f0f0f5', fontSize: 28, fontWeight: '800' },
-  filterRow: { paddingHorizontal: 24, marginBottom: 16, maxHeight: 40 },
-  filterChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(10,14,28,0.85)', borderWidth: 1, borderColor: 'rgba(80,60,160,0.3)' },
-  filterChipActive: { backgroundColor: 'rgba(139,92,246,0.15)', borderColor: '#8b5cf6' },
-  filterText: { color: '#555872', fontSize: 13, fontWeight: '600' },
-  filterTextActive: { color: '#8b5cf6' },
-  serviceCard: { backgroundColor: 'rgba(10,14,28,0.8)', borderRadius: 20, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(80,60,160,0.2)' },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  dot: { width: 10, height: 10, borderRadius: 5 },
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  centered: { flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 18 },
+  headerTitle: { color: COLORS.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+  countWell: { ...NEU.inset, minWidth: 32, height: 26, borderRadius: 13, paddingHorizontal: 9, alignItems: 'center', justifyContent: 'center' },
+  headerCount: { color: COLORS.primaryLight, fontSize: 13, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  filterRow: { paddingHorizontal: 20, gap: 10 },
+  filterChip: {
+    paddingHorizontal: 15,
+    paddingVertical: 9,
+    borderRadius: RADIUS.round,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterChipActive: {
+    ...NEU.inset,
+    backgroundColor: COLORS.surfaceHigh,
+  },
+  filterText: { color: COLORS.textSecondary, fontSize: 13, fontWeight: '600' },
+  filterTextActive: { color: COLORS.primaryLight, fontWeight: '700' },
+
+  serviceCard: {
+    ...NEU.raised,
+    borderRadius: RADIUS.xl,
+    padding: 16,
+    marginBottom: 12,
+  },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cardContent: { flex: 1 },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  cardTitle: { color: '#f0f0f5', fontSize: 16, fontWeight: '700', flex: 1 },
-  cardMeta: { flexDirection: 'row', gap: 12 },
-  metaText: { color: '#555872', fontSize: 13 },
-  statusBadge: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
+  cardTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700' },
+  cardMeta: { flexDirection: 'row', gap: 6, marginTop: 4 },
+  metaText: { color: COLORS.textSecondary, fontSize: 12 },
+  statusBadge: { borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 },
   statusText: { fontSize: 11, fontWeight: '700' },
+
   bottomCardRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -200,43 +242,41 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
+    borderTopColor: COLORS.border,
   },
   warrantyBadgeActive: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(34,197,94,0.12)',
+    gap: 5,
+    backgroundColor: COLORS.greenMuted,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
-  warrantyBadgeTextActive: { color: '#22c55e', fontSize: 11, fontWeight: '600' },
+  warrantyBadgeTextActive: { color: COLORS.green, fontSize: 11, fontWeight: '600' },
   warrantyBadgeExpired: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(107,114,128,0.12)',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.04)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
-  warrantyBadgeTextExpired: { color: '#9ca3af', fontSize: 11, fontWeight: '500' },
+  warrantyBadgeTextExpired: { color: COLORS.textMuted, fontSize: 11, fontWeight: '500' },
   invoiceBtn: {
     marginLeft: 'auto',
+    ...NEU.raisedSm,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(34,197,94,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(34,197,94,0.3)',
+    gap: 5,
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
-  invoiceBtnText: { color: '#4ade80', fontSize: 11, fontWeight: '600' },
-  emptyContainer: { alignItems: 'center', paddingTop: 60 },
-  emptyEmoji: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: { color: '#f0f0f5', fontSize: 18, fontWeight: '700' },
-  emptySubtitle: { color: '#555872', fontSize: 14, marginTop: 4, marginBottom: 24 },
+  invoiceBtnText: { color: COLORS.green, fontSize: 11, fontWeight: '700' },
+
+  emptyContainer: { alignItems: 'center', paddingTop: 60, gap: 8 },
+  emptyTitle: { color: COLORS.text, fontSize: 18, fontWeight: '700', marginTop: 14 },
+  emptySubtitle: { color: COLORS.textSecondary, fontSize: 14, textAlign: 'center', maxWidth: 260 },
 });
