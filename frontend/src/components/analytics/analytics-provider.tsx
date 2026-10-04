@@ -13,7 +13,7 @@ interface AnalyticsProviderProps {
  */
 export function AnalyticsProvider({
   gaId = process.env.NEXT_PUBLIC_GA_ID || "G-Y1SLRH39KB",
-  clarityId = process.env.NEXT_PUBLIC_CLARITY_ID,
+  clarityId = process.env.NEXT_PUBLIC_CLARITY_ID || "ys9xbyaov1",
 }: AnalyticsProviderProps) {
   return (
     <>
