@@ -1,5 +1,3 @@
-"use client";
-
 import Script from "next/script";
 
 interface AnalyticsProviderProps {
@@ -11,10 +9,10 @@ interface AnalyticsProviderProps {
  * Proveedor de Analítica Ultraligera y Gratuita.
  * - Carga en modo 'afterInteractive' para no bloquear hidratación ni rendimiento.
  * - Usa 'beacon' para enviar datos en segundo plano sin consumo del servidor propio.
- * - Soporta Google Analytics 4 (estadísticas, rutas, conversiones) y Microsoft Clarity (mapas de calor y sesiones).
+ * - Soporta Google Analytics 4 (G-Y1SLRH39KB) y Microsoft Clarity.
  */
 export function AnalyticsProvider({
-  gaId = process.env.NEXT_PUBLIC_GA_ID,
+  gaId = process.env.NEXT_PUBLIC_GA_ID || "G-Y1SLRH39KB",
   clarityId = process.env.NEXT_PUBLIC_CLARITY_ID,
 }: AnalyticsProviderProps) {
   return (
