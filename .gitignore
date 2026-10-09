@@ -98,4 +98,11 @@ tec360source/
 *.bat
 
 # Android APK binaries (large files > 100MB)
-frontend/public/app/*.apk
+frontend/public/app/*.apk
+frontend/public/app/*.tmp
+frontend/public/app/*.bak
+
+# Database backups
+backups/
+*.sql.gz
+

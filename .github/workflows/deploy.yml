@@ -105,37 +105,113 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            # Login to GHCR to pull private/new images
+            set -e
+
+            cd /opt/tec360-seguridad
+
+            PREV_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "")
+            echo "📌 Commit previo antes del despliegue: ${PREV_COMMIT:-ninguno}"
+
+            # Procedimiento de rollback automático en caso de fallo
+            rollback() {
+              local exit_code=$?
+              trap - ERR
+              echo "🚨 ERROR: Fallo en el despliegue (código de salida: $exit_code)."
+              if [ -n "$PREV_COMMIT" ]; then
+                echo "🔄 Ejecutando rollback al commit previo ($PREV_COMMIT)..."
+                git reset --hard "$PREV_COMMIT" || true
+                echo "🔄 Levantando servicios anteriores estables..."
+                docker compose -f docker-compose.prod.yml --env-file .env.production up -d --remove-orphans backend frontend nginx || true
+              fi
+              exit 1
+            }
+            trap rollback ERR
+
+            # 1. Login to GHCR to pull private/new images
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin || true
 
-            # Sync latest code and compose configuration
-            cd /opt/tec360-seguridad
+            # 2. Sync latest code and compose configuration
             git fetch origin master
             git reset --hard origin/master
 
-            # Ensure latest APK is present and matches version.json
+            # 3. Seguro de descarga atómica e integridad del APK
             mkdir -p frontend/public/app
+            APK_FILE="frontend/public/app/tec360-seguridad-latest.apk"
+            APK_TMP="frontend/public/app/tec360-seguridad-latest.apk.tmp"
+            APK_BAK="frontend/public/app/tec360-seguridad-previous.apk"
+
             if [ -f "frontend/public/app/version.json" ]; then
-              EXPECTED_SIZE=$(grep -o '"apkSizeBytes": *[0-9]*' frontend/public/app/version.json | grep -o '[0-9]*' || echo "")
-              DOWNLOAD_URL=$(grep -o '"downloadUrl": *"[^"]*"' frontend/public/app/version.json | cut -d'"' -f4 || echo "")
-              ACTUAL_SIZE=$(stat -c%s "frontend/public/app/tec360-seguridad-latest.apk" 2>/dev/null || echo "0")
-              if [ -n "$DOWNLOAD_URL" ] && [ "$ACTUAL_SIZE" != "$EXPECTED_SIZE" ]; then
-                echo "⬇️ Sincronizando APK ($EXPECTED_SIZE bytes) desde EAS..."
-                curl -L -o frontend/public/app/tec360-seguridad-latest.apk "$DOWNLOAD_URL"
-                echo "✅ APK sincronizado exitosamente: $(stat -c%s frontend/public/app/tec360-seguridad-latest.apk) bytes"
+              EXPECTED_SIZE=$(grep -o '"apkSizeBytes": *[0-9]*' frontend/public/app/version.json 2>/dev/null | tr -dc '0-9' || echo "")
+              DOWNLOAD_URL=$(grep -o '"downloadUrl": *"[^"]*"' frontend/public/app/version.json 2>/dev/null | cut -d'"' -f4 || echo "")
+              ACTUAL_SIZE=$(stat -c%s "$APK_FILE" 2>/dev/null || echo "0")
+
+              if [ -n "$DOWNLOAD_URL" ] && [ -n "$EXPECTED_SIZE" ] && [ "$ACTUAL_SIZE" != "$EXPECTED_SIZE" ]; then
+                echo "⬇️ Sincronizando nuevo APK ($EXPECTED_SIZE bytes) desde EAS..."
+                if curl -sSfL -o "$APK_TMP" "$DOWNLOAD_URL"; then
+                  DOWNLOADED_SIZE=$(stat -c%s "$APK_TMP" 2>/dev/null || echo "0")
+                  if [ "$DOWNLOADED_SIZE" = "$EXPECTED_SIZE" ]; then
+                    [ -f "$APK_FILE" ] && cp -f "$APK_FILE" "$APK_BAK" || true
+                    mv -f "$APK_TMP" "$APK_FILE"
+                    echo "✅ APK verificado y sincronizado: $DOWNLOADED_SIZE bytes"
+                  else
+                    echo "⚠️ Tamaño descargado ($DOWNLOADED_SIZE bytes) no coincide con esperado ($EXPECTED_SIZE bytes). Descartando temporal."
+                    rm -f "$APK_TMP"
+                  fi
+                else
+                  echo "⚠️ No se pudo descargar el APK desde EAS CDN. Se mantiene el archivo actual sin interrumpir el despliegue."
+                  rm -f "$APK_TMP"
+                fi
+              else
+                echo "ℹ️ APK ya se encuentra actualizado o sin cambios ($ACTUAL_SIZE bytes)."
               fi
             fi
 
-            # Pull fresh images from GHCR (fallback to local build if pull fails)
+            # 4. Snapshot preventivo de la base de datos antes de migrar
+            mkdir -p backups
+            echo "💾 Creando snapshot preventivo de base de datos..."
+            DB_U=$(grep '^DB_USER=' .env.production 2>/dev/null | cut -d'=' -f2- | tr -d '\r"' || echo "tec360")
+            DB_N=$(grep '^DB_NAME=' .env.production 2>/dev/null | cut -d'=' -f2- | tr -d '\r"' || echo "tec360")
+            BACKUP_FILE="backups/pre_deploy_$(date +%Y%m%d_%H%M%S).sql.gz"
+            docker compose -f docker-compose.prod.yml --env-file .env.production exec -T db pg_dump -U "${DB_U:-tec360}" "${DB_N:-tec360}" 2>/dev/null | gzip > "$BACKUP_FILE" || echo "⚠️ Advertencia: No se pudo generar snapshot (db no accesible aún)."
+            if [ -s "$BACKUP_FILE" ]; then
+              echo "✅ Snapshot de base de datos generado: $BACKUP_FILE ($(stat -c%s "$BACKUP_FILE") bytes)"
+              ls -tp backups/pre_deploy_*.sql.gz 2>/dev/null | tail -n +6 | xargs -I {} rm -- {} 2>/dev/null || true
+            else
+              rm -f "$BACKUP_FILE"
+            fi
+
+            # 5. Pull fresh images from GHCR (fallback to local build if pull fails)
+            echo "🐳 Actualizando imágenes de contenedores..."
             docker compose -f docker-compose.prod.yml --env-file .env.production pull backend frontend || docker compose -f docker-compose.prod.yml --env-file .env.production build backend frontend
 
-            # Run database migrations before starting the app
+            # 6. Run database migrations before starting the app
+            echo "🔄 Ejecutando migraciones de base de datos..."
             docker compose -f docker-compose.prod.yml --env-file .env.production run --rm backend alembic upgrade head
 
-            # Restart containers with latest images
+            # 7. Restart containers with latest images
+            echo "🚀 Levantando servicios actualizados..."
             docker compose -f docker-compose.prod.yml --env-file .env.production up -d --remove-orphans backend frontend nginx
             docker compose -f docker-compose.prod.yml --env-file .env.production restart nginx
 
-            # Cleanup dangling images
+            # 8. Seguro de Verificación de Salud (Health Check)
+            echo "🩺 Verificando salud de los servicios..."
+            HEALTHY=false
+            for i in $(seq 1 15); do
+              HTTP_STATUS=$(curl -k -s -o /dev/null -w "%{http_code}" https://127.0.0.1/api/health 2>/dev/null || curl -s -o /dev/null -w "%{http_code}" -L http://127.0.0.1/api/health 2>/dev/null || echo "000")
+              if [ "$HTTP_STATUS" = "200" ]; then
+                HEALTHY=true
+                echo "✅ Backend y Base de Datos respondiendo correctamente (HTTP 200)."
+                break
+              fi
+              echo "⏳ Esperando inicialización (intento $i/15 - status: $HTTP_STATUS)..."
+              sleep 2
+            done
+
+            if [ "$HEALTHY" != "true" ]; then
+              echo "🚨 Health check fallido: Los servicios no respondieron HTTP 200 tras 30 segundos!"
+              rollback
+            fi
+
+            # 9. Cleanup dangling images sólo tras verificación exitosa
             docker image prune -f
-            echo "✅ Despliegue completado exitosamente para ${{ steps.meta.outputs.version || github.ref_name }}"
+            echo "✅ Despliegue y verificación completados exitosamente para ${{ steps.meta.outputs.version || github.ref_name }}"
