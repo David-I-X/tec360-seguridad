@@ -128,7 +128,8 @@ jobs:
             "easCreatedAt": "${BUILD_CREATED}",
             "apkSizeBytes": ${FILE_SIZE},
             "apkSizeMB": "$(( FILE_SIZE / 1048576 )) MB",
-            "apkMd5": "${FILE_MD5}"
+            "apkMd5": "${FILE_MD5}",
+            "downloadUrl": "${BUILD_URL}"
           }
           VERSIONEOF
           
@@ -180,9 +181,6 @@ jobs:
           cat frontend/public/app/version.json
           
           git add frontend/public/app/version.json
-          if [ -f "frontend/public/app/tec360-seguridad-latest.apk" ] && [ "$APK_SIZE" -lt 95000000 ]; then
-            git add frontend/public/app/tec360-seguridad-latest.apk
-          fi
           git commit -m "🤖 Auto-update APK from EAS build ${{ github.ref_name || 'manual' }}" || echo "No changes to commit"
           
           echo "📍 Nuevo commit: $(git log --oneline -1)"

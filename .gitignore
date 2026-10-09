@@ -95,4 +95,7 @@ tec360source/
 .github/skills/
 
 # Local scripts
-*.bat
+*.bat
+
+# Android APK binaries (large files > 100MB)
+frontend/public/app/*.apk

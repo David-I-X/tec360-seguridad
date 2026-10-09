@@ -15,6 +15,7 @@ interface VersionInfo {
     easAppVersion: string
     apkSizeMB: string
     apkMd5: string
+    downloadUrl?: string
 }
 
 export default function DescargarAppPage() {
@@ -127,15 +128,27 @@ export default function DescargarAppPage() {
                             Verificado libre de Malware
                         </p>
                         {versionInfo && (
-                            <div className="mt-4 inline-flex items-center gap-3 bg-slate-800/60 px-4 py-2.5 rounded-xl border border-slate-700/50 text-xs text-slate-400">
-                                <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                                <span>
-                                    <span className="font-bold text-white">{versionInfo.tag}</span>
-                                    <span className="mx-1.5 text-slate-600">•</span>
-                                    {new Date(versionInfo.buildDate).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                    <span className="mx-1.5 text-slate-600">•</span>
-                                    {versionInfo.apkSizeMB}
-                                </span>
+                            <div className="flex flex-col items-center gap-2 mt-4">
+                                <div className="inline-flex items-center gap-3 bg-slate-800/60 px-4 py-2.5 rounded-xl border border-slate-700/50 text-xs text-slate-400">
+                                    <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                                    <span>
+                                        <span className="font-bold text-white">{versionInfo.tag}</span>
+                                        <span className="mx-1.5 text-slate-600">•</span>
+                                        {new Date(versionInfo.buildDate).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                        <span className="mx-1.5 text-slate-600">•</span>
+                                        {versionInfo.apkSizeMB}
+                                    </span>
+                                </div>
+                                {versionInfo.downloadUrl && (
+                                    <a
+                                        href={versionInfo.downloadUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[11px] text-blue-400/80 hover:text-blue-300 underline underline-offset-2 transition-colors mt-0.5"
+                                    >
+                                        Enlace directo alternativo (EAS CDN)
+                                    </a>
+                                )}
                             </div>
                         )}
                     </motion.div>

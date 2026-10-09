@@ -113,6 +113,19 @@ jobs:
             git fetch origin master
             git reset --hard origin/master
 
+            # Ensure latest APK is present and matches version.json
+            mkdir -p frontend/public/app
+            if [ -f "frontend/public/app/version.json" ]; then
+              EXPECTED_SIZE=$(grep -o '"apkSizeBytes": *[0-9]*' frontend/public/app/version.json | grep -o '[0-9]*' || echo "")
+              DOWNLOAD_URL=$(grep -o '"downloadUrl": *"[^"]*"' frontend/public/app/version.json | cut -d'"' -f4 || echo "")
+              ACTUAL_SIZE=$(stat -c%s "frontend/public/app/tec360-seguridad-latest.apk" 2>/dev/null || echo "0")
+              if [ -n "$DOWNLOAD_URL" ] && [ "$ACTUAL_SIZE" != "$EXPECTED_SIZE" ]; then
+                echo "⬇️ Sincronizando APK ($EXPECTED_SIZE bytes) desde EAS..."
+                curl -L -o frontend/public/app/tec360-seguridad-latest.apk "$DOWNLOAD_URL"
+                echo "✅ APK sincronizado exitosamente: $(stat -c%s frontend/public/app/tec360-seguridad-latest.apk) bytes"
+              fi
+            fi
+
             # Pull fresh images from GHCR (fallback to local build if pull fails)
             docker compose -f docker-compose.prod.yml --env-file .env.production pull backend frontend || docker compose -f docker-compose.prod.yml --env-file .env.production build backend frontend
 
