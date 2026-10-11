@@ -15,24 +15,40 @@ import { NeuIcon } from '@/components/neu';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
+const RANK_TIERS: Record<string, { label: string; next: string | null; target: number; color: string }> = {
+  bronze: { label: 'Bronce', next: 'Plata', target: 50, color: '#cd7f32' },
+  silver: { label: 'Plata', next: 'Oro', target: 150, color: '#94a3b8' },
+  gold:   { label: 'Oro', next: 'Élite', target: 300, color: '#eab308' },
+  elite:  { label: 'Élite', next: null, target: 300, color: '#8b5cf6' },
+};
+
 export default function TechProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, refreshUser, logout } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [stats, setStats] = useState({ completed: 0, total: 0 });
+  const [techProfile, setTechProfile] = useState<any>(null);
   const staticUrl = API_URL.replace(/\/api\/?$/, '');
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetchWithAuth('/services?page_size=100');
+        const [res, techRes] = await Promise.all([
+          fetchWithAuth('/services?page_size=100'),
+          fetchWithAuth('/technicians/me').catch(() => null),
+        ]);
         const data = await res.json();
         const list = data.services || data.items || [];
         setStats({
           total: list.length,
           completed: list.filter((s: any) => s.status === 'completed' || s.status === 'confirmed').length,
         });
+
+        if (techRes && techRes.ok) {
+          const tData = await techRes.json();
+          setTechProfile(tData);
+        }
       } catch (e) { console.error(e); }
     })();
   }, []);
@@ -149,9 +165,59 @@ export default function TechProfileScreen() {
         </View>
       </View>
 
+      {/* Rank & Escuela Tec Motivation Banner */}
+      {(() => {
+        const currentRank = techProfile?.rank || 'bronze';
+        const rankConfig = RANK_TIERS[currentRank] || RANK_TIERS.bronze;
+        const currentPoints = techProfile?.rank_points || 0;
+
+        return (
+          <TouchableOpacity
+            style={styles.rankBanner}
+            activeOpacity={0.85}
+            onPress={() => router.push('/(tech)/escuela' as any)}
+          >
+            <View style={styles.rankBannerHeader}>
+              <View style={styles.rankBadge}>
+                <Ionicons name="trophy" size={14} color={rankConfig.color} />
+                <Text style={[styles.rankBadgeText, { color: rankConfig.color }]}>
+                  Rango {rankConfig.label}
+                </Text>
+              </View>
+              <Text style={styles.rankPointsText}>{currentPoints} pts</Text>
+            </View>
+
+            {rankConfig.next ? (
+              <>
+                <View style={styles.rankTrack}>
+                  <View
+                    style={[
+                      styles.rankFill,
+                      {
+                        width: `${Math.min(100, Math.max(8, (currentPoints / rankConfig.target) * 100))}%`,
+                        backgroundColor: rankConfig.color,
+                      },
+                    ]}
+                  />
+                </View>
+                <View style={styles.rankNextRow}>
+                  <Text style={styles.rankNextText}>
+                    Faltan {Math.max(0, rankConfig.target - currentPoints)} pts para {rankConfig.next}
+                  </Text>
+                  <Text style={styles.rankActionText}>Escuela Tec →</Text>
+                </View>
+              </>
+            ) : (
+              <Text style={styles.rankMaxText}>👑 ¡Máximo rango alcanzado en Tec360!</Text>
+            )}
+          </TouchableOpacity>
+        );
+      })()}
+
       {/* Menu Items */}
       <Text style={styles.sectionTitle}>GESTIÓN</Text>
       <View style={styles.menuSection}>
+        {renderMenuItem('school-outline', 'Escuela Tec', () => router.push('/(tech)/escuela' as any), COLORS.primaryLight)}
         {renderMenuItem('person-outline', 'Editar perfil', () => router.push('/(tech)/edit-profile' as any))}
         {renderMenuItem('pricetags-outline', 'Mis cotizaciones', () => router.push('/(tech)/quotations' as any))}
         {renderMenuItem('help-circle-outline', 'Soporte técnico', () => router.push('/(tech)/support' as any))}
@@ -231,13 +297,77 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: RADIUS.xl,
     paddingVertical: 18,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   statCell: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 6 },
   statDivider: { width: 1, alignSelf: 'stretch', backgroundColor: COLORS.border },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   statNumber: { color: COLORS.text, fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'] },
   statLabel: { color: COLORS.textSecondary, fontSize: 12 },
+
+  rankBanner: {
+    ...NEU.raised,
+    borderRadius: RADIUS.xl,
+    padding: 16,
+    marginBottom: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(234,179,8,0.22)',
+    gap: 10,
+  },
+  rankBannerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  rankBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(234,179,8,0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  rankBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  rankPointsText: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  rankTrack: {
+    height: 6,
+    backgroundColor: COLORS.sunken,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  rankFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  rankNextRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  rankNextText: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+  },
+  rankActionText: {
+    color: COLORS.primaryLight,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  rankMaxText: {
+    color: COLORS.primaryLight,
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
 
   sectionTitle: {
     color: COLORS.textMuted,

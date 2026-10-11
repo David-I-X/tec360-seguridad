@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth-context';
-import { fetchWithAuth, API_URL } from '@/lib/api';
+import { fetchWithAuth, getMyCoursesList, API_URL } from '@/lib/api';
 import { COLORS, NEU, RADIUS } from '@/constants/theme';
 import { NeuIcon, NeuButton } from '@/components/neu';
 
@@ -33,6 +33,7 @@ export default function TechDashboardScreen() {
   const [myActiveService, setMyActiveService] = useState<any>(null);
   const [stats, setStats] = useState({ completed: 0, rating: 0 });
   const [earnings, setEarnings] = useState({ total: 0, pending: 0 });
+  const [activeCourse, setActiveCourse] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
@@ -67,6 +68,13 @@ export default function TechDashboardScreen() {
             pending: earningsData.pending_validation || 0,
           });
         }
+      } catch (_) {}
+
+      // Active course in Escuela Tec
+      try {
+        const courses = await getMyCoursesList();
+        const uncompleted = (courses || []).find((c: any) => !c.quiz_passed) || (courses || [])[0];
+        setActiveCourse(uncompleted || null);
       } catch (_) {}
     } catch (e) { console.error(e); }
     finally { setIsLoading(false); setRefreshing(false); }
@@ -177,8 +185,8 @@ export default function TechDashboardScreen() {
               </View>
             </View>
 
-            {/* Active Service */}
-            {myActiveService && (
+            {/* Active Service or Escuela Tec Learning Hub */}
+            {myActiveService ? (
               <TouchableOpacity
                 style={styles.activeCard}
                 onPress={() => router.push(`/(tech)/service/${myActiveService.id}` as any)}
@@ -199,6 +207,46 @@ export default function TechDashboardScreen() {
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={COLORS.primaryLight} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.learningCard}
+                onPress={() => {
+                  if (activeCourse?.course?.slug) {
+                    router.push(`/(tech)/escuela/${activeCourse.course.slug}` as any);
+                  } else {
+                    router.push('/(tech)/escuela' as any);
+                  }
+                }}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Abrir Escuela Tec"
+              >
+                <NeuIcon name="school" color={COLORS.primaryLight} size={46} inset />
+                <View style={{ flex: 1, gap: 3 }}>
+                  <View style={styles.learningTagRow}>
+                    <View style={styles.learningBadge}>
+                      <Ionicons name="sparkles" size={10} color={COLORS.yellow} />
+                      <Text style={styles.learningBadgeText}>
+                        {activeCourse ? 'Capacitación en curso' : 'Campus Técnico'}
+                      </Text>
+                    </View>
+                    {activeCourse?.progress_pct ? (
+                      <Text style={styles.learningPctText}>{Math.round(activeCourse.progress_pct)}%</Text>
+                    ) : (
+                      <Text style={styles.learningPtsText}>+40 pts rango</Text>
+                    )}
+                  </View>
+                  <Text style={styles.learningTitle} numberOfLines={1}>
+                    {activeCourse?.course?.title || 'Escuela Tec · Sube a Rango Élite'}
+                  </Text>
+                  <Text style={styles.learningSubtitle} numberOfLines={1}>
+                    {activeCourse
+                      ? `${activeCourse.completed_lessons || 0} de ${activeCourse.course?.lessons_count || 0} lecciones completadas`
+                      : 'Certifícate en GPS 4G, dashcams HD y redes CAN-Bus'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.primaryLight} />
               </TouchableOpacity>
             )}
 
@@ -292,6 +340,57 @@ const styles = StyleSheet.create({
   activeCardTitle: { color: COLORS.text, fontSize: 16, fontWeight: '700' },
   activeCardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   activeCardLocation: { color: COLORS.textSecondary, fontSize: 13, flexShrink: 1 },
+
+  learningCard: {
+    ...NEU.raised,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginHorizontal: 24,
+    marginBottom: 28,
+    borderRadius: RADIUS.xl,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.22)',
+  },
+  learningTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  learningBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(139,92,246,0.12)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  learningBadgeText: {
+    color: COLORS.primaryLight,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  learningPctText: {
+    color: COLORS.green,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  learningPtsText: {
+    color: COLORS.yellow,
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  learningTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  learningSubtitle: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+  },
 
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 16 },
   sectionTitle: { color: COLORS.text, fontSize: 18, fontWeight: '700', letterSpacing: -0.3 },

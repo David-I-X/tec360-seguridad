@@ -525,6 +525,179 @@ export const api = {
 };
 
 // ============================================
+// ESCUELA TEC COURSES & CERTIFICATES
+// ============================================
+
+export interface CourseListItem {
+  id: string;
+  title: string;
+  slug: string;
+  description?: string;
+  category: string;
+  thumbnail_url?: string;
+  difficulty: string;
+  estimated_hours: number;
+  instructor_name?: string;
+  is_published: boolean;
+  is_paid: boolean;
+  price: number;
+  is_required_for_technicians: boolean;
+  rank_points_reward: number;
+  badge_name?: string;
+  badge_icon?: string;
+  sort_order: number;
+  enrolled_count: number;
+  rating: number;
+  lessons_count: number;
+  is_enrolled: boolean;
+  progress_pct: number;
+  is_completed: boolean;
+}
+
+export interface LessonSummary {
+  id: string;
+  course_id: string;
+  title: string;
+  slug: string;
+  video_duration_seconds: number;
+  sort_order: number;
+  is_free_preview: boolean;
+  is_completed: boolean;
+}
+
+export interface CourseDetailResponse extends CourseListItem {
+  lessons: LessonSummary[];
+  enrollment_status?: string | null;
+  completed_lessons: number;
+  quiz_passed: boolean;
+  certificate_code?: string | null;
+}
+
+export interface LessonDetail {
+  id: string;
+  course_id: string;
+  title: string;
+  slug: string;
+  content_markdown?: string | null;
+  video_url?: string | null;
+  video_duration_seconds: number;
+  sort_order: number;
+  is_free_preview: boolean;
+  is_completed: boolean;
+  next_lesson_slug?: string | null;
+  prev_lesson_slug?: string | null;
+}
+
+export interface QuizQuestionItem {
+  id: string;
+  question_text: string;
+  options: string[];
+  sort_order: number;
+}
+
+export interface QuizEvaluationResult {
+  score: number;
+  passed: boolean;
+  total_questions: number;
+  correct_answers: number;
+  required_score: number;
+  certificate_code?: string | null;
+  rank_points_awarded: number;
+  badge_awarded?: string | null;
+  message: string;
+}
+
+export interface CertificateInfo {
+  certificate_code: string;
+  student_name: string;
+  course_title: string;
+  category: string;
+  completion_date: string;
+  score: number;
+  instructor_name: string;
+  is_valid: boolean;
+}
+
+export async function getCoursesList(params?: {
+  category?: string;
+  difficulty?: string;
+  search?: string;
+  is_required?: boolean;
+}): Promise<CourseListItem[]> {
+  const query = new URLSearchParams();
+  if (params?.category && params.category !== "all") query.append("category", params.category);
+  if (params?.difficulty && params.difficulty !== "all") query.append("difficulty", params.difficulty);
+  if (params?.search) query.append("search", params.search);
+  if (params?.is_required !== undefined) query.append("is_required", String(params.is_required));
+  const qs = query.toString() ? `?${query.toString()}` : "";
+  const res = await fetchWithAuth(`/courses${qs}`);
+  if (!res.ok) await handleAPIError(res);
+  return res.json();
+}
+
+export async function getMyCoursesList(): Promise<any[]> {
+  const res = await fetchWithAuth("/courses/my-courses");
+  if (!res.ok) await handleAPIError(res);
+  return res.json();
+}
+
+export async function getCourseDetailBySlug(slug: string): Promise<CourseDetailResponse> {
+  const res = await fetchWithAuth(`/courses/${slug}`);
+  if (!res.ok) await handleAPIError(res);
+  return res.json();
+}
+
+export async function getLessonDetailBySlug(slug: string, lessonSlug: string): Promise<LessonDetail> {
+  const res = await fetchWithAuth(`/courses/${slug}/lessons/${lessonSlug}`);
+  if (!res.ok) await handleAPIError(res);
+  return res.json();
+}
+
+export async function enrollInCourse(slug: string): Promise<any> {
+  const res = await fetchWithAuth(`/courses/${slug}/enroll`, { method: "POST" });
+  if (!res.ok) await handleAPIError(res);
+  return res.json();
+}
+
+export async function completeLesson(slug: string, lessonId: string): Promise<{
+  success: boolean;
+  completed: boolean;
+  completed_lessons: number;
+  total_lessons: number;
+  progress_pct: number;
+  can_take_quiz: boolean;
+}> {
+  const res = await fetchWithAuth(`/courses/${slug}/lessons/${lessonId}/complete`, { method: "POST" });
+  if (!res.ok) await handleAPIError(res);
+  return res.json();
+}
+
+export async function getCourseQuizQuestions(slug: string): Promise<QuizQuestionItem[]> {
+  const res = await fetchWithAuth(`/courses/${slug}/quiz`);
+  if (!res.ok) await handleAPIError(res);
+  return res.json();
+}
+
+export async function submitQuizAnswers(
+  slug: string,
+  answers: { question_id: string; selected_option_index: number }[]
+): Promise<QuizEvaluationResult> {
+  const res = await fetchWithAuth(`/courses/${slug}/quiz/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ answers }),
+  });
+  if (!res.ok) await handleAPIError(res);
+  return res.json();
+}
+
+export async function getCertificateDetails(certificateCode: string): Promise<CertificateInfo> {
+  const res = await fetchWithAuth(`/courses/certificates/${certificateCode}`);
+  if (!res.ok) await handleAPIError(res);
+  return res.json();
+}
+
+// ============================================
 // HELPERS
 // ============================================
 
@@ -539,3 +712,4 @@ export async function hasCompletedOnboarding(): Promise<boolean> {
 }
 
 export { API_URL };
+

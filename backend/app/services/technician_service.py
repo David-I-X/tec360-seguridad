@@ -338,6 +338,9 @@ class TechnicianService:
             is_verified=tech.is_verified,
             total_services=tech.total_services,
             average_rating=tech.average_rating,
+            rank=tech.rank or "bronze",
+            rank_points=tech.rank_points or 0,
+            certifications_count=tech.certifications_count or 0,
             created_at=tech.created_at,
             updated_at=tech.updated_at,
             user=user

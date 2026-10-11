@@ -81,6 +81,11 @@ export default function TechLayout() {
       <Tabs.Screen name="edit-profile" options={{ href: null }} />
       <Tabs.Screen name="support" options={{ href: null }} />
       <Tabs.Screen name="chat/[serviceId]" options={{ href: null }} />
+      <Tabs.Screen name="escuela/index" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="escuela/[slug]" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="escuela/[slug]/leccion/[lessonSlug]" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="escuela/[slug]/quiz" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="escuela/certificado/[code]" options={{ href: null, tabBarStyle: { display: 'none' } }} />
     </Tabs>
   );
 }

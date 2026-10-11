@@ -214,6 +214,9 @@ class TechnicianResponse(BaseModel):
     is_verified: bool
     total_services: int
     average_rating: Decimal
+    rank: str = "bronze"
+    rank_points: int = 0
+    certifications_count: int = 0
     created_at: datetime
     updated_at: datetime
     
