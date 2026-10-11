@@ -711,5 +711,26 @@ export async function hasCompletedOnboarding(): Promise<boolean> {
   return user?.onboarding_completed === true || !!user?.full_name;
 }
 
+const BASIC_COURSES_MODAL_KEY_PREFIX = "tec360_basic_courses_seen_";
+
+export async function hasSeenBasicCoursesModal(userId?: string): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    const val = await SecureStore.getItemAsync(`${BASIC_COURSES_MODAL_KEY_PREFIX}${userId}`);
+    return val === "true";
+  } catch {
+    return false;
+  }
+}
+
+export async function markSeenBasicCoursesModal(userId?: string): Promise<void> {
+  if (!userId) return;
+  try {
+    await SecureStore.setItemAsync(`${BASIC_COURSES_MODAL_KEY_PREFIX}${userId}`, "true");
+  } catch (e) {
+    console.error("Failed to mark basic courses modal as seen", e);
+  }
+}
+
 export { API_URL };
 

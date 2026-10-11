@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Loader2, MapPin, Calendar, CheckCircle, Briefcase, FileText, Star, DollarSign, Wrench, RefreshCw, ArrowLeft, User, Clock, Car, Filter } from "lucide-react"
@@ -17,6 +17,7 @@ import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/components/ui/use-toast"
 import { getAvailableServices, getUserServices, acceptService } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
+import { BasicCoursesModal } from "@/components/technician/BasicCoursesModal"
 
 const statusMap: Record<string, { label: string; color: string }> = {
     pending: { label: "Pendiente", color: "bg-yellow-500" },
@@ -36,12 +37,31 @@ export function TechnicianDashboard() {
     const { user } = useAuth()
     const { toast } = useToast()
     const router = useRouter()
+    const searchParams = useSearchParams()
 
     const [availableServices, setAvailableServices] = useState<any[]>([])
     const [myServices, setMyServices] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [processingId, setProcessingId] = useState<string | null>(null)
     const [myServicesFilter, setMyServicesFilter] = useState<MyServicesFilter>("all")
+    const [showBasicCoursesModal, setShowBasicCoursesModal] = useState(false)
+
+    // Check if new technician should see the basic courses modal
+    useEffect(() => {
+        if (!user?.id) return
+        const isNewParam = searchParams.get("isNewTech") === "1"
+        const seenStorage = localStorage.getItem(`tec360_basic_courses_seen_${user.id}`)
+        if (isNewParam || !seenStorage) {
+            setShowBasicCoursesModal(true)
+        }
+    }, [user?.id, searchParams])
+
+    const handleDismissIntroModal = () => {
+        setShowBasicCoursesModal(false)
+        if (user?.id) {
+            localStorage.setItem(`tec360_basic_courses_seen_${user.id}`, "true")
+        }
+    }
 
     const fetchData = async () => {
         try {
@@ -385,6 +405,12 @@ export function TechnicianDashboard() {
                     )}
                 </TabsContent>
             </Tabs>
+
+            <BasicCoursesModal
+                isOpen={showBasicCoursesModal}
+                onClose={() => setShowBasicCoursesModal(false)}
+                onDismissForever={handleDismissIntroModal}
+            />
         </div>
     )
 }

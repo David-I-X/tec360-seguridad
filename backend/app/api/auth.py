@@ -191,6 +191,23 @@ async def complete_onboarding(
     session.add(user)
     session.commit()
     session.refresh(user)
+
+    is_new_technician = False
+    if user.role == "technician":
+        from app.models.technician import Technician
+        existing_tech = session.exec(select(Technician).where(Technician.user_id == user.id)).first()
+        if not existing_tech:
+            new_tech = Technician(
+                user_id=user.id,
+                is_available=True,
+                is_verified=False,
+                rank="bronze",
+                rank_points=0,
+                certifications_count=0,
+            )
+            session.add(new_tech)
+            session.commit()
+            is_new_technician = True
     
     # Background task for CRM sync
     async def sync_and_save(uid: str):
@@ -217,7 +234,8 @@ async def complete_onboarding(
             "email": user.email,
             "role": user.role,
             "avatar_url": user.avatar_url,
-            "onboarding_completed": True
+            "onboarding_completed": True,
+            "is_new_technician": is_new_technician,
         }
     }
 

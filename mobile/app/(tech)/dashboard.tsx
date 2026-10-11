@@ -3,13 +3,20 @@ import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, RefreshControl, Switch, Image, Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth-context';
-import { fetchWithAuth, getMyCoursesList, API_URL } from '@/lib/api';
+import {
+  fetchWithAuth,
+  getMyCoursesList,
+  API_URL,
+  hasSeenBasicCoursesModal,
+  markSeenBasicCoursesModal,
+} from '@/lib/api';
 import { COLORS, NEU, RADIUS } from '@/constants/theme';
 import { NeuIcon, NeuButton } from '@/components/neu';
+import { BasicCoursesModal } from '@/components/BasicCoursesModal';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -26,6 +33,7 @@ const typeIcon: Record<string, { icon: IconName; color: string }> = {
 
 export default function TechDashboardScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ isNewTech?: string }>();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [isOnline, setIsOnline] = useState(true);
@@ -37,6 +45,42 @@ export default function TechDashboardScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [showBasicCoursesModal, setShowBasicCoursesModal] = useState(false);
+
+  // Check if newly registered technician should see the basic courses modal
+  useEffect(() => {
+    async function checkIntroModal() {
+      if (!user?.id) return;
+      const alreadySeen = await hasSeenBasicCoursesModal(user.id);
+      if (params.isNewTech === '1' || !alreadySeen) {
+        setShowBasicCoursesModal(true);
+      }
+    }
+    checkIntroModal();
+  }, [user?.id, params.isNewTech]);
+
+  const handleDismissIntroModal = async () => {
+    setShowBasicCoursesModal(false);
+    if (user?.id) {
+      await markSeenBasicCoursesModal(user.id);
+    }
+  };
+
+  const handleStartIntroCourse = async () => {
+    setShowBasicCoursesModal(false);
+    if (user?.id) {
+      await markSeenBasicCoursesModal(user.id);
+    }
+    router.push('/(tech)/escuela/fundamentos-instalacion-seguridad' as any);
+  };
+
+  const handleViewAllIntroCourses = async () => {
+    setShowBasicCoursesModal(false);
+    if (user?.id) {
+      await markSeenBasicCoursesModal(user.id);
+    }
+    router.push('/(tech)/escuela' as any);
+  };
 
   const load = useCallback(async () => {
     try {
@@ -301,6 +345,13 @@ export default function TechDashboardScreen() {
             <Text style={styles.emptySubtitle}>{isOnline ? 'Te avisaremos apenas un cliente cercano solicite un servicio.' : 'Activa tu disponibilidad para empezar a recibir servicios.'}</Text>
           </View>
         }
+      />
+
+      <BasicCoursesModal
+        visible={showBasicCoursesModal}
+        onDismiss={handleDismissIntroModal}
+        onStartCourse={handleStartIntroCourse}
+        onViewAllCourses={handleViewAllIntroCourses}
       />
     </View>
   );

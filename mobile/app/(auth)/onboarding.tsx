@@ -30,7 +30,7 @@ export default function OnboardingScreen() {
       const userRes = await getCurrentUser();
       if (userRes.user) await saveUser(userRes.user);
       if (role === 'technician') {
-        router.replace('/(tech)/dashboard');
+        router.replace({ pathname: '/(tech)/dashboard', params: { isNewTech: '1' } } as any);
       } else {
         router.replace('/(client)/services');
       }

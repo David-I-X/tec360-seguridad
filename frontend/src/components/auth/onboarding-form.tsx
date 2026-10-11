@@ -60,7 +60,7 @@ export function OnboardingForm() {
 
             // Redirigir según el tipo de usuario seleccionado
             if (data.user_type === "technician") {
-                router.push("/tecnicos/dashboard")
+                router.push("/tecnicos/dashboard?isNewTech=1")
             } else if (pathname !== "/servicios/nuevo") {
                 // Si ya estamos en /servicios/nuevo, no redirigir:
                 // React re-renderiza automáticamente el ServiceRequestForm
