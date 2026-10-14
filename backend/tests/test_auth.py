@@ -144,3 +144,37 @@ class TestGetMe:
         """Request with invalid token should return 401"""
         resp = client.get("/auth/me", headers=auth_header("invalid.token.here"))
         assert resp.status_code == 401
+
+
+class TestFirebaseVerify:
+    """Test the /auth/firebase-verify endpoint"""
+
+    def test_firebase_verify_invalid_token_fails(self, client):
+        """Sending a fake/expired token to Firebase should return 401"""
+        resp = client.post("/auth/firebase-verify", json={"id_token": "fake_invalid_id_token"})
+        assert resp.status_code == 401
+
+    def test_firebase_verify_valid_token_success(self, client, monkeypatch):
+        """Mocked valid Firebase token should authenticate and create user"""
+        from uuid import uuid4
+        from app.services.firebase_service import firebase_service
+
+        unique_phone = f"+57398{uuid4().int % 10000000:07d}"
+
+        def mock_verify_id_token(id_token):
+            return {
+                "phone_number": unique_phone,
+                "uid": f"firebase_mock_uid_{uuid4().hex[:8]}"
+            }
+
+        monkeypatch.setattr(firebase_service, "verify_id_token", mock_verify_id_token)
+
+        resp = client.post("/auth/firebase-verify", json={"id_token": "valid_mock_token"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert "access_token" in data
+        assert "refresh_token" in data
+        assert data["user"]["phone"] == unique_phone
+        assert data["is_new_user"] is True
+
