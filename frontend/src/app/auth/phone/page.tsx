@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { phoneSchema, formatPhoneNumber } from "@/lib/validations"
 import type { PhoneFormData } from "@/lib/validations"
 import { useAuth, PublicOnlyRoute } from "@/lib/auth-context"
+import { setupRecaptcha, sendFirebaseOTP } from "@/lib/firebase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -72,8 +73,17 @@ function PhoneAuthContent() {
       // Formatear teléfono
       const formattedPhone = formatPhoneNumber(data.phone)
 
-      // Solicitar OTP
-      await requestOTP(formattedPhone)
+      if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+        // Enviar OTP vía Google Firebase Phone Auth (10.000 SMS gratis)
+        const verifier = setupRecaptcha("recaptcha-container")
+        const confirmation = await sendFirebaseOTP(formattedPhone, verifier)
+        ;(window as any).confirmationResult = confirmation
+        sessionStorage.setItem("auth_provider", "firebase")
+      } else {
+        // Fallback a OTP local/dev
+        await requestOTP(formattedPhone)
+        sessionStorage.setItem("auth_provider", "local")
+      }
 
       // Guardar teléfono en sessionStorage para la página de verificación
       sessionStorage.setItem("pending_phone", formattedPhone)
@@ -81,6 +91,7 @@ function PhoneAuthContent() {
       // Redirigir a página de verificación
       router.push("/auth/verify")
     } catch (err: any) {
+      console.error("Error al enviar OTP:", err)
       setError(err.message || "Error al enviar código. Intenta de nuevo.")
     } finally {
       setIsLoading(false)
@@ -165,6 +176,9 @@ function PhoneAuthContent() {
                 "Enviar código de verificación"
               )}
             </Button>
+
+            {/* Contenedor invisible para reCAPTCHA de Firebase Phone Auth */}
+            <div id="recaptcha-container" />
           </form>
 
           {/* Info adicional */}

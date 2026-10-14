@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation"
 import {
   requestOTP as apiRequestOTP,
   verifyOTP as apiVerifyOTP,
+  verifyFirebaseToken as apiVerifyFirebaseToken,
   completeOnboarding as apiCompleteOnboarding,
   logout as apiLogout,
   getUser,
@@ -45,6 +46,9 @@ interface AuthContextType {
   verifyOTP: (
     phone: string,
     code: string
+  ) => Promise<{ success: boolean; isNewUser: boolean }>
+  loginWithFirebaseToken: (
+    idToken: string
   ) => Promise<{ success: boolean; isNewUser: boolean }>
   completeOnboarding: (data: {
     full_name: string
@@ -153,6 +157,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Autenticar con token de Firebase
+  const loginWithFirebaseToken = async (
+    idToken: string
+  ): Promise<{ success: boolean; isNewUser: boolean }> => {
+    try {
+      const response = await apiVerifyFirebaseToken(idToken)
+
+      // Actualizar estado del usuario
+      setUser(response.user)
+
+      return {
+        success: true,
+        isNewUser: response.is_new_user,
+      }
+    } catch (error: any) {
+      throw new Error(error.message || "Error al autenticar con Firebase")
+    }
+  }
+
   // Completar onboarding
   const completeOnboarding = async (data: {
     full_name: string
@@ -185,6 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       checkHasCompletedOnboarding() || !!user?.full_name,
     requestOTP,
     verifyOTP,
+    loginWithFirebaseToken,
     completeOnboarding,
     logout,
     refreshUser,

@@ -75,9 +75,12 @@ frontend/public/sw.js.map
 tec_post.session.sql
 node_modules/
 
-# SSH Keys
+# SSH Keys and Credentials
 *.key
 *.key.pub
+*firebase*.json
+*-adminsdk-*.json
+serviceAccountKey*.json
 
 # Local media / screenshots
 TRACCAR/*.jpeg

@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     TWILIO_PHONE_NUMBER: str = os.getenv("TWILIO_PHONE_NUMBER", "")
     SMS_ENABLED: bool = os.getenv("SMS_ENABLED", "false").lower() == "true"
 
+    # Firebase Auth
+    FIREBASE_CREDENTIALS_PATH: str = os.getenv(
+        "FIREBASE_CREDENTIALS_PATH", "firebase-credentials.json"
+    )
+
     # OTP Settings
     OTP_LENGTH: int = int(os.getenv("OTP_LENGTH", "6"))
     OTP_EXPIRY_MINUTES: int = int(os.getenv("OTP_EXPIRY_MINUTES", "5"))

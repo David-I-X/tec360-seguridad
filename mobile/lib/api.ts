@@ -211,6 +211,20 @@ export async function verifyOTP(phone: string, code: string): Promise<AuthRespon
   return data;
 }
 
+export async function verifyFirebaseToken(idToken: string): Promise<AuthResponse> {
+  const response = await fetch(`${API_URL}/auth/firebase-verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id_token: idToken }),
+  });
+  if (!response.ok) await handleAPIError(response);
+
+  const data: AuthResponse = await response.json();
+  await saveTokens(data.access_token, data.refresh_token);
+  await saveUser(data.user);
+  return data;
+}
+
 export async function completeOnboarding(data: {
   full_name: string;
   email?: string;

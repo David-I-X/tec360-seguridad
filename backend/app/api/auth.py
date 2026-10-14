@@ -43,6 +43,9 @@ class OTPVerify(BaseModel):
     phone: str
     code: str
 
+class FirebaseVerifyRequest(BaseModel):
+    id_token: str
+
 class OnboardingRequest(BaseModel):
     full_name: str
     email: str = None
@@ -165,6 +168,80 @@ async def verify_otp(data: OTPVerify, request: Request, session: Session = Depen
         "is_new_user": is_new_user
     }
 
+
+@router.post("/firebase-verify")
+@limiter.limit("10/minute")
+async def firebase_verify(
+    data: FirebaseVerifyRequest,
+    request: Request,
+    session: Session = Depends(get_session)
+):
+    """
+    Verifica el idToken emitido por Firebase Phone Authentication.
+    Valida la firma criptográfica con Google, extrae el número de celular verificado,
+    busca o crea al usuario en PostgreSQL y emite los tokens JWT de sesión de Tec360.
+    """
+    from app.services.firebase_service import firebase_service
+    decoded = firebase_service.verify_id_token(data.id_token)
+
+    phone_raw = decoded.get("phone_number")
+    if not phone_raw:
+        raise HTTPException(
+            status_code=400,
+            detail="El token de Firebase no contiene un número telefónico verificado."
+        )
+
+    phone_norm = normalize_phone(phone_raw)
+
+    # Buscar o crear usuario en PostgreSQL
+    statement = select(User).where(
+        (User.phone == phone_norm) |
+        (User.phone == phone_raw) |
+        (User.phone == phone_raw.replace("+57", ""))
+    )
+    user = session.exec(statement).first()
+    is_new_user = False
+
+    if not user:
+        is_new_user = True
+        user = User(
+            email=f"{phone_norm.replace('+', '')}@temp.com",
+            phone=phone_norm,
+            hashed_password="nopassword",
+            role="client",
+            is_active=True
+        )
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
+    # Generar tokens de sesión de Tec360
+    access_token = create_access_token(
+        subject=user.id,
+        expires_delta=timedelta(days=7),
+        extra_claims={"role": user.role}
+    )
+    refresh_token = create_refresh_token(
+        subject=user.id,
+        extra_claims={"role": user.role}
+    )
+
+    return {
+        "success": True,
+        "message": "Autenticación exitosa con Firebase",
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "user": {
+            "id": str(user.id),
+            "phone": user.phone,
+            "email": user.email,
+            "role": user.role,
+            "full_name": user.full_name,
+            "avatar_url": user.avatar_url,
+            "onboarding_completed": bool(user.full_name)
+        },
+        "is_new_user": is_new_user
+    }
 
 
 @router.post("/onboarding")

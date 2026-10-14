@@ -298,6 +298,32 @@ export async function verifyOTP(
 }
 
 /**
+ * Autentica al usuario enviando el idToken emitido por Firebase Phone Auth
+ */
+export async function verifyFirebaseToken(idToken: string): Promise<AuthResponse> {
+  const baseUrl = getApiBaseUrl()
+  const response = await fetch(`${baseUrl}/auth/firebase-verify`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ id_token: idToken }),
+  })
+
+  if (!response.ok) {
+    await handleAPIError(response)
+  }
+
+  const data: AuthResponse = await response.json()
+
+  // Guardar tokens y usuario en localStorage
+  saveTokens(data.access_token, data.refresh_token)
+  saveUser(data.user)
+
+  return data
+}
+
+/**
  * Completa el perfil del usuario (onboarding)
  */
 export async function completeOnboarding(data: {

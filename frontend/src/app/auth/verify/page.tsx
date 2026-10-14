@@ -26,7 +26,7 @@ export default function VerifyOTPPage() {
 
 function VerifyOTPContent() {
   const router = useRouter()
-  const { verifyOTP, requestOTP, user } = useAuth()
+  const { verifyOTP, requestOTP, loginWithFirebaseToken, user } = useAuth()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -99,8 +99,19 @@ function VerifyOTPContent() {
       setIsLoading(true)
       setError("")
 
-      // Verificar OTP
-      const response = await verifyOTP(phone, data.code)
+      let response
+      const confirmationResult = typeof window !== "undefined" ? (window as any).confirmationResult : null
+
+      if (confirmationResult) {
+        // Validación con Google Firebase Phone Auth
+        const { confirmFirebaseOTP } = await import("@/lib/firebase")
+        const idToken = await confirmFirebaseOTP(confirmationResult, data.code)
+        response = await loginWithFirebaseToken(idToken)
+        delete (window as any).confirmationResult
+      } else {
+        // Fallback a verificación local/dev
+        response = await verifyOTP(phone, data.code)
+      }
 
       // Limpiar sessionStorage
       sessionStorage.removeItem("pending_phone")
@@ -110,6 +121,7 @@ function VerifyOTPContent() {
         description: response.isNewUser ? "¡Bienvenido! Completa tu perfil para continuar." : "¡Bienvenido de vuelta!",
       })
     } catch (err: any) {
+      console.error("Error al verificar código:", err)
       setError(err.message || "Código incorrecto. Intenta de nuevo.")
     } finally {
       setIsLoading(false)
@@ -123,14 +135,22 @@ function VerifyOTPContent() {
       setIsLoading(true)
       setError("")
 
-      await requestOTP(phone)
+      if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY && (window as any).recaptchaVerifier) {
+        const { sendFirebaseOTP } = await import("@/lib/firebase")
+        const confirmation = await sendFirebaseOTP(phone, (window as any).recaptchaVerifier)
+        ;(window as any).confirmationResult = confirmation
+      } else {
+        await requestOTP(phone)
+      }
 
       // Reiniciar timer
       setTimeLeft(300)
       setCanResend(false)
 
-      // Mostrar mensaje de éxito
-      setError("") // Limpiar errores previos
+      toast({
+        title: "Código reenviado",
+        description: "Hemos enviado un nuevo código a tu celular.",
+      })
     } catch (err: any) {
       setError(err.message || "Error al reenviar código")
     } finally {
