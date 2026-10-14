@@ -92,7 +92,19 @@ function PhoneAuthContent() {
       router.push("/auth/verify")
     } catch (err: any) {
       console.error("Error al enviar OTP:", err)
-      setError(err.message || "Error al enviar código. Intenta de nuevo.")
+      let errorMessage = "Error al enviar código. Intenta de nuevo."
+      if (err.code === "auth/operation-not-allowed" || err.message?.includes("SMS unable to be sent until this region enabled")) {
+        errorMessage = "La región (+57 Colombia) o el proveedor de Teléfono no está habilitado en Firebase. Activa Colombia en Firebase Console (Authentication > Sign-in method > Teléfono > SMS Region Policy) o registra el número en 'Números para pruebas'."
+      } else if (err.code === "auth/too-many-requests") {
+        errorMessage = "Demasiados intentos en poco tiempo. Por favor espera unos minutos."
+      } else if (err.code === "auth/invalid-phone-number") {
+        errorMessage = "El número telefónico no tiene un formato válido para SMS."
+      } else if (err.code === "auth/quota-exceeded") {
+        errorMessage = "Se ha superado la cuota de SMS de Firebase para este periodo."
+      } else if (err.message) {
+        errorMessage = err.message
+      }
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }

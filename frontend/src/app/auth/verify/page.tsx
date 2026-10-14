@@ -122,7 +122,15 @@ function VerifyOTPContent() {
       })
     } catch (err: any) {
       console.error("Error al verificar código:", err)
-      setError(err.message || "Código incorrecto. Intenta de nuevo.")
+      let errorMessage = "Código incorrecto. Intenta de nuevo."
+      if (err.code === "auth/invalid-verification-code") {
+        errorMessage = "El código ingresado es incorrecto. Verifica los 6 dígitos."
+      } else if (err.code === "auth/code-expired") {
+        errorMessage = "El código de verificación ha expirado. Solicita un nuevo código."
+      } else if (err.message) {
+        errorMessage = err.message
+      }
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
