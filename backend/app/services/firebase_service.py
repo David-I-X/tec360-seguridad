@@ -34,6 +34,9 @@ class FirebaseService:
             os.path.join(os.path.dirname(__file__), "..", "..", cred_path),
             os.path.join(os.path.dirname(__file__), "..", "..", "firebase-credentials.json"),
             os.path.join(os.path.dirname(__file__), "..", "..", "..", "tec-360-firebase-adminsdk-fbsvc-f02624bd2a.json"),
+            "/app/credentials/firebase-credentials.json",
+            "/app/firebase-credentials.json",
+            "credentials/firebase-credentials.json",
             "firebase-credentials.json",
         ]
 

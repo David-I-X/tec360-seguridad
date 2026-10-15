@@ -59,8 +59,11 @@ services:
       - TRACCAR_PASSWORD=${TRACCAR_PASSWORD:-admin}
       - SAS_BASE_URL=${SAS_BASE_URL:-http://10.0.0.173/api/v1}
       - SAS_VERTICAL_API_KEY=${SAS_VERTICAL_API_KEY}
+      - FIREBASE_CREDENTIALS_JSON=${FIREBASE_CREDENTIALS_JSON:-}
+      - FIREBASE_CREDENTIALS_PATH=${FIREBASE_CREDENTIALS_PATH:-firebase-credentials.json}
     volumes:
       - uploads_data:/opt/tec360-seguridad/uploads
+      - ./backend/credentials:/app/credentials:ro
     networks:
       - tec360_net
     expose:
