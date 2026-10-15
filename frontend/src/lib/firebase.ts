@@ -28,9 +28,12 @@ if (typeof window !== "undefined") {
 export { app, auth }
 
 /**
- * Configura el verificador reCAPTCHA invisible para proteger el envío de SMS contra bots
+ * Configura el verificador reCAPTCHA (invisible o normal con checkbox)
  */
-export function setupRecaptcha(containerId: string): RecaptchaVerifier {
+export async function setupRecaptcha(
+  containerId: string,
+  size: "invisible" | "normal" = "invisible"
+): Promise<RecaptchaVerifier> {
   if (typeof window === "undefined" || !auth) {
     throw new Error("reCAPTCHA solo puede inicializarse en el navegador")
   }
@@ -44,7 +47,7 @@ export function setupRecaptcha(containerId: string): RecaptchaVerifier {
   }
 
   const verifier = new RecaptchaVerifier(auth, containerId, {
-    size: "invisible",
+    size,
     callback: () => {
       // reCAPTCHA resuelto automáticamente
     },
@@ -53,6 +56,7 @@ export function setupRecaptcha(containerId: string): RecaptchaVerifier {
     },
   })
 
+  await verifier.render()
   ;(window as any).recaptchaVerifier = verifier
   return verifier
 }

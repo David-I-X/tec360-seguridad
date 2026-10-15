@@ -30,6 +30,8 @@ function PhoneAuthContent() {
   const [error, setError] = useState("")
   const [phoneInput, setPhoneInput] = useState("")
 
+  const [recaptchaSize, setRecaptchaSize] = useState<"invisible" | "normal">("invisible")
+
   const {
     register,
     handleSubmit,
@@ -75,7 +77,7 @@ function PhoneAuthContent() {
 
       if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
         // Enviar OTP vía Google Firebase Phone Auth (10.000 SMS gratis)
-        const verifier = setupRecaptcha("recaptcha-container")
+        const verifier = await setupRecaptcha("recaptcha-container", recaptchaSize)
         const confirmation = await sendFirebaseOTP(formattedPhone, verifier)
         ;(window as any).confirmationResult = confirmation
         sessionStorage.setItem("auth_provider", "firebase")
@@ -93,7 +95,10 @@ function PhoneAuthContent() {
     } catch (err: any) {
       console.error("Error al enviar OTP:", err)
       let errorMessage = "Error al enviar código. Intenta de nuevo."
-      if (err.code === "auth/operation-not-allowed" || err.message?.includes("SMS unable to be sent until this region enabled")) {
+      if (err.code === "auth/invalid-app-credential") {
+        setRecaptchaSize("normal")
+        errorMessage = "La verificación automática reCAPTCHA fue bloqueada por el navegador (cookies de terceros o localhost). Hemos activado el captcha visible: marca la casilla 'No soy un robot' que aparece abajo y haz clic de nuevo en 'Enviar código'."
+      } else if (err.code === "auth/operation-not-allowed" || err.message?.includes("SMS unable to be sent until this region enabled")) {
         errorMessage = "La región (+57 Colombia) o el proveedor de Teléfono no está habilitado en Firebase. Activa Colombia en Firebase Console (Authentication > Sign-in method > Teléfono > SMS Region Policy) o registra el número en 'Números para pruebas'."
       } else if (err.code === "auth/billing-not-enabled") {
         errorMessage = "Para enviar SMS reales, Firebase exige activar el Plan Blaze (gratuito hasta 10.000 SMS/mes sin costo inicial). Para probar sin tarjeta, agrega tu número en 'Números de teléfono para pruebas' en Firebase Console."
@@ -191,8 +196,16 @@ function PhoneAuthContent() {
               )}
             </Button>
 
-            {/* Contenedor invisible para reCAPTCHA de Firebase Phone Auth */}
-            <div id="recaptcha-container" />
+            {/* Contenedor para reCAPTCHA de Firebase Phone Auth */}
+            <div
+              id="recaptcha-container"
+              className={recaptchaSize === "normal" ? "my-3 flex justify-center min-h-[78px]" : ""}
+            />
+            {recaptchaSize === "normal" && (
+              <p className="text-xs text-center text-amber-500 font-medium">
+                Por favor marca la casilla &quot;No soy un robot&quot; arriba y haz clic de nuevo en enviar.
+              </p>
+            )}
           </form>
 
           {/* Info adicional */}
