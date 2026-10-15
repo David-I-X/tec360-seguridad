@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "483030234278",
+    "project_id": "tec-360",
+    "storage_bucket": "tec-360.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:483030234278:android:0b12bd0d3bf2a590b7f067",
+        "android_client_info": {
+          "package_name": "com.tec360.seguridad"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDvIwIg0unga0yyEmHe1AQjLTRovbNBMVQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

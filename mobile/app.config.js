@@ -19,6 +19,7 @@ export default {
     },
     android: {
       package: "com.tec360.seguridad",
+      googleServicesFile: process.env.GOOGLE_SERVICES_JSON || "./google-services.json",
       adaptiveIcon: {
         backgroundColor: "#0f172a",
         foregroundImage: "./assets/images/android-icon-foreground.png",
