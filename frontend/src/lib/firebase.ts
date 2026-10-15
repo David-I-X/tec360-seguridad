@@ -8,12 +8,12 @@ import {
 } from "firebase/auth"
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyAaKZK-zgkxn3kFaCKZ8FbQ5QHgtJIo69E",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "tec-360.firebaseapp.com",
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "tec-360",
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "tec-360.firebasestorage.app",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "483030234278",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:483030234278:web:f3a8e0137db97088b7f067",
 }
 
 // Inicialización segura de Firebase Client (solo en navegador)
@@ -21,8 +21,12 @@ let app: FirebaseApp | undefined
 let auth: Auth | undefined
 
 if (typeof window !== "undefined") {
-  app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig)
-  auth = getAuth(app)
+  try {
+    app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig)
+    auth = getAuth(app)
+  } catch (err) {
+    console.warn("Advertencia al inicializar Firebase client:", err)
+  }
 }
 
 export { app, auth }

@@ -149,10 +149,24 @@ class TestGetMe:
 class TestFirebaseVerify:
     """Test the /auth/firebase-verify endpoint"""
 
-    def test_firebase_verify_invalid_token_fails(self, client):
+    def test_firebase_verify_invalid_token_fails(self, client, monkeypatch):
         """Sending a fake/expired token to Firebase should return 401"""
+        from app.services.firebase_service import firebase_service
+        from fastapi import HTTPException
+
+        def mock_verify_invalid(id_token):
+            raise HTTPException(status_code=401, detail="Token de autenticación inválido o alterado.")
+
+        monkeypatch.setattr(firebase_service, "verify_id_token", mock_verify_invalid)
         resp = client.post("/auth/firebase-verify", json={"id_token": "fake_invalid_id_token"})
         assert resp.status_code == 401
+
+    def test_firebase_verify_unconfigured_service(self, client, monkeypatch):
+        """When Firebase is not configured, should return 503"""
+        from app.services.firebase_service import firebase_service
+        monkeypatch.setattr(firebase_service, "is_configured", lambda: False)
+        resp = client.post("/auth/firebase-verify", json={"id_token": "any_token"})
+        assert resp.status_code == 503
 
     def test_firebase_verify_valid_token_success(self, client, monkeypatch):
         """Mocked valid Firebase token should authenticate and create user"""

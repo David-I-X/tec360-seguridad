@@ -119,6 +119,12 @@ jobs:
           NEXT_PUBLIC_API_URL: http://localhost:8000/api
           NEXT_PUBLIC_GOOGLE_MAPS_KEY: AIzaSyCu1NMEsMIIiY1LoOKlzrSovS-r4jTWWFY
           NEXT_PUBLIC_VAPID_PUBLIC_KEY: placeholder
+          NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyAaKZK-zgkxn3kFaCKZ8FbQ5QHgtJIo69E
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: tec-360.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: tec-360
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: tec-360.firebasestorage.app
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "483030234278"
+          NEXT_PUBLIC_FIREBASE_APP_ID: "1:483030234278:web:f3a8e0137db97088b7f067"
       - name: Upload test artifacts
         if: failure()
         uses: actions/upload-artifact@v4
@@ -137,4 +143,10 @@ jobs:
           docker build \
             --build-arg NEXT_PUBLIC_API_URL=/api \
             --build-arg NEXT_PUBLIC_GOOGLE_MAPS_KEY=AIzaSyCu1NMEsMIIiY1LoOKlzrSovS-r4jTWWFY \
+            --build-arg NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyAaKZK-zgkxn3kFaCKZ8FbQ5QHgtJIo69E \
+            --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=tec-360.firebaseapp.com \
+            --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID=tec-360 \
+            --build-arg NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=tec-360.firebasestorage.app \
+            --build-arg NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=483030234278 \
+            --build-arg NEXT_PUBLIC_FIREBASE_APP_ID=1:483030234278:web:f3a8e0137db97088b7f067 \
             -t tec360-frontend ./frontend
