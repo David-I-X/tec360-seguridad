@@ -5,14 +5,24 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { verifyOTP, saveTokens, saveUser, getCurrentUser } from '@/lib/api';
+import {
+  verifyOTP,
+  verifyFirebaseToken,
+  saveTokens,
+  saveUser,
+  getCurrentUser,
+} from '@/lib/api';
+import {
+  confirmMobileFirebaseOTP,
+  getConfirmationResult,
+} from '@/lib/firebase-auth';
 import { useAuth } from '@/lib/auth-context';
 import { COLORS, GRADIENTS, SHADOWS } from '@/constants/theme';
 
 export default function VerifyScreen() {
   const router = useRouter();
   const { loginUser } = useAuth();
-  const { phone } = useLocalSearchParams<{ phone: string }>();
+  const { phone, provider } = useLocalSearchParams<{ phone: string; provider?: string }>();
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<TextInput>(null);
@@ -25,7 +35,14 @@ export default function VerifyScreen() {
     if (code.length < 6) return;
     setIsLoading(true);
     try {
-      const result = await verifyOTP(phone!, code);
+      let result;
+      if (provider !== 'legacy' && getConfirmationResult()) {
+        const idToken = await confirmMobileFirebaseOTP(code);
+        result = await verifyFirebaseToken(idToken);
+      } else {
+        result = await verifyOTP(phone!, code);
+      }
+
       if (result.access_token) {
         await saveTokens(result.access_token, result.refresh_token);
         const userRes = await getCurrentUser();

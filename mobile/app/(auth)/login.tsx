@@ -6,6 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { requestOTP } from '@/lib/api';
+import { sendMobileFirebaseOTP } from '@/lib/firebase-auth';
 import { COLORS, GRADIENTS, SHADOWS } from '@/constants/theme';
 
 export default function LoginScreen() {
@@ -23,8 +24,22 @@ export default function LoginScreen() {
     setError('');
     try {
       const fullPhone = phone.startsWith('+') ? phone : `+57${phone}`;
-      const result = await requestOTP(fullPhone);
-      router.push({ pathname: '/(auth)/verify', params: { phone: fullPhone } });
+      try {
+        await sendMobileFirebaseOTP(fullPhone);
+        router.push({ pathname: '/(auth)/verify', params: { phone: fullPhone, provider: 'firebase' } });
+      } catch (fbErr: any) {
+        console.warn('Firebase Phone Auth error, intentando fallback:', fbErr);
+        if (fbErr.code === 'auth/invalid-phone-number') {
+          throw new Error('El número telefónico no es válido para envío de SMS.');
+        } else if (fbErr.code === 'auth/too-many-requests') {
+          throw new Error('Demasiados intentos. Espera unos minutos antes de volver a intentar.');
+        } else if (fbErr.code === 'auth/quota-exceeded') {
+          throw new Error('Cuota de SMS superada temporalmente.');
+        }
+        // Fallback al endpoint del backend
+        await requestOTP(fullPhone);
+        router.push({ pathname: '/(auth)/verify', params: { phone: fullPhone, provider: 'legacy' } });
+      }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Error desconocido');
       setError(err.message || 'Error al enviar el código');
