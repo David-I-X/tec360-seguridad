@@ -73,6 +73,8 @@ class TechnicianCreate(BaseModel):
             'gps_installation', 'gps_maintenance',
             'alarm_installation', 'alarm_maintenance',
             'camera_installation', 'camera_maintenance',
+            'oil_change', 'tire_change', 'battery_service',
+            'brake_service', 'chain_kit_service', 'spark_bulbs_wipers',
             'other'
         ]
         for spec in v:
@@ -116,6 +118,8 @@ class TechnicianUpdate(BaseModel):
                 'gps_installation', 'gps_maintenance',
                 'alarm_installation', 'alarm_maintenance',
                 'camera_installation', 'camera_maintenance',
+            'oil_change', 'tire_change', 'battery_service',
+            'brake_service', 'chain_kit_service', 'spark_bulbs_wipers',
                 'other'
             ]
             for spec in v:

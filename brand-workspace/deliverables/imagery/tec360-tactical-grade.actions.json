@@ -1,0 +1,19 @@
+[
+  {
+    "command": "filter.sharpen.smartSharpen",
+    "params": {
+      "amount": 65,
+      "radius": 1.2
+    }
+  },
+  {
+    "command": "layer.newAdjustmentLayer.curves",
+    "params": {}
+  },
+  {
+    "command": "layer.newAdjustmentLayer.hueSaturation",
+    "params": {
+      "saturation": 8
+    }
+  }
+]

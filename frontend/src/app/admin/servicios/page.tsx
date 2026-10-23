@@ -67,6 +67,12 @@ const TYPE_LABELS: Record<string, string> = {
     alarm_maintenance: "Mantenimiento Alarma",
     camera_installation: "Instalación Dashcam",
     camera_maintenance: "Mantenimiento Dashcam",
+    oil_change: "🛢️ Cambio de Aceite",
+    tire_change: "🛞 Cambio de Llantas",
+    battery_service: "🔋 Batería / Corriente",
+    brake_service: "🛑 Pastillas de Freno",
+    chain_kit_service: "⛓️ Kit de Arrastre",
+    spark_bulbs_wipers: "💡 Bujías / Bombillos",
     vehicle_recovery: "🚨 Recuperación",
     other: "Otro",
 }
@@ -210,6 +216,26 @@ function ServiceDetailDrawer({
                                 <div className="bg-muted/20 rounded-xl p-3 border border-border/20">
                                     <p className="text-[10px] text-muted-foreground mb-1">Descripción</p>
                                     <p className="text-sm text-muted-foreground">{detail.description}</p>
+                                </div>
+                            )}
+                            {/* Quick Mechanics metadata */}
+                            {detail.service_metadata?.supplies_provider && (
+                                <div className="bg-amber-500/5 rounded-xl p-4 border border-amber-500/20">
+                                    <p className="text-[10px] text-amber-500 mb-2 font-bold uppercase tracking-wider">🔩 Datos de Mecánica Rápida</p>
+                                    <div className="space-y-1 text-xs">
+                                        <div>
+                                            <span className="text-muted-foreground">Insumos / Repuestos:</span>{" "}
+                                            <span className="font-semibold">
+                                                {detail.service_metadata.supplies_provider === "client" ? "🧰 Cliente ya tiene el repuesto" : "🚚 Técnico debe llevar repuesto"}
+                                            </span>
+                                        </div>
+                                        {detail.service_metadata.supplies_notes && (
+                                            <div>
+                                                <span className="text-muted-foreground">Referencia:</span>{" "}
+                                                <span className="font-semibold">{detail.service_metadata.supplies_notes}</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                             {/* Vehicle recovery metadata */}

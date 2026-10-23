@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" width="640" height="220">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#1E1B4B"/>
+    </linearGradient>
+    <linearGradient id="orbitGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00F0FF"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="220" rx="24" fill="#050810"/>
+  <!-- Escudo 360 -->
+  <path d="M115 28 L182 54 L182 114 C182 156 152 184 115 198 C78 184 48 156 48 114 L48 54 Z"
+        fill="url(#shieldGrad)" stroke="#8B5CF6" stroke-width="3"/>
+  <!-- Anillo Orbital 360 -->
+  <ellipse cx="115" cy="116" rx="84" ry="30" fill="none" stroke="url(#orbitGrad)" stroke-width="4" transform="rotate(-16 115 116)"/>
+  <!-- Pin Satelital Central -->
+  <path d="M115 62 C97 62 83 76 83 94 C83 118 115 150 115 150 C115 150 147 118 147 94 C147 76 133 62 115 62 Z"
+        fill="#00F0FF"/>
+  <circle cx="115" cy="94" r="13" fill="#050810"/>
+  <!-- Wordmark Tec360 Seguridad -->
+  <text x="228" y="112" font-family="Inter, Geist, Arial, sans-serif" font-size="60" font-weight="800" letter-spacing="-1.5" fill="#F8FAFC">TEC360</text>
+  <text x="230" y="152" font-family="JetBrains Mono, Consolas, monospace" font-size="22" font-weight="700" letter-spacing="7" fill="#00F0FF">SEGURIDAD VEHICULAR</text>
+</svg>

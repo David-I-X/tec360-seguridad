@@ -395,7 +395,7 @@ export default function ConfigPage() {
                                 <div>
                                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Especializaciones Activas</label>
                                     <div className="flex flex-wrap gap-3">
-                                        {["alarmas", "gps", "dashcam"].map((spec) => {
+                                        {["alarmas", "gps", "dashcam", "mecanica_rapida", "oil_change", "tire_change", "battery_service", "brake_service", "chain_kit_service"].map((spec) => {
                                             const isActive = techForm.specializations.includes(spec)
                                             return (
                                                 <button
@@ -406,7 +406,17 @@ export default function ConfigPage() {
                                                         : "border border-dashed border-white/20 text-slate-500 hover:border-[#00f2ff] hover:text-[#00f2ff]"
                                                         }`}
                                                 >
-                                                    {spec.toUpperCase()}
+                                                    {{
+                                                        alarmas: "🔔 ALARMAS",
+                                                        gps: "📍 GPS",
+                                                        dashcam: "📹 DASHCAM",
+                                                        mecanica_rapida: "🔩 MECÁNICA RÁPIDA",
+                                                        oil_change: "🛢️ CAMBIO DE ACEITE",
+                                                        tire_change: "🛞 LLANTAS",
+                                                        battery_service: "🔋 BATERÍAS",
+                                                        brake_service: "🛑 FRENOS",
+                                                        chain_kit_service: "⛓️ KIT ARRASTRE",
+                                                    }[spec] || spec.toUpperCase()}
                                                 </button>
                                             )
                                         })}

@@ -72,6 +72,12 @@ const typeLabels: Record<string, string> = {
     camera_maintenance: "Mantenimiento Dashcam",
     alarm_maintenance: "Mantenimiento Alarma",
     gps_maintenance: "Mantenimiento GPS",
+    oil_change: "Cambio de Aceite y Filtro",
+    tire_change: "Cambio / Desvare de Llantas",
+    battery_service: "Batería (Inicio / Cambio)",
+    brake_service: "Pastillas y Ajuste de Frenos",
+    chain_kit_service: "Kit de Arrastre / Cadena",
+    spark_bulbs_wipers: "Bujías, Bombillos o Plumillas",
     vehicle_recovery: "Equipo de Reacción Inmediata",
     other: "Servicio Técnico Especializado",
 }
@@ -721,6 +727,20 @@ function ServiceDetailContent() {
                                 </span>
                                 <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
                                     {service.description || "Sin descripción proporcionada por el usuario."}
+                                    {service.service_metadata?.supplies_provider && (
+                                        <span className="block mt-2 pt-2 border-t border-slate-200/80 dark:border-white/10">
+                                            <span className="block text-xs font-semibold text-amber-600 dark:text-amber-400">
+                                                {service.service_metadata.supplies_provider === "client"
+                                                    ? "🧰 El cliente suministra el repuesto / insumo (Solo mano de obra)"
+                                                    : "🚚 El técnico debe suministrar y cotizar el repuesto / insumo"}
+                                            </span>
+                                            {service.service_metadata.supplies_notes && (
+                                                <span className="block text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                                                    <strong>Referencia insumo:</strong> {service.service_metadata.supplies_notes}
+                                                </span>
+                                            )}
+                                        </span>
+                                    )}
                                 </p>
                             </div>
 

@@ -105,6 +105,26 @@ async def on_startup():
             logger.info("Payments DIAN columns verified/created")
         except Exception as e:
             logger.warning(f"Could not verify/add DIAN payment columns: {e}")
+
+    # Ensure Quick Mechanics & Recovery values exist in PostgreSQL servicetype enum
+    if settings.ENVIRONMENT != "test":
+        try:
+            from sqlalchemy import text
+            from app.core.database import engine
+            with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+                for enum_val in [
+                    "vehicle_recovery",
+                    "oil_change",
+                    "tire_change",
+                    "battery_service",
+                    "brake_service",
+                    "chain_kit_service",
+                    "spark_bulbs_wipers",
+                ]:
+                    conn.execute(text(f"ALTER TYPE servicetype ADD VALUE IF NOT EXISTS '{enum_val}';"))
+            logger.info("PostgreSQL servicetype enum values verified/created")
+        except Exception as e:
+            logger.warning(f"Could not verify/add servicetype enum values: {e}")
     
     # Start background scheduler
     if settings.ENVIRONMENT != "test":

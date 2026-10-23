@@ -46,6 +46,12 @@ const serviceTypeConfigs: Record<string, ServiceTypeConfig> = {
   camera_maintenance: { label: "Mantenimiento Dashcam", icon: Video, color: "text-violet-500 bg-violet-500/10 border-violet-500/20" },
   alarm_installation: { label: "Instalación de Alarma", icon: BellRing, color: "text-amber-500 bg-amber-500/10 border-amber-500/20" },
   alarm_maintenance: { label: "Mantenimiento de Alarma", icon: BellRing, color: "text-amber-500 bg-amber-500/10 border-amber-500/20" },
+  oil_change: { label: "Cambio de Aceite y Filtro", icon: Wrench, color: "text-amber-500 bg-amber-500/10 border-amber-500/20" },
+  tire_change: { label: "Cambio / Desvare de Llantas", icon: Wrench, color: "text-orange-500 bg-orange-500/10 border-orange-500/20" },
+  battery_service: { label: "Batería (Inicio / Cambio)", icon: Wrench, color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" },
+  brake_service: { label: "Pastillas y Ajuste de Frenos", icon: Wrench, color: "text-rose-500 bg-rose-500/10 border-rose-500/20" },
+  chain_kit_service: { label: "Kit de Arrastre / Cadena", icon: Wrench, color: "text-purple-500 bg-purple-500/10 border-purple-500/20" },
+  spark_bulbs_wipers: { label: "Bujías, Bombillos o Plumillas", icon: Wrench, color: "text-yellow-500 bg-yellow-500/10 border-yellow-500/20" },
   vehicle_recovery: { label: "Equipo de Reacción", icon: ShieldAlert, color: "text-rose-500 bg-rose-500/10 border-rose-500/20" },
   other: { label: "Servicio Técnico", icon: Wrench, color: "text-slate-500 bg-slate-500/10 border-slate-500/20" },
 }

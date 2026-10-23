@@ -40,6 +40,12 @@ const serviceTypeConfigs: Record<string, ServiceTypeConfig> = {
   camera_maintenance: { label: 'Mantenimiento Dashcam',     icon: 'videocam', color: '#c084fc', bg: 'rgba(192,132,252,0.15)' },
   alarm_installation: { label: 'Instalación de Alarma',     icon: 'notifications', color: '#fbbf24', bg: 'rgba(251,191,36,0.15)' },
   alarm_maintenance:  { label: 'Mantenimiento de Alarma',    icon: 'notifications', color: '#fbbf24', bg: 'rgba(251,191,36,0.15)' },
+  oil_change:         { label: 'Cambio de Aceite y Filtro',  icon: 'water',         color: '#f59e0b', bg: 'rgba(245,158,11,0.15)' },
+  tire_change:        { label: 'Cambio / Desvare de Llantas',icon: 'disc',          color: '#fb923c', bg: 'rgba(251,146,60,0.15)' },
+  battery_service:    { label: 'Batería (Inicio / Cambio)',  icon: 'battery-charging', color: '#34d399', bg: 'rgba(52,211,153,0.15)' },
+  brake_service:      { label: 'Pastillas y Ajuste Frenos',  icon: 'hand-left',     color: '#fb7185', bg: 'rgba(251,113,133,0.15)' },
+  chain_kit_service:  { label: 'Kit de Arrastre / Cadena',   icon: 'link',          color: '#a855f7', bg: 'rgba(168,85,247,0.15)' },
+  spark_bulbs_wipers: { label: 'Bujías, Bombillos / Plumillas', icon: 'bulb',       color: '#facc15', bg: 'rgba(250,204,21,0.15)' },
   vehicle_recovery:   { label: 'Equipo de Reacción',        icon: 'shield-half', color: '#f87171', bg: 'rgba(248,113,113,0.15)' },
   other:              { label: 'Servicio Técnico',          icon: 'construct', color: '#94a3b8', bg: 'rgba(148,163,184,0.15)' },
 };

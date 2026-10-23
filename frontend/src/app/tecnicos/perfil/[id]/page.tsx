@@ -25,6 +25,13 @@ const SPEC_LABELS: Record<string, string> = {
     alarm_maintenance: "🔧 Mtto. Alarma",
     camera_installation: "📹 Dashcam",
     camera_maintenance: "🔧 Mtto. Dashcam",
+    oil_change: "🛢️ Cambio de Aceite",
+    tire_change: "🛞 Llantas / Desvare",
+    battery_service: "🔋 Baterías",
+    brake_service: "🛑 Frenos",
+    chain_kit_service: "⛓️ Kit de Arrastre",
+    spark_bulbs_wipers: "💡 Bujías / Bombillos",
+    mecanica_rapida: "🔩 Mecánica Rápida",
     other: "🛠️ Otro",
 }
 

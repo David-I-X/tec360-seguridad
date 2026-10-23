@@ -44,6 +44,7 @@ export function TechnicianDashboard() {
     const [isLoading, setIsLoading] = useState(true)
     const [processingId, setProcessingId] = useState<string | null>(null)
     const [myServicesFilter, setMyServicesFilter] = useState<MyServicesFilter>("all")
+    const [availableCategory, setAvailableCategory] = useState<"all" | "installations" | "mechanics">("all")
     const [showBasicCoursesModal, setShowBasicCoursesModal] = useState(false)
 
     // Check if new technician should see the basic courses modal
@@ -129,6 +130,15 @@ export function TechnicianDashboard() {
     // Stats
     const activeCount = myServices.filter(s => ["assigned", "en_route", "arrived", "in_progress"].includes(s.status)).length
     const completedCount = myServices.filter(s => ["completed", "confirmed"].includes(s.status)).length
+
+    // Filter "Disponibles" by category
+    const QUICK_MECHANICS_TYPES = ["oil_change", "tire_change", "battery_service", "brake_service", "chain_kit_service", "spark_bulbs_wipers"]
+    const filteredAvailableServices = availableServices.filter((s) => {
+        const isMechanics = QUICK_MECHANICS_TYPES.includes(s.service_type) || s.service_metadata?.service_category === "quick_mechanics"
+        if (availableCategory === "mechanics") return isMechanics
+        if (availableCategory === "installations") return !isMechanics
+        return true
+    })
 
     // Filter "Mis Trabajos"
     const filteredMyServices = myServices.filter((service) => {
@@ -295,7 +305,34 @@ export function TechnicianDashboard() {
 
                 {/* Available services */}
                 <TabsContent value="available" className="space-y-4">
-                    {availableServices.length === 0 ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <Button
+                            variant={availableCategory === "all" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setAvailableCategory("all")}
+                            className="shrink-0 text-xs"
+                        >
+                            Todos ({availableServices.length})
+                        </Button>
+                        <Button
+                            variant={availableCategory === "installations" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setAvailableCategory("installations")}
+                            className="shrink-0 text-xs"
+                        >
+                            📡 Instalaciones y Seguridad
+                        </Button>
+                        <Button
+                            variant={availableCategory === "mechanics" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setAvailableCategory("mechanics")}
+                            className="shrink-0 text-xs"
+                        >
+                            🔩 Mecánica Rápida
+                        </Button>
+                    </div>
+                    {filteredAvailableServices.length === 0 ? (
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}>
                             <GlassCard className="p-12 text-center border-dashed border-2 bg-gradient-to-b from-white/[0.01] to-transparent">
                                 <div className="flex flex-col items-center gap-5 max-w-sm mx-auto">
@@ -320,7 +357,7 @@ export function TechnicianDashboard() {
                     ) : (
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             <AnimatePresence>
-                                {availableServices.map((service, i) => (
+                                {filteredAvailableServices.map((service, i) => (
                                     <motion.div
                                         key={service.id}
                                         initial={{ opacity: 0, y: 20 }}
@@ -506,6 +543,18 @@ function ServiceCard({ service, onAction, onQuote, isProcessing, variant }: any)
                     <p className="line-clamp-2 text-xs text-muted-foreground italic border-l-2 border-muted-foreground/30 pl-2 ml-1">
                         &quot;{service.description}&quot;
                     </p>
+                )}
+
+                {/* Supplies info badge (Quick Mechanics) */}
+                {service.service_metadata?.supplies_provider && (
+                    <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs space-y-0.5">
+                        <p className="font-semibold">
+                            {service.service_metadata.supplies_provider === "client" ? "🧰 Cliente pone el repuesto" : "🚚 Técnico debe llevar repuesto"}
+                        </p>
+                        {service.service_metadata.supplies_notes && (
+                            <p className="text-[11px] opacity-90 truncate">Ref: {service.service_metadata.supplies_notes}</p>
+                        )}
+                    </div>
                 )}
 
                 {/* Vehicle Info Badge (If Present) */}

@@ -73,6 +73,41 @@ async def get_service_types():
                 "description": "Mantenimiento de dashcam vehicular"
             },
             {
+                "value": "oil_change",
+                "label": "Cambio de Aceite y Filtro",
+                "description": "Cambio de aceite de motor y filtro en menos de 1 hora"
+            },
+            {
+                "value": "tire_change",
+                "label": "Cambio / Desvare de Llantas",
+                "description": "Cambio de llanta, montaje de repuesto o desvare rápido"
+            },
+            {
+                "value": "battery_service",
+                "label": "Batería (Inicio / Cambio)",
+                "description": "Paso de corriente, revisión de carga o reemplazo de batería"
+            },
+            {
+                "value": "brake_service",
+                "label": "Pastillas y Ajuste de Frenos",
+                "description": "Cambio de pastillas de freno o graduación rápida"
+            },
+            {
+                "value": "chain_kit_service",
+                "label": "Kit de Arrastre / Cadena (Motos)",
+                "description": "Tensión, limpieza, lubricación o cambio de kit de arrastre"
+            },
+            {
+                "value": "spark_bulbs_wipers",
+                "label": "Bujías, Bombillos o Plumillas",
+                "description": "Reemplazo rápido de bujías, iluminación o plumillas"
+            },
+            {
+                "value": "vehicle_recovery",
+                "label": "Equipo de Reacción",
+                "description": "Recuperación inmediata de vehículo robado"
+            },
+            {
                 "value": "other",
                 "label": "Otro",
                 "description": "Otros servicios de seguridad"

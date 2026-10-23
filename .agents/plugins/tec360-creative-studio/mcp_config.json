@@ -1,0 +1,123 @@
+{
+    "mcpServers":  {
+                       "soundcraft":  {
+                                          "command":  "C:/Users/DAVID/.artcraft/soundcraft/soundcraft-0.8.0-windows-x64-portable/soundcraft-cli.exe",
+                                          "args":  [
+                                                       "mcp",
+                                                       "--automation-read-root",
+                                                       "C:/Users/DAVID/Documents/tec360-seguridad/brand-workspace",
+                                                       "--automation-write-root",
+                                                       "C:/Users/DAVID/Documents/tec360-seguridad/brand-workspace/deliverables"
+                                                   ]
+                                      },
+                       "figcraft":  {
+                                        "command":  "C:/Users/DAVID/.artcraft/figcraft/figcraft-0.7.0-windows-x64-portable/figcraft-cli.exe",
+                                        "args":  [
+                                                     "mcp",
+                                                     "--automation-read-root",
+                                                     "C:/Users/DAVID/Documents/tec360-seguridad/brand-workspace",
+                                                     "--automation-write-root",
+                                                     "C:/Users/DAVID/Documents/tec360-seguridad/brand-workspace/deliverables"
+                                                 ]
+                                    },
+                       "filmcraft":  {
+                                         "command":  "C:/Users/DAVID/.artcraft/filmcraft/filmcraft-0.9.0-windows-x64-portable/filmcraft-cli.exe",
+                                         "args":  [
+                                                      "mcp"
+                                                  ]
+                                     },
+                       "designcraft":  {
+                                           "command":  "C:/Users/DAVID/.artcraft/designcraft/designcraft-0.9.0-windows-x64-portable/designcraft-cli.exe",
+                                           "args":  [
+                                                        "mcp",
+                                                        "--automation-read-root",
+                                                        "C:/Users/DAVID/Documents/tec360-seguridad/brand-workspace",
+                                                        "--automation-write-root",
+                                                        "C:/Users/DAVID/Documents/tec360-seguridad/brand-workspace/deliverables"
+                                                    ]
+                                       },
+                       "photocraft":  {
+                                          "command":  "C:/Users/DAVID/.artcraft/photocraft/photocraft-0.10.0-windows-x64-portable/photocraft-cli.exe",
+                                          "args":  [
+                                                       "mcp",
+                                                       "--automation-read-root",
+                                                       "C:/Users/DAVID/Documents/tec360-seguridad/brand-workspace",
+                                                       "--automation-write-root",
+                                                       "C:/Users/DAVID/Documents/tec360-seguridad/brand-workspace/deliverables"
+                                                   ]
+                                      },
+                       "effectcraft":  {
+                                           "command":  "C:/Users/DAVID/.artcraft/effectcraft/effectcraft-0.11.1-windows-x64-portable/effectcraft-cli.exe",
+                                           "args":  [
+                                                        "mcp"
+                                                    ]
+                                       },
+                       "pdfcraft":  {
+                                        "command":  "C:/Users/DAVID/.artcraft/pdfcraft/pdfcraft-0.9.0-windows-x64-portable/pdfcraft-cli.exe",
+                                        "args":  [
+                                                     "mcp",
+                                                     "--compact",
+                                                     "--automation-read-root",
+                                                     "C:/Users/DAVID/Documents/tec360-seguridad/brand-workspace",
+                                                     "--automation-write-root",
+                                                     "C:/Users/DAVID/Documents/tec360-seguridad/brand-workspace/deliverables"
+                                                 ]
+                                    },
+                       "lightcraft":  {
+                                          "command":  "C:/Users/DAVID/.artcraft/lightcraft/lightcraft-0.9.1-windows-x64-portable/lightcraft-cli.exe",
+                                          "args":  [
+                                                       "mcp",
+                                                       "--compact"
+                                                   ]
+                                      },
+                       "deckcraft":  {
+                                         "command":  "C:/Users/DAVID/.artcraft/deckcraft/deckcraft-0.8.0-windows-x64-portable/deckcraft-cli.exe",
+                                         "args":  [
+                                                      "mcp",
+                                                      "--automation-read-root",
+                                                      "C:/Users/DAVID/Documents/tec360-seguridad/brand-workspace",
+                                                      "--automation-write-root",
+                                                      "C:/Users/DAVID/Documents/tec360-seguridad/brand-workspace/deliverables"
+                                                  ]
+                                     },
+                       "wordcraft":  {
+                                         "command":  "C:/Users/DAVID/.artcraft/wordcraft/wordcraft-0.8.0-windows-x64-portable/wordcraft-cli.exe",
+                                         "args":  [
+                                                      "mcp",
+                                                      "--automation-read-root",
+                                                      "C:/Users/DAVID/Documents/tec360-seguridad/brand-workspace",
+                                                      "--automation-write-root",
+                                                      "C:/Users/DAVID/Documents/tec360-seguridad/brand-workspace/deliverables"
+                                                  ]
+                                     },
+                       "vectorcraft":  {
+                                           "command":  "C:/Users/DAVID/.artcraft/vectorcraft/vectorcraft-0.13.1-windows-x64-portable/vectorcraft-cli.exe",
+                                           "args":  [
+                                                        "mcp",
+                                                        "--headless",
+                                                        "--automation-read-root",
+                                                        "C:/Users/DAVID/Documents/tec360-seguridad/brand-workspace",
+                                                        "--automation-write-root",
+                                                        "C:/Users/DAVID/Documents/tec360-seguridad/brand-workspace/deliverables"
+                                                    ]
+                                       },
+                       "dembrandt":  {
+                                         "command":  "npx",
+                                         "args":  [
+                                                      "-y",
+                                                      "dembrandt",
+                                                      "mcp"
+                                                  ]
+                                     },
+                       "playwright":  {
+                                          "command":  "npx",
+                                          "args":  [
+                                                       "-y",
+                                                       "@playwright/mcp@latest",
+                                                       "--headless",
+                                                       "--output-dir",
+                                                       "C:/Users/DAVID/Documents/tec360-seguridad/brand-workspace/deliverables/audit"
+                                                   ]
+                                      }
+                   }
+}

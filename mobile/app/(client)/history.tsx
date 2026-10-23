@@ -25,6 +25,12 @@ const typeIcon: Record<string, { icon: IconName; color: string }> = {
   alarm_maintenance:   { icon: 'notifications-outline', color: COLORS.yellow },
   gps_installation:    { icon: 'radio-outline', color: COLORS.blue },
   gps_maintenance:     { icon: 'radio-outline', color: COLORS.blue },
+  oil_change:          { icon: 'water-outline', color: '#f59e0b' },
+  tire_change:         { icon: 'disc-outline', color: '#fb923c' },
+  battery_service:     { icon: 'battery-charging-outline', color: '#34d399' },
+  brake_service:       { icon: 'hand-left-outline', color: '#fb7185' },
+  chain_kit_service:   { icon: 'link-outline', color: '#a855f7' },
+  spark_bulbs_wipers:  { icon: 'bulb-outline', color: '#facc15' },
   vehicle_recovery:    { icon: 'shield-half-outline', color: COLORS.red },
   other:               { icon: 'construct-outline', color: COLORS.textSecondary },
 };

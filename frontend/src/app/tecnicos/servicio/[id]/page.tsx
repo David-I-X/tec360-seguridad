@@ -60,6 +60,12 @@ const typeLabels: Record<string, string> = {
     camera_maintenance: "Mantenimiento Dashcam",
     alarm_maintenance: "Mantenimiento Alarma",
     gps_maintenance: "Mantenimiento GPS",
+    oil_change: "Cambio de Aceite y Filtro",
+    tire_change: "Cambio / Desvare de Llantas",
+    battery_service: "Batería (Inicio / Cambio)",
+    brake_service: "Pastillas y Ajuste de Frenos",
+    chain_kit_service: "Kit de Arrastre / Cadena",
+    spark_bulbs_wipers: "Bujías, Bombillos o Plumillas",
     vehicle_recovery: "Equipo de Reacción Inmediata",
     other: "Servicio Técnico Especializado",
 }
@@ -993,6 +999,28 @@ function TechnicianServiceContent() {
                                                 </Button>
                                             )}
                                         </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 6B. QUICK MECHANICS DETAILS (if quick mechanics / supplies info) */}
+                            {service.service_metadata?.supplies_provider && (
+                                <div className="rounded-2xl p-4 bg-amber-500/10 border border-amber-500/30 shadow-sm space-y-2.5">
+                                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold text-xs">
+                                        <span>🔩</span>
+                                        <span className="font-mono uppercase tracking-wider">DATOS DE MECÁNICA RÁPIDA</span>
+                                    </div>
+                                    <div className="p-2.5 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-amber-500/20 text-xs space-y-1">
+                                        <p className="font-semibold text-slate-900 dark:text-white">
+                                            {service.service_metadata.supplies_provider === "client"
+                                                ? "🧰 El cliente ya tiene el repuesto / insumo (Solo mano de obra)"
+                                                : "🚚 Debes llevar y suministrar el repuesto / insumo"}
+                                        </p>
+                                        {service.service_metadata.supplies_notes && (
+                                            <p className="text-slate-600 dark:text-slate-300">
+                                                <strong className="text-slate-800 dark:text-slate-200">Referencia:</strong> {service.service_metadata.supplies_notes}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             )}

@@ -1,0 +1,4 @@
+{
+  "name": "tec360-creative-studio",
+  "description": "Estudio creativo autonomo de Tec360: servidores MCP de la suite ArtCraft (vector, foto, UI, editorial, PDF, presentaciones, documentos, motion, video, audio, revelado) + dembrandt + Playwright. El motor generativo es Google Stitch (config global). Las skills de direccion creativa viven en .agents/skills/ (brand-architect, brand-style-agent, brand-guidelines, logo-design, craft, stitch-generative, anatomy)."
+}

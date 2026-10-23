@@ -21,6 +21,13 @@ class ServiceType(str):
     ALARM_MAINTENANCE = "alarm_maintenance"
     CAMERA_INSTALLATION = "camera_installation"
     CAMERA_MAINTENANCE = "camera_maintenance"
+    VEHICLE_RECOVERY = "vehicle_recovery"
+    OIL_CHANGE = "oil_change"
+    TIRE_CHANGE = "tire_change"
+    BATTERY_SERVICE = "battery_service"
+    BRAKE_SERVICE = "brake_service"
+    CHAIN_KIT_SERVICE = "chain_kit_service"
+    SPARK_BULBS_WIPERS = "spark_bulbs_wipers"
     OTHER = "other"
 
 
@@ -134,7 +141,10 @@ class ServiceCreate(BaseModel):
             'gps_installation', 'gps_maintenance',
             'alarm_installation', 'alarm_maintenance',
             'camera_installation', 'camera_maintenance',
-            'vehicle_recovery', 'other'
+            'vehicle_recovery',
+            'oil_change', 'tire_change', 'battery_service',
+            'brake_service', 'chain_kit_service', 'spark_bulbs_wipers',
+            'other'
         ]
         if v not in valid_types:
             raise ValueError(f'Tipo de servicio inválido. Debe ser uno de: {", ".join(valid_types)}')

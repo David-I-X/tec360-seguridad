@@ -30,6 +30,12 @@ const typeLabels: Record<string, string> = {
     camera_maintenance: "📹 Mtto. Dashcam",
     alarm_maintenance: "🔔 Mtto. Alarma",
     gps_maintenance: "📍 Mtto. GPS",
+    oil_change: "🛢️ Aceite y Filtro",
+    tire_change: "🛞 Llantas",
+    battery_service: "🔋 Batería",
+    brake_service: "🛑 Frenos",
+    chain_kit_service: "⛓️ Kit Arrastre",
+    spark_bulbs_wipers: "💡 Bujías / Luces",
     vehicle_recovery: "🚨 Reacción",
     other: "🔧 Otro",
 }

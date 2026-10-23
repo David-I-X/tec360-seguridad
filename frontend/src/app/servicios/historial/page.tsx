@@ -35,6 +35,12 @@ const TYPE_LABELS: Record<string, string> = {
     camera_maintenance: "Mant. Dashcam",
     alarm_maintenance: "Mant. Alarma",
     gps_maintenance: "Mant. GPS",
+    oil_change: "Cambio de Aceite",
+    tire_change: "Cambio de Llantas",
+    battery_service: "Batería / Corriente",
+    brake_service: "Pastillas de Freno",
+    chain_kit_service: "Kit de Arrastre",
+    spark_bulbs_wipers: "Bujías / Bombillos",
     vehicle_recovery: "Reacción",
     other: "Servicio Técnico",
 }

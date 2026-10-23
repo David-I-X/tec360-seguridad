@@ -27,6 +27,12 @@ const typeIcon: Record<string, { icon: IconName; color: string }> = {
   alarm_maintenance:   { icon: 'notifications', color: COLORS.yellow },
   gps_installation:    { icon: 'radio', color: COLORS.blue },
   gps_maintenance:     { icon: 'radio', color: COLORS.blue },
+  oil_change:          { icon: 'water', color: '#f59e0b' },
+  tire_change:         { icon: 'disc', color: '#fb923c' },
+  battery_service:     { icon: 'battery-charging', color: '#34d399' },
+  brake_service:       { icon: 'hand-left', color: '#fb7185' },
+  chain_kit_service:   { icon: 'link', color: '#a855f7' },
+  spark_bulbs_wipers:  { icon: 'bulb', color: '#facc15' },
   vehicle_recovery:    { icon: 'shield-half', color: COLORS.red },
   other:               { icon: 'construct', color: COLORS.textSecondary },
 };
@@ -45,6 +51,7 @@ export default function TechDashboardScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'installations' | 'mechanics'>('all');
   const [showBasicCoursesModal, setShowBasicCoursesModal] = useState(false);
 
   // Check if newly registered technician should see the basic courses modal
@@ -152,7 +159,12 @@ export default function TechDashboardScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
       <FlatList
-        data={isOnline ? availableServices : []}
+        data={isOnline ? availableServices.filter((s: any) => {
+          const isMechanics = ['oil_change', 'tire_change', 'battery_service', 'brake_service', 'chain_kit_service', 'spark_bulbs_wipers'].includes(s.service_type) || s.service_metadata?.service_category === 'quick_mechanics';
+          if (categoryFilter === 'mechanics') return isMechanics;
+          if (categoryFilter === 'installations') return !isMechanics;
+          return true;
+        }) : []}
         keyExtractor={item => item.id?.toString()}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={COLORS.primary} colors={[COLORS.primary]} progressBackgroundColor={COLORS.surface} />}
         contentContainerStyle={{ paddingBottom: 32 }}
@@ -301,6 +313,35 @@ export default function TechDashboardScreen() {
                 <Text style={styles.sectionCount}>{isOnline ? availableServices.length : 0}</Text>
               </View>
             </View>
+            <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 12 }}>
+              {[
+                { key: 'all', label: 'Todos' },
+                { key: 'installations', label: '📡 Instalaciones' },
+                { key: 'mechanics', label: '🔩 Mecánica Rápida' },
+              ].map((cat) => (
+                <TouchableOpacity
+                  key={cat.key}
+                  onPress={() => setCategoryFilter(cat.key as any)}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 20,
+                    backgroundColor: categoryFilter === cat.key ? COLORS.primary : COLORS.surface,
+                    borderWidth: 1,
+                    borderColor: categoryFilter === cat.key ? COLORS.primaryLight : 'rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: categoryFilter === cat.key ? '#fff' : COLORS.textSecondary }}>
+                    {cat.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={{ display: 'none' }}>
+              <View style={styles.countWell}>
+                <Text style={styles.sectionCount}>{isOnline ? availableServices.length : 0}</Text>
+              </View>
+            </View>
           </>
         }
         renderItem={({ item }) => {
@@ -311,6 +352,12 @@ export default function TechDashboardScreen() {
                 <NeuIcon name={t.icon} color={t.color} size={46} inset />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+                  {item.service_metadata?.supplies_provider && (
+                    <Text style={{ color: '#fbbf24', fontSize: 11, fontWeight: '700', marginTop: 2 }}>
+                      {item.service_metadata.supplies_provider === 'client' ? '🧰 Cliente pone repuesto' : '🚚 Técnico lleva repuesto'}
+                      {item.service_metadata.supplies_notes ? ` · ${item.service_metadata.supplies_notes}` : ''}
+                    </Text>
+                  )}
                   <View style={styles.cardMeta}>
                     <Ionicons name="location-outline" size={13} color={COLORS.textMuted} />
                     <Text style={styles.cardMetaText}>{item.service_city || 'Sin ubicación'}</Text>

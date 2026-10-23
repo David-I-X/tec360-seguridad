@@ -523,6 +523,25 @@ export default function TechServiceScreen() {
               </View>
             </View>
           )}
+
+          {service?.service_metadata?.supplies_provider && (
+            <View style={styles.infoCard}>
+              <View style={[styles.infoIconBox, { backgroundColor: 'rgba(245,158,11,0.15)' }]}>
+                <Ionicons name="construct" size={18} color="#f59e0b" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.infoLabel}>Repuestos / Insumos (Mecánica Rápida)</Text>
+                <Text style={styles.infoValue}>
+                  {service.service_metadata.supplies_provider === 'client'
+                    ? '🧰 Cliente ya tiene el repuesto (Solo mano de obra)'
+                    : '🚚 Técnico debe llevar y cotizar el repuesto'}
+                </Text>
+                {service.service_metadata.supplies_notes ? (
+                  <Text style={styles.infoSub}>Ref: {service.service_metadata.supplies_notes}</Text>
+                ) : null}
+              </View>
+            </View>
+          )}
         </View>
 
         {isTracking && (

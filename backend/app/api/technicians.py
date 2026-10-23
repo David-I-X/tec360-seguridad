@@ -234,6 +234,12 @@ async def get_available_specializations():
             {"value": "alarm_maintenance", "label": "Mantenimiento de Alarmas", "icon": "🔧"},
             {"value": "camera_installation", "label": "Instalación Dashcam", "icon": "📹"},
             {"value": "camera_maintenance", "label": "Mantenimiento Dashcam", "icon": "🔧"},
+            {"value": "oil_change", "label": "Cambio de Aceite y Filtro", "icon": "🛢️"},
+            {"value": "tire_change", "label": "Cambio / Desvare de Llantas", "icon": "🛞"},
+            {"value": "battery_service", "label": "Batería (Inicio / Cambio)", "icon": "🔋"},
+            {"value": "brake_service", "label": "Pastillas y Ajuste de Frenos", "icon": "🛑"},
+            {"value": "chain_kit_service", "label": "Kit de Arrastre / Cadena (Motos)", "icon": "⛓️"},
+            {"value": "spark_bulbs_wipers", "label": "Bujías, Bombillos o Plumillas", "icon": "💡"},
             {"value": "other", "label": "Otros", "icon": "🛠️"}
         ]
     }

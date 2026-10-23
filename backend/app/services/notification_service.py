@@ -139,6 +139,12 @@ class NotificationService:
             "camera_installation": "Instalación Dashcam",
             "camera_maintenance": "Mantenimiento Dashcam",
             "vehicle_recovery": "Recuperación de Vehículo",
+            "oil_change": "Cambio de Aceite y Filtro",
+            "tire_change": "Cambio / Desvare de Llantas",
+            "battery_service": "Batería (Inicio / Cambio)",
+            "brake_service": "Pastillas y Ajuste de Frenos",
+            "chain_kit_service": "Kit de Arrastre / Cadena",
+            "spark_bulbs_wipers": "Bujías, Bombillos o Plumillas",
             "other": "Servicio Técnico",
         }
         type_label = SERVICE_TYPE_LABELS.get(service_type, service_title)

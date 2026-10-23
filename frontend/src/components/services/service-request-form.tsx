@@ -85,7 +85,9 @@ export function ServiceRequestForm() {
     const [vehiclePhotoPreview, setVehiclePhotoPreview] = useState<string | null>(null)
     const [vehiclePhotoFile, setVehiclePhotoFile] = useState<File | null>(null)
     const [showDayPicker, setShowDayPicker] = useState(false)
-    const [formMode, setFormMode] = useState<"normal" | "recovery">("normal")
+    const [formMode, setFormMode] = useState<"normal" | "mechanics" | "recovery">("normal")
+    const [suppliesProvider, setSuppliesProvider] = useState<"client" | "technician">("client")
+    const [suppliesNotes, setSuppliesNotes] = useState("")
 
     // Recovery-specific state
     const [recStolenDate, setRecStolenDate] = useState("")
@@ -236,6 +238,12 @@ export function ServiceRequestForm() {
                 "camera_maintenance": "Mantenimiento Dashcam",
                 "alarm_maintenance": "Mantenimiento Alarma",
                 "gps_maintenance": "Mantenimiento GPS",
+                "oil_change": "Cambio de Aceite y Filtro",
+                "tire_change": "Cambio / Desvare de Llantas",
+                "battery_service": "Batería (Inicio / Cambio)",
+                "brake_service": "Pastillas y Ajuste de Frenos",
+                "chain_kit_service": "Kit de Arrastre / Cadena",
+                "spark_bulbs_wipers": "Bujías, Bombillos o Plumillas",
                 "other": "Servicio Técnico"
             }[data.service_type] || "Servicio"
 
@@ -263,7 +271,14 @@ export function ServiceRequestForm() {
                 vehicle_type: data.vehicle_type,
                 vehicle_model: data.vehicle_model,
                 vehicle_plate: data.vehicle_plate,
-                estimated_price: data.estimated_price
+                estimated_price: data.estimated_price,
+                ...(formMode === "mechanics" ? {
+                    service_metadata: {
+                        service_category: "quick_mechanics",
+                        supplies_provider: suppliesProvider,
+                        supplies_notes: suppliesNotes.trim() || null,
+                    }
+                } : {})
             })
 
             // If there's a vehicle photo, compress and upload it
@@ -364,10 +379,16 @@ export function ServiceRequestForm() {
     return (
         <div className="max-w-2xl mx-auto">
             {/* ========== MODE SELECTOR ========== */}
-            <div className="mb-8 grid grid-cols-2 gap-3">
+            <div className="mb-8 grid grid-cols-3 gap-3">
                 <button
                     type="button"
-                    onClick={() => setFormMode("normal")}
+                    onClick={() => {
+                        if (formMode !== "normal") {
+                            setFormMode("normal")
+                            form.setValue("service_type", "")
+                            setStep(0)
+                        }
+                    }}
                     className={cn(
                         "flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all duration-200",
                         formMode === "normal"
@@ -376,7 +397,26 @@ export function ServiceRequestForm() {
                     )}
                 >
                     <span className="text-2xl">🔧</span>
-                    <span className="font-semibold">Servicio Técnico</span>
+                    <span className="font-semibold text-sm sm:text-base">Instalaciones</span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => {
+                        if (formMode !== "mechanics") {
+                            setFormMode("mechanics")
+                            form.setValue("service_type", "")
+                            setStep(0)
+                        }
+                    }}
+                    className={cn(
+                        "flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all duration-200",
+                        formMode === "mechanics"
+                            ? "border-amber-500 bg-amber-500/10 text-amber-400 shadow-lg shadow-amber-500/20"
+                            : "border-muted hover:border-amber-500/50 bg-muted/20 text-muted-foreground"
+                    )}
+                >
+                    <span className="text-2xl">🔩</span>
+                    <span className="font-semibold text-sm sm:text-base">Mecánica Rápida</span>
                 </button>
                 <button
                     type="button"
@@ -389,7 +429,7 @@ export function ServiceRequestForm() {
                     )}
                 >
                     <ShieldAlert className="h-5 w-5" />
-                    <span className="font-semibold">Equipo de Reacción</span>
+                    <span className="font-semibold text-sm sm:text-base">Equipo de Reacción</span>
                 </button>
             </div>
 
@@ -586,8 +626,17 @@ export function ServiceRequestForm() {
                                     className="space-y-6"
                                 >
                                     <div className="text-center mb-6">
-                                        <h2 className="text-2xl font-bold">¿Qué necesitas hoy?</h2>
+                                        {formMode === "mechanics" && (
+                                            <div className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 px-3 py-1 rounded-full text-xs font-semibold mb-2">
+                                                ⏱ Servicio Express a Domicilio (&lt; 1 hora)
+                                            </div>
+                                        )}
+                                        <h2 className="text-2xl font-bold">
+                                            {formMode === "mechanics" ? "¿Qué servicio de mecánica necesitas?" : "¿Qué necesitas hoy?"}
+                                        </h2>
                                         <p className="text-muted-foreground">Selecciona el tipo de servicio</p>
+                                    </div>
+                                    <div className="hidden">
                                     </div>
 
                                     <FormField
@@ -599,6 +648,11 @@ export function ServiceRequestForm() {
                                                     <ServiceTypeSelector
                                                         selected={field.value}
                                                         onChange={field.onChange}
+                                                        category={formMode === "mechanics" ? "mechanics" : "installations"}
+                                                        suppliesProvider={suppliesProvider}
+                                                        onSuppliesProviderChange={setSuppliesProvider}
+                                                        suppliesNotes={suppliesNotes}
+                                                        onSuppliesNotesChange={setSuppliesNotes}
                                                     />
                                                 </FormControl>
                                                 <FormMessage />

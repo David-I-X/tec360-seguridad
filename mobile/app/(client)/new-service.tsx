@@ -24,6 +24,17 @@ const SERVICE_TYPES = [
   { key: 'other', label: 'Otro', emoji: '🔧' },
 ];
 
+const MECHANICS_SERVICE_TYPES = [
+  { key: 'oil_change', label: 'Cambio de Aceite', emoji: '🛢️', sub: '< 45 min' },
+  { key: 'tire_change', label: 'Cambio de Llantas', emoji: '🛞', sub: '< 30 min' },
+  { key: 'battery_service', label: 'Batería / Corriente', emoji: '🔋', sub: '< 30 min' },
+  { key: 'brake_service', label: 'Pastillas de Freno', emoji: '🛑', sub: '< 1 hora' },
+  { key: 'chain_kit_service', label: 'Kit de Arrastre', emoji: '⛓️', sub: '< 45 min' },
+  { key: 'spark_bulbs_wipers', label: 'Bujías y Bombillos', emoji: '💡', sub: '< 30 min' },
+];
+
+const ALL_SERVICE_TYPES = [...SERVICE_TYPES, ...MECHANICS_SERVICE_TYPES];
+
 const STEPS = ['Tipo', 'Vehículo', 'Ubicación', 'Horario'];
 
 const TIME_SLOTS = [
@@ -49,7 +60,9 @@ export default function NewServiceScreen() {
   const [step, setStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
-  const [formMode, setFormMode] = useState<'normal' | 'recovery'>('normal');
+  const [formMode, setFormMode] = useState<'normal' | 'mechanics' | 'recovery'>('normal');
+  const [suppliesProvider, setSuppliesProvider] = useState<'client' | 'technician'>('client');
+  const [suppliesNotes, setSuppliesNotes] = useState('');
 
   const mapRef = useRef<TecMapViewRef | null>(null);
 
@@ -325,7 +338,7 @@ export default function NewServiceScreen() {
       ? `${trimmedAddress}, ${targetCity}`
       : trimmedAddress;
 
-    const selectedService = SERVICE_TYPES.find(t => t.key === serviceType);
+    const selectedService = ALL_SERVICE_TYPES.find(t => t.key === serviceType);
     const serviceLabel = selectedService?.key === 'other' ? 'Servicio General' : (selectedService?.label || 'Servicio Técnico');
 
     const numericPrice = parseInt(estimatedPrice.replace(/\D/g, ''), 10) || 0;
@@ -389,6 +402,13 @@ export default function NewServiceScreen() {
           vehicle_type: vehicleType || undefined,
           vehicle_model: vehicleModel || undefined,
           vehicle_plate: vehiclePlate ? vehiclePlate.trim() : undefined,
+          ...(formMode === 'mechanics' ? {
+            service_metadata: {
+              service_category: 'quick_mechanics',
+              supplies_provider: suppliesProvider,
+              supplies_notes: suppliesNotes.trim() || null,
+            },
+          } : {}),
         }),
       });
 
@@ -540,11 +560,31 @@ export default function NewServiceScreen() {
       <View style={styles.modeRow}>
         <TouchableOpacity
           style={[styles.modeBtn, formMode === 'normal' && styles.modeBtnActive]}
-          onPress={() => setFormMode('normal')}
+          onPress={() => {
+            if (formMode !== 'normal') {
+              setFormMode('normal');
+              setServiceType('');
+              setStep(0);
+            }
+          }}
           activeOpacity={0.7}
         >
           <Text style={styles.modeEmoji}>🔧</Text>
-          <Text style={[styles.modeBtnText, formMode === 'normal' && styles.modeBtnTextActive]}>Servicio Técnico</Text>
+          <Text style={[styles.modeBtnText, formMode === 'normal' && styles.modeBtnTextActive]}>Instalaciones</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.modeBtn, formMode === 'mechanics' && styles.modeBtnMechanics]}
+          onPress={() => {
+            if (formMode !== 'mechanics') {
+              setFormMode('mechanics');
+              setServiceType('');
+              setStep(0);
+            }
+          }}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.modeEmoji}>🔩</Text>
+          <Text style={[styles.modeBtnText, formMode === 'mechanics' && styles.modeBtnTextMechanics]}>Mecánica Rápida</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.modeBtn, formMode === 'recovery' && styles.modeBtnRecovery]}
@@ -732,9 +772,17 @@ export default function NewServiceScreen() {
         {/* Step 0: Service Type */}
         {step === 0 && (
           <View style={styles.stepContent}>
-            <Text style={styles.sectionTitle}>¿Qué servicio necesitas?</Text>
+            {formMode === 'mechanics' && (
+              <View style={styles.mechanicsBadge}>
+                <Ionicons name="time-outline" size={15} color="#f59e0b" />
+                <Text style={styles.mechanicsBadgeText}>Servicio Express a Domicilio (&lt; 1 hora)</Text>
+              </View>
+            )}
+            <Text style={styles.sectionTitle}>
+              {formMode === 'mechanics' ? '¿Qué servicio de mecánica necesitas?' : '¿Qué servicio necesitas?'}
+            </Text>
             <View style={styles.typeGrid}>
-              {SERVICE_TYPES.map(t => (
+              {(formMode === 'mechanics' ? MECHANICS_SERVICE_TYPES : SERVICE_TYPES).map(t => (
                 <TouchableOpacity
                   key={t.key}
                   style={[styles.typeCard, serviceType === t.key && styles.typeCardActive]}
@@ -747,6 +795,51 @@ export default function NewServiceScreen() {
               ))}
             </View>
 
+
+            {formMode === 'mechanics' && (
+              <View style={styles.suppliesBox}>
+                <Text style={styles.inputLabel}>¿Quién suministra el repuesto o insumo?</Text>
+                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.suppliesOptionCard,
+                      suppliesProvider === 'client' && styles.suppliesOptionCardActive,
+                    ]}
+                    onPress={() => setSuppliesProvider('client')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ fontSize: 22, marginBottom: 4 }}>🧰</Text>
+                    <Text style={[styles.suppliesOptionTitle, suppliesProvider === 'client' && { color: '#fbbf24' }]}>
+                      Ya tengo el repuesto
+                    </Text>
+                    <Text style={styles.suppliesOptionSub}>Solo requiero mano de obra</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.suppliesOptionCard,
+                      suppliesProvider === 'technician' && styles.suppliesOptionCardActive,
+                    ]}
+                    onPress={() => setSuppliesProvider('technician')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ fontSize: 22, marginBottom: 4 }}>🚚</Text>
+                    <Text style={[styles.suppliesOptionTitle, suppliesProvider === 'technician' && { color: '#fbbf24' }]}>
+                      El técnico lo lleva
+                    </Text>
+                    <Text style={styles.suppliesOptionSub}>Cotizar e incluir insumo</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.inputLabel}>Referencia del repuesto / aceite / medida (opcional)</Text>
+                <TextInput
+                  style={[styles.input, { marginBottom: 4 }]}
+                  placeholder="Ej: Aceite 10W-40, Llanta 205/55 R16, Batería 60Ah..."
+                  placeholderTextColor="#555872"
+                  value={suppliesNotes}
+                  onChangeText={setSuppliesNotes}
+                />
+              </View>
+            )}
 
             <Text style={styles.inputLabel}>Descripción (opcional)</Text>
             <TextInput style={[styles.input, { height: 80, textAlignVertical: 'top' }]} placeholder="Describe lo que necesitas..." placeholderTextColor="#555872" value={description} onChangeText={setDescription} multiline />
@@ -1216,7 +1309,7 @@ export default function NewServiceScreen() {
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Servicio</Text>
                 <Text style={styles.summaryValue}>
-                  {SERVICE_TYPES.find(t => t.key === serviceType)?.emoji} {SERVICE_TYPES.find(t => t.key === serviceType)?.label || 'Servicio Técnico'}
+                  {ALL_SERVICE_TYPES.find(t => t.key === serviceType)?.emoji} {ALL_SERVICE_TYPES.find(t => t.key === serviceType)?.label || 'Servicio Técnico'}
                 </Text>
               </View>
               {vehicleType ? (
@@ -1310,12 +1403,24 @@ const styles = StyleSheet.create({
   nextBtnGradient: { paddingVertical: SPACING.md, alignItems: 'center', borderRadius: RADIUS.lg },
   nextBtnText: { color: '#fff', fontSize: FONTS.sizes.md, fontWeight: FONTS.weights.bold },
   // Mode selector
-  modeRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, marginBottom: SPACING.md },
-  modeBtn: { flex: 1, backgroundColor: COLORS.bgCard, borderRadius: 14, padding: 20, alignItems: 'center', borderWidth: 2, borderColor: COLORS.border, gap: SPACING.xs },
+  modeRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: SPACING.md },
+  modeBtn: { flex: 1, backgroundColor: COLORS.bgCard, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 6, alignItems: 'center', borderWidth: 2, borderColor: COLORS.border, gap: 4 },
+  modeBtnMechanics: { borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.14)' },
+  modeEmoji: { fontSize: 20 },
+  modeBtnText: { color: COLORS.textSecondary, fontSize: 11, fontWeight: FONTS.weights.bold, textAlign: 'center' },
+  modeBtnTextMechanics: { color: '#fbbf24' },
+  mechanicsBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, backgroundColor: 'rgba(245,158,11,0.14)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.35)', borderRadius: RADIUS.round, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 10 },
+  mechanicsBadgeText: { color: '#fbbf24', fontSize: 11, fontWeight: '700' },
+  suppliesBox: { backgroundColor: 'rgba(245,158,11,0.06)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(245,158,11,0.25)', padding: 14, marginBottom: 16 },
+  suppliesOptionCard: { flex: 1, backgroundColor: COLORS.bgCard, borderRadius: 12, padding: 12, borderWidth: 2, borderColor: COLORS.border, alignItems: 'center' },
+  suppliesOptionCardActive: { borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.14)' },
+  suppliesOptionTitle: { color: COLORS.text, fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  suppliesOptionSub: { color: COLORS.textMuted, fontSize: 10, textAlign: 'center', marginTop: 2 },
+
   modeBtnActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryMuted },
   modeBtnRecovery: { borderColor: COLORS.red, backgroundColor: COLORS.redMuted },
-  modeEmoji: { fontSize: 22 },
-  modeBtnText: { color: COLORS.textSecondary, fontSize: FONTS.sizes.xs, fontWeight: FONTS.weights.bold },
+
+
   modeBtnTextActive: { color: COLORS.primary },
   modeBtnTextRecovery: { color: COLORS.red },
   // Recovery

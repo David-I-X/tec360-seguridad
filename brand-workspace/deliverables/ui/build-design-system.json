@@ -1,0 +1,520 @@
+[
+  {
+    "command": "frame.create",
+    "params": {
+      "name": "Tec360-Design-System-v2",
+      "x": 0,
+      "y": 0,
+      "width": 1600,
+      "height": 1000,
+      "props": {
+        "fill": "#050810",
+        "cornerRadius": 24
+      }
+    }
+  },
+  {
+    "command": "shape.rectangle",
+    "params": {
+      "x": 48,
+      "y": 48,
+      "width": 1504,
+      "height": 140,
+      "props": {
+        "name": "Header-Card",
+        "fill": "#0B0F19",
+        "stroke": "#8B5CF6",
+        "strokeWeight": 2,
+        "cornerRadius": 16
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "TEC360 SEGURIDAD — DESIGN SYSTEM & BRAND BOOK v2.0",
+      "x": 84,
+      "y": 82,
+      "props": {
+        "fontSize": 34,
+        "fill": "#F8FAFC"
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "PALETA PSICOLÓGICA WCAG AA/AAA  •  ESCALA MODULAR 1.250  •  GLASSMORPHISM TÁCTICO 360°",
+      "x": 84,
+      "y": 134,
+      "props": {
+        "fontSize": 16,
+        "fill": "#00F0FF"
+      }
+    }
+  },
+  {
+    "command": "shape.rectangle",
+    "params": {
+      "x": 48,
+      "y": 232,
+      "width": 226,
+      "height": 150,
+      "props": {
+        "name": "Void #050810 (19.3:1)",
+        "fill": "#050810",
+        "stroke": "#334155",
+        "strokeWeight": 2,
+        "cornerRadius": 14
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "Void #050810 (19.3:1)",
+      "x": 60,
+      "y": 400,
+      "props": {
+        "fontSize": 15,
+        "fill": "#F8FAFC"
+      }
+    }
+  },
+  {
+    "command": "shape.rectangle",
+    "params": {
+      "x": 298,
+      "y": 232,
+      "width": 226,
+      "height": 150,
+      "props": {
+        "name": "Obsidian #0B0F19 (17.8:1)",
+        "fill": "#0B0F19",
+        "stroke": "#334155",
+        "strokeWeight": 2,
+        "cornerRadius": 14
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "Obsidian #0B0F19 (17.8:1)",
+      "x": 310,
+      "y": 400,
+      "props": {
+        "fontSize": 15,
+        "fill": "#F8FAFC"
+      }
+    }
+  },
+  {
+    "command": "shape.rectangle",
+    "params": {
+      "x": 548,
+      "y": 232,
+      "width": 226,
+      "height": 150,
+      "props": {
+        "name": "Electric Violet #8B5CF6",
+        "fill": "#8B5CF6",
+        "stroke": "#F8FAFC",
+        "strokeWeight": 2,
+        "cornerRadius": 14
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "Electric Violet #8B5CF6",
+      "x": 560,
+      "y": 400,
+      "props": {
+        "fontSize": 15,
+        "fill": "#F8FAFC"
+      }
+    }
+  },
+  {
+    "command": "shape.rectangle",
+    "params": {
+      "x": 798,
+      "y": 232,
+      "width": 226,
+      "height": 150,
+      "props": {
+        "name": "Telemetry Cyan #00F0FF",
+        "fill": "#00F0FF",
+        "stroke": "#050810",
+        "strokeWeight": 2,
+        "cornerRadius": 14
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "Telemetry Cyan #00F0FF",
+      "x": 810,
+      "y": 400,
+      "props": {
+        "fontSize": 15,
+        "fill": "#F8FAFC"
+      }
+    }
+  },
+  {
+    "command": "shape.rectangle",
+    "params": {
+      "x": 1048,
+      "y": 232,
+      "width": 226,
+      "height": 150,
+      "props": {
+        "name": "Armed Emerald #10B981",
+        "fill": "#10B981",
+        "stroke": "#050810",
+        "strokeWeight": 2,
+        "cornerRadius": 14
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "Armed Emerald #10B981",
+      "x": 1060,
+      "y": 400,
+      "props": {
+        "fontSize": 15,
+        "fill": "#F8FAFC"
+      }
+    }
+  },
+  {
+    "command": "shape.rectangle",
+    "params": {
+      "x": 1298,
+      "y": 232,
+      "width": 226,
+      "height": 150,
+      "props": {
+        "name": "Alert Crimson #FF2A55",
+        "fill": "#FF2A55",
+        "stroke": "#F8FAFC",
+        "strokeWeight": 2,
+        "cornerRadius": 14
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "Alert Crimson #FF2A55",
+      "x": 1310,
+      "y": 400,
+      "props": {
+        "fontSize": 15,
+        "fill": "#F8FAFC"
+      }
+    }
+  },
+  {
+    "command": "shape.rectangle",
+    "params": {
+      "x": 48,
+      "y": 468,
+      "width": 732,
+      "height": 460,
+      "props": {
+        "name": "Pillar-Instalacion-SENA",
+        "fill": "#0B0F19",
+        "stroke": "#8B5CF6",
+        "strokeWeight": 2,
+        "cornerRadius": 20
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "PILAR 01 // PREVENCIÓN & HARDWARE CERTIFICADO SENA",
+      "x": 84,
+      "y": 510,
+      "props": {
+        "fontSize": 22,
+        "fill": "#8B5CF6"
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "Instalación a domicilio de GPS 4G, Alarmas y Dashcams HD sin cortar cables originales.",
+      "x": 84,
+      "y": 556,
+      "width": 660,
+      "props": {
+        "fontSize": 18,
+        "fill": "#F8FAFC"
+      }
+    }
+  },
+  {
+    "command": "shape.rectangle",
+    "params": {
+      "x": 84,
+      "y": 632,
+      "width": 660,
+      "height": 48,
+      "props": {
+        "fill": "#111827",
+        "stroke": "#334155",
+        "strokeWeight": 1,
+        "cornerRadius": 10
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "01. Técnicos verificados y certificados por el SENA",
+      "x": 104,
+      "y": 647,
+      "props": {
+        "fontSize": 15,
+        "fill": "#10B981"
+      }
+    }
+  },
+  {
+    "command": "shape.rectangle",
+    "params": {
+      "x": 84,
+      "y": 694,
+      "width": 660,
+      "height": 48,
+      "props": {
+        "fill": "#111827",
+        "stroke": "#334155",
+        "strokeWeight": 1,
+        "cornerRadius": 10
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "02. Integración limpia OEM — conserva garantía eléctrica",
+      "x": 104,
+      "y": 709,
+      "props": {
+        "fontSize": 15,
+        "fill": "#94A3B8"
+      }
+    }
+  },
+  {
+    "command": "shape.rectangle",
+    "params": {
+      "x": 84,
+      "y": 756,
+      "width": 660,
+      "height": 48,
+      "props": {
+        "fill": "#111827",
+        "stroke": "#334155",
+        "strokeWeight": 1,
+        "cornerRadius": 10
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "03. Evidencia fotográfica Antes / Durante / Después en App",
+      "x": 104,
+      "y": 771,
+      "props": {
+        "fontSize": 15,
+        "fill": "#94A3B8"
+      }
+    }
+  },
+  {
+    "command": "shape.rectangle",
+    "params": {
+      "x": 84,
+      "y": 830,
+      "width": 320,
+      "height": 58,
+      "props": {
+        "name": "CTA-Primary",
+        "fill": "#7C3AED",
+        "cornerRadius": 12
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "AGENDAR INSTALACIÓN HOY →",
+      "x": 112,
+      "y": 848,
+      "props": {
+        "fontSize": 18,
+        "fill": "#FFFFFF"
+      }
+    }
+  },
+  {
+    "command": "shape.rectangle",
+    "params": {
+      "x": 820,
+      "y": 468,
+      "width": 732,
+      "height": 460,
+      "props": {
+        "name": "Pillar-Recuperacion-24-7",
+        "fill": "#0B0F19",
+        "stroke": "#00F0FF",
+        "strokeWeight": 2,
+        "cornerRadius": 20
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "PILAR 02 // TELEMETRÍA 4G & CORTE DE MOTOR REMOTO",
+      "x": 856,
+      "y": 510,
+      "props": {
+        "fontSize": 22,
+        "fill": "#00F0FF"
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "Inmovilización inmediata en 1 toque (0 km/h) y rastreo satelital en vivo cada 10 segundos.",
+      "x": 856,
+      "y": 556,
+      "width": 660,
+      "props": {
+        "fontSize": 18,
+        "fill": "#F8FAFC"
+      }
+    }
+  },
+  {
+    "command": "shape.rectangle",
+    "params": {
+      "x": 856,
+      "y": 632,
+      "width": 660,
+      "height": 48,
+      "props": {
+        "fill": "#111827",
+        "stroke": "#334155",
+        "strokeWeight": 1,
+        "cornerRadius": 10
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "LATENCIA < 120ms  •  TELEMETRÍA SATELITAL 4G ACTIVA",
+      "x": 876,
+      "y": 647,
+      "props": {
+        "fontSize": 15,
+        "fill": "#00F0FF"
+      }
+    }
+  },
+  {
+    "command": "shape.rectangle",
+    "params": {
+      "x": 856,
+      "y": 694,
+      "width": 660,
+      "height": 48,
+      "props": {
+        "fill": "#111827",
+        "stroke": "#334155",
+        "strokeWeight": 1,
+        "cornerRadius": 10
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "ESTADO DE MOTOR: BLOQUEO REMOTO SEGURO (0 KM/H)",
+      "x": 876,
+      "y": 709,
+      "props": {
+        "fontSize": 15,
+        "fill": "#FF2A55"
+      }
+    }
+  },
+  {
+    "command": "shape.rectangle",
+    "params": {
+      "x": 856,
+      "y": 756,
+      "width": 660,
+      "height": 48,
+      "props": {
+        "fill": "#111827",
+        "stroke": "#334155",
+        "strokeWeight": 1,
+        "cornerRadius": 10
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "COORDENADAS: 6.2442 N, 75.5812 W  •  REACCIÓN 24/7",
+      "x": 876,
+      "y": 771,
+      "props": {
+        "fontSize": 15,
+        "fill": "#94A3B8"
+      }
+    }
+  },
+  {
+    "command": "shape.rectangle",
+    "params": {
+      "x": 856,
+      "y": 830,
+      "width": 340,
+      "height": 58,
+      "props": {
+        "name": "CTA-Danger-EngineCut",
+        "fill": "#FF2A55",
+        "cornerRadius": 12
+      }
+    }
+  },
+  {
+    "command": "text.create",
+    "params": {
+      "text": "[!] ACTIVAR CORTE DE MOTOR →",
+      "x": 882,
+      "y": 848,
+      "props": {
+        "fontSize": 18,
+        "fill": "#FFFFFF"
+      }
+    }
+  }
+]

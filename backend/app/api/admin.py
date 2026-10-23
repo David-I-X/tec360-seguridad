@@ -394,6 +394,21 @@ async def platform_stats(
         ).subquery()
     )).one()
 
+    # Quick mechanics services
+    quick_mechanics_types = [
+        "oil_change", "tire_change", "battery_service",
+        "brake_service", "chain_kit_service", "spark_bulbs_wipers"
+    ]
+    mechanics_total = session.exec(select(func.count()).select_from(
+        select(Service).where(Service.service_type.in_(quick_mechanics_types)).subquery()
+    )).one()
+    mechanics_active = session.exec(select(func.count()).select_from(
+        select(Service).where(
+            Service.service_type.in_(quick_mechanics_types),
+            Service.status.notin_(["completed", "cancelled"])
+        ).subquery()
+    )).one()
+
     # Avg ticket (completed with price)
     avg_ticket_result = session.exec(
         select(func.coalesce(func.avg(Service.estimated_price), 0))
@@ -428,6 +443,10 @@ async def platform_stats(
         "recovery": {
             "total": recovery_total,
             "active": recovery_active,
+        },
+        "quick_mechanics": {
+            "total": mechanics_total,
+            "active": mechanics_active,
         }
     }
 

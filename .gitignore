@@ -99,6 +99,7 @@ tec360source/
 
 # Local scripts
 *.bat
+*.exe
 
 # Android APK binaries (large files > 100MB)
 frontend/public/app/*.apk
@@ -108,4 +109,9 @@ frontend/public/app/*.bak
 # Database backups
 backups/
 *.sql.gz
-
+
+
+# Local MCP configuration with API keys & temporary creative runs
+.agents/mcp_config.json
+brand-workspace/runs/
+brand-workspace/**/*.lock*

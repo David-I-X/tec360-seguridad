@@ -27,6 +27,12 @@ class ServiceType(str, Enum):
     camera_installation = "camera_installation"
     camera_maintenance = "camera_maintenance"
     vehicle_recovery = "vehicle_recovery"
+    oil_change = "oil_change"
+    tire_change = "tire_change"
+    battery_service = "battery_service"
+    brake_service = "brake_service"
+    chain_kit_service = "chain_kit_service"
+    spark_bulbs_wipers = "spark_bulbs_wipers"
     other = "other"
 
 class VehicleType(str, Enum):

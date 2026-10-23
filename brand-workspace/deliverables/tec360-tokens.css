@@ -1,0 +1,16 @@
+/* Auto-generado por run-brand-pipeline.mjs desde brand-tokens.json */
+:root {
+  --brand-void: #050810;
+  --brand-obsidian: #0B0F19;
+  --brand-elevated: #111827;
+  --brand-primary: #7C3AED;
+  --brand-primary-vivid: #8B5CF6;
+  --brand-primary-deep: #5B21B6;
+  --brand-secondary-blue: #3B82F6;
+  --brand-telemetry-cyan: #00F0FF;
+  --brand-armed-emerald: #10B981;
+  --brand-warning-amber: #F59E0B;
+  --brand-alert-crimson: #FF2A55;
+  --brand-text-primary: #F8FAFC;
+  --brand-text-secondary: #94A3B8;
+}

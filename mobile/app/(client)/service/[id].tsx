@@ -546,6 +546,26 @@ export default function ServiceDetailScreen() {
               </Text>
             )}
 
+            {/* Quick Mechanics Supplies Banner */}
+            {service?.service_metadata?.supplies_provider && (
+              <View style={[styles.scheduledBanner, { borderColor: 'rgba(245,158,11,0.35)', backgroundColor: 'rgba(245,158,11,0.1)' }]}>
+                <Ionicons name="construct" size={18} color="#fbbf24" />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.scheduledLabel, { color: '#fbbf24' }]}>REPUESTOS / INSUMOS (MECÁNICA RÁPIDA)</Text>
+                  <Text style={styles.scheduledValue}>
+                    {service.service_metadata.supplies_provider === 'client'
+                      ? '🧰 Suministrados por ti (Solo mano de obra)'
+                      : '🚚 El técnico llevará y cotizará el repuesto'}
+                  </Text>
+                  {service.service_metadata.supplies_notes ? (
+                    <Text style={{ color: COLORS.textSecondary, fontSize: 12, marginTop: 2 }}>
+                      Ref: {service.service_metadata.supplies_notes}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            )}
+
             {/* Scheduled Date & Time Banner */}
             {formattedDate && (
               <View style={styles.scheduledBanner}>
