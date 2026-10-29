@@ -16,7 +16,7 @@ export default function TechQuotationsScreen() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetchWithAuth('/quotations/my');
+      const res = await fetchWithAuth('/quotations/me');
       const data = await res.json();
       setQuotations(data.quotations || data || []);
     } catch (e) { console.error(e); }

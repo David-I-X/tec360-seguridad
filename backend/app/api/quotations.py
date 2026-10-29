@@ -50,6 +50,12 @@ async def create_quotation(
 
 
 @router.get(
+    "/my",
+    response_model=QuotationListResponse,
+    summary="Mis cotizaciones enviadas (alias retrocompatible)",
+    include_in_schema=False
+)
+@router.get(
     "/me",
     response_model=QuotationListResponse,
     summary="Mis cotizaciones enviadas"
@@ -107,6 +113,18 @@ async def get_service_quotations(
 # ENDPOINTS DE CLIENTE (respuestas)
 # ============================================
 
+@router.post(
+    "/{quotation_id}/accept",
+    response_model=QuotationResponse,
+    summary="Aprobar cotización (alias retrocompatible POST)",
+    include_in_schema=False
+)
+@router.patch(
+    "/{quotation_id}/accept",
+    response_model=QuotationResponse,
+    summary="Aprobar cotización (alias retrocompatible PATCH)",
+    include_in_schema=False
+)
 @router.patch(
     "/{quotation_id}/approve",
     response_model=QuotationResponse,

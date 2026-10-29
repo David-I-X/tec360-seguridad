@@ -222,13 +222,27 @@ class QuotationService:
         if quotation.status != QuotationStatus.pending:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Cotización no está pendiente: {quotation.status}")
         
-        # 2. Verificar que el cliente es dueño del servicio
-        service = session.get(Service, quotation.service_id)
+        # 2. R4: Verificar que el cliente es dueño del servicio y adquirir row lock atómico
+        service = session.exec(
+            select(Service).where(Service.id == quotation.service_id).with_for_update()
+        ).first()
         if not service:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
         
         if service.client_id != client_uuid:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "No tienes permiso para aprobar esta cotización")
+
+        # R4: Validar estado del servicio
+        if service.status not in (ServiceStatus.pending, ServiceStatus.quoted) or service.technician_id is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT, f"El servicio ya no está disponible (estado actual: {service.status})")
+
+        # R4: Validar expiración de la cotización
+        if quotation.expires_at and quotation.expires_at < datetime.utcnow():
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Esta cotización ha expirado")
+
+        # R4: Validar que el técnico no tenga conflicto de horario
+        from app.services.service_service import service_service
+        service_service._check_technician_schedule_conflict(session, str(quotation.technician_id), service)
         
         # 3. Aprobar cotización
         quotation.status = QuotationStatus.approved
@@ -268,12 +282,12 @@ class QuotationService:
         service.updated_at = datetime.utcnow()
         session.add(service)
         
-        # 5. Rechazar otras cotizaciones
+        # 5. R4: Rechazar otras cotizaciones (tanto pending como counter_offered)
         other_quotes = session.exec(
             select(Quotation).where(
                 Quotation.service_id == quotation.service_id,
                 Quotation.id != quotation.id,
-                Quotation.status == QuotationStatus.pending
+                Quotation.status.in_([QuotationStatus.pending, QuotationStatus.counter_offered])
             )
         ).all()
         
@@ -287,6 +301,23 @@ class QuotationService:
         session.commit()
         session.refresh(quotation)
         
+        # 5.5 Notificar vía WebSocket al cliente y sala del servicio
+        try:
+            from app.core.websocket_manager import ws_manager
+            tech_user = session.get(User, quotation.technician_id)
+            await ws_manager.broadcast_service_status(
+                service_id=str(service.id),
+                status="assigned",
+                extra_data={
+                    "technician": {
+                        "id": str(quotation.technician_id),
+                        "full_name": tech_user.full_name if tech_user else "Técnico"
+                    }
+                }
+            )
+        except Exception as ws_err:
+            logging.warning(f"WebSocket broadcast failed in approve_quotation: {ws_err}")
+
         # 6. Notificar al técnico ganador
         tech = session.get(User, quotation.technician_id)
         try:

@@ -320,7 +320,8 @@ class ServiceService:
         try:
             from app.models.service import ServiceType
             query = select(Service).where(
-                Service.status == ServiceStatus.pending,
+                # C2: Allow both pending and quoted services so all technicians can compete
+                Service.status.in_([ServiceStatus.pending, ServiceStatus.quoted]),
                 Service.technician_id == None  # noqa: E711 — SQLAlchemy translates to IS NULL
             )
             
@@ -351,13 +352,28 @@ class ServiceService:
         except Exception as e:
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-    async def accept_service(self, session: Session, service_id: str, technician_id: str) -> ServiceResponse:
+    async def accept_service(
+        self, session: Session, service_id: str, technician_id: str, user_role: str = "technician"
+    ) -> ServiceResponse:
         try:
-            service = session.exec(select(Service).where(Service.id == service_id)).first()
+            from uuid import UUID as UUIDType
+            from app.models.service import ServiceType
+            from app.models.quotation import Quotation, QuotationStatus
+
+            try:
+                svc_uuid = UUIDType(str(service_id))
+            except ValueError:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "ID de servicio inválido")
+
+            # C4: Atomic row lock with FOR UPDATE to prevent race-condition double assignment
+            service = session.exec(
+                select(Service).where(Service.id == svc_uuid).with_for_update()
+            ).first()
             if not service:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
                 
-            if service.status != ServiceStatus.pending:
+            # Allow pending or quoted (when no technician assigned yet)
+            if service.status not in (ServiceStatus.pending, ServiceStatus.quoted) or service.technician_id is not None:
                 status_labels = {
                     ServiceStatus.assigned: "ya fue asignado a un técnico",
                     ServiceStatus.en_route: "ya está en camino",
@@ -370,6 +386,18 @@ class ServiceService:
                 status_desc = status_labels.get(service.status, "ya no está disponible")
                 raise HTTPException(status.HTTP_409_CONFLICT, f"Este servicio {status_desc}.")
             
+            # R3: Validate role matches service category
+            if service.service_type == ServiceType.vehicle_recovery and user_role != "reaction_team":
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    "Solo miembros del equipo de reacción pueden atender misiones de recuperación vehicular."
+                )
+            if service.service_type != ServiceType.vehicle_recovery and user_role == "reaction_team":
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    "El equipo de reacción solo atiende misiones de recuperación vehicular."
+                )
+
             # Validar que el técnico no tenga conflicto de horario (bloque de 2 horas)
             self._check_technician_schedule_conflict(session, technician_id, service)
             
@@ -383,6 +411,30 @@ class ServiceService:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=f"Tu cuenta está suspendida hasta {tech.suspended_until.strftime('%d/%m/%Y %H:%M') if tech and tech.suspended_until else 'pronto'}. No puedes aceptar servicios durante la suspensión."
                 )
+
+            # R3: Check and deduct technician credits on direct acceptance
+            try:
+                from app.services.credit_service import credit_service
+                service_amount = service.estimated_price or 0
+                check = await credit_service.can_accept_service(
+                    session, str(technician_id), service_amount
+                )
+                if not check["can_accept"]:
+                    raise HTTPException(
+                        status.HTTP_402_PAYMENT_REQUIRED,
+                        f"Créditos insuficientes: {check['reason']}"
+                    )
+                await credit_service.deduct_for_service(
+                    session=session,
+                    technician_id=str(technician_id),
+                    service_id=str(service.id),
+                    service_amount=service_amount,
+                )
+            except HTTPException:
+                raise
+            except Exception as credit_err:
+                import logging
+                logging.warning(f"Credit check bypassed due to internal error: {credit_err}")
             
             # Obtener info del técnico para enviar al cliente
             technician = session.exec(select(User).where(User.id == technician_id)).first()
@@ -390,6 +442,20 @@ class ServiceService:
             service.technician_id = technician_id
             service.status = ServiceStatus.assigned
             session.add(service)
+
+            # R6: Reject any remaining open quotes for this service
+            open_quotes = session.exec(
+                select(Quotation).where(
+                    Quotation.service_id == service.id,
+                    Quotation.status.in_([QuotationStatus.pending, QuotationStatus.counter_offered])
+                )
+            ).all()
+            for oq in open_quotes:
+                oq.status = QuotationStatus.rejected
+                oq.client_response = "El servicio fue tomado directamente por un técnico"
+                oq.updated_at = datetime.utcnow()
+                session.add(oq)
+
             session.commit()
             session.refresh(service)
             
@@ -598,6 +664,20 @@ class ServiceService:
             service.status = ServiceStatus.cancelled
             service.updated_at = datetime.utcnow()
             session.add(service)
+
+            # R6: Cancel all open quotations when service is cancelled
+            from app.models.quotation import Quotation, QuotationStatus
+            open_quotes = session.exec(
+                select(Quotation).where(
+                    Quotation.service_id == service.id,
+                    Quotation.status.in_([QuotationStatus.pending, QuotationStatus.counter_offered])
+                )
+            ).all()
+            for quote in open_quotes:
+                quote.status = QuotationStatus.cancelled
+                quote.client_response = "El servicio fue cancelado"
+                quote.updated_at = datetime.utcnow()
+                session.add(quote)
             
             penalty_applied = False
             refund_applied = False
@@ -941,7 +1021,6 @@ class ServiceService:
         if user_role != "admin":
              raise HTTPException(status.HTTP_403_FORBIDDEN, "Solo admin")
              
-        # Reutilizamos accept logic pero forzado
         service = session.exec(select(Service).where(Service.id == service_id)).first()
         if not service:
              raise HTTPException(status.HTTP_404_NOT_FOUND, "Servicio no encontrado")
@@ -952,9 +1031,72 @@ class ServiceService:
         service.technician_id = technician_id
         service.status = ServiceStatus.assigned
         session.add(service)
+
+        # R7: Reject open quotations
+        from app.models.quotation import Quotation, QuotationStatus
+        open_quotes = session.exec(
+            select(Quotation).where(
+                Quotation.service_id == service.id,
+                Quotation.status.in_([QuotationStatus.pending, QuotationStatus.counter_offered])
+            )
+        ).all()
+        for oq in open_quotes:
+            oq.status = QuotationStatus.rejected
+            oq.client_response = "El servicio fue asignado directamente por un administrador"
+            oq.updated_at = datetime.utcnow()
+            session.add(oq)
+
         session.commit()
         session.refresh(service)
-        return self._to_response(service)
+
+        technician = session.exec(select(User).where(User.id == technician_id)).first()
+
+        # R7: Broadcast via WebSocket
+        try:
+            from app.core.websocket_manager import ws_manager
+            await ws_manager.broadcast_service_status(
+                service_id=str(service_id),
+                status="assigned",
+                extra_data={
+                    "technician": {
+                        "id": str(technician_id),
+                        "full_name": technician.full_name if technician else "Técnico",
+                        "phone": technician.phone if technician else None,
+                        "avatar_url": technician.avatar_url if technician else None
+                    }
+                }
+            )
+        except Exception as ws_err:
+            import logging
+            logging.warning(f"WS notification failed in assign_technician: {ws_err}")
+
+        # R7: Persistent notifications
+        try:
+            from app.services.notification_service import NotificationService
+            from app.schemas.notification import NotificationCreate
+            await NotificationService.notify_client_service_update(
+                session=session,
+                client_id=service.client_id,
+                service_id=service.id,
+                status="assigned",
+                technician_name=technician.full_name if technician else None
+            )
+            await NotificationService.create_notification(
+                session=session,
+                data=NotificationCreate(
+                    user_id=technician_id,
+                    title="📋 Servicio asignado",
+                    message=f"Se te ha asignado el servicio '{service.title}'.",
+                    notification_type="service",
+                    service_id=service.id
+                )
+            )
+        except Exception as notif_err:
+            import logging
+            logging.warning(f"Notification failed in assign_technician: {notif_err}")
+
+        client = session.exec(select(User).where(User.id == service.client_id)).first()
+        return self._to_response(service, client=client, technician=technician)
 
     async def find_nearby_technicians(self, session: Session, service_id: str, max_distance_km: int = 20) -> List[NearbyTechnicianResponse]:
         from app.models.technician import Technician
@@ -975,10 +1117,18 @@ class ServiceService:
         if not service or not service.service_location:
             return []
 
-        # 1. Obtener día actual
-        current_day = datetime.utcnow().weekday() # 0 = Monday, 6 = Sunday
+        # 1. R2: Obtener día y hora actual en zona horaria Colombia (UTC-5)
+        from datetime import timezone, timedelta
+        from app.models.service import ServiceType
+        bogota_tz = timezone(timedelta(hours=-5))
+        now_colombia = datetime.now(bogota_tz)
+        current_day = now_colombia.weekday() # 0 = Monday, 6 = Sunday
+        current_time = now_colombia.time()
         
-        # 2. Buscar técnicos disponibles, con horario activo hoy, y dentro de la distancia
+        # R2: Role matching (reaction_team for recovery, technician for rest)
+        target_role = "reaction_team" if service.service_type == ServiceType.vehicle_recovery else "technician"
+
+        # 2. Buscar técnicos disponibles, no suspendidos, con turno activo en esta franja horaria
         max_distance_meters = max_distance_km * 1000
         
         query = select(
@@ -994,9 +1144,13 @@ class ServiceService:
             TechnicianSchedule, Technician.user_id == TechnicianSchedule.technician_id
         ).where(
             Technician.is_available,
+            (Technician.suspended_until.is_(None)) | (Technician.suspended_until < datetime.utcnow()),
             User.is_active,
+            User.role == target_role,
             TechnicianSchedule.day_of_week == current_day,
             TechnicianSchedule.is_active,
+            TechnicianSchedule.start_time <= current_time,
+            TechnicianSchedule.end_time >= current_time,
             Technician.current_location.is_not(None),
             ST_DWithin(
                 cast(Technician.current_location, Geography), 
@@ -1009,10 +1163,14 @@ class ServiceService:
         logging.info(f"Técnicos cercanos encontrados: {len(results)}")
         
         response_list = []
+        seen_user_ids = set()
         for tech, user, distance in results:
+            if user.id in seen_user_ids:
+                continue
             # Check if tech has capacity or within their own radius
             if distance > (tech.service_radius_km * 1000):
                 continue
+            seen_user_ids.add(user.id)
                 
             response_list.append(NearbyTechnicianResponse(
                 id=str(user.id),

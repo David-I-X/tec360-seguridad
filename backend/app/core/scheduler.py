@@ -96,17 +96,26 @@ async def check_pending_services():
 
             for service in pending:
                 if service.created_at <= two_hours_ago:
-                    # Notify client about delay
+                    # R5: Avoid spamming the client every 15 minutes
+                    metadata = dict(service.service_metadata or {})
+                    if metadata.get("delay_alert_sent"):
+                        continue
+
+                    # Notify client about delay once
                     await NotificationService.create_notification(
                         session=session,
                         data=NotificationCreate(
                             user_id=service.client_id,
                             title="Demora en asignación",
-                            message="Tu servicio lleva más de 2 horas sin ser asignado. Intentaremos buscar en un área más amplia.",
+                            message="Tu servicio lleva más de 2 horas sin ser asignado. Puedes reprogramar o contactar a soporte si lo requieres con urgencia.",
                             notification_type="system_alert",
                             service_id=service.id
                         )
                     )
+                    metadata["delay_alert_sent"] = True
+                    metadata["delay_alert_sent_at"] = now.isoformat()
+                    service.service_metadata = metadata
+                    session.add(service)
             session.commit()
     except Exception as e:
         logger.error(f"Error in check_pending_services: {e}")

@@ -149,9 +149,19 @@ class NotificationService:
         }
         type_label = SERVICE_TYPE_LABELS.get(service_type, service_title)
         
-        # Get all active technicians
+        # C1: Target roles based on service type (reaction_team for recovery, technician for rest)
+        if service_type == "vehicle_recovery":
+            target_roles = ["reaction_team"]
+            title_text = f"🚨 URGENTE: {type_label}"
+            msg_text = f"Misión de recuperación activa en {service_city}. Toca para responder de inmediato."
+        else:
+            target_roles = ["technician"]
+            title_text = f"🔧 Nueva solicitud — {type_label}"
+            msg_text = f"Disponible en {service_city}. Toca para ver detalles y cotizar."
+
+        # Get all active technicians or reaction team members
         query = select(User).where(
-            User.role == "technician",
+            User.role.in_(target_roles),
             User.is_active
         )
         technicians = session.exec(query).all()
@@ -161,8 +171,8 @@ class NotificationService:
                 session=session,
                 data=NotificationCreate(
                     user_id=tech.id,
-                    title=f"🔧 Nueva solicitud — {type_label}",
-                    message=f"Disponible en {service_city}. Toca para ver detalles y cotizar.",
+                    title=title_text,
+                    message=msg_text,
                     notification_type="service",
                     service_id=service_id
                 )

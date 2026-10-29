@@ -39,7 +39,7 @@ export default function QuotationsScreen() {
         text: 'Aceptar', style: 'default', onPress: async () => {
           setAccepting(quotationId);
           try {
-            await fetchWithAuth(`/quotations/${quotationId}/accept`, { method: 'POST' });
+            await fetchWithAuth(`/quotations/${quotationId}/approve`, { method: 'PATCH' });
             Alert.alert('¡Cotización aceptada!', 'Tu técnico ha sido notificado.', [
               { text: 'OK', onPress: () => router.replace(`/(client)/service/${id}` as any) },
             ]);

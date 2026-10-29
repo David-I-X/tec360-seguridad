@@ -198,7 +198,8 @@ async def accept_service(
     return await service_service.accept_service(
         session=session,
         service_id=service_id,
-        technician_id=current_user["id"]
+        technician_id=current_user["id"],
+        user_role=current_user.get("role", "technician")
     )
 
 
@@ -436,6 +437,21 @@ async def find_nearby_technicians(
     """
     Busca técnicos cercanos disponibles.
     """
+    # R1: IDOR validation - clients can only search nearby technicians for their own services
+    from uuid import UUID as PyUUID
+    from app.models.service import Service
+    try:
+        svc_uuid = PyUUID(service_id)
+        service = session.get(Service, svc_uuid)
+    except Exception:
+        service = None
+
+    if not service:
+        raise HTTPException(status_code=404, detail="Servicio no encontrado")
+
+    if current_user["role"] == "client" and str(service.client_id) != str(current_user["id"]):
+        raise HTTPException(status_code=403, detail="No tienes permiso para ver técnicos de este servicio")
+
     return await service_service.find_nearby_technicians(
         session=session,
         service_id=service_id,
