@@ -37,3 +37,7 @@ This repository contains the source code for Tec360 Seguridad. The codebase is a
 ### Mobile
 - Uses `expo-router` for file-based routing. Styling uses standard React Native `StyleSheet` (no Nativewind). 
 - Use `<Image>`, `react-native-maps`, and `expo-secure-store` for native counterparts to web technologies.
+
+## Development Pipelines & Triggers
+- **Codework Pipeline (`"utiliza codework"` / `"codework"`):** Executes `.agents/skills/codework/SKILL.md`. Rigorous 6-phase senior engineering workflow based on Addy Osmani's `agent-skills`: Define/Spec -> Plan -> Build TDD -> Verify Quality Gates -> Review 5-Axis -> Ship/Rollback.
+- **Brandingwork Pipeline (`"ejecútalo con brandingwork"`):** Executes `.agents/skills/brandingwork/SKILL.md`. Design and audit first in FigCraft before writing code; strict adherence to official logo and brand tokens.
