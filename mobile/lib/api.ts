@@ -748,3 +748,85 @@ export async function markSeenBasicCoursesModal(userId?: string): Promise<void> 
 
 export { API_URL };
 
+
+
+// ============================================
+// DESPACHO INTELIGENTE (FASES A, B, C)
+// ============================================
+
+export interface DispatchOffer {
+  id: string;
+  service_id: string;
+  technician_id: string;
+  wave: number;
+  status: 'pending' | 'accepted' | 'rejected' | 'expired' | 'cancelled';
+  score: number;
+  distance_km?: number | null;
+  offered_at: string;
+  expires_at: string;
+  responded_at?: string | null;
+  time_left_seconds?: number | null;
+
+  // Contexto del servicio
+  service_title?: string | null;
+  service_type?: string | null;
+  service_address?: string | null;
+  service_city?: string | null;
+  estimated_price?: number | null;
+  vehicle_type?: string | null;
+  vehicle_model?: string | null;
+  vehicle_plate?: string | null;
+}
+
+export interface DispatchOfferListResponse {
+  offers: DispatchOffer[];
+  total: number;
+}
+
+export interface DispatchOfferActionResponse {
+  success: boolean;
+  offer_id: string;
+  status: string;
+  message: string;
+  service_id: string;
+  service_status?: string | null;
+}
+
+export interface DemandHotspot {
+  zone_name: string;
+  center_lat: number;
+  center_lng: number;
+  active_requests_count: number;
+  urgency_level: 'high' | 'medium' | 'normal';
+  recommendation: string;
+}
+
+export interface DemandHotspotsResponse {
+  hotspots: DemandHotspot[];
+  total: number;
+}
+
+export async function getMyDispatchOffers(): Promise<DispatchOfferListResponse> {
+  const response = await fetchWithAuth('/dispatch/my-offers', { method: 'GET' });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function acceptDispatchOffer(offerId: string): Promise<DispatchOfferActionResponse> {
+  const response = await fetchWithAuth('/dispatch/offers/' + offerId + '/accept', { method: 'POST' });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function rejectDispatchOffer(offerId: string): Promise<DispatchOfferActionResponse> {
+  const response = await fetchWithAuth('/dispatch/offers/' + offerId + '/reject', { method: 'POST' });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function getDemandHotspots(): Promise<DemandHotspotsResponse> {
+  const response = await fetchWithAuth('/dispatch/analytics/hotspots', { method: 'GET' });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+

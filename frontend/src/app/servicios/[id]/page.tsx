@@ -21,6 +21,7 @@ import { RatingModal } from "@/components/ratings/rating-modal"
 import PaymentModal from "@/components/PaymentModal"
 import { ServiceConfirmationModal } from "@/components/services/service-confirmation-modal"
 import { TrackingSimulator } from "@/components/services/tracking-simulator"
+import { DispatchRadarCard } from "@/components/services/dispatch-radar-card"
 import { StarDisplay } from "@/components/ui/star-rating"
 import { getAvatarUrl } from "@/lib/utils"
 import Link from "next/link"
@@ -83,6 +84,92 @@ const typeLabels: Record<string, string> = {
 }
 
 const API_URL = getApiBaseUrl()
+
+export type PillarType = "instalacion" | "reaccion" | "mecanica"
+
+export interface PillarConfig {
+    type: PillarType
+    name: string
+    colorHex: string
+    borderClass: string
+    borderHover: string
+    badgeBg: string
+    badgeText: string
+    badgeBorder: string
+    plateBg: string
+    plateText: string
+    plateBorder: string
+    btnClass: string
+    iconClass: string
+    accentText: string
+}
+
+export function getPillarConfig(serviceType?: string): PillarConfig {
+    switch (serviceType) {
+        case "vehicle_recovery":
+            return {
+                type: "reaccion",
+                name: "Equipo de Reacción 24/7",
+                colorHex: "#E11D48",
+                borderClass: "border-rose-500/30",
+                borderHover: "hover:border-rose-500/60",
+                badgeBg: "bg-rose-500/10",
+                badgeText: "text-rose-400",
+                badgeBorder: "border-rose-500/30",
+                plateBg: "bg-rose-950/40",
+                plateText: "text-rose-300",
+                plateBorder: "border-rose-500/30",
+                btnClass: "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/25",
+                iconClass: "text-rose-400 bg-rose-500/15 border-rose-500/30",
+                accentText: "text-rose-400",
+            }
+        case "oil_change":
+        case "tire_change":
+        case "battery_service":
+        case "brake_service":
+        case "chain_kit_service":
+        case "spark_bulbs_wipers":
+            return {
+                type: "mecanica",
+                name: "Mecánica Básica Express",
+                colorHex: "#F59E0B",
+                borderClass: "border-amber-500/30",
+                borderHover: "hover:border-amber-500/60",
+                badgeBg: "bg-amber-500/10",
+                badgeText: "text-amber-400",
+                badgeBorder: "border-amber-500/30",
+                plateBg: "bg-amber-950/40",
+                plateText: "text-amber-300",
+                plateBorder: "border-amber-500/30",
+                btnClass: "bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold shadow-amber-500/25",
+                iconClass: "text-amber-400 bg-amber-500/15 border-amber-500/30",
+                accentText: "text-amber-400",
+            }
+        case "camera_installation":
+        case "alarm_installation":
+        case "gps_installation":
+        case "camera_maintenance":
+        case "alarm_maintenance":
+        case "gps_maintenance":
+        default:
+            return {
+                type: "instalacion",
+                name: "Instalaciones Vehiculares",
+                colorHex: "#2563EB",
+                borderClass: "border-blue-500/30",
+                borderHover: "hover:border-blue-500/60",
+                badgeBg: "bg-blue-500/10",
+                badgeText: "text-blue-400",
+                badgeBorder: "border-blue-500/30",
+                plateBg: "bg-blue-950/40",
+                plateText: "text-blue-300",
+                plateBorder: "border-blue-500/30",
+                btnClass: "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/25",
+                iconClass: "text-blue-400 bg-blue-500/15 border-blue-500/30",
+                accentText: "text-blue-400",
+            }
+    }
+}
 
 function ServiceDetailContent() {
     const params = useParams()
@@ -279,6 +366,7 @@ function ServiceDetailContent() {
         dotColor: "bg-slate-400"
     }
 
+    const pillar = getPillarConfig(service.service_type)
     const isLive = ["assigned", "en_route", "arrived", "in_progress"].includes(service.status)
     const isTechnician = user?.role === "technician" || user?.role === "reaction_team"
     const showQuotationsCard = user?.role === "client" && ["pending", "quoted"].includes(service.status)
@@ -304,32 +392,16 @@ function ServiceDetailContent() {
             {/* ══════════════════════════════════════════════════════════
                 2. FLOATING OVERLAYS ON THE MAP
             ══════════════════════════════════════════════════════════ */}
-            {/* Top-Left: Navigation Back + Live Connection Pill */}
+            {/* Top-Left: Navigation Back Button (Sin píldoras tácticas adicionales) */}
             <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-20 flex items-center gap-2">
-                <Button
-                    variant="outline"
-                    size="sm"
+                <button
                     onClick={() => router.push("/servicios")}
-                    className="rounded-xl bg-white/95 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/90 dark:border-white/10 backdrop-blur-xl shadow-lg text-xs font-semibold text-slate-800 dark:text-slate-200 gap-1.5 px-3 py-1.5 h-8 sm:h-9 cursor-pointer"
+                    className="rounded-xl bg-slate-950/90 hover:bg-slate-900 border border-white/20 backdrop-blur-xl shadow-xl text-xs font-semibold text-white flex items-center gap-2 px-3.5 py-1.5 h-8 sm:h-9 cursor-pointer transition-all hover:border-white/30"
                 >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>Volver</span>
-                </Button>
-
-                {isLive && (
-                    <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 h-8 sm:h-9 rounded-xl bg-white/95 dark:bg-slate-900/90 border border-slate-200/90 dark:border-white/10 backdrop-blur-xl shadow-lg text-xs font-mono font-medium">
-                        <span className="relative flex h-2 w-2 shrink-0">
-                            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${isConnected ? "bg-emerald-500" : "bg-amber-500"} opacity-75`} />
-                            <span className={`relative inline-flex rounded-full h-2 w-2 ${isConnected ? "bg-emerald-500" : "bg-amber-500"}`} />
-                        </span>
-                        <span className="hidden sm:inline text-slate-700 dark:text-slate-300">
-                            {isConnected ? "ENLACE EN VIVO" : "RECONECTANDO"}
-                        </span>
-                        <span className="sm:hidden text-[10px] font-bold text-slate-700 dark:text-slate-300">
-                            {isConnected ? "EN VIVO" : "..."}
-                        </span>
-                    </div>
-                )}
+                    <ArrowLeft className="w-4 h-4 text-white" />
+                    <span className="hidden sm:inline">Volver a Servicios</span>
+                    <span className="sm:hidden">Volver</span>
+                </button>
             </div>
 
             {/* Top-Right: Open Details Slide (Floating button when slide is closed) */}
@@ -343,7 +415,7 @@ function ServiceDetailContent() {
                     >
                         <Button
                             onClick={() => setIsSlideOpen(true)}
-                            className="rounded-xl bg-violet-600 hover:bg-violet-700 text-white shadow-xl shadow-violet-600/25 font-semibold text-xs flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 h-8 sm:h-9 cursor-pointer transition-all"
+                            className={`rounded-xl ${pillar.btnClass} shadow-xl font-semibold text-xs flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 h-8 sm:h-9 cursor-pointer transition-all`}
                         >
                             <PanelRightOpen className="w-4 h-4" />
                             <span>Ver Detalles</span>
@@ -366,20 +438,20 @@ function ServiceDetailContent() {
                     >
                         <button
                             onClick={() => setIsSlideOpen(true)}
-                            className="w-full flex items-center justify-between p-3 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 shadow-xl cursor-pointer active:scale-[0.99] transition-transform"
+                            className="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-950/95 backdrop-blur-xl border border-white/10 shadow-xl cursor-pointer active:scale-[0.99] transition-transform"
                         >
                             <div className="flex items-center gap-2.5 min-w-0">
                                 <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusInfo.dotColor}`} />
                                 <div className="text-left truncate">
-                                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                    <p className="text-xs font-bold text-white font-display truncate">
                                         {service.title || "Servicio Técnico"}
                                     </p>
-                                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                                    <p className="text-[10px] text-slate-400 font-mono">
                                         {statusInfo.label} {service.estimated_price ? `· $${service.estimated_price.toLocaleString()}` : ""}
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-1 text-xs font-semibold text-violet-600 dark:text-violet-400 shrink-0 bg-violet-500/10 px-2.5 py-1 rounded-xl">
+                            <div className={`flex items-center gap-1 text-xs font-semibold ${pillar.accentText} shrink-0 bg-white/5 px-2.5 py-1 rounded-xl`}>
                                 <span>Detalles</span>
                                 <ChevronRight className="w-3.5 h-3.5" />
                             </div>
@@ -440,21 +512,26 @@ function ServiceDetailContent() {
                         {/* ── Slide Header ────────────────────────────────── */}
                         <div className="p-3.5 sm:p-5 border-b border-slate-200/80 dark:border-white/10 flex items-center justify-between gap-3 bg-slate-50/70 dark:bg-slate-900/40">
                             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-violet-600/10 dark:bg-violet-500/20 border border-violet-500/30 flex items-center justify-center shrink-0 text-violet-600 dark:text-violet-400">
+                                <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl border flex items-center justify-center shrink-0 ${pillar.iconClass}`}>
                                     <Shield className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </div>
                                 <div className="min-w-0">
-                                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-tight truncate">
+                                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white font-display tracking-tight truncate">
                                         {service.title || "Servicio Técnico"}
                                     </h2>
-                                    <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
-                                        {typeLabels[service.service_type] || service.service_type}
+                                    <p className="text-[10px] sm:text-[11px] font-mono font-medium truncate flex items-center gap-1.5">
+                                        <span className={pillar.accentText}>{pillar.name}</span>
+                                        {service.service_metadata?.vehicle_plate && (
+                                            <span className={`px-1.5 py-0.5 rounded border text-[9px] font-bold ${pillar.plateBg} ${pillar.plateText} ${pillar.plateBorder}`}>
+                                                [{String(service.service_metadata.vehicle_plate).toUpperCase()}]
+                                            </span>
+                                        )}
                                     </p>
                                 </div>
                             </div>
 
                             <div className="flex items-center gap-2 shrink-0">
-                                <span className={`inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-medium border ${statusInfo.color}`}>
+                                <span className={`inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-mono font-medium border ${statusInfo.color}`}>
                                     <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dotColor}`} />
                                     {statusInfo.label}
                                 </span>
@@ -474,11 +551,11 @@ function ServiceDetailContent() {
                             {/* 1. Timestamp & Location Banner (Matching Reference) */}
                             <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400 pb-1">
                                 <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                                    <Clock className="w-3.5 h-3.5 text-violet-500 shrink-0" />
+                                    <Clock className={`w-3.5 h-3.5 ${pillar.accentText} shrink-0`} />
                                     <span>
                                         {service.scheduled_date ? (
                                             <>
-                                                <strong className="text-slate-800 dark:text-slate-200">Hora del servicio:</strong>{" "}
+                                                <strong className="text-slate-800 dark:text-slate-200 font-sans">Hora del servicio:</strong>{" "}
                                                 {format(new Date(service.scheduled_date), "PPP 'a las' p", { locale: es })}
                                             </>
                                         ) : (
@@ -563,46 +640,51 @@ function ServiceDetailContent() {
                             {/* 3. CURRENT STATUS HUD (Matching Reference 4-Column Bar with Hora) */}
                             <div className="rounded-2xl p-4 bg-slate-100/90 dark:bg-slate-900/80 border border-slate-200/90 dark:border-white/10 shadow-sm">
                                 <span className="block text-[10px] font-mono uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400 mb-2.5">
-                                    CURRENT STATUS
+                                    CONSOLA OPERATIVA // ESTADO
                                 </span>
                                 <div className="grid grid-cols-4 divide-x divide-slate-200 dark:divide-white/10 text-center">
                                     <div className="px-1.5">
-                                        <p className="text-[9px] uppercase tracking-wider font-bold text-slate-400 mb-0.5">Estado</p>
-                                        <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                        <p className="text-[9px] uppercase tracking-wider font-bold text-slate-400 mb-0.5 font-mono">Estado</p>
+                                        <p className="text-xs font-bold text-slate-900 dark:text-white truncate font-mono">
                                             {statusInfo.label}
                                         </p>
                                     </div>
                                     <div className="px-1.5">
-                                        <p className="text-[9px] uppercase tracking-wider font-bold text-slate-400 mb-0.5">Precio Est.</p>
-                                        <p className="text-xs font-mono font-bold text-violet-600 dark:text-violet-400">
+                                        <p className="text-[9px] uppercase tracking-wider font-bold text-slate-400 mb-0.5 font-mono">Precio Est.</p>
+                                        <p className={`text-xs font-mono font-bold ${pillar.accentText}`}>
                                             {service.estimated_price ? `$${service.estimated_price.toLocaleString()}` : "Por cotizar"}
                                         </p>
                                     </div>
                                     <div className="px-1.5">
-                                        <p className="text-[9px] uppercase tracking-wider font-bold text-slate-400 mb-0.5">Fecha</p>
-                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                                        <p className="text-[9px] uppercase tracking-wider font-bold text-slate-400 mb-0.5 font-mono">Fecha</p>
+                                        <p className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 truncate">
                                             {service.scheduled_date ? format(new Date(service.scheduled_date), "dd/MM/yyyy", { locale: es }) : "Inmediata"}
                                         </p>
                                     </div>
                                     <div className="px-1.5">
-                                        <p className="text-[9px] uppercase tracking-wider font-bold text-slate-400 mb-0.5">Hora</p>
-                                        <p className="text-xs font-mono font-bold text-violet-600 dark:text-violet-400 truncate">
+                                        <p className="text-[9px] uppercase tracking-wider font-bold text-slate-400 mb-0.5 font-mono">Hora</p>
+                                        <p className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 truncate">
                                             {service.scheduled_date ? format(new Date(service.scheduled_date), "hh:mm a", { locale: es }) : "Por definir"}
                                         </p>
                                     </div>
                                 </div>
                             </div>
 
+                            {/* Radar de Despacho Inteligente para Cliente */}
+                            {user?.role === "client" && ["pending", "quoted"].includes(service.status) && (
+                                <DispatchRadarCard service={service} />
+                            )}
+
                             {/* 4. Quotations Card (for pending/quoted clients) */}
                             {showQuotationsCard && (
-                                <div className="rounded-2xl p-4 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-indigo-500/10 border border-blue-500/30 shadow-sm">
+                                <div className={`rounded-2xl p-4 bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-slate-900/40 border ${pillar.borderClass} shadow-sm`}>
                                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                                            <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-500 flex items-center justify-center shrink-0">
+                                            <div className={`w-10 h-10 rounded-xl ${pillar.badgeBg} ${pillar.accentText} flex items-center justify-center shrink-0`}>
                                                 <FileText className="w-5 h-5" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                                                <h4 className="text-xs font-bold text-slate-900 dark:text-white font-display">
                                                     {service.status === "quoted" ? "¡Tienes cotizaciones disponibles!" : "Esperando cotizaciones"}
                                                 </h4>
                                                 <p className="text-[11px] text-slate-600 dark:text-slate-400">
@@ -613,7 +695,7 @@ function ServiceDetailContent() {
                                         <Button
                                             size="sm"
                                             onClick={() => router.push(`/servicios/${params.id}/cotizaciones`)}
-                                            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shrink-0 cursor-pointer"
+                                            className={`w-full sm:w-auto ${pillar.btnClass} text-xs font-semibold shrink-0 cursor-pointer`}
                                         >
                                             Ver Cotizaciones
                                         </Button>
@@ -628,7 +710,7 @@ function ServiceDetailContent() {
                                         DATOS DEL CLIENTE
                                     </span>
                                     <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center text-lg font-bold text-white shadow-md">
+                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-lg font-bold text-white shadow-md">
                                             {(service.client.full_name || "C").charAt(0)}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -636,7 +718,7 @@ function ServiceDetailContent() {
                                                 {service.client.full_name || "Cliente"}
                                             </p>
                                             {service.client.phone && (
-                                                <a href={`tel:${service.client.phone}`} className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-0.5 font-medium">
+                                                <a href={`tel:${service.client.phone}`} className={`text-xs ${pillar.accentText} hover:underline flex items-center gap-1 mt-0.5 font-medium`}>
                                                     <Phone className="w-3 h-3" /> {service.client.phone}
                                                 </a>
                                             )}
@@ -647,7 +729,7 @@ function ServiceDetailContent() {
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                             >
-                                                <Button size="sm" variant="outline" className="rounded-xl text-xs text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer">
+                                                <Button size="sm" variant="outline" className="rounded-xl text-xs text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer">
                                                     WhatsApp
                                                 </Button>
                                             </a>
@@ -656,7 +738,7 @@ function ServiceDetailContent() {
                                             <Button
                                                 size="sm"
                                                 onClick={() => setIsChatOpen(true)}
-                                                className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-semibold gap-1.5 shrink-0 shadow-md cursor-pointer"
+                                                className={`${pillar.btnClass} rounded-xl text-xs font-semibold gap-1.5 shrink-0 shadow-md cursor-pointer`}
                                             >
                                                 <MessageSquare className="w-3.5 h-3.5" />
                                                 <span>Chat</span>
@@ -665,15 +747,15 @@ function ServiceDetailContent() {
                                     </div>
                                 </div>
                             ) : service.technician ? (
-                                <div className="rounded-2xl p-4 bg-white/80 dark:bg-slate-900/80 border border-slate-200/90 dark:border-white/10 shadow-sm space-y-3">
+                                <div className={`rounded-2xl p-4 bg-white/80 dark:bg-slate-900/80 border ${pillar.borderClass} shadow-sm space-y-3`}>
                                     <div className="flex items-center justify-between">
                                         <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400">
-                                            {service.service_type === "vehicle_recovery" ? "EQUIPO ASIGNADO" : "TÉCNICO ASIGNADO"}
+                                            {service.service_type === "vehicle_recovery" ? "EQUIPO DE REACCIÓN CERTIFICADO" : "ESPECIALISTA CERTIFICADO TEC360"}
                                         </span>
                                         {service.technician.user_id && (
                                             <Link
                                                 href={`/tecnicos/perfil/${service.technician.user_id}`}
-                                                className="text-[11px] font-semibold text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-0.5"
+                                                className={`text-[11px] font-semibold ${pillar.accentText} hover:underline flex items-center gap-0.5`}
                                             >
                                                 <span>Ver perfil</span>
                                                 <ExternalLink className="w-3 h-3" />
@@ -689,19 +771,19 @@ function ServiceDetailContent() {
                                                 className="w-12 h-12 rounded-xl object-cover border border-slate-200 dark:border-white/10"
                                             />
                                         ) : (
-                                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-lg font-bold text-white shadow-md">
+                                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-lg font-bold text-white shadow-md">
                                                 {(service.technician.full_name || "T").charAt(0)}
                                             </div>
                                         )}
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate font-display">
                                                 {service.technician.full_name || "Técnico Certificado"}
                                             </p>
                                             {service.technician.average_rating > 0 && (
                                                 <StarDisplay rating={service.technician.average_rating} size="sm" className="mt-0.5" />
                                             )}
                                             <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                                                {service.technician.email || "Técnico Verificado SENA"}
+                                                {service.technician.email || "Técnico Certificado Oficial"}
                                             </p>
                                         </div>
 
@@ -710,7 +792,7 @@ function ServiceDetailContent() {
                                             <Button
                                                 size="sm"
                                                 onClick={() => setIsChatOpen(true)}
-                                                className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-semibold gap-1.5 shrink-0 shadow-md cursor-pointer"
+                                                className={`${pillar.btnClass} rounded-xl text-xs font-semibold gap-1.5 shrink-0 shadow-md cursor-pointer`}
                                             >
                                                 <MessageSquare className="w-3.5 h-3.5" />
                                                 <span>Chat</span>
@@ -762,7 +844,7 @@ function ServiceDetailContent() {
                                     </div>
                                     <Button
                                         onClick={() => setConfirmModalMode("inspection")}
-                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md cursor-pointer py-2.5 rounded-xl"
+                                        className={`w-full ${pillar.btnClass} font-bold text-xs shadow-md cursor-pointer py-2.5 rounded-xl`}
                                     >
                                         📋 Revisar y Confirmar Inspección
                                     </Button>
@@ -787,7 +869,7 @@ function ServiceDetailContent() {
                                     </div>
                                     <Button
                                         onClick={() => setConfirmModalMode("completion")}
-                                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md cursor-pointer py-2.5 rounded-xl"
+                                        className={`w-full ${pillar.btnClass} font-bold text-xs shadow-md cursor-pointer py-2.5 rounded-xl`}
                                     >
                                         ⭐ Confirmar Conformidad y Calificar
                                     </Button>

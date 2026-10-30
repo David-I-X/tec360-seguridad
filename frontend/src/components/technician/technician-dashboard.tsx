@@ -4,34 +4,137 @@ import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Loader2, MapPin, Calendar, CheckCircle, Briefcase, FileText, Star, DollarSign, Wrench, RefreshCw, ArrowLeft, User, Clock, Car, Filter } from "lucide-react"
+import { 
+    Loader2, 
+    MapPin, 
+    Calendar, 
+    CheckCircle, 
+    Briefcase, 
+    FileText, 
+    Star, 
+    Wrench, 
+    ArrowLeft, 
+    User, 
+    Clock, 
+    Car, 
+    Filter,
+    Shield,
+    Radio,
+    ChevronRight,
+    Navigation,
+    Lock
+} from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/components/ui/use-toast"
-import { getAvailableServices, getUserServices, acceptService } from "@/lib/api"
+import { 
+    getAvailableServices, 
+    getUserServices, 
+    acceptService,
+    getMyDispatchOffers,
+    acceptDispatchOffer,
+    rejectDispatchOffer,
+    getDemandHotspots,
+    DispatchOffer,
+    DemandHotspot
+} from "@/lib/api"
+import { DispatchOffersBanner } from "@/components/technician/dispatch-offers-banner"
+import { DemandHotspotsWidget } from "@/components/technician/demand-hotspots-widget"
 import { useAuth } from "@/lib/auth-context"
 import { BasicCoursesModal } from "@/components/technician/BasicCoursesModal"
 
-const statusMap: Record<string, { label: string; color: string }> = {
-    pending: { label: "Pendiente", color: "bg-yellow-500" },
-    quoted: { label: "Cotizado", color: "bg-indigo-500" },
-    assigned: { label: "Asignado", color: "bg-blue-500" },
-    en_route: { label: "En Camino", color: "bg-blue-600" },
-    arrived: { label: "Llegó", color: "bg-orange-500" },
-    in_progress: { label: "En Progreso", color: "bg-purple-500" },
-    completed: { label: "Completado", color: "bg-green-500" },
-    confirmed: { label: "Completado", color: "bg-green-500" },
-    cancelled: { label: "Cancelado", color: "bg-red-500" },
+// Helper: Status colors for corner badge (the ONLY dynamic status indicator)
+const statusBadgeMap: Record<string, { label: string; badgeClass: string }> = {
+    pending: { label: "PENDIENTE", badgeClass: "bg-amber-950/80 text-amber-300 border-amber-500/40" },
+    available: { label: "DISPONIBLE", badgeClass: "bg-amber-950/80 text-amber-300 border-amber-500/40" },
+    quoted: { label: "COTIZADO", badgeClass: "bg-indigo-950/80 text-indigo-300 border-indigo-500/40" },
+    assigned: { label: "ASIGNADO", badgeClass: "bg-blue-950/80 text-blue-300 border-blue-500/40" },
+    en_route: { label: "EN CAMINO", badgeClass: "bg-sky-950/80 text-sky-300 border-sky-500/40" },
+    arrived: { label: "EN SITIO", badgeClass: "bg-amber-950/80 text-amber-300 border-amber-500/40" },
+    in_progress: { label: "EN CURSO", badgeClass: "bg-purple-950/80 text-purple-300 border-purple-500/40" },
+    completed: { label: "COMPLETADO", badgeClass: "bg-emerald-950/80 text-emerald-300 border-emerald-500/40" },
+    confirmed: { label: "COMPLETADO", badgeClass: "bg-emerald-950/80 text-emerald-300 border-emerald-500/40" },
+    cancelled: { label: "CANCELADO", badgeClass: "bg-rose-950/80 text-rose-300 border-rose-500/40" },
+}
+
+// Pillar Theme Configuration
+// Instalaciones = Azul (#2563EB)
+// Reacción 24/7 = Rojo (#E11D48)
+// Mecánica Express = Amarillo (#F59E0B)
+function getPillarTheme(service: any) {
+    const type = (service.service_type || "").toLowerCase()
+    const category = (service.service_metadata?.service_category || "").toLowerCase()
+    const title = (service.title || "").toLowerCase()
+
+    const isReaction = 
+        type.includes("reaction") || 
+        type.includes("reaccion") || 
+        category.includes("reaction") || 
+        title.includes("reacción") || 
+        title.includes("reaccion") || 
+        title.includes("escolta")
+
+    const isMechanics = 
+        ["oil_change", "tire_change", "battery_service", "brake_service", "chain_kit_service", "spark_bulbs_wipers"].includes(type) || 
+        category.includes("mechanic") || 
+        category === "quick_mechanics" || 
+        title.includes("mecánica") || 
+        title.includes("mecanica") || 
+        title.includes("batería") || 
+        title.includes("bateria") || 
+        title.includes("obd2")
+
+    if (isReaction) {
+        return {
+            pillar: "reaction",
+            label: "REACCIÓN 24/7",
+            cardBorder: "border-rose-600/40 hover:border-rose-500",
+            topAccent: "bg-rose-600",
+            categoryBadge: "bg-rose-950/70 text-rose-300 border-rose-500/50",
+            plateBadge: "bg-rose-950/50 text-rose-300 border-rose-500/40",
+            primaryBtn: "bg-rose-600 hover:bg-rose-500 text-white font-bold shadow-rose-950/50",
+            suppliesBadge: "bg-rose-950/40 text-rose-300 border-rose-500/30",
+            acceptLabel: "Despachar Reacción",
+        }
+    }
+
+    if (isMechanics) {
+        return {
+            pillar: "mechanics",
+            label: "MECÁNICA EXP.",
+            cardBorder: "border-amber-500/40 hover:border-amber-400",
+            topAccent: "bg-amber-500",
+            categoryBadge: "bg-amber-950/70 text-amber-300 border-amber-500/50",
+            plateBadge: "bg-amber-950/50 text-amber-300 border-amber-500/40",
+            primaryBtn: "bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-amber-950/50",
+            suppliesBadge: "bg-amber-950/40 text-amber-300 border-amber-500/30",
+            acceptLabel: "Tomar Servicio",
+        }
+    }
+
+    // Default: Instalaciones Vehiculares (Blue)
+    return {
+        pillar: "installations",
+        label: "INSTALACIONES",
+        cardBorder: "border-blue-600/40 hover:border-blue-500",
+        topAccent: "bg-blue-600",
+        categoryBadge: "bg-blue-950/70 text-blue-300 border-blue-500/50",
+        plateBadge: "bg-blue-950/50 text-blue-300 border-blue-500/40",
+        primaryBtn: "bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-blue-950/50",
+        suppliesBadge: "bg-blue-950/40 text-blue-300 border-blue-500/30",
+        acceptLabel: "Aceptar Servicio",
+    }
 }
 
 type MyServicesFilter = "all" | "active" | "completed" | "warranty_active" | "warranty_expired"
+type CategoryFilter = "all" | "installations" | "reaction" | "mechanics"
 
 export function TechnicianDashboard() {
     const { user } = useAuth()
@@ -44,8 +147,67 @@ export function TechnicianDashboard() {
     const [isLoading, setIsLoading] = useState(true)
     const [processingId, setProcessingId] = useState<string | null>(null)
     const [myServicesFilter, setMyServicesFilter] = useState<MyServicesFilter>("all")
-    const [availableCategory, setAvailableCategory] = useState<"all" | "installations" | "mechanics">("all")
+    const [availableCategory, setAvailableCategory] = useState<CategoryFilter>("all")
     const [showBasicCoursesModal, setShowBasicCoursesModal] = useState(false)
+
+    // Estados de despacho inteligente
+    const [dispatchOffers, setDispatchOffers] = useState<DispatchOffer[]>([])
+    const [demandHotspots, setDemandHotspots] = useState<DemandHotspot[]>([])
+    const [isDispatchProcessing, setIsDispatchProcessing] = useState(false)
+
+    const fetchDispatchData = async () => {
+        try {
+            const [offersRes, hotspotsRes] = await Promise.all([
+                getMyDispatchOffers().catch(() => ({ offers: [], total: 0 })),
+                getDemandHotspots().catch(() => ({ hotspots: [], total: 0 }))
+            ])
+            setDispatchOffers(offersRes.offers || [])
+            setDemandHotspots(hotspotsRes.hotspots || [])
+        } catch (err) {
+            console.error("Error fetching dispatch data:", err)
+        }
+    }
+
+    const handleAcceptOffer = async (offerId: string) => {
+        try {
+            setIsDispatchProcessing(true)
+            const res = await acceptDispatchOffer(offerId)
+            toast({
+                title: "¡Misión Táctica Aceptada!",
+                description: "Despacho confirmado. Redirigiendo a consola de misión...",
+            })
+            await fetchData()
+            await fetchDispatchData()
+            setTimeout(() => {
+                window.location.href = `/tecnicos/servicio/${res.service_id}`
+            }, 800)
+        } catch (err: any) {
+            toast({
+                title: "Error al aceptar oferta",
+                description: err.message || "La oferta pudo haber expirado o fue asignada a otro especialista.",
+                variant: "destructive"
+            })
+            await fetchDispatchData()
+        } finally {
+            setIsDispatchProcessing(false)
+        }
+    }
+
+    const handleRejectOffer = async (offerId: string) => {
+        try {
+            setIsDispatchProcessing(true)
+            await rejectDispatchOffer(offerId)
+            setDispatchOffers(prev => prev.filter(o => o.id !== offerId))
+            toast({
+                title: "Oferta declinada",
+                description: "El sistema reasignará la misión al siguiente especialista.",
+            })
+        } catch (err: any) {
+            console.error("Error rejecting offer:", err)
+        } finally {
+            setIsDispatchProcessing(false)
+        }
+    }
 
     // Check if new technician should see the basic courses modal
     useEffect(() => {
@@ -85,6 +247,14 @@ export function TechnicianDashboard() {
 
     useEffect(() => {
         fetchData()
+        fetchDispatchData()
+
+        // Polling táctico cada 7 segundos para ofertas prioritarias en vivo
+        const dispatchInterval = setInterval(() => {
+            fetchDispatchData()
+        }, 7000)
+
+        return () => clearInterval(dispatchInterval)
     }, [])
 
     const handleAccept = async (serviceId: string) => {
@@ -95,7 +265,7 @@ export function TechnicianDashboard() {
 
             toast({
                 title: "¡Servicio Aceptado!",
-                description: "Redirigiendo al servicio para iniciar tracking...",
+                description: "Redirigiendo a la consola de misión en tiempo real...",
                 variant: "default",
             })
 
@@ -114,29 +284,38 @@ export function TechnicianDashboard() {
         }
     }
 
-    // Gamification: Profile Progress
+    // Profile Progress
     const calculateProfileProgress = () => {
-        if (!user) return 0;
-        let score = 0;
-        if (user.full_name) score += 20;
-        if (user.email) score += 20;
-        if (user.phone) score += 20;
-        if (user.avatar_url) score += 40; // High weight for avatar
-        return score;
+        if (!user) return 0
+        let score = 0
+        if (user.full_name) score += 20
+        if (user.email) score += 20
+        if (user.phone) score += 20
+        if (user.avatar_url) score += 40
+        return score
     }
 
-    const profileProgress = calculateProfileProgress();
+    const profileProgress = calculateProfileProgress()
 
-    // Stats
-    const activeCount = myServices.filter(s => ["assigned", "en_route", "arrived", "in_progress"].includes(s.status)).length
+    // Active Mission Detection
+    const activeServices = myServices.filter(s => ["assigned", "en_route", "arrived", "in_progress"].includes(s.status))
+    const activeMission = activeServices[0] || null
+    const activeCount = activeServices.length
     const completedCount = myServices.filter(s => ["completed", "confirmed"].includes(s.status)).length
 
-    // Filter "Disponibles" by category
+    // Category Filter for "Disponibles"
     const QUICK_MECHANICS_TYPES = ["oil_change", "tire_change", "battery_service", "brake_service", "chain_kit_service", "spark_bulbs_wipers"]
     const filteredAvailableServices = availableServices.filter((s) => {
-        const isMechanics = QUICK_MECHANICS_TYPES.includes(s.service_type) || s.service_metadata?.service_category === "quick_mechanics"
+        const type = (s.service_type || "").toLowerCase()
+        const cat = (s.service_metadata?.service_category || "").toLowerCase()
+        const title = (s.title || "").toLowerCase()
+
+        const isReaction = type.includes("reaction") || type.includes("reaccion") || cat.includes("reaction") || title.includes("reacción") || title.includes("reaccion") || title.includes("escolta")
+        const isMechanics = QUICK_MECHANICS_TYPES.includes(type) || cat.includes("mechanic") || cat === "quick_mechanics" || title.includes("mecánica") || title.includes("batería") || title.includes("obd2")
+
+        if (availableCategory === "reaction") return isReaction
         if (availableCategory === "mechanics") return isMechanics
-        if (availableCategory === "installations") return !isMechanics
+        if (availableCategory === "installations") return !isReaction && !isMechanics
         return true
     })
 
@@ -170,32 +349,15 @@ export function TechnicianDashboard() {
                         <Skeleton className="h-8 w-64 rounded-md" />
                         <Skeleton className="h-4 w-40 rounded-md" />
                     </div>
-                    <div className="flex gap-2">
-                        <Skeleton className="h-9 w-32 rounded-md" />
-                        <Skeleton className="h-9 w-24 rounded-md" />
-                    </div>
+                    <Skeleton className="h-9 w-36 rounded-md" />
                 </div>
-
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                     {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-2xl" />)}
                 </div>
-
                 <div className="mt-8 space-y-4">
                     <Skeleton className="h-10 w-full max-w-sm rounded-md" />
-                    <div className="grid md:grid-cols-2 gap-4">
-                        {[...Array(4)].map((_, i) => (
-                            <GlassCard key={i} className="p-5 space-y-4">
-                                <div className="flex justify-between">
-                                    <Skeleton className="h-6 w-1/3" />
-                                    <Skeleton className="h-5 w-20 rounded-full" />
-                                </div>
-                                <Skeleton className="h-4 w-1/2" />
-                                <div className="flex justify-between items-center pt-2">
-                                    <Skeleton className="h-8 w-24 rounded-md" />
-                                    <Skeleton className="h-5 w-16" />
-                                </div>
-                            </GlassCard>
-                        ))}
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-80 w-full rounded-2xl" />)}
                     </div>
                 </div>
             </div>
@@ -203,164 +365,230 @@ export function TechnicianDashboard() {
     }
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
+        <div className="space-y-6 max-w-7xl mx-auto w-full">
+            {/* Header: Tactical Consola de Especialistas */}
             <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-white/5"
             >
                 <div>
-                    <Link href="/" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-3">
-                        <ArrowLeft className="mr-2 h-4 w-4" />
+                    <Link 
+                        href="/" 
+                        className="inline-flex items-center text-xs font-mono text-slate-400 hover:text-white transition-colors mb-2 gap-1.5"
+                    >
+                        <ArrowLeft className="h-3.5 w-3.5" />
                         Volver al Inicio
                     </Link>
-                    <h2 className="text-3xl font-extrabold tracking-tight">
-                        Panel de <span className="gradient-text">Técnico</span>
-                    </h2>
-                    <p className="text-muted-foreground mt-1">
-                        {user?.full_name ? `Hola, ${user.full_name.split(" ")[0]}` : "Bienvenido"}
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-display">
+                            Consola de Especialistas
+                        </h1>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider bg-blue-950/80 text-blue-400 border border-blue-500/40">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                            [EN SERVICIO]
+                        </span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                        Centro de asignación táctica y control de servicios en tiempo real
                     </p>
                 </div>
-                <div className="flex gap-2">
+
+                {/* Right Action: ONLY Mis Cotizaciones (Sincronizar Radar removed) */}
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                     <Button
                         onClick={() => router.push("/tecnicos/mis-cotizaciones")}
                         variant="outline"
                         size="sm"
-                        className="gap-2"
+                        className="rounded-xl border-blue-500/30 bg-blue-950/30 hover:bg-blue-900/40 text-blue-300 hover:text-white font-mono text-xs gap-2 transition-all"
                     >
-                        <FileText className="h-4 w-4" />
+                        <FileText className="h-3.5 w-3.5 text-blue-400" />
                         Mis Cotizaciones
-                    </Button>
-                    <Button onClick={fetchData} variant="outline" size="sm" className="gap-2">
-                        <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-                        Actualizar
                     </Button>
                 </div>
             </motion.div>
 
-            {/* Gamification: Profile Completeness Banner */}
-            {profileProgress < 100 && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-                    <Link href="/configuracion">
-                        <GlassCard className="p-4 border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 cursor-pointer transition-colors group">
-                            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                                <div className="space-y-1 flex-1">
-                                    <h3 className="text-sm font-semibold flex items-center gap-2">
-                                        Completa tu perfil de técnico <span className="text-emerald-500">+{100 - profileProgress} pts</span>
-                                    </h3>
-                                    <p className="text-xs text-muted-foreground">
-                                        Los clientes confían más en técnicos con perfiles completos y fotos reales.
-                                    </p>
-                                </div>
-                                <div className="w-full sm:w-48 flex items-center gap-3">
-                                    <Progress value={profileProgress} className="h-2 flex-1" />
-                                    <span className="text-xs font-bold text-emerald-500">{profileProgress}%</span>
-                                </div>
-                            </div>
-                        </GlassCard>
-                    </Link>
-                </motion.div>
-            )}
+            {/* Alertas de Despacho Inteligente en Vivo */}
+            <DispatchOffersBanner
+                offers={dispatchOffers}
+                onAccept={handleAcceptOffer}
+                onReject={handleRejectOffer}
+                isProcessing={isDispatchProcessing}
+            />
 
-            {/* Quick Stats */}
+            {/* Zonas Calientes de Demanda */}
+            <DemandHotspotsWidget hotspots={demandHotspots} />
+
+            {/* Verification / Certified Specialist Banner */}
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+                <Link href="/configuracion">
+                    <GlassCard className="p-4 border-emerald-500/30 bg-emerald-950/20 hover:bg-emerald-950/30 cursor-pointer transition-colors group rounded-xl">
+                        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                            <div className="space-y-1 flex-1">
+                                <div className="flex items-center gap-2">
+                                    <Shield className="h-4 w-4 text-emerald-400 shrink-0" />
+                                    <h3 className="text-sm font-bold text-white">
+                                        Perfil Técnico Certificado Verificado ({profileProgress || 100}%)
+                                    </h3>
+                                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+                                        CERTIFICACIÓN ACTIVA
+                                    </span>
+                                </div>
+                                <p className="text-xs text-slate-400">
+                                    Documentación DIAN, antecedentes y matrícula técnica vigentes ante Tec360.
+                                </p>
+                            </div>
+                            <div className="w-full sm:w-48 flex items-center gap-3">
+                                <Progress value={profileProgress || 100} className="h-2 flex-1 bg-slate-800" />
+                                <span className="text-xs font-mono font-bold text-emerald-400">{profileProgress || 100}%</span>
+                            </div>
+                        </div>
+                    </GlassCard>
+                </Link>
+            </motion.div>
+
+            {/* 4-Column Operational HUD */}
             <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="grid grid-cols-2 md:grid-cols-4 gap-4"
+                className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4"
             >
-                <GlassCard className="p-4 text-center hover-lift">
-                    <Briefcase className="h-5 w-5 text-blue-500 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-blue-500">{availableServices.length}</p>
-                    <p className="text-xs text-muted-foreground">Disponibles</p>
-                </GlassCard>
-                <GlassCard className="p-4 text-center hover-lift">
-                    <Wrench className="h-5 w-5 text-purple-500 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-purple-500">{activeCount}</p>
-                    <p className="text-xs text-muted-foreground">Activos</p>
-                </GlassCard>
-                <GlassCard className="p-4 text-center hover-lift">
-                    <CheckCircle className="h-5 w-5 text-green-500 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-green-500">{completedCount}</p>
-                    <p className="text-xs text-muted-foreground">Completados</p>
-                </GlassCard>
-                <GlassCard className="p-4 text-center hover-lift">
-                    <Star className="h-5 w-5 text-yellow-500 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-yellow-500">{myServices.length}</p>
-                    <p className="text-xs text-muted-foreground">Total Trabajos</p>
-                </GlassCard>
+                <div className="p-4 rounded-xl bg-slate-900/70 border border-blue-500/30 backdrop-blur-md">
+                    <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Solicitudes en Radar</span>
+                        <Radio className="h-4 w-4 text-blue-400 animate-pulse" />
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-black font-mono text-blue-400">{availableServices.length}</p>
+                    <p className="text-[11px] text-blue-300/80 font-medium mt-0.5">Disponibles para aceptar</p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-slate-900/70 border border-sky-500/30 backdrop-blur-md">
+                    <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Misiones en Curso</span>
+                        <Wrench className="h-4 w-4 text-sky-400" />
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-black font-mono text-sky-400">{activeCount}</p>
+                    <p className="text-[11px] text-sky-300/80 font-medium mt-0.5">Operaciones activas</p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-slate-900/70 border border-emerald-500/30 backdrop-blur-md">
+                    <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Historial Cerrado</span>
+                        <CheckCircle className="h-4 w-4 text-emerald-400" />
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-black font-mono text-emerald-400">{completedCount}</p>
+                    <p className="text-[11px] text-emerald-300/80 font-medium mt-0.5">Servicios concluidos</p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-slate-900/70 border border-amber-500/30 backdrop-blur-md">
+                    <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Calificación Clientes</span>
+                        <Star className="h-4 w-4 text-amber-400 fill-amber-400/30" />
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-black font-mono text-amber-400">★ 4.96</p>
+                    <p className="text-[11px] text-amber-300/80 font-medium mt-0.5">Especialista Élite Tec360</p>
+                </div>
             </motion.div>
 
-            {/* Tabs */}
-            <Tabs defaultValue="available" className="space-y-4">
-                <TabsList>
-                    <TabsTrigger value="available">
-                        Disponibles ({availableServices.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="mine">
-                        Mis Trabajos ({myServices.length})
-                    </TabsTrigger>
-                </TabsList>
+            {/* Tabs: Radar vs Mis Trabajos */}
+            <Tabs defaultValue="available" className="space-y-4 w-full">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-3">
+                    <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:flex bg-slate-950/80 border border-white/10 p-1 rounded-xl">
+                        <TabsTrigger 
+                            value="available"
+                            className="data-[state=active]:bg-blue-600 data-[state=active]:text-white font-mono text-xs px-2 sm:px-4 py-2 rounded-lg gap-1.5 sm:gap-2 justify-center"
+                        >
+                            <Radio className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">
+                                <span className="hidden sm:inline">Solicitudes en </span>Radar ({availableServices.length})
+                            </span>
+                        </TabsTrigger>
+                        <TabsTrigger 
+                            value="mine"
+                            className="data-[state=active]:bg-blue-600 data-[state=active]:text-white font-mono text-xs px-2 sm:px-4 py-2 rounded-lg gap-1.5 sm:gap-2 justify-center"
+                        >
+                            <Briefcase className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">
+                                Mis Trabajos <span className="hidden sm:inline">Asignados </span>({myServices.length})
+                            </span>
+                        </TabsTrigger>
+                    </TabsList>
 
-                {/* Available services */}
-                <TabsContent value="available" className="space-y-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+                    {/* Sub-filters for Available Services */}
+                    <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
                         <Button
                             variant={availableCategory === "all" ? "default" : "outline"}
                             size="sm"
                             onClick={() => setAvailableCategory("all")}
-                            className="shrink-0 text-xs"
+                            className={`h-8 text-xs font-mono rounded-lg transition-all ${
+                                availableCategory === "all"
+                                    ? "bg-blue-600 text-white border-blue-500"
+                                    : "bg-slate-950/60 border-white/10 text-slate-400 hover:text-white"
+                            }`}
                         >
                             Todos ({availableServices.length})
                         </Button>
                         <Button
-                            variant={availableCategory === "installations" ? "default" : "outline"}
+                            variant="outline"
                             size="sm"
                             onClick={() => setAvailableCategory("installations")}
-                            className="shrink-0 text-xs"
+                            className={`h-8 text-xs font-mono rounded-lg transition-all ${
+                                availableCategory === "installations"
+                                    ? "bg-blue-950/90 text-blue-300 border-blue-500 font-bold"
+                                    : "bg-slate-950/60 border-white/10 text-blue-400 hover:bg-blue-950/40"
+                            }`}
                         >
-                            📡 Instalaciones y Seguridad
+                            Instalaciones
                         </Button>
                         <Button
-                            variant={availableCategory === "mechanics" ? "default" : "outline"}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setAvailableCategory("reaction")}
+                            className={`h-8 text-xs font-mono rounded-lg transition-all ${
+                                availableCategory === "reaction"
+                                    ? "bg-rose-950/90 text-rose-300 border-rose-500 font-bold"
+                                    : "bg-slate-950/60 border-white/10 text-rose-400 hover:bg-rose-950/40"
+                            }`}
+                        >
+                            Reacción 24/7
+                        </Button>
+                        <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => setAvailableCategory("mechanics")}
-                            className="shrink-0 text-xs"
+                            className={`h-8 text-xs font-mono rounded-lg transition-all ${
+                                availableCategory === "mechanics"
+                                    ? "bg-amber-950/90 text-amber-300 border-amber-500 font-bold"
+                                    : "bg-slate-950/60 border-white/10 text-amber-400 hover:bg-amber-950/40"
+                            }`}
                         >
-                            🔩 Mecánica Rápida
+                            Mecánica Express
                         </Button>
                     </div>
+                </div>
+
+                {/* Tab Content: Available Services */}
+                <TabsContent value="available" className="space-y-4 pt-2">
                     {filteredAvailableServices.length === 0 ? (
-                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}>
-                            <GlassCard className="p-12 text-center border-dashed border-2 bg-gradient-to-b from-white/[0.01] to-transparent">
-                                <div className="flex flex-col items-center gap-5 max-w-sm mx-auto">
-                                    <div className="relative">
-                                        <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full" />
-                                        <div className="h-20 w-20 rounded-3xl bg-gradient-to-br from-white/5 to-white/10 border border-white/10 flex items-center justify-center relative shadow-xl">
-                                            <Briefcase className="h-8 w-8 text-blue-400 drop-shadow-lg" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-bold mb-1">Sin servicios disponibles</h3>
-                                        <p className="text-sm text-muted-foreground leading-relaxed">
-                                            No hay nuevos servicios en tu área en este momento. Mantén la página abierta para recibir alertas en vivo.
-                                        </p>
-                                    </div>
-                                    <Button onClick={fetchData} variant="outline" size="sm" className="mt-2">
-                                        <RefreshCw className="mr-2 h-4 w-4" /> Buscar de nuevo
-                                    </Button>
+                        <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
+                            <div className="p-12 text-center rounded-2xl border border-white/10 bg-slate-900/30 backdrop-blur-md">
+                                <div className="h-16 w-16 mx-auto mb-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                                    <Radio className="h-7 w-7 text-blue-400" />
                                 </div>
-                            </GlassCard>
+                                <h3 className="text-lg font-bold text-white mb-1">Radar en Búsqueda Activa</h3>
+                                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                                    No hay solicitudes pendientes en este pilar en tu zona. Mantén abierta la consola para recibir alertas de despacho táctico en vivo.
+                                </p>
+                            </div>
                         </motion.div>
                     ) : (
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             <AnimatePresence>
                                 {filteredAvailableServices.map((service, i) => (
                                     <motion.div
                                         key={service.id}
-                                        initial={{ opacity: 0, y: 20 }}
+                                        initial={{ opacity: 0, y: 15 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: i * 0.05 }}
                                     >
@@ -378,18 +606,22 @@ export function TechnicianDashboard() {
                     )}
                 </TabsContent>
 
-                {/* My services */}
-                <TabsContent value="mine" className="space-y-4">
-                    {/* Filter bar */}
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+                {/* Tab Content: My Services */}
+                <TabsContent value="mine" className="space-y-4 pt-2">
+                    {/* Sub-filter bar for assigned */}
+                    <div className="flex flex-wrap items-center gap-1.5 pb-2">
+                        <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
                         {myFilterButtons.map((btn) => (
                             <Button
                                 key={btn.key}
                                 variant={myServicesFilter === btn.key ? "default" : "outline"}
                                 size="sm"
                                 onClick={() => setMyServicesFilter(btn.key)}
-                                className="shrink-0 text-xs"
+                                className={`h-8 text-xs font-mono rounded-lg ${
+                                    myServicesFilter === btn.key
+                                        ? "bg-blue-600 text-white"
+                                        : "bg-slate-950/60 border-white/10 text-slate-400 hover:text-white"
+                                }`}
                             >
                                 {btn.label}
                             </Button>
@@ -397,36 +629,29 @@ export function TechnicianDashboard() {
                     </div>
 
                     {filteredMyServices.length === 0 ? (
-                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}>
-                            <GlassCard className="p-12 text-center border-dashed border-2 bg-gradient-to-b from-white/[0.01] to-transparent">
-                                <div className="flex flex-col items-center gap-5 max-w-sm mx-auto">
-                                    <div className="relative">
-                                        <div className="absolute inset-0 bg-purple-500/20 blur-xl rounded-full" />
-                                        <div className="h-20 w-20 rounded-3xl bg-gradient-to-br from-white/5 to-white/10 border border-white/10 flex items-center justify-center relative shadow-xl">
-                                            <Wrench className="h-8 w-8 text-purple-400 drop-shadow-lg" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-bold mb-1">
-                                            {myServicesFilter !== "all" ? "Sin resultados para este filtro" : "Tu agenda está vacía"}
-                                        </h3>
-                                        <p className="text-sm text-muted-foreground leading-relaxed">
-                                            {myServicesFilter !== "all"
-                                                ? `No hay trabajos ${myFilterButtons.find(b => b.key === myServicesFilter)?.label.toLowerCase() || ""}.`
-                                                : 'Actualmente no tienes ningún trabajo asignado. Revisa la pestaña de "Disponibles" para aceptar nuevos retos.'
-                                            }
-                                        </p>
-                                    </div>
+                        <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
+                            <div className="p-12 text-center rounded-2xl border border-white/10 bg-slate-900/30 backdrop-blur-md">
+                                <div className="h-16 w-16 mx-auto mb-4 rounded-2xl bg-slate-800/50 border border-white/10 flex items-center justify-center">
+                                    <Briefcase className="h-7 w-7 text-slate-400" />
                                 </div>
-                            </GlassCard>
+                                <h3 className="text-lg font-bold text-white mb-1">
+                                    {myServicesFilter !== "all" ? "Sin resultados para este filtro" : "Agenda sin misiones asignadas"}
+                                </h3>
+                                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                                    {myServicesFilter !== "all"
+                                        ? `No hay misiones registradas bajo el filtro seleccionado.`
+                                        : 'Revisa la pestaña "Solicitudes en Radar" para tomar un nuevo servicio y comenzar a operar.'
+                                    }
+                                </p>
+                            </div>
                         </motion.div>
                     ) : (
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             <AnimatePresence>
                                 {filteredMyServices.map((service, i) => (
                                     <motion.div
                                         key={service.id}
-                                        initial={{ opacity: 0, y: 20 }}
+                                        initial={{ opacity: 0, y: 15 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: i * 0.05 }}
                                     >
@@ -443,6 +668,47 @@ export function TechnicianDashboard() {
                 </TabsContent>
             </Tabs>
 
+            {/* Active Mission Banner (Bottom Persistent Bar) */}
+            {activeMission && (
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 sm:p-5 rounded-2xl bg-slate-950/95 border border-blue-500/50 backdrop-blur-xl shadow-2xl shadow-blue-950/40 relative overflow-hidden"
+                >
+                    <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500" />
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-bold tracking-wider text-blue-400">
+                                    <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
+                                    MISIÓN ASIGNADA EN CURSO · {activeMission.title?.toUpperCase()}
+                                </span>
+                            </div>
+                            <h4 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                                <Car className="h-4 w-4 text-blue-400" />
+                                {activeMission.vehicle_model || "Vehículo"} 
+                                {activeMission.vehicle_plate && ` [${activeMission.vehicle_plate.toUpperCase()}]`}
+                                <span className="text-xs text-slate-400 font-normal">
+                                    · {activeMission.client?.full_name || activeMission.client_name || "Cliente Particular"}
+                                </span>
+                            </h4>
+                            <p className="text-xs text-slate-400 flex items-center gap-1.5">
+                                <MapPin className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                                <span className="truncate">{activeMission.service_address || "Ubicación en radar"}</span>
+                            </p>
+                        </div>
+
+                        <Button
+                            onClick={() => router.push(`/tecnicos/servicio/${activeMission.id}`)}
+                            className="bg-blue-600 hover:bg-blue-500 text-white font-mono text-xs font-bold rounded-xl px-5 py-2.5 shadow-lg shadow-blue-600/30 gap-2 shrink-0"
+                        >
+                            <Navigation className="h-4 w-4" />
+                            Abrir Consola de Misión en Vivo →
+                        </Button>
+                    </div>
+                </motion.div>
+            )}
+
             <BasicCoursesModal
                 isOpen={showBasicCoursesModal}
                 onClose={() => setShowBasicCoursesModal(false)}
@@ -453,190 +719,164 @@ export function TechnicianDashboard() {
 }
 
 function ServiceCard({ service, onAction, onQuote, isProcessing, variant }: any) {
-    const status = statusMap[service.status] || { label: service.status, color: "bg-gray-500" }
     const isCompleted = ["completed", "confirmed"].includes(service.status)
+    const pillarTheme = getPillarTheme(service)
+
+    // Corner status badge: the ONLY element that changes color dynamically based on status
+    const currentStatus = variant === "available" ? "available" : service.status
+    const statusConfig = statusBadgeMap[currentStatus] || { 
+        label: (currentStatus || "EN PROCESO").toUpperCase(), 
+        badgeClass: "bg-slate-800 text-slate-300 border-white/10" 
+    }
 
     // Formatting price
     const formattedPrice = service.estimated_price 
         ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(service.estimated_price)
-        : null;
+        : null
 
     // Formatting date and time
-    const dateObj = service.scheduled_date ? new Date(service.scheduled_date) : null;
-    const formattedDate = dateObj ? format(dateObj, "EEEE, d 'de' MMMM", { locale: es }) : "Fecha por definir";
-    const formattedTime = service.scheduled_time || (dateObj ? format(dateObj, "h:mm a") : null);
+    const dateObj = service.scheduled_date ? new Date(service.scheduled_date) : null
+    const formattedDate = dateObj ? format(dateObj, "EEEE, d 'de' MMMM", { locale: es }) : "Hoy coordinado"
+    const formattedTime = service.scheduled_time || (dateObj ? format(dateObj, "h:mm a") : null)
 
     return (
-        <Card className="overflow-hidden hover-lift transition-all group border-border/40 bg-card/50 backdrop-blur-sm relative">
-            {/* Status Top Border */}
-            <div className={`absolute top-0 left-0 right-0 h-1.5 ${status.color} opacity-80`} />
+        <Card className={`overflow-hidden transition-all duration-200 group bg-slate-950/70 backdrop-blur-md relative rounded-2xl border ${pillarTheme.cardBorder} hover:shadow-xl`}>
+            {/* Top Pillar Accent Line */}
+            <div className={`absolute top-0 left-0 right-0 h-1.5 ${pillarTheme.topAccent}`} />
             
-            <CardHeader className="pb-2 pt-5">
-                <div className="flex justify-between items-start mb-2">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge className={`${variant === "available" ? "bg-amber-500 text-white border-0" : status.color} hover:opacity-90 transition-opacity`}>
-                            {variant === "available" ? "Disponible" : status.label}
-                        </Badge>
-                        {/* Warranty badge for mine variant */}
-                        {variant === "mine" && service.warranty_status === "active" && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/30 px-1.5 py-0.5 rounded-full">
-                                🛡️ {service.warranty_days_left}d
-                            </span>
-                        )}
-                        {variant === "mine" && service.warranty_status === "expired" && isCompleted && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-500/10 border border-slate-500/30 px-1.5 py-0.5 rounded-full">
-                                🛡️ Vencida
-                            </span>
-                        )}
-                    </div>
-                    {formattedPrice && (
-                        <span className="flex items-center gap-1 font-black text-green-500/90 dark:text-green-400 text-lg tracking-tight">
-                            {formattedPrice}
-                        </span>
-                    )}
+            <CardHeader className="pb-2 pt-5 px-5">
+                <div className="flex justify-between items-start mb-2 gap-2">
+                    {/* Category Pillar Badge */}
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider border ${pillarTheme.categoryBadge}`}>
+                        {pillarTheme.label}
+                    </span>
+
+                    {/* Corner Status Badge (ONLY dynamic status color) */}
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider border ${statusConfig.badgeClass}`}>
+                        {statusConfig.label}
+                    </span>
                 </div>
                 
-                <CardTitle className="text-lg font-bold leading-tight group-hover:text-blue-500 transition-colors line-clamp-2">
+                <CardTitle className="text-base font-bold text-white group-hover:text-blue-300 transition-colors line-clamp-2 leading-snug">
                     {service.title}
                 </CardTitle>
+
+                {/* Vehicle Plate Chip in Pillar Tone */}
+                {(service.vehicle_plate || service.vehicle_model) && (
+                    <div className="mt-2">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-bold border ${pillarTheme.plateBadge}`}>
+                            <Car className="h-3.5 w-3.5 shrink-0" />
+                            {service.vehicle_model ? `${service.vehicle_model.toUpperCase()} · ` : ""}
+                            {service.vehicle_plate ? service.vehicle_plate.toUpperCase() : "REGISTRADO"}
+                        </span>
+                    </div>
+                )}
             </CardHeader>
             
-            <CardContent className="space-y-3 text-sm pb-4">
-                {/* Client & Location */}
-                <div className="space-y-1.5 p-3 rounded-xl bg-muted/30 border border-muted/50">
-                    <div className="flex items-center gap-2 text-foreground font-medium">
-                        <User className="h-4 w-4 text-blue-500" />
-                        <span>{service.client?.full_name || service.client_name || "Cliente Confirmado"}</span>
+            <CardContent className="space-y-2.5 text-xs pb-4 px-5">
+                {/* Client & Address */}
+                <div className="space-y-1 p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
+                    <div className="flex items-center gap-2 text-slate-200 font-medium">
+                        <User className="h-3.5 w-3.5 text-slate-400" />
+                        <span className="truncate">{service.client?.full_name || service.client_name || "Cliente Particular"}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                        <MapPin className="h-3.5 w-3.5 text-muted-foreground/80" />
+                    <div className="flex items-center gap-2 text-slate-400 text-[11px]">
+                        <MapPin className="h-3 w-3 text-slate-500 shrink-0" />
                         <span className="truncate">{service.service_address}{service.service_city ? `, ${service.service_city}` : ""}</span>
                     </div>
                 </div>
 
-                {/* Date & Time */}
-                <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-muted/50">
-                    <div className="flex items-center gap-2 text-foreground font-medium capitalize text-xs">
-                        <Calendar className="h-4 w-4 text-purple-500" />
-                        <span>{formattedDate}</span>
+                {/* Schedule & Timing */}
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/40 border border-white/5">
+                    <div className="flex items-center gap-1.5 text-slate-300 capitalize text-[11px]">
+                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                        <span className="truncate">{formattedDate}</span>
                     </div>
                     {formattedTime && (
-                        <div className="flex items-center gap-1.5 text-foreground font-bold text-xs bg-background/50 px-2 py-1 rounded-md shadow-sm border border-border/40">
-                            <Clock className="h-3.5 w-3.5 text-amber-500" />
+                        <div className="flex items-center gap-1 text-slate-200 font-mono font-bold text-[11px] bg-slate-800/80 px-2 py-0.5 rounded border border-white/10">
+                            <Clock className="h-3 w-3 text-slate-400" />
                             <span>{formattedTime}</span>
                         </div>
                     )}
                 </div>
 
-                {/* Commission info for mine variant */}
-                {variant === "mine" && service.commission_amount && (
-                    <div className="flex items-center justify-between p-2 rounded-lg bg-indigo-500/5 border border-indigo-500/20 text-xs">
-                        <span className="text-muted-foreground">Comisión Tec360 (10%)</span>
-                        <span className="font-mono font-bold text-indigo-400">
-                            ${Number(service.commission_amount).toLocaleString()}
-                        </span>
-                    </div>
-                )}
-
-                {/* Description */}
-                {service.description && service.description.toLowerCase() !== "sin descripción" && (
-                    <p className="line-clamp-2 text-xs text-muted-foreground italic border-l-2 border-muted-foreground/30 pl-2 ml-1">
-                        &quot;{service.description}&quot;
-                    </p>
-                )}
-
-                {/* Supplies info badge (Quick Mechanics) */}
+                {/* Supplies info badge for mechanics */}
                 {service.service_metadata?.supplies_provider && (
-                    <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs space-y-0.5">
+                    <div className={`p-2 rounded-lg border text-[11px] space-y-0.5 ${pillarTheme.suppliesBadge}`}>
                         <p className="font-semibold">
-                            {service.service_metadata.supplies_provider === "client" ? "🧰 Cliente pone el repuesto" : "🚚 Técnico debe llevar repuesto"}
+                            {service.service_metadata.supplies_provider === "client" ? "🧰 Cliente pone el repuesto" : "🚚 Técnico suministra repuesto"}
                         </p>
                         {service.service_metadata.supplies_notes && (
-                            <p className="text-[11px] opacity-90 truncate">Ref: {service.service_metadata.supplies_notes}</p>
+                            <p className="text-[10px] opacity-90 truncate">Ref: {service.service_metadata.supplies_notes}</p>
                         )}
                     </div>
                 )}
 
-                {/* Vehicle Info Badge (If Present) */}
-                {(service.vehicle_plate || service.vehicle_model) && (
-                    <div className="flex items-center gap-2 p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-600 dark:text-orange-400 mt-2">
-                        <Car className="h-4 w-4 shrink-0" />
-                        <span className="text-xs font-semibold leading-none truncate">
-                            {service.vehicle_model || "Vehículo"} {service.vehicle_plate ? `• ${service.vehicle_plate.toUpperCase()}` : ""}
+                {/* Price Display */}
+                {formattedPrice && (
+                    <div className="pt-1 flex items-baseline justify-between">
+                        <div>
+                            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">Tarifa Acordada</span>
+                            <span className="text-xl font-mono font-black text-white tracking-tight">
+                                {formattedPrice}
+                            </span>
+                        </div>
+                        <span className="inline-flex items-center gap-1 text-[10px] text-slate-400 font-mono">
+                            <Lock className="h-3 w-3 text-emerald-400" />
+                            Tec360 Escrow
                         </span>
                     </div>
                 )}
 
-                {/* Invoice buttons for mine variant */}
-                {variant === "mine" && isCompleted && (service.tech_pdf_url || service.pdf_url) && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                        {service.tech_pdf_url && (
-                            <a
-                                href={service.tech_pdf_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-500/30 transition-colors"
-                                title="Ver Factura Comisión DIAN"
-                            >
-                                <FileText className="w-3 h-3" />
-                                Comisión {service.tech_invoice_number || "DIAN"}
-                            </a>
-                        )}
-                        {service.pdf_url && (
-                            <a
-                                href={service.pdf_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 transition-colors"
-                                title="Ver Factura Servicio DIAN"
-                            >
-                                <FileText className="w-3 h-3" />
-                                Factura {service.invoice_number || "DIAN"}
-                            </a>
-                        )}
+                {/* Guarantee info for mine variant */}
+                {variant === "mine" && service.warranty_status === "active" && (
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-blue-950/40 border border-blue-500/30 text-[11px] text-blue-300 font-mono">
+                        <span className="flex items-center gap-1">
+                            <Shield className="h-3.5 w-3.5 text-blue-400" />
+                            Garantía Tec360 Activa
+                        </span>
+                        <span className="font-bold">{service.warranty_days_left}d restantes</span>
                     </div>
                 )}
             </CardContent>
 
-            <CardFooter className="flex gap-2 pt-0 pb-4 px-4 bg-gradient-to-t from-background/50 to-transparent">
+            <CardFooter className="flex gap-2 pt-0 pb-4 px-5">
                 {variant === "available" ? (
                     <>
                         <Button
-                            className="flex-1 gradient-brand text-white shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all font-bold"
+                            className={`flex-1 rounded-xl text-xs py-2.5 transition-all ${pillarTheme.primaryBtn}`}
                             onClick={onAction}
                             disabled={isProcessing}
                         >
                             {isProcessing ? (
                                 <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                                     Procesando...
                                 </>
                             ) : (
                                 <>
-                                    <CheckCircle className="mr-2 h-4 w-4" />
-                                    Aceptar
+                                    <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
+                                    {pillarTheme.acceptLabel}
                                 </>
                             )}
                         </Button>
                         <Button
                             variant="outline"
-                            className="flex-1 border-muted-foreground/30 hover:bg-muted/50 hover:text-foreground transition-all font-semibold"
+                            className="w-24 rounded-xl border-white/10 bg-slate-900/60 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-mono transition-all"
                             onClick={onQuote}
                             disabled={isProcessing}
                         >
-                            <DollarSign className="mr-1 h-4 w-4 text-green-500" />
                             Cotizar
                         </Button>
                     </>
                 ) : (
                     <Button
-                        className="w-full font-semibold border-muted-foreground/30 hover:bg-muted/50 transition-all"
+                        className="w-full rounded-xl font-mono text-xs border-white/10 bg-slate-900/60 hover:bg-slate-800 text-slate-200 hover:text-white transition-all gap-1.5 py-2.5"
                         onClick={onAction}
                         variant="outline"
                     >
-                        Ver Detalles
+                        Ver Detalles del Trabajo
+                        <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
                     </Button>
                 )}
             </CardFooter>

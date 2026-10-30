@@ -818,7 +818,138 @@ export const api = {
       if (!res.ok) await handleAPIError(res)
       return { data: await res.json() }
     }
-  }
+  },
+    dispatch: {
+      getMyOffers: () => getMyDispatchOffers(),
+      acceptOffer: (id: string) => acceptDispatchOffer(id),
+      rejectOffer: (id: string) => rejectDispatchOffer(id),
+      getHotspots: () => getDemandHotspots(),
+      getAnalytics: (days?: number) => getDispatchAnalytics(days),
+      getStats: () => getDispatchStats(),
+    },
+
+}
+
+
+
+// ============================================
+// DESPACHO INTELIGENTE (FASES A, B, C)
+// ============================================
+
+export interface DispatchOffer {
+  id: string
+  service_id: string
+  technician_id: string
+  wave: number
+  status: 'pending' | 'accepted' | 'rejected' | 'expired' | 'cancelled'
+  score: number
+  distance_km?: number | null
+  offered_at: string
+  expires_at: string
+  responded_at?: string | null
+  time_left_seconds?: number | null
+
+  // Contexto del servicio
+  service_title?: string | null
+  service_type?: string | null
+  service_address?: string | null
+  service_city?: string | null
+  estimated_price?: number | null
+  vehicle_type?: string | null
+  vehicle_model?: string | null
+  vehicle_plate?: string | null
+}
+
+export interface DispatchOfferListResponse {
+  offers: DispatchOffer[]
+  total: number
+}
+
+export interface DispatchOfferActionResponse {
+  success: boolean
+  offer_id: string
+  status: string
+  message: string
+  service_id: string
+  service_status?: string | null
+}
+
+export interface DemandHotspot {
+  zone_name: string
+  center_lat: number
+  center_lng: number
+  active_requests_count: number
+  urgency_level: 'high' | 'medium' | 'normal'
+  recommendation: string
+}
+
+export interface DemandHotspotsResponse {
+  hotspots: DemandHotspot[]
+  total: number
+}
+
+export interface WaveConversionItem {
+  wave: number
+  accepted_count: number
+  percentage: number
+}
+
+export interface DispatchAnalytics {
+  period_days: number
+  total_services_dispatched: number
+  total_offers_sent: number
+  overall_acceptance_rate: number
+  assignment_p50_seconds?: number | null
+  assignment_p95_seconds?: number | null
+  avg_assignment_seconds?: number | null
+  wave_conversion_funnel: WaveConversionItem[]
+  by_service_type: Record<string, any>
+}
+
+export interface DispatchStats {
+  total_offers: number
+  accepted_offers: number
+  rejected_offers: number
+  expired_offers: number
+  cancelled_offers: number
+  acceptance_rate: number
+  avg_assignment_seconds?: number | null
+}
+
+export async function getMyDispatchOffers(): Promise<DispatchOfferListResponse> {
+  const response = await fetchWithAuth('/dispatch/my-offers', { method: 'GET' })
+  if (!response.ok) await handleAPIError(response)
+  return response.json()
+}
+
+export async function acceptDispatchOffer(offerId: string): Promise<DispatchOfferActionResponse> {
+  const response = await fetchWithAuth('/dispatch/offers/' + offerId + '/accept', { method: 'POST' })
+  if (!response.ok) await handleAPIError(response)
+  return response.json()
+}
+
+export async function rejectDispatchOffer(offerId: string): Promise<DispatchOfferActionResponse> {
+  const response = await fetchWithAuth('/dispatch/offers/' + offerId + '/reject', { method: 'POST' })
+  if (!response.ok) await handleAPIError(response)
+  return response.json()
+}
+
+export async function getDemandHotspots(): Promise<DemandHotspotsResponse> {
+  const response = await fetchWithAuth('/dispatch/analytics/hotspots', { method: 'GET' })
+  if (!response.ok) await handleAPIError(response)
+  return response.json()
+}
+
+export async function getDispatchAnalytics(days = 30): Promise<DispatchAnalytics> {
+  const response = await fetchWithAuth('/dispatch/analytics?days=' + days, { method: 'GET' })
+  if (!response.ok) await handleAPIError(response)
+  return response.json()
+}
+
+export async function getDispatchStats(): Promise<DispatchStats> {
+  const response = await fetchWithAuth('/dispatch/stats', { method: 'GET' })
+  if (!response.ok) await handleAPIError(response)
+  return response.json()
 }
 
 

@@ -8,6 +8,8 @@ import {
 } from "lucide-react"
 import { toast } from "react-hot-toast"
 import api from "@/lib/api"
+import { DispatchTelemetryPanel } from "@/components/admin/dispatch-telemetry-panel"
+import { Activity } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -396,6 +398,7 @@ export default function AdminServicesPage() {
     const [statusFilter, setStatusFilter] = useState("")
     const [typeFilter, setTypeFilter] = useState("")
     const [searchQuery, setSearchQuery] = useState("")
+    const [viewMode, setViewMode] = useState<"services" | "telemetry">("services")
 
     const fetchServices = async () => {
         setLoading(true)
@@ -433,19 +436,46 @@ export default function AdminServicesPage() {
             <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
                 {/* Header */}
                 <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
                         <div>
                             <h3 className="text-lg font-bold flex items-center gap-2">
                                 <ShieldAlert className="w-5 h-5 text-primary" /> Gestión de Servicios
                             </h3>
                             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                Haz clic en una fila para ver el detalle completo con fotos de evidencia.
+                                Supervisión en tiempo real, telemetría de despacho y evidencia fotográfica.
                             </p>
                         </div>
-                        <span className="text-sm font-semibold text-muted-foreground">{total} total</span>
+
+                        {/* View Switcher */}
+                        <div className="flex items-center gap-2">
+                            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                                <Button
+                                    size="sm"
+                                    variant={viewMode === "services" ? "default" : "ghost"}
+                                    onClick={() => setViewMode("services")}
+                                    className={`h-8 text-xs font-mono rounded-lg ${
+                                        viewMode === "services" ? "bg-primary text-white font-bold" : "text-muted-foreground"
+                                    }`}
+                                >
+                                    Servicios ({total})
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant={viewMode === "telemetry" ? "default" : "ghost"}
+                                    onClick={() => setViewMode("telemetry")}
+                                    className={`h-8 text-xs font-mono rounded-lg gap-1.5 ${
+                                        viewMode === "telemetry" ? "bg-primary text-white font-bold" : "text-muted-foreground"
+                                    }`}
+                                >
+                                    <Activity className="w-3.5 h-3.5 text-amber-400" />
+                                    Telemetría Despacho
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                     
-                    {/* Filters */}
+                    {/* Filters (only visible in services mode) */}
+                    {viewMode === "services" && (
                     <div className="flex flex-wrap gap-3">
                         <div className="relative flex-1 min-w-[200px]">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -478,7 +508,16 @@ export default function AdminServicesPage() {
                             ))}
                         </select>
                     </div>
+                    )}
                 </div>
+
+                {/* Content: Telemetry or Table */}
+                {viewMode === "telemetry" ? (
+                    <div className="p-6">
+                        <DispatchTelemetryPanel />
+                    </div>
+                ) : (
+                    <>
 
                 {/* Table */}
                 <div className="overflow-x-auto">
@@ -557,6 +596,8 @@ export default function AdminServicesPage() {
                 <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
                     <p className="text-xs text-slate-500 font-medium">Mostrando {services.length} de {total} servicios</p>
                 </div>
+                    </>
+                )}
             </div>
 
             {/* Detail drawer */}

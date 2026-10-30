@@ -13,6 +13,12 @@ import {
   API_URL,
   hasSeenBasicCoursesModal,
   markSeenBasicCoursesModal,
+  getMyDispatchOffers,
+  acceptDispatchOffer,
+  rejectDispatchOffer,
+  getDemandHotspots,
+  DispatchOffer,
+  DemandHotspot,
 } from '@/lib/api';
 import { COLORS, NEU, RADIUS } from '@/constants/theme';
 import { NeuIcon, NeuButton } from '@/components/neu';
@@ -53,6 +59,95 @@ export default function TechDashboardScreen() {
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'installations' | 'mechanics'>('all');
   const [showBasicCoursesModal, setShowBasicCoursesModal] = useState(false);
+
+  // Estados de despacho inteligente en vivo
+  const [dispatchOffers, setDispatchOffers] = useState<DispatchOffer[]>([]);
+  const [demandHotspots, setDemandHotspots] = useState<DemandHotspot[]>([]);
+  const [isDispatchProcessing, setIsDispatchProcessing] = useState(false);
+  const [offerCountdowns, setOfferCountdowns] = useState<Record<string, number>>({});
+
+  // Countdown timer para ofertas prioritarias
+  useEffect(() => {
+    const initialTimers: Record<string, number> = {};
+    dispatchOffers.forEach((o) => {
+      const remaining = o.time_left_seconds !== undefined && o.time_left_seconds !== null
+        ? Math.max(0, o.time_left_seconds)
+        : 60;
+      initialTimers[o.id] = remaining;
+    });
+    setOfferCountdowns(initialTimers);
+
+    const interval = setInterval(() => {
+      setOfferCountdowns((prev) => {
+        const next: Record<string, number> = {};
+        let changed = false;
+        Object.keys(prev).forEach((id) => {
+          const cur = prev[id];
+          const n = cur > 0 ? cur - 1 : 0;
+          next[id] = n;
+          if (n !== cur) changed = true;
+        });
+        return changed ? next : prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [dispatchOffers]);
+
+  const loadDispatch = useCallback(async () => {
+    if (!isOnline) return;
+    try {
+      const [offersRes, spotsRes] = await Promise.all([
+        getMyDispatchOffers().catch(() => ({ offers: [], total: 0 })),
+        getDemandHotspots().catch(() => ({ hotspots: [], total: 0 })),
+      ]);
+      setDispatchOffers(offersRes.offers || []);
+      setDemandHotspots(spotsRes.hotspots || []);
+    } catch (e) {
+      console.error('Error fetching dispatch on mobile:', e);
+    }
+  }, [isOnline]);
+
+  useEffect(() => {
+    loadDispatch();
+    if (!isOnline) return;
+    const interval = setInterval(() => {
+      loadDispatch();
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [loadDispatch, isOnline]);
+
+  const handleAcceptOffer = async (offerId: string) => {
+    try {
+      setIsDispatchProcessing(true);
+      const res = await acceptDispatchOffer(offerId);
+      Alert.alert('¡Misión Táctica Aceptada!', 'Despacho confirmado en tiempo real.', [
+        {
+          text: 'Abrir Misión',
+          onPress: () => router.push(`/(tech)/service/${res.service_id}` as any),
+        },
+      ]);
+      load();
+      loadDispatch();
+    } catch (e: any) {
+      Alert.alert('No se pudo tomar la oferta', e.message || 'La oferta pudo expirar o fue tomada por otro técnico.');
+      loadDispatch();
+    } finally {
+      setIsDispatchProcessing(false);
+    }
+  };
+
+  const handleRejectOffer = async (offerId: string) => {
+    try {
+      setIsDispatchProcessing(true);
+      await rejectDispatchOffer(offerId);
+      setDispatchOffers((prev) => prev.filter((o) => o.id !== offerId));
+    } catch (e: any) {
+      console.error('Error rejecting dispatch offer:', e);
+    } finally {
+      setIsDispatchProcessing(false);
+    }
+  };
 
   // Check if newly registered technician should see the basic courses modal
   useEffect(() => {
@@ -217,6 +312,119 @@ export default function TechDashboardScreen() {
                 ios_backgroundColor={COLORS.sunken}
               />
             </View>
+
+            {/* Ofertas prioritarias de despacho inteligente */}
+            {isOnline && dispatchOffers.filter(o => o.status === 'pending' && (offerCountdowns[o.id] ?? 1) > 0).map((offer) => {
+              const secondsLeft = offerCountdowns[offer.id] ?? (offer.time_left_seconds || 60);
+              const isUrgent = secondsLeft <= 15;
+              const formattedPrice = offer.estimated_price
+                ? `${offer.estimated_price.toLocaleString('es-CO')}`
+                : null;
+
+              return (
+                <View key={offer.id} style={[styles.priorityOfferCard, isUrgent && styles.priorityOfferCardUrgent]}>
+                  {/* Top Bar Indicator */}
+                  <View style={styles.priorityOfferHeader}>
+                    <View style={styles.priorityOfferBadge}>
+                      <Ionicons name="flash" size={13} color="#000" />
+                      <Text style={styles.priorityOfferBadgeText}>MISIÓN PRIORITARIA</Text>
+                    </View>
+                    <View style={styles.waveBadge}>
+                      <Text style={styles.waveBadgeText}>OLA {offer.wave}</Text>
+                    </View>
+                    <View style={[styles.countdownBadge, isUrgent && styles.countdownBadgeUrgent]}>
+                      <Ionicons name="time-outline" size={13} color={isUrgent ? '#fff' : COLORS.yellow} />
+                      <Text style={[styles.countdownText, isUrgent && styles.countdownTextUrgent]}>
+                        {secondsLeft}s
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.priorityOfferTitle} numberOfLines={2}>
+                    {offer.service_title || 'Servicio Táctico Asignado'}
+                  </Text>
+
+                  <View style={styles.priorityOfferMetaRow}>
+                    <Ionicons name="location" size={14} color={COLORS.yellow} />
+                    <Text style={styles.priorityOfferLocation} numberOfLines={1}>
+                      {offer.service_address || 'Medellín, Antioquia'}{offer.service_city ? `, ${offer.service_city}` : ''}
+                    </Text>
+                  </View>
+
+                  <View style={styles.priorityOfferDetailsRow}>
+                    {offer.distance_km !== null && offer.distance_km !== undefined && (
+                      <View style={styles.detailChip}>
+                        <Ionicons name="navigate-outline" size={12} color={COLORS.blue} />
+                        <Text style={styles.detailChipText}>{offer.distance_km.toFixed(1)} km</Text>
+                      </View>
+                    )}
+                    {offer.vehicle_plate && (
+                      <View style={styles.detailChip}>
+                        <Ionicons name="car-outline" size={12} color={COLORS.textSecondary} />
+                        <Text style={styles.detailChipText}>{offer.vehicle_plate.toUpperCase()}</Text>
+                      </View>
+                    )}
+                    {formattedPrice && (
+                      <View style={[styles.detailChip, styles.detailChipPrice]}>
+                        <Text style={styles.priceChipText}>{formattedPrice}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Actions */}
+                  <View style={styles.priorityOfferActions}>
+                    <TouchableOpacity
+                      disabled={isDispatchProcessing}
+                      onPress={() => handleRejectOffer(offer.id)}
+                      style={styles.rejectBtn}
+                    >
+                      <Text style={styles.rejectBtnText}>Declinar</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      disabled={isDispatchProcessing}
+                      onPress={() => handleAcceptOffer(offer.id)}
+                      style={styles.acceptBtn}
+                    >
+                      {isDispatchProcessing ? (
+                        <ActivityIndicator size="small" color="#000" />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark-circle" size={16} color="#000" />
+                          <Text style={styles.acceptBtnText}>Aceptar Misión</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })}
+
+            {/* Zonas Calientes de Demanda (Hotspots) */}
+            {isOnline && demandHotspots.length > 0 && (
+              <View style={styles.hotspotsCard}>
+                <View style={styles.hotspotsHeader}>
+                  <Ionicons name="flame" size={16} color="#f59e0b" />
+                  <Text style={styles.hotspotsTitle}>Zonas con Alta Demanda</Text>
+                  <View style={styles.hotspotLiveBadge}>
+                    <Text style={styles.hotspotLiveText}>EN VIVO</Text>
+                  </View>
+                </View>
+                <FlatList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  data={demandHotspots}
+                  keyExtractor={(item, index) => index.toString()}
+                  contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
+                  renderItem={({ item }) => (
+                    <View style={[styles.hotspotPill, item.urgency_level === 'high' && styles.hotspotPillHigh]}>
+                      <Text style={styles.hotspotZone}>{item.zone_name}</Text>
+                      <Text style={styles.hotspotCount}>{item.active_requests_count} solicitudes</Text>
+                    </View>
+                  )}
+                />
+              </View>
+            )}
 
             {/* Shift summary: one carved panel, three readings */}
             <View style={styles.statsPanel}>
@@ -506,4 +714,222 @@ const styles = StyleSheet.create({
   emptyContainer: { alignItems: 'center', paddingTop: 36, paddingHorizontal: 32, gap: 6 },
   emptyTitle: { color: COLORS.text, fontSize: 18, fontWeight: '700', marginTop: 18 },
   emptySubtitle: { color: COLORS.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 20 },
+
+  // Dispatch Priority Offer Styles
+  priorityOfferCard: {
+    ...NEU.raised,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: RADIUS.xl,
+    backgroundColor: '#0f172a',
+    borderWidth: 1.5,
+    borderColor: '#f59e0b',
+  },
+  priorityOfferCardUrgent: {
+    borderColor: '#ef4444',
+    backgroundColor: '#1f1315',
+  },
+  priorityOfferHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  priorityOfferBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  priorityOfferBadgeText: {
+    color: '#000',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  waveBadge: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  waveBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  countdownBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginLeft: 'auto',
+    backgroundColor: 'rgba(245,158,11,0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.3)',
+  },
+  countdownBadgeUrgent: {
+    backgroundColor: '#ef4444',
+    borderColor: '#ef4444',
+  },
+  countdownText: {
+    color: '#f59e0b',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  countdownTextUrgent: {
+    color: '#fff',
+  },
+  priorityOfferTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
+    lineHeight: 22,
+    marginBottom: 6,
+  },
+  priorityOfferMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  priorityOfferLocation: {
+    color: '#cbd5e1',
+    fontSize: 13,
+    flex: 1,
+  },
+  priorityOfferDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
+    flexWrap: 'wrap',
+  },
+  detailChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  detailChipText: {
+    color: '#cbd5e1',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  detailChipPrice: {
+    backgroundColor: 'rgba(52,211,153,0.12)',
+    borderColor: 'rgba(52,211,153,0.3)',
+  },
+  priceChipText: {
+    color: '#34d399',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  priorityOfferActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  rejectBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rejectBtnText: {
+    color: '#94a3b8',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  acceptBtn: {
+    ...NEU.raised,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#f59e0b',
+  },
+  acceptBtnText: {
+    color: '#000',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+
+  // Hotspots Card
+  hotspotsCard: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: RADIUS.lg,
+    backgroundColor: 'rgba(15,23,42,0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.2)',
+  },
+  hotspotsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  hotspotsTitle: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  hotspotLiveBadge: {
+    backgroundColor: 'rgba(245,158,11,0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+    marginLeft: 'auto',
+  },
+  hotspotLiveText: {
+    color: '#f59e0b',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  hotspotPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  hotspotPillHigh: {
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    borderColor: 'rgba(239,68,68,0.3)',
+  },
+  hotspotZone: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  hotspotCount: {
+    color: '#94a3b8',
+    fontSize: 10,
+    marginTop: 2,
+  },
 });

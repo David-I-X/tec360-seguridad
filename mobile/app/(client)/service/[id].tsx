@@ -735,6 +735,37 @@ export default function ServiceDetailScreen() {
               />
             )}
 
+            {/* Radar de Despacho Táctico para Clientes */}
+            {['pending', 'quoted'].includes(service?.status) && (
+              <View style={[styles.clientRadarCard, service?.service_type === 'vehicle_recovery' && styles.clientRadarCardEmergency]}>
+                <View style={styles.clientRadarHeader}>
+                  <View style={[styles.clientRadarIconWrap, service?.service_type === 'vehicle_recovery' && styles.clientRadarIconWrapEmergency]}>
+                    <Ionicons 
+                      name={service?.service_type === 'vehicle_recovery' ? "alert-circle" : "radio"} 
+                      size={20} 
+                      color={service?.service_type === 'vehicle_recovery' ? '#f87171' : '#60a5fa'} 
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.clientRadarBadgeRow}>
+                      <Text style={[styles.clientRadarBadge, service?.service_type === 'vehicle_recovery' && styles.clientRadarBadgeEmergency]}>
+                        {service?.service_type === 'vehicle_recovery' ? '🚨 REACCIÓN INMEDIATA 24/7' : '📡 DESPACHADOR EN VIVO'}
+                      </Text>
+                      <Text style={styles.clientRadarWaveText}>OLAS V2</Text>
+                    </View>
+                    <Text style={styles.clientRadarTitle}>
+                      {service?.service_type === 'vehicle_recovery' ? 'Contactando Unidades de Emergencia' : 'Localizando Especialista Óptimo'}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.clientRadarDesc}>
+                  {service?.service_type === 'vehicle_recovery'
+                    ? 'Prioridad crítica: Despachando patrullas y técnicos motorizados en menos de 5 km en el Valle de Aburrá.'
+                    : 'Evaluando proximidad satelital, rating del técnico y tráfico en tiempo real para asignarte al mejor profesional.'}
+                </Text>
+              </View>
+            )}
+
             {/* Action Buttons: Pending / Quoted */}
             {service?.status === 'pending' && (
               <View style={styles.actionGroup}>
@@ -1773,5 +1804,71 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: '700',
+  },
+
+  // Client Radar Styles
+  clientRadarCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: RADIUS.lg,
+    backgroundColor: '#0f172a',
+    borderWidth: 1.5,
+    borderColor: 'rgba(96,165,250,0.3)',
+  },
+  clientRadarCardEmergency: {
+    backgroundColor: '#1f1315',
+    borderColor: 'rgba(239,68,68,0.5)',
+  },
+  clientRadarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  clientRadarIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(96,165,250,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clientRadarIconWrapEmergency: {
+    backgroundColor: 'rgba(239,68,68,0.2)',
+  },
+  clientRadarBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  clientRadarBadge: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#60a5fa',
+    letterSpacing: 0.5,
+  },
+  clientRadarBadgeEmergency: {
+    color: '#f87171',
+  },
+  clientRadarWaveText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#94a3b8',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  clientRadarTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  clientRadarDesc: {
+    color: '#cbd5e1',
+    fontSize: 12,
+    lineHeight: 18,
   },
 });
