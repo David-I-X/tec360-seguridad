@@ -16,6 +16,9 @@ from app.schemas.dispatch import (
     DispatchOfferListResponse,
     DispatchOfferActionResponse,
     DispatchStatsResponse,
+    HeatmapResponse,
+    DemandHotspotsResponse,
+    DispatchAnalyticsResponse,
 )
 from app.services.dispatch_service import dispatch_service
 
@@ -138,3 +141,44 @@ async def get_dispatch_statistics(
 ):
     """Retorna indicadores agregados de desempeño y tasas de aceptación del despacho."""
     return await dispatch_service.get_dispatch_stats(session=session)
+
+
+@router.get(
+    "/analytics",
+    response_model=DispatchAnalyticsResponse,
+    summary="Analítica avanzada de despacho (p50/p95, embudo por ola)"
+)
+async def get_dispatch_analytics(
+    days: int = Query(30, ge=1, le=365, description="Ventana de tiempo en días"),
+    current_user: dict = Depends(require_roles("admin")),
+    session: Session = Depends(get_session)
+):
+    """Calcula telemetría avanzada de asignaciones, embudo por ola y percentiles p50/p95."""
+    return await dispatch_service.get_advanced_analytics(session=session, days=days)
+
+
+@router.get(
+    "/analytics/heatmap",
+    response_model=HeatmapResponse,
+    summary="Puntos geográficos ponderados para mapa de calor"
+)
+async def get_dispatch_heatmap(
+    days: int = Query(30, ge=1, le=90, description="Días hacia atrás para recopilar puntos"),
+    current_user: dict = Depends(require_roles("admin", "technician", "reaction_team")),
+    session: Session = Depends(get_session)
+):
+    """Retorna puntos ponderados para renderizar capas de calor en mapas satelitales."""
+    return await dispatch_service.get_heatmap_points(session=session, days=days)
+
+
+@router.get(
+    "/analytics/hotspots",
+    response_model=DemandHotspotsResponse,
+    summary="Zonas de alta demanda y sugerencias de rebalanceo"
+)
+async def get_demand_hotspots(
+    current_user: dict = Depends(require_roles("admin", "technician", "reaction_team")),
+    session: Session = Depends(get_session)
+):
+    """Identifica cuadrantes con solicitudes desatendidas y sugiere reposicionamiento a técnicos libres."""
+    return await dispatch_service.get_demand_hotspots(session=session)

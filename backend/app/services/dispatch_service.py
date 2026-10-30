@@ -2,7 +2,7 @@
 Service Layer para el Motor de Despacho Inteligente
 Path: backend/app/services/dispatch_service.py
 """
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 import logging
@@ -19,11 +19,18 @@ from app.models.technician import Technician
 from app.models.user import User
 from app.models.schedule import TechnicianSchedule
 from app.models.quotation import Quotation, QuotationStatus
+from geoalchemy2.shape import to_shape
 from app.schemas.dispatch import (
     DispatchOfferResponse,
     DispatchOfferListResponse,
     DispatchOfferActionResponse,
     DispatchStatsResponse,
+    HeatmapPoint,
+    HeatmapResponse,
+    DemandHotspot,
+    DemandHotspotsResponse,
+    WaveConversionItem,
+    DispatchAnalyticsResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -77,21 +84,61 @@ class DispatchService:
         return config_group.get(wave, config_group[max(config_group.keys())])
 
     @staticmethod
+    async def compute_traffic_eta_minutes(
+        tech_lat: float, tech_lon: float, dest_lat: float, dest_lon: float
+    ) -> Optional[float]:
+        """Calcula el tiempo de viaje con tráfico en minutos usando Google Routes API con fallback fluido."""
+        from app.core.config import settings
+        if not settings.GOOGLE_MAPS_API_KEY:
+            return None
+
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=2.5) as client:
+                res = await client.post(
+                    "https://routes.googleapis.com/directions/v2:computeRoutes",
+                    headers={
+                        "X-Goog-Api-Key": settings.GOOGLE_MAPS_API_KEY,
+                        "X-Goog-FieldMask": "routes.duration",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "origin": {"location": {"latLng": {"latitude": tech_lat, "longitude": tech_lon}}},
+                        "destination": {"location": {"latLng": {"latitude": dest_lat, "longitude": dest_lon}}},
+                        "travelMode": "DRIVE",
+                        "routingPreference": "TRAFFIC_AWARE",
+                    }
+                )
+                if res.status_code == 200:
+                    routes = res.json().get("routes", [])
+                    if routes:
+                        dur_str = routes[0].get("duration", "0s").rstrip("s")
+                        return round(float(dur_str) / 60.0, 1)
+        except Exception as e:
+            logger.debug(f"Routes API traffic ETA fallback: {e}")
+        return None
+
+    @staticmethod
     def calculate_technician_score(
         tech: Technician,
         user: User,
         service: Service,
         distance_meters: float,
         active_services_count: int,
-        max_radius_km: float = 20.0
+        max_radius_km: float = 20.0,
+        eta_minutes: Optional[float] = None
     ) -> float:
         """
         Calcula el puntaje multi-factor normalizado (0.0 a 1.0):
-        Score = 0.40 * Distancia + 0.20 * Rating + 0.15 * Confiabilidad + 0.10 * Rango + 0.10 * Carga + 0.05 * Especialidad
+        Score = 0.40 * Proximidad/ETA + 0.20 * Rating + 0.15 * Confiabilidad + 0.10 * Rango + 0.10 * Carga + 0.05 * Especialidad
         """
-        # 1. Distancia normalizada (más cerca = mayor puntaje)
-        dist_km = distance_meters / 1000.0
-        score_dist = max(0.0, 1.0 - (dist_km / max(max_radius_km, 1.0)))
+        # 1. Proximidad o ETA de tráfico normalizado (más rápido / cerca = mayor puntaje)
+        if eta_minutes is not None and eta_minutes > 0:
+            max_eta_minutes = max(10.0, max_radius_km * 2.5)
+            score_dist = max(0.0, 1.0 - (eta_minutes / max_eta_minutes))
+        else:
+            dist_km = distance_meters / 1000.0
+            score_dist = max(0.0, 1.0 - (dist_km / max(max_radius_km, 1.0)))
 
         # 2. Rating normalizado (0 a 5)
         raw_rating = float(tech.average_rating or 0.0)
@@ -677,6 +724,187 @@ class DispatchService:
             cancelled_offers=cancelled,
             acceptance_rate=rate,
             avg_assignment_seconds=45.0 if accepted > 0 else None
+        )
+
+    async def get_heatmap_points(self, session: Session, days: int = 30) -> HeatmapResponse:
+        """Extrae puntos geográficos ponderados por urgencia y tipo de servicio para mapa de calor."""
+        since = datetime.utcnow() - timedelta(days=days)
+        services = session.exec(
+            select(Service).where(
+                Service.service_location.is_not(None),
+                Service.created_at >= since
+            )
+        ).all()
+
+        points: List[HeatmapPoint] = []
+        for s in services:
+            try:
+                pt = to_shape(s.service_location)
+                # Ponderación según urgencia de la línea
+                if s.service_type == ServiceType.vehicle_recovery:
+                    weight = 3.0
+                elif s.service_type in QUICK_MECHANICS_TYPES:
+                    weight = 1.8
+                else:
+                    weight = 1.0
+
+                points.append(
+                    HeatmapPoint(
+                        lat=float(pt.y),
+                        lng=float(pt.x),
+                        weight=weight,
+                        service_type=s.service_type.value if hasattr(s.service_type, "value") else str(s.service_type),
+                        status=s.status.value if hasattr(s.status, "value") else str(s.status),
+                        created_at=s.created_at
+                    )
+                )
+            except Exception:
+                continue
+
+        return HeatmapResponse(points=points, total_points=len(points))
+
+    async def get_demand_hotspots(self, session: Session) -> DemandHotspotsResponse:
+        """Identifica cuadrantes de alta demanda desatendida para sugerir rebalanceo a técnicos."""
+        since = datetime.utcnow() - timedelta(hours=48)
+        pending_services = session.exec(
+            select(Service).where(
+                Service.status.in_([ServiceStatus.pending, ServiceStatus.quoted]),
+                Service.service_location.is_not(None),
+                Service.created_at >= since
+            )
+        ).all()
+
+        # Agrupar en cuadrantes de ~1.1 km redondeando coordenadas a 2 decimales
+        clusters: Dict[Tuple[float, float], List[Service]] = {}
+        for s in pending_services:
+            try:
+                pt = to_shape(s.service_location)
+                grid_key = (round(float(pt.y), 2), round(float(pt.x), 2))
+                clusters.setdefault(grid_key, []).append(s)
+            except Exception:
+                continue
+
+        # Nombres de referencia comunes en Medellín / Valle de Aburrá
+        KNOWN_SECTORS = [
+            (6.21, -75.57, "El Poblado / Milla de Oro"),
+            (6.24, -75.59, "Laureles / Estadio"),
+            (6.25, -75.57, "Centro de Medellín"),
+            (6.23, -75.59, "Belén / Los Molinos"),
+            (6.17, -75.59, "Envigado Centro"),
+            (6.18, -75.61, "Itagüí Industrial"),
+            (6.33, -75.56, "Bello Centro"),
+            (6.27, -75.58, "Robledo / Pilarica"),
+        ]
+
+        def resolve_sector_name(lat: float, lng: float) -> str:
+            best_name = f"Sector Lat {lat}, Lng {lng}"
+            min_d = 0.04  # ~4 km
+            for k_lat, k_lng, name in KNOWN_SECTORS:
+                d = ((lat - k_lat)**2 + (lng - k_lng)**2)**0.5
+                if d < min_d:
+                    min_d = d
+                    best_name = name
+            return best_name
+
+        hotspots: List[DemandHotspot] = []
+        # Ordenar cuadrantes por cantidad de solicitudes descendente
+        sorted_clusters = sorted(clusters.items(), key=lambda item: len(item[1]), reverse=True)
+
+        for (c_lat, c_lng), s_list in sorted_clusters[:10]:
+            count = len(s_list)
+            has_recovery = any(s.service_type == ServiceType.vehicle_recovery for s in s_list)
+            sector_name = resolve_sector_name(c_lat, c_lng)
+
+            if has_recovery or count >= 3:
+                urgency = "high"
+                recom = f"Prioridad alta: {count} servicio(s) en espera (incluye emergencias). Rebalancear técnicos a este sector."
+            elif count >= 2:
+                urgency = "medium"
+                recom = f"Demanda activa: {count} servicios solicitados. Buena oportunidad de asignación inmediata."
+            else:
+                urgency = "normal"
+                recom = f"Demanda moderada: {count} servicio pendiente."
+
+            hotspots.append(
+                DemandHotspot(
+                    zone_name=sector_name,
+                    center_lat=c_lat,
+                    center_lng=c_lng,
+                    active_requests_count=count,
+                    urgency_level=urgency,
+                    recommendation=recom
+                )
+            )
+
+        return DemandHotspotsResponse(hotspots=hotspots, total=len(hotspots))
+
+    async def get_advanced_analytics(self, session: Session, days: int = 30) -> DispatchAnalyticsResponse:
+        """Calcula telemetría avanzada, percentiles de asignación y embudo por ola."""
+        since = datetime.utcnow() - timedelta(days=days)
+
+        offers = session.exec(
+            select(DispatchOffer).where(DispatchOffer.created_at >= since)
+        ).all()
+
+        total_offers = len(offers)
+        accepted_offers = [o for o in offers if o.status == DispatchOfferStatus.accepted]
+        rejected_offers = [o for o in offers if o.status == DispatchOfferStatus.rejected]
+
+        responded = len(accepted_offers) + len(rejected_offers)
+        rate = round((len(accepted_offers) / responded) * 100.0, 2) if responded > 0 else 0.0
+
+        # Embudo de conversión por ola
+        waves_accepted: Dict[int, int] = {}
+        for o in accepted_offers:
+            waves_accepted[o.wave] = waves_accepted.get(o.wave, 0) + 1
+
+        total_accepted = len(accepted_offers)
+        funnel: List[WaveConversionItem] = []
+        for w in sorted(set(list(waves_accepted.keys()) + [1, 2, 3])):
+            acc = waves_accepted.get(w, 0)
+            pct = round((acc / total_accepted) * 100.0, 2) if total_accepted > 0 else 0.0
+            funnel.append(WaveConversionItem(wave=w, accepted_count=acc, percentage=pct))
+
+        # Tiempos de asignación (Service.created_at hasta Service.updated_at para servicios asignados)
+        assigned_services = session.exec(
+            select(Service).where(
+                Service.status.in_([ServiceStatus.assigned, ServiceStatus.en_route, ServiceStatus.in_progress, ServiceStatus.completed]),
+                Service.created_at >= since
+            )
+        ).all()
+
+        durations: List[float] = []
+        type_counts: Dict[str, Dict[str, int]] = {}
+
+        for s in assigned_services:
+            st = s.service_type.value if hasattr(s.service_type, "value") else str(s.service_type)
+            type_counts.setdefault(st, {"assigned": 0, "total": 0})
+            type_counts[st]["assigned"] += 1
+            if s.updated_at and s.created_at and s.updated_at >= s.created_at:
+                dur = (s.updated_at - s.created_at).total_seconds()
+                durations.append(dur)
+
+        durations.sort()
+        n = len(durations)
+        p50 = durations[int(n * 0.50)] if n > 0 else None
+        p95 = durations[int(n * 0.95)] if n > 0 else None
+        avg_dur = round(sum(durations) / n, 1) if n > 0 else None
+
+        # Servicios totales en el período
+        total_services = session.exec(
+            select(func.count(Service.id)).where(Service.created_at >= since)
+        ).one()
+
+        return DispatchAnalyticsResponse(
+            period_days=days,
+            total_services_dispatched=total_services,
+            total_offers_sent=total_offers,
+            overall_acceptance_rate=rate,
+            assignment_p50_seconds=p50,
+            assignment_p95_seconds=p95,
+            avg_assignment_seconds=avg_dur,
+            wave_conversion_funnel=funnel,
+            by_service_type=type_counts
         )
 
 

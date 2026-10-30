@@ -3,12 +3,11 @@ Pruebas unitarias para el algoritmo de scoring y reglas de olas del motor de des
 Path: backend/tests/test_dispatch.py
 """
 from uuid import uuid4
-from unittest.mock import MagicMock
 
 from app.models.service import Service, ServiceType
 from app.models.technician import Technician
 from app.models.user import User
-from app.services.dispatch_service import DispatchService, WAVE_CONFIG
+from app.services.dispatch_service import DispatchService
 
 
 def test_wave_rules_by_service_type():
