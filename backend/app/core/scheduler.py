@@ -147,8 +147,22 @@ async def clear_expired_suspensions():
     except Exception as e:
         logger.error(f"Error in clear_expired_suspensions: {e}")
 
+async def check_dispatch_waves():
+    """
+    Se ejecuta cada 20 segundos.
+    Verifica ofertas de despacho expiradas y avanza a la siguiente ola.
+    """
+    try:
+        with SessionLocal() as session:
+            from app.services.dispatch_service import dispatch_service
+            await dispatch_service.check_and_advance_waves(session)
+    except Exception as e:
+        logger.error(f"Error in check_dispatch_waves: {e}")
+
+
 def start_scheduler():
     """Inicia el scheduler y registra las tareas."""
+    scheduler.add_job(check_dispatch_waves, "interval", seconds=20, id="dispatch_waves", replace_existing=True)
     scheduler.add_job(check_zombie_services, "interval", minutes=30, id="zombie_check", replace_existing=True)
     scheduler.add_job(check_pending_services, "interval", minutes=15, id="pending_check", replace_existing=True)
     scheduler.add_job(clear_expired_suspensions, "interval", hours=1, id="suspension_cleanup", replace_existing=True)

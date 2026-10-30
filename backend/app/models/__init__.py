@@ -18,6 +18,7 @@ from app.models.notification import Notification
 from app.models.message import Message
 from app.models.incident import IncidentReport, IncidentType
 from app.models.portfolio import PortfolioImage
+from app.models.dispatch import DispatchOffer, DispatchOfferStatus
 from app.models.push_token import PushToken
 from app.models.schedule import TechnicianSchedule
 from app.models.extras import ServiceRating, ServiceImage, RatedBy, ImageType
@@ -72,5 +73,7 @@ __all__ = [
     "CourseCategory",
     "CourseDifficulty",
     "EnrollmentStatus",
+    "DispatchOffer",
+    "DispatchOfferStatus",
 ]
 

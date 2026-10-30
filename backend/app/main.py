@@ -25,6 +25,7 @@ from app.api import verification as verification_router
 from app.api import webhooks as webhooks_router
 from app.api import admin_vertical as admin_vertical_router
 from app.api import courses as courses_router
+from app.api import dispatch as dispatch_router
 import os
 import logging
 import time
@@ -227,6 +228,9 @@ app.include_router(location_router.router)
 
 # Notifications
 app.include_router(notifications_router.router)
+
+# Intelligent Dispatch
+app.include_router(dispatch_router.router)
 
 # Quotations
 app.include_router(quotations_router.router)

@@ -74,19 +74,24 @@ class ServiceService:
             session.commit()
             session.refresh(db_service)
             
-            # 🔔 Notificar a técnicos sobre nuevo servicio
+            # 🚀 Despacho Inteligente por Olas
             try:
-                from app.services.notification_service import NotificationService
-                await NotificationService.notify_technicians_new_service(
-                    session=session,
-                    service_id=db_service.id,
-                    service_title=db_service.title,
-                    service_type=str(db_service.service_type.value) if db_service.service_type else "",
-                    service_city=service_data.service_address.split(",")[-1].strip() if service_data.service_address else "Colombia"
-                )
-            except Exception as notif_error:
+                from app.services.dispatch_service import dispatch_service
+                await dispatch_service.initiate_dispatch(session, db_service.id)
+            except Exception as dispatch_err:
                 import logging
-                logging.warning(f"Failed to send notifications: {notif_error}")
+                logging.warning(f"Intelligent dispatch initiation error, falling back to broadcast: {dispatch_err}")
+                try:
+                    from app.services.notification_service import NotificationService
+                    await NotificationService.notify_technicians_new_service(
+                        session=session,
+                        service_id=db_service.id,
+                        service_title=db_service.title,
+                        service_type=str(db_service.service_type.value) if db_service.service_type else "",
+                        service_city=service_data.service_address.split(",")[-1].strip() if service_data.service_address else "Colombia"
+                    )
+                except Exception as notif_error:
+                    logging.warning(f"Failed to send fallback notifications: {notif_error}")
             
             return self._to_response(db_service, client_name=user.get("full_name"))
         
