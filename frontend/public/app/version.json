@@ -1,13 +1,13 @@
 {
-  "tag": "v2.11.18-mobile",
-  "commit": "c1d4ac7",
-  "commitFull": "c1d4ac7a085fa84b5c53679fdfb6947c39a9c82a",
-  "buildDate": "2026-10-17T22:21:33Z",
-  "easBuildId": "eda8801a-8c55-494c-b4de-cb6da2d1cdec",
+  "tag": "v2.11.19-mobile",
+  "commit": "26b273d",
+  "commitFull": "26b273dda4689ba5e9efd33abef61e512474edb1",
+  "buildDate": "2026-10-23T04:28:34Z",
+  "easBuildId": "80057993-e0b3-4051-8c2c-a5403f2fc398",
   "easAppVersion": "1.0.0",
-  "easCreatedAt": "2026-10-17T22:00:50.178Z",
-  "apkSizeBytes": 117250263,
+  "easCreatedAt": "2026-10-23T04:13:02.616Z",
+  "apkSizeBytes": 117256259,
   "apkSizeMB": "111 MB",
-  "apkMd5": "db42917ea71d9d441528e3373d416895",
-  "downloadUrl": "https://expo.dev/artifacts/eas/auXIZZQQDj1B4vgnfqJYOWZLVr-zpsmq2GZztq4fcw8.apk"
+  "apkMd5": "cc4e540364e28fe77746e7e58e3786e2",
+  "downloadUrl": "https://expo.dev/artifacts/eas/71RuL0Bihy-06uFkK7SHcordqxh9Dr3UOcquri_AHV4.apk"
 }
