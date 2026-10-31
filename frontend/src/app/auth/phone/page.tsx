@@ -11,7 +11,7 @@ import { setupRecaptcha, sendFirebaseOTP } from "@/lib/firebase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, ArrowLeft, Radio, KeyRound, Check } from "lucide-react"
+import { Loader2, ArrowLeft, Radio, Check, Smartphone } from "lucide-react"
 import Link from "next/link"
 import { Tec360Logo } from "@/components/brand/tec360-logo"
 
@@ -31,7 +31,7 @@ const COUNTRIES: Record<CountryKey, CountryConfig> = {
     key: "CO",
     name: "Colombia",
     dialCode: "+57",
-    placeholder: "300 123 4567",
+    placeholder: "+57 300 123 4567",
     sample: "+57 300 123 4567",
     helperText: "Formato: 10 dígitos (ej. 300 123 4567)",
   },
@@ -39,7 +39,7 @@ const COUNTRIES: Record<CountryKey, CountryConfig> = {
     key: "MX",
     name: "México",
     dialCode: "+52",
-    placeholder: "55 1234 5678",
+    placeholder: "+52 55 1234 5678",
     sample: "+52 55 1234 5678",
     helperText: "Formato: 10 dígitos (CDMX, Guadalajara, Monterrey y nacional)",
   },
@@ -81,7 +81,7 @@ function PhoneAuthContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [selectedCountry, setSelectedCountry] = useState<CountryKey>("CO")
-  const [phoneDigits, setPhoneDigits] = useState("")
+  const [phoneInput, setPhoneInput] = useState("")
   const [recaptchaSize, setRecaptchaSize] = useState<"invisible" | "normal">("invisible")
 
   const {
@@ -98,35 +98,55 @@ function PhoneAuthContent() {
   const handleSelectCountry = (country: CountryKey) => {
     setSelectedCountry(country)
     setError("")
-    // Reconstruir valor con nuevo dial code
-    const fullPhone = `${COUNTRIES[country].dialCode}${phoneDigits}`
-    setValue("phone", fullPhone, { shouldValidate: phoneDigits.length >= 10 })
+    if (!phoneInput) return
+    const rawDigits = phoneInput.replace(/\D/g, "").replace(/^(57|52)/, "")
+    const newPrefix = COUNTRIES[country].dialCode
+    const formatted = rawDigits ? `${newPrefix}${rawDigits}`.slice(0, 13) : ""
+    setPhoneInput(formatted)
+    setValue("phone", formatted, { shouldValidate: rawDigits.length === 10 })
   }
 
   // Manejar cambio en el input de teléfono con detección inteligente
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.trim()
-    let digits = raw.replace(/\D/g, "")
+    let value = e.target.value.trim()
 
-    // Detección si pegan número con código internacional
-    if (raw.startsWith("+52") || (digits.startsWith("52") && digits.length > 10)) {
-      setSelectedCountry("MX")
-      digits = digits.startsWith("52") ? digits.slice(2) : digits
-      // Tolerar prefijo móvil '1' histórico (+52 1...)
-      if (digits.length === 11 && digits.startsWith("1")) {
-        digits = digits.slice(1)
-      }
-    } else if (raw.startsWith("+57") || (digits.startsWith("57") && digits.length > 10)) {
-      setSelectedCountry("CO")
-      digits = digits.startsWith("57") ? digits.slice(2) : digits
+    // Remover todo excepto números y +
+    value = value.replace(/[^\d+]/g, "")
+
+    // Si empieza con 52 sin +, normalizar
+    if (value.startsWith("52") && !value.startsWith("+")) {
+      value = `+${value}`
+    }
+    // Si empieza con 57 sin +, normalizar
+    if (value.startsWith("57") && !value.startsWith("+")) {
+      value = `+${value}`
     }
 
-    // Limitar a máximo 10 dígitos nacionales
-    digits = digits.slice(0, 10)
-    setPhoneDigits(digits)
+    // Detección si es México
+    if (value.startsWith("+52")) {
+      setSelectedCountry("MX")
+      // Tolerar prefijo móvil '1' histórico (+52 1...)
+      if (value.startsWith("+521") && value.length > 4) {
+        value = `+52${value.slice(4)}`
+      }
+      value = value.slice(0, 13) // +52 + 10 dígitos
+    } else if (value.startsWith("+57")) {
+      setSelectedCountry("CO")
+      value = value.slice(0, 13) // +57 + 10 dígitos
+    } else if (value.match(/^3\d*$/)) {
+      // Celular colombiano sin código internacional (+57)
+      setSelectedCountry("CO")
+      value = `+57${value}`.slice(0, 13)
+    } else if (selectedCountry === "MX") {
+      // En modo México si escriben dígitos sin prefijo
+      value = `+52${value}`.slice(0, 13)
+    } else if (selectedCountry === "CO") {
+      // En modo Colombia si escriben dígitos sin prefijo
+      value = `+57${value}`.slice(0, 13)
+    }
 
-    const fullPhone = `${currentCountry.dialCode}${digits}`
-    setValue("phone", fullPhone, { shouldValidate: digits.length === 10 })
+    setPhoneInput(value)
+    setValue("phone", value, { shouldValidate: value.length === 13 })
   }
 
   const onSubmit = async () => {
@@ -134,13 +154,10 @@ function PhoneAuthContent() {
       setIsLoading(true)
       setError("")
 
-      const formattedPhone = formatPhoneNumber(
-        `${currentCountry.dialCode}${phoneDigits}`,
-        selectedCountry
-      )
+      const formattedPhone = formatPhoneNumber(phoneInput, selectedCountry)
 
-      // Validación previa de longitud
-      if (phoneDigits.length !== 10) {
+      const digits = phoneInput.replace(/\D/g, "").replace(/^(57|52)/, "")
+      if (digits.length !== 10) {
         setError(`El número debe tener exactamente 10 dígitos para ${currentCountry.name}.`)
         setIsLoading(false)
         return
@@ -168,17 +185,17 @@ function PhoneAuthContent() {
       let errorMessage = "Error al enviar código. Intenta de nuevo."
       if (err.code === "auth/invalid-app-credential") {
         setRecaptchaSize("normal")
-        errorMessage = "La verificación automática reCAPTCHA fue bloqueada por el navegador. Hemos activado el captcha visible: marca la casilla 'No soy un robot' y presiona de nuevo en 'Enviar código'."
+        errorMessage = "La verificación automática reCAPTCHA fue bloqueada por el navegador. Se ha activado el captcha visible: marca la casilla 'No soy un robot' y presiona de nuevo 'Enviar código de verificación'."
       } else if (err.code === "auth/operation-not-allowed" || err.message?.includes("SMS unable to be sent until this region enabled")) {
-        errorMessage = `La región (${currentCountry.dialCode} ${currentCountry.name}) o el proveedor de Teléfono no está habilitado en Firebase. Actívalo en Firebase Console o registra el número de pruebas.`
+        errorMessage = `La región (${currentCountry.dialCode} ${currentCountry.name}) o el proveedor telefónico no está habilitado en Firebase. Activa la región en Firebase Console (Authentication > Sign-in method > Teléfono > SMS Region Policy) o registra el número en 'Números de teléfono para pruebas'.`
       } else if (err.code === "auth/billing-not-enabled") {
-        errorMessage = "Para SMS reales en Firebase se requiere el Plan Blaze gratuito. Para probar sin tarjeta, usa números de prueba en Firebase Console."
+        errorMessage = "Para enviar SMS de producción, Firebase requiere activar el Plan Blaze (gratuito hasta 10.000 SMS/mes). Para pruebas de desarrollo, agrega tu número en Firebase Console en 'Números de teléfono para pruebas'."
       } else if (err.code === "auth/too-many-requests") {
         errorMessage = "Demasiados intentos en poco tiempo. Por favor espera unos minutos."
       } else if (err.code === "auth/invalid-phone-number") {
-        errorMessage = "El número telefónico no tiene un formato válido para SMS."
+        errorMessage = `El número telefónico no tiene un formato válido para SMS en ${currentCountry.name}.`
       } else if (err.code === "auth/quota-exceeded") {
-        errorMessage = "Se ha superado la cuota de SMS para este periodo."
+        errorMessage = "Se ha superado la cuota de SMS de Firebase para este periodo."
       } else if (err.message) {
         errorMessage = err.message
       }
@@ -189,8 +206,8 @@ function PhoneAuthContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050810] text-slate-100 flex items-center justify-center relative overflow-hidden px-4 pt-24 pb-12">
-      {/* Silk Auroras */}
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden p-4 bg-[#050810]">
+      {/* Background glow effects */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-violet-600/15 rounded-full blur-[140px]" />
         <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-cyan-500/12 rounded-full blur-[140px]" />
@@ -217,11 +234,11 @@ function PhoneAuthContent() {
               <Tec360Logo size="md" />
             </div>
             <h1 className="text-xl sm:text-2xl font-extrabold text-white font-display tracking-tight">
-              Ingresa tu línea. <span className="text-[#a39eb8] font-normal">Acceso </span>
+              Ingresa tu número. <span className="text-[#a39eb8] font-normal">Acceso </span>
               <span className="text-[#00f0ff] whitespace-nowrap">[SMS]</span>
             </h1>
             <p className="mt-1.5 text-xs text-slate-400">
-              Despacho de código de seguridad de 6 dígitos vía SMS cifrado
+              Te enviaremos un código de verificación por SMS
             </p>
           </div>
 
@@ -284,19 +301,16 @@ function PhoneAuthContent() {
               <div className="relative">
                 <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-2 select-none border-r border-white/10 pr-2.5">
                   {selectedCountry === "CO" ? <ColombiaFlag /> : <MexicoFlag />}
-                  <span className="text-xs font-mono font-bold text-slate-200">
-                    {currentCountry.dialCode}
-                  </span>
                 </div>
                 <Input
                   id="phone"
                   type="tel"
                   placeholder={currentCountry.placeholder}
-                  value={phoneDigits}
+                  value={phoneInput}
                   onChange={handlePhoneChange}
-                  className="pl-24 bg-[#111827]/80 border-white/[0.12] text-white font-mono tracking-wider text-sm focus-visible:border-cyan-400 focus-visible:ring-cyan-400/20 rounded-xl py-5"
+                  className="pl-14 bg-[#111827]/80 border-white/[0.12] text-white font-mono tracking-wider text-sm focus-visible:border-cyan-400 focus-visible:ring-cyan-400/20 rounded-xl py-5"
                   disabled={isLoading}
-                  maxLength={10}
+                  maxLength={13}
                   autoFocus
                 />
               </div>
@@ -312,17 +326,17 @@ function PhoneAuthContent() {
             <Button
               type="submit"
               className="w-full py-5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400 text-white font-bold text-xs sm:text-sm shadow-lg shadow-violet-600/30 transition-all cursor-pointer"
-              disabled={isLoading || phoneDigits.length < 10}
+              disabled={isLoading || phoneInput.length < 13}
             >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin text-cyan-300" />
-                  Transmitiendo código...
+                  Enviando código...
                 </>
               ) : (
                 <span className="flex items-center justify-center gap-2">
-                  <KeyRound className="h-4 w-4 text-violet-200" />
-                  Enviar Código de Verificación
+                  <Smartphone className="h-4 w-4 text-cyan-300" />
+                  Enviar código de verificación
                 </span>
               )}
             </Button>

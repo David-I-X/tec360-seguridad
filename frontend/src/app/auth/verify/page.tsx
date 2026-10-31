@@ -289,7 +289,7 @@ function VerifyOTPContent() {
               ) : (
                 <span className="flex items-center justify-center gap-2">
                   <ShieldCheck className="h-4 w-4 text-emerald-300" />
-                  Confirmar y Acceder
+                  Verificar código
                 </span>
               )}
             </Button>

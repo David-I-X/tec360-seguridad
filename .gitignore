@@ -117,3 +117,5 @@ brand-workspace/runs/
 brand-workspace/**/*.lock*
 
 .impeccable/
+
+test-results/
