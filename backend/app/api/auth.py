@@ -25,14 +25,41 @@ _otp_store: dict[str, dict] = {}
 OTP_EXPIRY_MINUTES = 5
 FIXED_OTP_CODE = "123456"
 
-def normalize_phone(phone: str) -> str:
-    """Normaliza un número celular a formato E.164 (+57...)"""
+def normalize_phone(phone: str, default_country: str = "CO") -> str:
+    """
+    Normaliza un número celular a formato E.164.
+    Soporta Colombia (+57) y México (+52).
+    """
     cleaned = re.sub(r"[^\d+]", "", phone.strip())
+
+    # 1. México explícito (+52 o 52)
+    if cleaned.startswith("+52"):
+        digits = cleaned[3:]
+        # Tolerar prefijo móvil histórico mexicano '1' (+521XXXXXXXXXX -> +52XXXXXXXXXX)
+        if len(digits) == 11 and digits.startswith("1"):
+            digits = digits[1:]
+        return f"+52{digits}"
+
+    if cleaned.startswith("52") and len(cleaned) in (12, 13):
+        digits = cleaned[2:]
+        if len(digits) == 11 and digits.startswith("1"):
+            digits = digits[1:]
+        if len(digits) == 10:
+            return f"+52{digits}"
+
+    # 2. Colombia explícito (+57 o 57)
     if cleaned.startswith("+57"):
         return cleaned
+
     if cleaned.startswith("57") and len(cleaned) == 12:
         return f"+{cleaned}"
+
+    # 3. Número sin indicativo internacional
     cleaned_digits = cleaned.lstrip("+")
+    if default_country == "MX":
+        return f"+52{cleaned_digits}"
+
+    # Por defecto Colombia (+57)
     return f"+57{cleaned_digits}"
 
 # --- SCHEMAS ---
@@ -120,7 +147,8 @@ async def verify_otp(data: OTPVerify, request: Request, session: Session = Depen
     statement = select(User).where(
         (User.phone == phone_norm) | 
         (User.phone == data.phone) |
-        (User.phone == data.phone.replace("+57", ""))
+        (User.phone == data.phone.replace("+57", "")) |
+        (User.phone == data.phone.replace("+52", ""))
     )
     user = session.exec(statement).first()
     
@@ -197,7 +225,8 @@ async def firebase_verify(
     statement = select(User).where(
         (User.phone == phone_norm) |
         (User.phone == phone_raw) |
-        (User.phone == phone_raw.replace("+57", ""))
+        (User.phone == phone_raw.replace("+57", "")) |
+        (User.phone == phone_raw.replace("+52", ""))
     )
     user = session.exec(statement).first()
     is_new_user = False

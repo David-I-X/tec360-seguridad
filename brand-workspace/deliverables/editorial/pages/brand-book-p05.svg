@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000">
+  <defs>
+    
+    <radialGradient id="bb-p5-aur-violet" cx="24%" cy="88%" r="58%">
+      <stop offset="0%" stop-color="#7C3AED" stop-opacity="0.34"/>
+      <stop offset="55%" stop-color="#3B82F6" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#050810" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="bb-p5-aur-cyan" cx="82%" cy="18%" r="48%">
+      <stop offset="0%" stop-color="#00F0FF" stop-opacity="0.20"/>
+      <stop offset="55%" stop-color="#7C3AED" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#050810" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="bb-p5-grid" width="44" height="44" patternUnits="userSpaceOnUse">
+      <path d="M 44 0 L 0 0 0 44" fill="none" stroke="#6366F1" stroke-opacity="0.06" stroke-width="1"/>
+    </pattern>
+    
+    <linearGradient id="bb-p5-hdr-ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="55%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+    <linearGradient id="bb-p5-hdr-sub" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00F0FF" stop-opacity="0.92"/>
+      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="bb-p5-hdr-sweep" x1="0.15" y1="0.85" x2="0.9" y2="0.1">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.55"/>
+      <stop offset="65%" stop-color="#00F0FF" stop-opacity="0.38"/>
+      <stop offset="100%" stop-color="#00F0FF" stop-opacity="0.08"/>
+    </linearGradient>
+    
+  </defs>
+  <rect width="1600" height="1000" fill="#050810"/>
+  <rect width="1600" height="1000" fill="url(#bb-p5-aur-violet)"/>
+  <rect width="1600" height="1000" fill="url(#bb-p5-aur-cyan)"/>
+  <rect width="1600" height="1000" fill="url(#bb-p5-grid)"/>
+
+  <!-- Barra Superior Editorial -->
+  <g transform="translate(56 26) scale(0.058594)">
+    <path d="M 467.48 241.21 A 212 212 0 1 1 314.44 52.21 L 268 84.42 A 172 172 0 1 0 421.34 208.59 Z" fill="url(#bb-p5-hdr-ring)"/>
+    <path d="M 350.47 364.68 A 144 144 0 0 1 161.53 147.32 L 162.42 174.65 A 124 124 0 0 0 349.58 337.35 Z" fill="url(#bb-p5-hdr-sub)" opacity="1"/>
+    <path d="M 284.5 138.89 A 138 138 0 0 1 373.11 227.5 L 289.41 254.69 A 50 50 0 0 0 257.31 222.59 Z" fill="url(#bb-p5-hdr-sweep)" opacity="1"/>
+    <path d="M 284.56 134.71 A 142 142 0 0 1 298.48 139.92 L 261.8 224.29 A 50 50 0 0 0 256.9 222.45 Z" fill="#00F0FF"/>
+    <circle cx="364.9" cy="147.1" r="23" fill="#00F0FF"/>
+    <path d="M 206.86 270.14 A 35 35 0 1 0 276.86 270.14 A 35 35 0 1 0 206.86 270.14 Z M 225.86 270.14 A 16 16 0 1 0 257.86 270.14 A 16 16 0 1 0 225.86 270.14 Z" fill="#F8FAFC" fill-rule="evenodd"/>
+    <circle cx="241.86" cy="270.14" r="8.5" fill="#00F0FF"/></g>
+  <text x="98" y="47" font-family="Consolas" font-size="12" font-weight="700" letter-spacing="2" fill="#B4B0C8">TEC360 SEGURIDAD · MANUAL DE IDENTIDAD &amp; SISTEMA DE DISEÑO v3.0</text>
+  <text x="1544" y="47" text-anchor="end" font-family="Consolas" font-size="12" font-weight="700" letter-spacing="1.8" fill="#00F0FF">[PÁGINA 05 / 08]</text>
+  <line x1="56" y1="66" x2="1544" y2="66" stroke="#FFFFFF" stroke-opacity="0.09" stroke-width="1"/>
+
+  <!-- Titular de Doble Luminancia + Énfasis entre Corchetes (Cero Kickers) -->
+  <text x="56" y="124" font-family="Bahnschrift" font-size="38" font-weight="700" fill="#F8FAFC">
+    Arquitectura cromática. <tspan font-weight="400" fill="#A39EB8">Contraste verificado WCAG 2.2 </tspan><tspan font-family="Bahnschrift" font-weight="700" fill="#00F0FF">[AA / AAA]</tspan>
+  </text>
+
+  
+    
+      <rect x="56" y="162" width="280" height="236" rx="20" fill="#0B0F19" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <rect x="70" y="176" width="252" height="122" rx="14" fill="#050810" stroke="#334155" stroke-width="1.5"/>
+      <text x="84" y="214" font-family="Consolas" font-size="18" font-weight="700" fill="#F8FAFC">#050810</text>
+      <text x="84" y="280" font-family="Consolas" font-size="12" font-weight="700" fill="#F8FAFC">19.3:1 AAA</text>
+      <text x="76" y="332" font-family="Bahnschrift" font-size="20" font-weight="700" fill="#F8FAFC">Void Canvas</text>
+      <text x="76" y="360" font-family="Segoe UI" font-size="14" fill="#B4B0C8">Lienzo global inmersivo</text>
+      <rect x="358" y="162" width="280" height="236" rx="20" fill="#0B0F19" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <rect x="372" y="176" width="252" height="122" rx="14" fill="#0B0F19" stroke="#334155" stroke-width="1.5"/>
+      <text x="386" y="214" font-family="Consolas" font-size="18" font-weight="700" fill="#F8FAFC">#0B0F19</text>
+      <text x="386" y="280" font-family="Consolas" font-size="12" font-weight="700" fill="#F8FAFC">17.8:1 AAA</text>
+      <text x="378" y="332" font-family="Bahnschrift" font-size="20" font-weight="700" fill="#F8FAFC">Obsidian Panel</text>
+      <text x="378" y="360" font-family="Segoe UI" font-size="14" fill="#B4B0C8">Tarjetas y reproductores</text>
+      <rect x="660" y="162" width="280" height="236" rx="20" fill="#0B0F19" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <rect x="674" y="176" width="252" height="122" rx="14" fill="#111827" stroke="#334155" stroke-width="1.5"/>
+      <text x="688" y="214" font-family="Consolas" font-size="18" font-weight="700" fill="#F8FAFC">#111827</text>
+      <text x="688" y="280" font-family="Consolas" font-size="12" font-weight="700" fill="#F8FAFC">15.6:1 AAA</text>
+      <text x="680" y="332" font-family="Bahnschrift" font-size="20" font-weight="700" fill="#F8FAFC">Slate Elevated</text>
+      <text x="680" y="360" font-family="Segoe UI" font-size="14" fill="#B4B0C8">Controles y badges</text>
+      <rect x="962" y="162" width="280" height="236" rx="20" fill="#0B0F19" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <rect x="976" y="176" width="252" height="122" rx="14" fill="#7C3AED" stroke="#A78BFA" stroke-width="1.5"/>
+      <text x="990" y="214" font-family="Consolas" font-size="18" font-weight="700" fill="#F8FAFC">#7C3AED</text>
+      <text x="990" y="280" font-family="Consolas" font-size="12" font-weight="700" fill="#F8FAFC">5.7:1 AA</text>
+      <text x="982" y="332" font-family="Bahnschrift" font-size="20" font-weight="700" fill="#F8FAFC">Violet Core</text>
+      <text x="982" y="360" font-family="Segoe UI" font-size="14" fill="#B4B0C8">Botón primario &amp; marca</text>
+      <rect x="1264" y="162" width="280" height="236" rx="20" fill="#0B0F19" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <rect x="1278" y="176" width="252" height="122" rx="14" fill="#8B5CF6" stroke="#C4B5FD" stroke-width="1.5"/>
+      <text x="1292" y="214" font-family="Consolas" font-size="18" font-weight="700" fill="#050810">#8B5CF6</text>
+      <text x="1292" y="280" font-family="Consolas" font-size="12" font-weight="700" fill="#050810">5.4:1 AA</text>
+      <text x="1284" y="332" font-family="Bahnschrift" font-size="20" font-weight="700" fill="#F8FAFC">Electric Violet</text>
+      <text x="1284" y="360" font-family="Segoe UI" font-size="14" fill="#B4B0C8">Línea 01: Instalaciones</text>
+    
+      <rect x="56" y="420" width="280" height="236" rx="20" fill="#0B0F19" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <rect x="70" y="434" width="252" height="122" rx="14" fill="#00F0FF" stroke="#67E8F9" stroke-width="1.5"/>
+      <text x="84" y="472" font-family="Consolas" font-size="18" font-weight="700" fill="#050810">#00F0FF</text>
+      <text x="84" y="538" font-family="Consolas" font-size="12" font-weight="700" fill="#050810">14.2:1 AAA</text>
+      <text x="76" y="590" font-family="Bahnschrift" font-size="20" font-weight="700" fill="#F8FAFC">Telemetry Cyan</text>
+      <text x="76" y="618" font-family="Segoe UI" font-size="14" fill="#B4B0C8">Línea 02: Reacción &amp; [TAGS]</text>
+      <rect x="358" y="420" width="280" height="236" rx="20" fill="#0B0F19" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <rect x="372" y="434" width="252" height="122" rx="14" fill="#F59E0B" stroke="#FCD34D" stroke-width="1.5"/>
+      <text x="386" y="472" font-family="Consolas" font-size="18" font-weight="700" fill="#050810">#F59E0B</text>
+      <text x="386" y="538" font-family="Consolas" font-size="12" font-weight="700" fill="#050810">10.1:1 AAA</text>
+      <text x="378" y="590" font-family="Bahnschrift" font-size="20" font-weight="700" fill="#F8FAFC">Tactical Amber</text>
+      <text x="378" y="618" font-family="Segoe UI" font-size="14" fill="#B4B0C8">Línea 03: Mecánica Básica</text>
+      <rect x="660" y="420" width="280" height="236" rx="20" fill="#0B0F19" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <rect x="674" y="434" width="252" height="122" rx="14" fill="#10B981" stroke="#6EE7B7" stroke-width="1.5"/>
+      <text x="688" y="472" font-family="Consolas" font-size="18" font-weight="700" fill="#050810">#10B981</text>
+      <text x="688" y="538" font-family="Consolas" font-size="12" font-weight="700" fill="#050810">8.4:1 AAA</text>
+      <text x="680" y="590" font-family="Bahnschrift" font-size="20" font-weight="700" fill="#F8FAFC">Armed Emerald</text>
+      <text x="680" y="618" font-family="Segoe UI" font-size="14" fill="#B4B0C8">4G Activa / Certificados</text>
+      <rect x="962" y="420" width="280" height="236" rx="20" fill="#0B0F19" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <rect x="976" y="434" width="252" height="122" rx="14" fill="#FF2A55" stroke="#FDA4AF" stroke-width="1.5"/>
+      <text x="990" y="472" font-family="Consolas" font-size="18" font-weight="700" fill="#F8FAFC">#FF2A55</text>
+      <text x="990" y="538" font-family="Consolas" font-size="12" font-weight="700" fill="#F8FAFC">5.9:1 AA</text>
+      <text x="982" y="590" font-family="Bahnschrift" font-size="20" font-weight="700" fill="#F8FAFC">Alert Crimson</text>
+      <text x="982" y="618" font-family="Segoe UI" font-size="14" fill="#B4B0C8">Corte de Motor [0 KM/H]</text>
+      <rect x="1264" y="420" width="280" height="236" rx="20" fill="#0B0F19" stroke="#FFFFFF" stroke-opacity="0.10"/>
+      <rect x="1278" y="434" width="252" height="122" rx="14" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5"/>
+      <text x="1292" y="472" font-family="Consolas" font-size="18" font-weight="700" fill="#0F172A">#F8FAFC</text>
+      <text x="1292" y="538" font-family="Consolas" font-size="12" font-weight="700" fill="#0F172A">17.4:1 AAA</text>
+      <text x="1284" y="590" font-family="Bahnschrift" font-size="20" font-weight="700" fill="#F8FAFC">Light Support</text>
+      <text x="1284" y="618" font-family="Segoe UI" font-size="14" fill="#B4B0C8">Modo impreso + #0F172A</text>
+
+    <!-- Barra Inferior: Textos Teñidos Lavanda & Auroras de Seda -->
+    <rect x="56" y="682" width="1488" height="232" rx="22" fill="#0B0F19" stroke="#8B5CF6" stroke-opacity="0.30"/>
+    <text x="88" y="726" font-family="Bahnschrift" font-size="24" font-weight="700" fill="#F8FAFC">Regla de Textos Secundarios Teñidos (Prohibido el Gris Neutro Apagado)</text>
+
+    <rect x="88" y="750" width="446" height="132" rx="16" fill="#050810" stroke="#FFFFFF" stroke-opacity="0.10"/>
+    <text x="114" y="790" font-family="Consolas" font-size="16" font-weight="700" fill="#F8FAFC">#F8FAFC · PRIMARY LIGHT (19.3:1)</text>
+    <text x="114" y="822" font-family="Segoe UI" font-size="15" fill="#B4B0C8">Afirmación principal en titulares, valores de</text>
+    <text x="114" y="846" font-family="Segoe UI" font-size="15" fill="#B4B0C8">telemetría y etiquetas de controles activos.</text>
+
+    <rect x="558" y="750" width="446" height="132" rx="16" fill="#050810" stroke="#FFFFFF" stroke-opacity="0.10"/>
+    <text x="584" y="790" font-family="Consolas" font-size="16" font-weight="700" fill="#B4B0C8">#B4B0C8 · LAVENDER BODY (9.4:1)</text>
+    <text x="584" y="822" font-family="Segoe UI" font-size="15" fill="#B4B0C8">Párrafos descriptivos y subtítulos teñidos</text>
+    <text x="584" y="846" font-family="Segoe UI" font-size="15" fill="#B4B0C8">sutilmente desde el violeta primario.</text>
+
+    <rect x="1028" y="750" width="484" height="132" rx="16" fill="#050810" stroke="#FFFFFF" stroke-opacity="0.10"/>
+    <text x="1054" y="790" font-family="Consolas" font-size="16" font-weight="700" fill="#A39EB8">#A39EB8 · EDITORIAL DUAL-TONE (7.8:1)</text>
+    <text x="1054" y="822" font-family="Segoe UI" font-size="15" fill="#B4B0C8">Segunda voz dentro de titulares Archivo para</text>
+    <text x="1054" y="846" font-family="Segoe UI" font-size="15" fill="#B4B0C8">crear jerarquía sin cambiar de tamaño.</text>
+    
+
+  <!-- Pie Editorial -->
+  <line x1="56" y1="946" x2="1544" y2="946" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1"/>
+  <text x="56" y="972" font-family="Consolas" font-size="11" fill="#94A3B8">ORBITAL RADAR 360° V2 · INSTALACIONES · EQUIPO DE REACCIÓN 24/7 · MECÁNICA BÁSICA · TÉCNICOS CERTIFICADOS</text>
+  <text x="1544" y="972" text-anchor="end" font-family="Consolas" font-size="11" fill="#00F0FF">tec360seguridad.com · +57 305 215 6601</text>
+</svg>

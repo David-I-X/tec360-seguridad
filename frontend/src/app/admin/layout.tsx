@@ -3,7 +3,11 @@
 import { ReactNode, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Shield, LayoutDashboard, Users, Wrench, Settings, LogOut, Search, Bell, Menu, X, DollarSign, ReceiptText } from "lucide-react"
+import {
+    Shield, LayoutDashboard, Users, Wrench, Settings,
+    LogOut, Search, Bell, Menu, X, DollarSign, ReceiptText, ShieldCheck
+} from "lucide-react"
+import { Tec360Logo } from "@/components/brand/tec360-logo"
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
     const pathname = usePathname()
@@ -12,18 +16,19 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     const navItems = [
         { href: "/admin", icon: LayoutDashboard, label: "Dashboard" },
         { href: "/admin/usuarios", icon: Users, label: "Usuarios" },
+        { href: "/admin/verificaciones", icon: ShieldCheck, label: "Verificaciones", badge: "6" },
         { href: "/admin/servicios", icon: Wrench, label: "Servicios" },
-        { href: "/admin/finanzas", icon: DollarSign, label: "Finanzas" },
+        { href: "/admin/finanzas", icon: DollarSign, label: "Finanzas & Recaudos" },
         { href: "/admin/contabilidad", icon: ReceiptText, label: "Contabilidad & DIAN" },
         { href: "/configuracion", icon: Settings, label: "Configuración" },
     ]
 
     return (
-        <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-[#101822] text-slate-900 dark:text-slate-100 font-sans">
+        <div className="flex h-screen overflow-hidden bg-[#020408] text-slate-100 font-sans">
             {/* Mobile overlay */}
             {sidebarOpen && (
                 <div
-                    className="fixed inset-0 bg-black/50 z-40 md:hidden"
+                    className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 md:hidden"
                     onClick={() => setSidebarOpen(false)}
                 />
             )}
@@ -31,26 +36,20 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             {/* Sidebar — hidden on mobile, slide-in when toggled */}
             <aside className={`
                 fixed md:relative z-50 md:z-auto
-                w-64 flex-shrink-0 bg-slate-950 border-r border-slate-800 flex flex-col
+                w-64 flex-shrink-0 bg-[#050810] border-r border-slate-800/80 flex flex-col
                 h-full transition-transform duration-200 ease-in-out
                 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
             `}>
-                <div className="p-6 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-white">
-                            <Shield className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h1 className="text-white text-base font-bold leading-tight">Tec360</h1>
-                            <p className="text-slate-400 text-xs font-medium">Seguridad Admin</p>
-                        </div>
-                    </div>
-                    <button className="md:hidden text-slate-400 hover:text-white" onClick={() => setSidebarOpen(false)}>
+                <div className="p-5 flex items-center justify-between border-b border-slate-800/60">
+                    <Link href="/admin" className="flex items-center">
+                        <Tec360Logo size="sm" badgeLabel="ADMIN CONSOLE" />
+                    </Link>
+                    <button className="md:hidden text-slate-400 hover:text-white p-1" onClick={() => setSidebarOpen(false)}>
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
-                <nav className="flex-1 px-4 space-y-1 mt-4">
+                <nav className="flex-1 px-3 space-y-1 mt-4 overflow-y-auto">
                     {navItems.map((item) => {
                         const isActive = pathname === item.href
                         const Icon = item.icon
@@ -59,72 +58,78 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                                 key={item.href}
                                 href={item.href}
                                 onClick={() => setSidebarOpen(false)}
-                                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${isActive
-                                    ? "bg-primary text-white"
-                                    : "text-slate-400 hover:text-white hover:bg-slate-900"
+                                className={`flex items-center justify-between px-3 py-2.5 rounded-xl font-medium transition-all text-xs font-mono tracking-tight ${isActive
+                                    ? "bg-[#0B1736] text-[#93C5FD] border border-[#1E3A8A] shadow-sm font-semibold"
+                                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent"
                                     }`}
                             >
-                                <Icon className="w-5 h-5" />
-                                <span className="text-sm">{item.label}</span>
+                                <div className="flex items-center gap-2.5">
+                                    <Icon className={`w-4 h-4 ${isActive ? "text-[#60A5FA]" : "text-slate-500"}`} />
+                                    <span>{item.label}</span>
+                                </div>
+                                {item.badge && (
+                                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-blue-500/20 text-blue-300 border border-blue-500/30 font-bold">
+                                        {item.badge}
+                                    </span>
+                                )}
                             </Link>
                         )
                     })}
                 </nav>
 
-                <div className="p-4 border-t border-slate-800">
-                    <div className="flex items-center gap-3 px-2 py-3 rounded-lg hover:bg-slate-900 transition-colors cursor-pointer">
-                        <div className="w-8 h-8 rounded-full bg-slate-700 overflow-hidden flex-shrink-0">
-                            <div className="w-full h-full bg-slate-600 flex items-center justify-center text-xs font-bold text-white">
-                                AD
-                            </div>
+                <div className="p-4 border-t border-slate-800/80 bg-[#03060E]">
+                    <div className="flex items-center gap-3 px-2 py-2.5 rounded-xl bg-slate-900/60 border border-slate-800/70 hover:border-slate-700 transition-colors cursor-pointer">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 overflow-hidden flex-shrink-0 flex items-center justify-center text-xs font-bold text-white shadow-sm">
+                            AD
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-white text-xs font-semibold truncate">Admin User</p>
-                            <p className="text-slate-500 text-[10px] truncate">admin@tec360.com</p>
+                            <p className="text-slate-200 text-xs font-semibold truncate font-mono">Super Admin</p>
+                            <p className="text-slate-400 text-[10px] truncate font-mono">admin@tec360.co</p>
                         </div>
-                        <LogOut className="w-4 h-4 text-slate-400" />
+                        <LogOut className="w-3.5 h-3.5 text-slate-400 hover:text-rose-400 transition-colors" />
                     </div>
                 </div>
             </aside>
 
             {/* Main Content Area */}
-            <main className="flex-1 flex flex-col overflow-y-auto w-full">
+            <main className="flex-1 flex flex-col overflow-y-auto w-full bg-[#020408]">
                 {/* Header */}
-                <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 bg-white/50 dark:bg-[#101822]/50 backdrop-blur-md sticky top-0 z-10">
+                <header className="h-16 border-b border-slate-800/80 flex items-center justify-between px-4 md:px-8 bg-[#050810]/80 backdrop-blur-md sticky top-0 z-10">
                     {/* Mobile hamburger */}
                     <button
-                        className="md:hidden p-2 -ml-1 text-slate-500 hover:text-primary transition-colors"
+                        className="md:hidden p-2 -ml-1 text-slate-400 hover:text-white transition-colors"
                         onClick={() => setSidebarOpen(true)}
                     >
-                        <Menu className="w-6 h-6" />
+                        <Menu className="w-5 h-5" />
                     </button>
 
                     <div className="max-w-md w-full hidden sm:block">
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
                             <input
-                                className="w-full pl-10 pr-4 py-1.5 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary placeholder:text-slate-500 outline-none"
-                                placeholder="Buscar usuarios, servicios..."
+                                className="w-full pl-9 pr-4 py-1.5 bg-[#0B132B] border border-slate-800 rounded-xl text-xs font-mono text-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder:text-slate-500 outline-none transition-all"
+                                placeholder="Buscar usuarios, servicios, CUFE..."
                                 type="text"
                             />
                         </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <button className="p-2 text-slate-500 hover:text-primary transition-colors">
-                            <Bell className="w-5 h-5" />
+                    <div className="flex items-center gap-3">
+                        <button className="p-2 text-slate-400 hover:text-slate-200 transition-colors relative">
+                            <Bell className="w-4 h-4" />
+                            <span className="w-2 h-2 rounded-full bg-blue-500 absolute top-1.5 right-1.5" />
                         </button>
-                        <div className="h-8 w-[1px] bg-slate-200 dark:bg-slate-800 hidden sm:block"></div>
-                        <div className="flex items-center gap-3">
-                            <span className="text-sm font-medium hidden md:block">Centro de Control</span>
-                            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                                <Shield className="w-5 h-5" />
+                        <div className="h-6 w-[1px] bg-slate-800 hidden sm:block" />
+                        <div className="flex items-center gap-2.5">
+                            <span className="text-xs font-mono text-slate-300 hidden md:block">Centro de Control Tec360</span>
+                            <div className="w-8 h-8 rounded-xl bg-[#0B1736] border border-[#1E3A8A] flex items-center justify-center text-[#93C5FD]">
+                                <Shield className="w-4 h-4" />
                             </div>
                         </div>
                     </div>
                 </header>
 
                 {/* Page Content */}
-                <div className="p-4 md:p-8">
+                <div className="p-4 md:p-8 flex-1">
                     {children}
                 </div>
             </main>

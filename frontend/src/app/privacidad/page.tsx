@@ -129,7 +129,7 @@ export default function PrivacidadPage() {
                   </tr>
                   <tr>
                     <td className="p-3 font-medium text-white">Técnicos</td>
-                    <td className="p-3">Certificados técnicos SENA, test de conocimiento, años de experiencia.</td>
+                    <td className="p-3">Certificados de idoneidad técnica oficial, test de conocimiento y auditoría de antecedentes.</td>
                     <td className="p-3">Acreditación objetiva de idoneidad y estándares de seguridad comunitaria.</td>
                     <td className="p-3 text-violet-300">Dato Personal General</td>
                   </tr>

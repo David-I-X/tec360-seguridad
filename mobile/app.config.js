@@ -21,7 +21,7 @@ export default {
       package: "com.tec360.seguridad",
       googleServicesFile: process.env.GOOGLE_SERVICES_JSON || "./google-services.json",
       adaptiveIcon: {
-        backgroundColor: "#0f172a",
+        backgroundColor: "#050810",
         foregroundImage: "./assets/images/android-icon-foreground.png",
         backgroundImage: "./assets/images/android-icon-background.png",
         monochromeImage: "./assets/images/android-icon-monochrome.png",
@@ -52,9 +52,9 @@ export default {
           image: "./assets/images/splash-icon.png",
           imageWidth: 200,
           resizeMode: "contain",
-          backgroundColor: "#0f172a",
+          backgroundColor: "#050810",
           dark: {
-            backgroundColor: "#0f172a",
+            backgroundColor: "#050810",
           },
         },
       ],

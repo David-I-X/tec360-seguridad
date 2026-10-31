@@ -60,6 +60,21 @@ export default function VerifyScreen() {
     }
   };
 
+  const formatDisplayPhone = (p?: string) => {
+    if (!p) return '';
+    if (p.startsWith('+52')) {
+      const digits = p.slice(3);
+      const masked = digits.length >= 10 ? `${digits.slice(0, 2)} *** ${digits.slice(-4)}` : digits;
+      return `🇲🇽 +52 ${masked}`;
+    }
+    if (p.startsWith('+57')) {
+      const digits = p.slice(3);
+      const masked = digits.length >= 10 ? `${digits.slice(0, 3)} *** ${digits.slice(-4)}` : digits;
+      return `🇨🇴 +57 ${masked}`;
+    }
+    return p;
+  };
+
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.glowOrb} />
@@ -69,7 +84,7 @@ export default function VerifyScreen() {
         </LinearGradient>
 
         <Text style={styles.title}>Verificación</Text>
-        <Text style={styles.subtitle}>Ingresa el código enviado a{'\n'}<Text style={styles.phoneHighlight}>{phone}</Text></Text>
+        <Text style={styles.subtitle}>Ingresa el código enviado a{'\n'}<Text style={styles.phoneHighlight}>{formatDisplayPhone(phone)}</Text></Text>
 
         <TextInput
           ref={inputRef}

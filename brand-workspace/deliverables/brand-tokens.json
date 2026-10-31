@@ -2,8 +2,9 @@
   "$schema": "https://tr.designtokens.org/format/",
   "meta": {
     "brand": "Tec360 Seguridad",
-    "version": "2.0.0",
-    "generatedBy": "brand-architect + brand-style-agent",
+    "version": "3.1.0",
+    "codename": "Official Squircle Radar Lockup & Dark Silk Telemetry (brandingwork v3)",
+    "generatedBy": "brandingwork + brand-architect + brand-style-agent + impeccable",
     "generativeEngine": "Google Stitch MCP (https://stitch.withgoogle.com/)",
     "deterministicEngines": [
       "vectorcraft v0.13.1",
@@ -19,45 +20,105 @@
       "lightcraft v0.9.1"
     ]
   },
+  "brandMark": {
+    "masterAsset": "brand-workspace/assets-in/logo/tec360-logo-oficial.png",
+    "deliverableCopy": "brand-workspace/deliverables/logo/tec360-logo-oficial.png",
+    "webPublicPath": "/brand/tec360-logo.png",
+    "lockupText": "Tec360 Seguridad",
+    "primaryWord": { "text": "Tec360", "fontFamily": "Archivo", "fontWeight": 700, "colorDark": "#F8FAFC", "colorLight": "#0F172A" },
+    "secondaryWord": { "text": "Seguridad", "fontFamily": "Archivo", "fontWeight": 500, "colorDark": "#B4B0C8", "colorLight": "#475569" },
+    "forbidRedrawnSvg": true,
+    "forbidLooseIsotipo": true,
+    "forbidSubtitle": true,
+    "scales": {
+      "sm": { "iconPx": 32, "fontSizePx": 17, "gapPx": 10 },
+      "md": { "iconPx": 40, "fontSizePx": 20, "gapPx": 12 },
+      "lg": { "iconPx": 48, "fontSizePx": 24, "gapPx": 14 }
+    }
+  },
   "brandIdentityPrism": {
-    "archetype": "The Tactical Guardian & Aerospace Telemetry Architect",
-    "physique": "Dark obsidian glass panels, 360-degree shield-pin emblem, real-time 4G satellite telemetry HUD, SENA-certified hardware installation",
-    "personality": ["Vanguardista", "Táctico", "Implacable", "Preciso", "Confiable"],
-    "culture": "Ingeniería colombiana de seguridad vehicular en tiempo real con respaldo técnico certificado por el SENA y operación 24/7",
-    "relationship": "Centro de mando directo en la mano del propietario: prevención experta e inmovilización remota instantánea",
-    "reflection": "Propietarios de carros, motos y flotas que exigen blindaje tecnológico real en lugar de alarmas pasivas",
-    "selfImage": "Tengo el control total de mi vehículo en tiempo real, esté donde esté"
+    "archetype": "El Guardián Táctico & Arquitecto de Telemetría Vehicular 360°",
+    "physique": "Lienzo obsidiana #050810 con auroras de seda, isotipo Orbital Radar 360° V2, muescas esculpidas, consolas de telemetría 4G L1/L5 y fotografía automotriz de estudio oscuro",
+    "personality": ["Vanguardista", "Táctico", "Preciso", "Ágil", "Confiable"],
+    "culture": "Ingeniería colombiana de protección electrónica, reacción inmediata 24/7 y mecánica básica express a domicilio ejecutada por técnicos certificados",
+    "relationship": "Control directo y transparente en un toque: desde el corte de motor remoto a 0 km/h hasta el seguimiento en vivo del especialista en camino",
+    "reflection": "Conductores de automóviles, motociclistas y gestores de carga que exigen respaldo real en calle y tecnología sin improvisaciones",
+    "selfImage": "Tengo el control total de la seguridad y asistencia de mi vehículo en tiempo real, esté donde esté",
+    "toneOfVoice": {
+      "style": "Directo, técnico-ejecutivo, sereno bajo presión y libre de hipérboles vacías",
+      "headlineFormula": "Afirmación contundente en blanco (#F8FAFC) + contexto fluido en lavanda (#A39EB8) + concepto clave [ENTRE CORCHETES] en cian (#00F0FF)",
+      "humanStandard": "Exclusivamente 'técnicos certificados' (cero alusiones a entidades terceras)"
+    }
+  },
+  "servicePillars": {
+    "instalacion": {
+      "title": "Instalaciones Vehiculares",
+      "scope": "Motos · Automóviles · Carga Pesada",
+      "accent": "#8B5CF6",
+      "buttonFill": "#7C3AED",
+      "buttonText": "#F8FAFC",
+      "capabilities": ["GPS 4G L1/L5 Anti-Jammer", "Dashcam HD en Nube", "Alarmas Inteligentes", "Bloqueo CAN-Bus OEM"]
+    },
+    "recuperacion": {
+      "title": "Equipo de Reacción & Recuperación 24/7",
+      "scope": "Respuesta Inmediata 24/7 · Cobertura Nacional",
+      "accent": "#00F0FF",
+      "alertAccent": "#FF2A55",
+      "buttonFill": "#00F0FF",
+      "buttonText": "#050810",
+      "capabilities": ["Corte Remoto 0 km/h (1.1s)", "Equipo de Reacción en Campo", "Cerco Satelital 10s", "Enlace Policía Nacional"]
+    },
+    "mecanica": {
+      "title": "Mecánica Básica a Domicilio",
+      "scope": "Asistencia Express · En Casa, Oficina o Vía",
+      "accent": "#F59E0B",
+      "verifiedAccent": "#10B981",
+      "buttonFill": "#F59E0B",
+      "buttonText": "#050810",
+      "capabilities": ["Batería y Corriente (< 30m)", "Cambio de Llantas (< 30m)", "Aceite y Filtros (< 45m)", "Frenos, Kit de Arrastre y Luces"]
+    }
   },
   "color": {
     "background": {
       "void": { "$type": "color", "$value": "#050810", "wcagWhiteContrast": 19.3 },
       "obsidian": { "$type": "color", "$value": "#0B0F19", "wcagWhiteContrast": 17.8 },
       "elevated": { "$type": "color", "$value": "#111827", "wcagWhiteContrast": 15.6 },
-      "light": { "$type": "color", "$value": "#F8FAFC", "wcagDarkContrast": 17.4 }
+      "alertSurface": { "$type": "color", "$value": "#190812", "wcagWhiteContrast": 16.4 },
+      "light": { "$type": "color", "$value": "#F8FAFC", "wcagDarkContrast": 17.4 },
+      "lightSurface": { "$type": "color", "$value": "#FFFFFF", "wcagDarkContrast": 18.1 }
     },
     "brand": {
-      "primary": { "$type": "color", "$value": "#7C3AED", "wcagWhiteContrast": 5.7, "psychology": "Autoridad tecnológica e innovación" },
-      "primaryVivid": { "$type": "color", "$value": "#8B5CF6", "wcagDarkVoidContrast": 5.4, "psychology": "Energía de blindaje activo 360" },
-      "primaryDeep": { "$type": "color", "$value": "#5B21B6", "wcagWhiteContrast": 8.4 },
-      "secondaryBlue": { "$type": "color", "$value": "#3B82F6", "wcagDarkVoidContrast": 5.8, "psychology": "Confiabilidad satelital y precisión" },
-      "telemetryCyan": { "$type": "color", "$value": "#00F0FF", "wcagDarkVoidContrast": 14.2, "psychology": "Pulso GPS 4G en tiempo real y radar" }
+      "primary": { "$type": "color", "$value": "#7C3AED", "wcagWhiteContrast": 5.7, "psychology": "Autoridad tecnológica y acción principal" },
+      "primaryVivid": { "$type": "color", "$value": "#8B5CF6", "wcagDarkVoidContrast": 5.4, "psychology": "Pilar de Instalaciones Vehiculares y blindaje 360°" },
+      "primaryDeep": { "$type": "color", "$value": "#5B21B6", "wcagWhiteContrast": 8.4, "psychology": "Superficie institucional invertida" },
+      "secondaryBlue": { "$type": "color", "$value": "#3B82F6", "wcagDarkVoidContrast": 5.8, "psychology": "Confiabilidad satelital y gradiente orbital" },
+      "telemetryCyan": { "$type": "color", "$value": "#00F0FF", "wcagDarkVoidContrast": 14.2, "psychology": "Pulso GPS 4G, énfasis [CORCHETES] y Pilar Reacción 24/7" },
+      "cyanLightMode": { "$type": "color", "$value": "#0284C7", "wcagLightBgContrast": 4.6, "psychology": "Adaptación accesible de cian sobre fondos claros" }
     },
     "semantic": {
-      "armedEmerald": { "$type": "color", "$value": "#10B981", "wcagDarkVoidContrast": 8.4, "role": "Vehículo protegido / Técnico SENA verificado" },
-      "warningAmber": { "$type": "color", "$value": "#F59E0B", "wcagDarkVoidContrast": 8.9, "role": "Advertencia / Geocerca preventiva" },
-      "alertCrimson": { "$type": "color", "$value": "#FF2A55", "wcagDarkVoidContrast": 5.9, "role": "Alerta de robo / Corte de motor remoto activo" }
+      "armedEmerald": { "$type": "color", "$value": "#10B981", "wcagDarkVoidContrast": 8.4, "role": "Red 4G activa / Ignición OK / Técnico certificado auditado" },
+      "warningAmber": { "$type": "color", "$value": "#F59E0B", "wcagDarkVoidContrast": 8.9, "role": "Pilar Mecánica Básica Express / Estrellas verificadas" },
+      "alertCrimson": { "$type": "color", "$value": "#FF2A55", "wcagDarkVoidContrast": 5.9, "role": "Corte de motor remoto activo (0 km/h LOCKED) / Alerta" }
     },
     "text": {
       "primaryDark": { "$type": "color", "$value": "#F8FAFC", "wcagDarkVoidContrast": 19.3 },
+      "bodyTintedDark": { "$type": "color", "$value": "#B4B0C8", "wcagDarkVoidContrast": 9.4 },
+      "displayDualDark": { "$type": "color", "$value": "#A39EB8", "wcagDarkVoidContrast": 7.8 },
       "secondaryDark": { "$type": "color", "$value": "#94A3B8", "wcagDarkVoidContrast": 7.2 },
-      "primaryLight": { "$type": "color", "$value": "#0F172A", "wcagLightBgContrast": 17.4 }
+      "primaryLight": { "$type": "color", "$value": "#0F172A", "wcagLightBgContrast": 17.4 },
+      "secondaryLight": { "$type": "color", "$value": "#475569", "wcagLightBgContrast": 7.5 }
+    },
+    "border": {
+      "violetGlass": { "$type": "color", "$value": "rgba(139, 92, 246, 0.24)" },
+      "subtleHairline": { "$type": "color", "$value": "rgba(255, 255, 255, 0.08)" },
+      "cyanActive": { "$type": "color", "$value": "rgba(0, 240, 255, 0.60)" }
     }
   },
   "typography": {
     "scaleRatio": 1.25,
     "scaleName": "Major Third (1.250)",
     "families": {
-      "display": { "$type": "fontFamily", "$value": ["Geist", "Inter", "system-ui", "sans-serif"] },
+      "display": { "$type": "fontFamily", "$value": ["Archivo", "Geist", "Inter", "system-ui", "sans-serif"] },
       "body": { "$type": "fontFamily", "$value": ["Geist", "Inter", "system-ui", "sans-serif"] },
       "mono": { "$type": "fontFamily", "$value": ["Geist Mono", "JetBrains Mono", "monospace"] }
     },
@@ -93,5 +154,10 @@
     "lg": { "$type": "dimension", "$value": "16px" },
     "xl": { "$type": "dimension", "$value": "24px" },
     "pill": { "$type": "dimension", "$value": "9999px" }
+  },
+  "motion": {
+    "easeOutExpo": { "$type": "cubicBezier", "$value": [0.22, 1, 0.36, 1] },
+    "auroraDriftSec": 14,
+    "circuitPulseSec": 3.4
   }
 }

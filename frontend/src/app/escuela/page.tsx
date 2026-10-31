@@ -299,7 +299,7 @@ export default function EscuelaPage() {
                   }`}
                 >
                   <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                  Cursos Obligatorios SENA/Tec360
+                  Cursos de Certificación Tec360
                 </Button>
               </div>
             </div>
@@ -403,7 +403,7 @@ export default function EscuelaPage() {
                         {course.is_required_for_technicians && (
                           <div className="absolute bottom-3 left-3">
                             <span className="text-[11px] font-bold px-2.5 py-1 rounded-md bg-amber-500/90 text-slate-950 flex items-center gap-1 shadow-md">
-                              <Star className="w-3 h-3 fill-slate-950" /> Obligatorio SENA/Tec
+                              <Star className="w-3 h-3 fill-slate-950" /> Certificación Oficial
                             </span>
                           </div>
                         )}

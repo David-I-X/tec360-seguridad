@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
+import NextImage from "next/image"
 import dynamic from "next/dynamic"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -68,6 +69,70 @@ const typeLabels: Record<string, string> = {
     spark_bulbs_wipers: "Bujías, Bombillos o Plumillas",
     vehicle_recovery: "Equipo de Reacción Inmediata",
     other: "Servicio Técnico Especializado",
+}
+
+function getPillarTheme(service: any) {
+    const type = (service?.service_type || "").toLowerCase()
+    const category = (service?.service_metadata?.service_category || "").toLowerCase()
+    const title = (service?.title || "").toLowerCase()
+
+    const isReaction = 
+        type.includes("recovery") ||
+        type.includes("reaction") || 
+        type.includes("reaccion") || 
+        category.includes("reaction") || 
+        title.includes("reacción") || 
+        title.includes("reaccion") || 
+        title.includes("escolta")
+
+    const isMechanics = 
+        ["oil_change", "tire_change", "battery_service", "brake_service", "chain_kit_service", "spark_bulbs_wipers"].includes(type) || 
+        category.includes("mechanic") || 
+        title.includes("mecanica") || 
+        title.includes("mecánica") || 
+        title.includes("taller") || 
+        title.includes("desvare")
+
+    if (isReaction) {
+        return {
+            name: "REACCIÓN 24/7",
+            colorName: "red",
+            badgeClass: "bg-rose-500/15 text-rose-400 border-rose-500/30",
+            borderClass: "border-rose-500/30",
+            textClass: "text-rose-400",
+            bgTint: "bg-rose-950/20",
+            accentBg: "bg-rose-600",
+            dotColor: "bg-rose-500",
+            icon: "🚨"
+        }
+    }
+
+    if (isMechanics) {
+        return {
+            name: "MECÁNICA EXPRESS",
+            colorName: "yellow",
+            badgeClass: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+            borderClass: "border-amber-500/30",
+            textClass: "text-amber-400",
+            bgTint: "bg-amber-950/20",
+            accentBg: "bg-amber-600",
+            dotColor: "bg-amber-500",
+            icon: "🧰"
+        }
+    }
+
+    // Default: Instalaciones (Azul)
+    return {
+        name: "INSTALACIONES VEHICULARES",
+        colorName: "blue",
+        badgeClass: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+        borderClass: "border-blue-500/30",
+        textClass: "text-blue-400",
+        bgTint: "bg-blue-950/20",
+        accentBg: "bg-blue-600",
+        dotColor: "bg-blue-500",
+        icon: "🛰️"
+    }
 }
 
 /* ─── Photo modal ─────────────────────────────────── */
@@ -659,6 +724,7 @@ function TechnicianServiceContent() {
         dotColor: "bg-slate-400"
     }
 
+    const pillarTheme = getPillarTheme(service)
     const latValue = service.service_lat || 6.2442
     const lonValue = service.service_lon || -75.5636
     const allPhotos = photos.before && photos.during && photos.after
@@ -720,24 +786,65 @@ function TechnicianServiceContent() {
                     variant="outline"
                     size="sm"
                     onClick={() => router.push("/tecnicos/dashboard")}
-                    className="rounded-xl bg-white/95 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/90 dark:border-white/10 backdrop-blur-xl shadow-lg text-xs font-semibold text-slate-800 dark:text-slate-200 gap-1.5 px-3 py-1.5 h-8 sm:h-9 cursor-pointer"
+                    className="rounded-xl bg-slate-950/90 hover:bg-slate-900 border border-white/20 backdrop-blur-xl shadow-lg text-xs font-semibold text-white gap-1.5 px-3 py-1.5 h-8 sm:h-9 cursor-pointer"
                 >
                     <ArrowLeft className="w-4 h-4" />
-                    <span>Panel</span>
+                    <span>Volver al Radar</span>
                 </Button>
 
-                <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 h-8 sm:h-9 rounded-xl bg-white/95 dark:bg-slate-900/90 border border-slate-200/90 dark:border-white/10 backdrop-blur-xl shadow-lg text-xs font-mono font-medium">
+                <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 h-8 sm:h-9 rounded-xl bg-slate-950/90 border border-white/20 backdrop-blur-xl shadow-lg text-xs font-mono font-medium text-white">
                     <span className="relative flex h-2 w-2 shrink-0">
                         <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${isTracking ? "bg-emerald-500" : "bg-slate-400"} opacity-75`} />
                         <span className={`relative inline-flex rounded-full h-2 w-2 ${isTracking ? "bg-emerald-500" : "bg-slate-400"}`} />
                     </span>
                     <span className="hidden sm:inline text-slate-700 dark:text-slate-300 font-sans font-medium">
-                        {isTracking ? "GPS EN VIVO" : "SIN TRACKING"}
+                        {isTracking ? "GPS ACTIVO (Precisión 1.8m)" : "SIN TRACKING"}
                     </span>
                     <span className="sm:hidden text-[10px] font-bold text-slate-700 dark:text-slate-300">
                         {isTracking ? "GPS ACTIVO" : "GPS OFF"}
                     </span>
                 </div>
+            </div>
+
+            {/* Bottom-Left Map Navigation Quick Launchers */}
+            <div className="hidden sm:flex absolute bottom-5 left-16 z-20 items-center gap-2">
+                <a
+                    href={`https://waze.com/ul?ll=${latValue},${lonValue}&navigate=yes`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl bg-slate-950/90 hover:bg-slate-900 border border-white/20 text-white text-xs font-semibold backdrop-blur-xl shadow-lg gap-1.5 h-9 px-3 cursor-pointer"
+                    >
+                        <span>🧭 Waze ↗</span>
+                    </Button>
+                </a>
+                <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${latValue},${lonValue}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl bg-slate-950/90 hover:bg-slate-900 border border-white/20 text-white text-xs font-semibold backdrop-blur-xl shadow-lg gap-1.5 h-9 px-3 cursor-pointer"
+                    >
+                        <span>🗺️ Google Maps ↗</span>
+                    </Button>
+                </a>
+                {service.client?.phone && (
+                    <a href={`tel:${service.client.phone}`}>
+                        <Button
+                            size="sm"
+                            className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-lg gap-1.5 h-9 px-3 cursor-pointer"
+                        >
+                            <Phone className="w-3.5 h-3.5" />
+                            <span>Llamar Cliente</span>
+                        </Button>
+                    </a>
+                )}
             </div>
 
             {/* Top-Right: Open Details Slide (Floating button when slide is closed) */}
@@ -770,8 +877,47 @@ function TechnicianServiceContent() {
                         initial={{ y: 80, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: 80, opacity: 0 }}
-                        className="fixed bottom-3 inset-x-3 z-20 sm:hidden"
+                        className="fixed bottom-3 inset-x-3 z-20 sm:hidden space-y-2"
                     >
+                        {/* Mobile Quick Action Map Pills */}
+                        <div className="flex items-center justify-between gap-1.5">
+                            <a
+                                href={`https://waze.com/ul?ll=${latValue},${lonValue}&navigate=yes`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1"
+                            >
+                                <Button
+                                    size="sm"
+                                    className="w-full bg-slate-950/90 hover:bg-slate-900 border border-white/20 text-white text-[11px] font-bold rounded-xl h-8 cursor-pointer"
+                                >
+                                    🧭 Waze ↗
+                                </Button>
+                            </a>
+                            <a
+                                href={`https://www.google.com/maps/dir/?api=1&destination=${latValue},${lonValue}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1"
+                            >
+                                <Button
+                                    size="sm"
+                                    className="w-full bg-slate-950/90 hover:bg-slate-900 border border-white/20 text-white text-[11px] font-bold rounded-xl h-8 cursor-pointer"
+                                >
+                                    🗺️ Maps ↗
+                                </Button>
+                            </a>
+                            {service.client?.phone && (
+                                <a href={`tel:${service.client.phone}`} className="flex-1">
+                                    <Button
+                                        size="sm"
+                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-xl h-8 cursor-pointer"
+                                    >
+                                        📞 Llamar
+                                    </Button>
+                                </a>
+                            )}
+                        </div>
                         <button
                             onClick={() => setIsSlideOpen(true)}
                             className="w-full flex items-center justify-between p-3 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 shadow-xl cursor-pointer active:scale-[0.99] transition-transform"
@@ -837,16 +983,25 @@ function TechnicianServiceContent() {
                         {/* ── Slide Header ────────────────────────────────── */}
                         <div className="p-3.5 sm:p-5 border-b border-slate-200/80 dark:border-white/10 flex items-center justify-between gap-3 bg-slate-50/70 dark:bg-slate-900/40">
                             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-600/10 dark:bg-blue-500/20 border border-blue-500/30 flex items-center justify-center shrink-0 text-blue-600 dark:text-blue-400">
-                                    {isRecovery ? <Car className="w-4 h-4 sm:w-5 sm:h-5" /> : <Wrench className="w-4 h-4 sm:w-5 sm:h-5" />}
+                                <div className="relative w-8 h-8 rounded-xl overflow-hidden shrink-0 border border-white/10 bg-slate-950 flex items-center justify-center p-1 shadow-inner">
+                                    <NextImage
+                                        src="/brand/tec360-logo.png"
+                                        alt="Tec360 Seguridad"
+                                        width={28}
+                                        height={28}
+                                        className="object-contain"
+                                    />
                                 </div>
                                 <div className="min-w-0">
-                                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-tight truncate">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-slate-900 dark:text-white tracking-tight">Tec360 Seguridad</span>
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase border ${pillarTheme.badgeClass}`}>
+                                            {pillarTheme.name}
+                                        </span>
+                                    </div>
+                                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-tight truncate mt-0.5">
                                         {service.title || "Servicio Técnico"}
                                     </h2>
-                                    <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
-                                        {typeLabels[service.service_type] || service.service_type}
-                                    </p>
                                 </div>
                             </div>
 
@@ -953,6 +1108,22 @@ function TechnicianServiceContent() {
                                             {service.scheduled_date ? format(new Date(service.scheduled_date), "hh:mm a", { locale: es }) : "Definida"}
                                         </p>
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* 4.5 ESCROW SECURITY GUARANTEE */}
+                            <div className="rounded-2xl p-3.5 bg-blue-500/10 dark:bg-blue-950/30 border border-blue-500/30 shadow-sm flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                    <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-blue-600 dark:text-blue-400 block mb-0.5">
+                                        TARIFA ACORDADA
+                                    </span>
+                                    <p className="font-mono font-bold text-sm text-slate-900 dark:text-white truncate">
+                                        {service.estimated_price ? `${service.estimated_price.toLocaleString()} COP` : "Por cotizar"}
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-600/15 border border-blue-500/30 text-[10px] sm:text-[11px] font-bold text-blue-600 dark:text-blue-300">
+                                    <ShieldCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                    <span>Custodia Tec360 Escrow</span>
                                 </div>
                             </div>
 
@@ -1605,6 +1776,10 @@ function TechnicianServiceContent() {
                                     <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
                                 </div>
                             </a>
+
+                            <p className="text-center text-[10px] text-slate-400 dark:text-slate-500 pt-1 pb-2 font-medium">
+                                Técnico Certificado Tec360 • Soporte Operativo 24/7
+                            </p>
 
                         </div>
                     </motion.aside>

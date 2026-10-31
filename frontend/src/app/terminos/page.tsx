@@ -99,7 +99,7 @@ export default function TerminosPage() {
               Los Técnicos registrados en Tec360 son profesionales autónomos que actúan como contratistas independientes. <strong>No existe relación laboral, vínculo de subordinación continuada ni contrato de trabajo</strong> entre TrackTec S.A.S. y los Técnicos (art. 23, Código Sustantivo del Trabajo).
             </p>
             <p>
-              Los filtros de admisión (validación de Cédula de Ciudadanía, certificados técnicos del SENA o entidades afines, y cuestionarios de competencia) constituyen <strong>estándares objetivos de seguridad comunitaria y control de calidad del marketplace</strong>, y bajo ninguna circunstancia configuran directrices de carácter patronal o subordinante. Los técnicos eligen con total libertad su disponibilidad horaria, zona de cobertura y aceptación o rechazo de solicitudes.
+              Los filtros de admisión (validación de Cédula de Ciudadanía, certificados de idoneidad técnica oficial y cuestionarios de competencia) constituyen <strong>estándares objetivos de seguridad comunitaria y control de calidad del marketplace</strong>, y bajo ninguna circunstancia configuran directrices de carácter patronal o subordinante. Los técnicos eligen con total libertad su disponibilidad horaria, zona de cobertura y aceptación o rechazo de solicitudes.
             </p>
           </section>
 
@@ -232,7 +232,7 @@ export default function TerminosPage() {
                     <td className="p-3 text-amber-300">Descuento de 15 puntos de reputación y suspensión por 24 horas.</td>
                   </tr>
                   <tr>
-                    <td className="p-3">Adulteración de documentos, certificados SENA o antecedentes.</td>
+                    <td className="p-3">Adulteración de documentos, certificaciones técnicas o antecedentes.</td>
                     <td className="p-3 font-medium text-white">Técnico</td>
                     <td className="p-3 text-red-400 font-bold">Expulsión definitiva y reporte penal a autoridades judiciales.</td>
                   </tr>

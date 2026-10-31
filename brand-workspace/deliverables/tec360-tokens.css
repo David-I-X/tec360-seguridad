@@ -1,16 +1,39 @@
-/* Auto-generado por run-brand-pipeline.mjs desde brand-tokens.json */
+/* Auto-generado por run-brand-pipeline.mjs v3.0 desde brand-tokens.json */
 :root {
+  /* Superficies Dark Immersive */
   --brand-void: #050810;
   --brand-obsidian: #0B0F19;
   --brand-elevated: #111827;
+  --brand-alert-surface: #190812;
+
+  /* Identidad Primaria & 3 Líneas de Servicio */
   --brand-primary: #7C3AED;
   --brand-primary-vivid: #8B5CF6;
   --brand-primary-deep: #5B21B6;
   --brand-secondary-blue: #3B82F6;
   --brand-telemetry-cyan: #00F0FF;
-  --brand-armed-emerald: #10B981;
   --brand-warning-amber: #F59E0B;
+  --brand-armed-emerald: #10B981;
   --brand-alert-crimson: #FF2A55;
+
+  /* Jerarquía de Texto Teñido (WCAG AAA) */
   --brand-text-primary: #F8FAFC;
+  --brand-text-body: #B4B0C8;
+  --brand-text-dual: #A39EB8;
   --brand-text-secondary: #94A3B8;
+
+  /* Bordes y Vidrio Táctico */
+  --brand-border-glass: rgba(139, 92, 246, 0.24);
+  --brand-border-hairline: rgba(255, 255, 255, 0.08);
+
+  /* Soporte Modo Claro */
+  --brand-light-bg: #F8FAFC;
+  --brand-light-surface: #FFFFFF;
+  --brand-light-text: #0F172A;
+  --brand-cyan-light: #0284C7;
+
+  /* Voces Tipográficas */
+  --font-display: "Archivo", "Geist", "Inter", system-ui, sans-serif;
+  --font-sans: "Geist", "Inter", system-ui, sans-serif;
+  --font-mono: "Geist Mono", "JetBrains Mono", monospace;
 }

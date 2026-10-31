@@ -12,9 +12,9 @@ import { maskPhoneNumber } from "@/lib/validations"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card } from "@/components/ui/card"
-import { Loader2, ShieldCheck, ArrowLeft, Clock } from "lucide-react"
+import { Loader2, ArrowLeft, Clock, ShieldCheck, RefreshCw } from "lucide-react"
 import Link from "next/link"
+import { Tec360Logo } from "@/components/brand/tec360-logo"
 
 export default function VerifyOTPPage() {
   return (
@@ -24,9 +24,31 @@ export default function VerifyOTPPage() {
   )
 }
 
+function ColombiaFlag() {
+  return (
+    <span className="flex flex-col w-3.5 h-2.5 rounded-[2px] overflow-hidden border border-white/20 shrink-0" title="Colombia">
+      <span className="h-[50%] bg-[#FCD116]" />
+      <span className="h-[25%] bg-[#003893]" />
+      <span className="h-[25%] bg-[#CE1126]" />
+    </span>
+  )
+}
+
+function MexicoFlag() {
+  return (
+    <span className="flex flex-row w-3.5 h-2.5 rounded-[2px] overflow-hidden border border-white/20 shrink-0 relative" title="México">
+      <span className="w-1/3 h-full bg-[#006847]" />
+      <span className="w-1/3 h-full bg-[#FFFFFF] flex items-center justify-center">
+        <span className="w-0.5 h-0.5 rounded-full bg-[#8B5A2B]" />
+      </span>
+      <span className="w-1/3 h-full bg-[#CE1126]" />
+    </span>
+  )
+}
+
 function VerifyOTPContent() {
   const router = useRouter()
-  const { verifyOTP, requestOTP, loginWithFirebaseToken, user } = useAuth()
+  const { verifyOTP, requestOTP, loginWithFirebaseToken } = useAuth()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -49,7 +71,6 @@ function VerifyOTPContent() {
     if (pendingPhone) {
       setPhone(pendingPhone)
     } else {
-      // Si no hay teléfono guardado, redirigir a /auth/phone
       router.push("/auth/phone")
     }
   }, [router])
@@ -113,12 +134,11 @@ function VerifyOTPContent() {
         response = await verifyOTP(phone, data.code)
       }
 
-      // Limpiar sessionStorage
       sessionStorage.removeItem("pending_phone")
 
       toast({
         title: "✅ Verificación exitosa",
-        description: response.isNewUser ? "¡Bienvenido! Completa tu perfil para continuar." : "¡Bienvenido de vuelta!",
+        description: response?.isNewUser ? "¡Bienvenido a Tec360! Completa tu perfil para continuar." : "¡Bienvenido de vuelta!",
       })
     } catch (err: any) {
       console.error("Error al verificar código:", err)
@@ -151,13 +171,12 @@ function VerifyOTPContent() {
         await requestOTP(phone)
       }
 
-      // Reiniciar timer
       setTimeLeft(300)
       setCanResend(false)
 
       toast({
         title: "Código reenviado",
-        description: "Hemos enviado un nuevo código a tu celular.",
+        description: "Hemos emitido un nuevo código SMS a tu línea.",
       })
     } catch (err: any) {
       setError(err.message || "Error al reenviar código")
@@ -167,89 +186,111 @@ function VerifyOTPContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden p-4">
-      <div className="absolute inset-0 mesh-gradient" />
-      <div className="absolute top-20 left-[15%] w-72 h-72 bg-blue-500/8 rounded-full blur-3xl animate-float" />
-      <div className="absolute bottom-20 right-[15%] w-80 h-80 bg-purple-500/6 rounded-full blur-3xl animate-float delay-500" />
+    <div className="min-h-screen bg-[#050810] text-slate-100 flex items-center justify-center relative overflow-hidden px-4 pt-24 pb-12">
+      {/* Silk Auroras */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/4 -right-32 w-96 h-96 bg-violet-600/15 rounded-full blur-[140px]" />
+        <div className="absolute bottom-1/4 -left-32 w-96 h-96 bg-cyan-500/12 rounded-full blur-[140px]" />
+      </div>
+
       <div className="w-full max-w-md relative z-10">
         {/* Botón volver */}
         <Link
           href="/auth/phone"
-          className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="mb-6 inline-flex items-center gap-2 text-xs font-mono font-medium text-slate-400 hover:text-white transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Cambiar número
+          <ArrowLeft className="h-3.5 w-3.5 text-violet-400" />
+          <span>CAMBIAR LÍNEA MÓVIL</span>
         </Link>
 
         {/* Card principal */}
-        <Card className="p-8 border-border bg-card/80 backdrop-blur-xl shadow-2xl rounded-2xl">
+        <div className="p-6 sm:p-8 rounded-2xl border border-white/[0.08] bg-[#0B0F19]/90 backdrop-blur-2xl shadow-2xl relative overflow-hidden">
+          {/* Top hairline */}
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent" />
+
           {/* Header */}
-          <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl gradient-brand shadow-lg shadow-blue-500/30">
-              <ShieldCheck className="h-8 w-8 text-white" />
+          <div className="mb-7 text-center">
+            <div className="flex items-center justify-center mb-5">
+              <Tec360Logo size="md" />
             </div>
-            <h1 className="text-2xl font-extrabold">Verifica tu <span className="gradient-text">número</span></h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Ingresa el código que enviamos a
+            <h1 className="text-xl sm:text-2xl font-extrabold text-white font-display tracking-tight">
+              Verifica tu código. <span className="text-[#a39eb8] font-normal">Clave </span>
+              <span className="text-[#00f0ff] whitespace-nowrap">[OTP]</span>
+            </h1>
+            <p className="mt-1.5 text-xs text-slate-400">
+              Transmitido a la línea celular registrada
             </p>
-            <p className="mt-1 text-sm font-medium">
-              {phone ? maskPhoneNumber(phone) : "..."}
-            </p>
+            <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.05] border border-white/[0.08]">
+              {phone.startsWith("+52") ? <MexicoFlag /> : <ColombiaFlag />}
+              <span className="text-xs font-mono font-bold text-cyan-300">
+                {phone ? maskPhoneNumber(phone) : "..."}
+              </span>
+            </div>
           </div>
 
           {/* Timer */}
-          <div className="mb-6 flex items-center justify-center gap-2 text-sm">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className={timeLeft <= 60 ? "text-destructive font-medium" : "text-muted-foreground"}>
-              {canResend ? "Código expirado" : `Expira en ${formatTime(timeLeft)}`}
+          <div className="mb-6 flex items-center justify-center gap-2 text-xs font-mono">
+            <Clock className="h-3.5 w-3.5 text-slate-400" />
+            <span className={timeLeft <= 60 ? "text-rose-400 font-bold" : "text-slate-400"}>
+              {canResend ? "CÓDIGO EXPIRADO" : `Válido durante: ${formatTime(timeLeft)}`}
             </span>
           </div>
 
           {/* Mensaje de error */}
           {error && (
-            <div className="mb-6 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+            <div className="mb-6 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium leading-relaxed">
               {error}
             </div>
           )}
 
           {/* Formulario */}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="code">Código de verificación</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="code" className="text-xs font-mono font-semibold uppercase tracking-wider text-slate-300">
+                  Clave de Seguridad (6 Dígitos)
+                </Label>
+                <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 rounded px-1.5 py-0.5">
+                  SMS TOKEN
+                </span>
+              </div>
               <Input
                 id="code"
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
-                placeholder="000000"
+                placeholder="••••••"
                 maxLength={6}
                 {...register("code")}
-                className="text-center text-2xl tracking-widest font-mono"
+                className="text-center text-3xl font-mono tracking-[0.5em] py-6 bg-[#111827]/80 border-white/[0.12] text-white focus-visible:border-cyan-400 focus-visible:ring-cyan-400/20 rounded-xl"
                 disabled={isLoading}
                 autoFocus
                 autoComplete="one-time-code"
               />
               {errors.code && (
-                <p className="text-sm text-destructive">{errors.code.message}</p>
+                <p className="text-xs text-rose-400 mt-1">{errors.code.message}</p>
               )}
-              <p className="text-xs text-muted-foreground text-center">
-                Ingresa los 6 dígitos del SMS
+              <p className="text-[11px] font-mono text-slate-500 text-center">
+                Validación automática al completar el sexto dígito
               </p>
             </div>
 
             {/* Botón verificar */}
             <Button
               type="submit"
-              className="w-full gradient-brand text-white hover:opacity-90 shadow-lg shadow-blue-500/25"
+              className="w-full py-5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400 text-white font-bold text-xs sm:text-sm shadow-lg shadow-violet-600/30 transition-all cursor-pointer"
               disabled={isLoading || !codeValue || codeValue.length < 6}
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Verificando...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin text-cyan-300" />
+                  Verificando credencial...
                 </>
               ) : (
-                "Verificar código"
+                <span className="flex items-center justify-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-300" />
+                  Confirmar y Acceder
+                </span>
               )}
             </Button>
           </form>
@@ -261,29 +302,18 @@ function VerifyOTPContent() {
                 variant="ghost"
                 onClick={handleResendCode}
                 disabled={isLoading}
-                className="text-blue-600 hover:text-blue-700"
+                className="text-xs font-mono text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 gap-1.5"
               >
-                Reenviar código
+                <RefreshCw className="h-3.5 w-3.5" />
+                Reenviar nuevo código SMS
               </Button>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                ¿No recibiste el código?{" "}
-                <span className="text-blue-600">
-                  Espera {formatTime(timeLeft)}
-                </span>
+              <p className="text-xs font-mono text-slate-500">
+                ¿No recibiste el SMS? Espera {formatTime(timeLeft)} para reintentar.
               </p>
             )}
           </div>
-
-          {/* Info adicional */}
-          <div className="mt-6">
-            <div className="p-4 rounded-lg bg-blue-500/5 border border-blue-500/20">
-              <p className="text-xs text-muted-foreground">
-                💡 <strong>Tip:</strong> El código se verifica automáticamente cuando ingresas los 6 dígitos.
-              </p>
-            </div>
-          </div>
-        </Card>
+        </div>
       </div>
     </div>
   )

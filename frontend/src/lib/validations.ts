@@ -9,19 +9,19 @@ import { z } from "zod"
 // ============================================
 
 /**
- * Schema para número de teléfono colombiano
+ * Schema para número de teléfono (Colombia +57 o México +52)
  */
 export const phoneSchema = z.object({
   phone: z
     .string()
     .min(1, "El número de teléfono es requerido")
     .regex(
-      /^\+57\d{10}$/,
-      "Debe ser un número colombiano válido (ejemplo: +573001234567)"
+      /^\+(57|52)\d{10}$/,
+      "Debe ser un número válido de Colombia (+57) o México (+52) con 10 dígitos"
     )
     .refine(
       (phone) => phone.length === 13,
-      "El número debe tener 10 dígitos después del +57"
+      "El número debe tener 10 dígitos después del código de país (+57 o +52)"
     ),
 })
 
@@ -176,25 +176,30 @@ export type ReviewFormData = z.infer<typeof reviewSchema>
 
 /**
  * Formatea un número de teléfono a formato internacional
- * Ejemplo: "3001234567" → "+573001234567"
+ * Ejemplo: "3001234567" → "+573001234567", "5512345678" (MX) → "+525512345678"
  */
-export function formatPhoneNumber(phone: string): string {
+export function formatPhoneNumber(phone: string, defaultCountry: "CO" | "MX" = "CO"): string {
   // Remover espacios, guiones y paréntesis
   const cleaned = phone.replace(/[\s\-()]/g, "")
   
-  // Si ya tiene +57, retornar
-  if (cleaned.startsWith("+57")) {
+  // Si ya tiene prefijo internacional válido (+57 o +52)
+  if (cleaned.startsWith("+57") || cleaned.startsWith("+52")) {
     return cleaned
   }
   
-  // Si tiene 57 al inicio sin +, agregar +
+  // Si inicia en 52 y tiene 12 dígitos (México sin +)
+  if (cleaned.startsWith("52") && cleaned.length === 12) {
+    return `+${cleaned}`
+  }
+
+  // Si inicia en 57 y tiene 12 dígitos (Colombia sin +)
   if (cleaned.startsWith("57") && cleaned.length === 12) {
     return `+${cleaned}`
   }
   
-  // Si solo tiene 10 dígitos, agregar +57
+  // Si solo tiene 10 dígitos, aplicar prefijo según contexto de país
   if (cleaned.length === 10) {
-    return `+57${cleaned}`
+    return defaultCountry === "MX" ? `+52${cleaned}` : `+57${cleaned}`
   }
   
   return cleaned
@@ -203,24 +208,40 @@ export function formatPhoneNumber(phone: string): string {
 /**
  * Enmascara un número de teléfono para privacidad
  * Ejemplo: "+573001234567" → "+57 300 *** 4567"
+ *          "+525512345678" → "+52 55 *** 5678"
  */
 export function maskPhoneNumber(phone: string): string {
   if (!phone || phone.length < 8) return phone
   
-  // Formato: +57 300 *** 4567
-  const countryCode = phone.slice(0, 3)  // +57
-  const areaCode = phone.slice(3, 6)     // 300
+  const countryCode = phone.slice(0, 3)  // +57 o +52
+  const areaCode = phone.slice(3, 5 + (countryCode === "+57" ? 1 : 0)) // 300 (CO) o 55 (MX)
   const lastDigits = phone.slice(-4)      // 4567
   
   return `${countryCode} ${areaCode} *** ${lastDigits}`
 }
 
 /**
- * Valida si un teléfono es colombiano
+ * Valida si un teléfono es de un país soportado (Colombia o México)
+ */
+export function isSupportedPhone(phone: string): boolean {
+  const cleaned = phone.replace(/[\s\-()]/g, "")
+  return /^\+(57|52)\d{10}$/.test(cleaned)
+}
+
+/**
+ * Valida si un teléfono es colombiano (retrocompatibilidad)
  */
 export function isColombianPhone(phone: string): boolean {
   const cleaned = phone.replace(/[\s\-()]/g, "")
   return /^\+57\d{10}$/.test(cleaned)
+}
+
+/**
+ * Valida si un teléfono es mexicano
+ */
+export function isMexicanPhone(phone: string): boolean {
+  const cleaned = phone.replace(/[\s\-()]/g, "")
+  return /^\+52\d{10}$/.test(cleaned)
 }
 
 /**

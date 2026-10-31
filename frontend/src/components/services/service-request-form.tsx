@@ -7,7 +7,7 @@ import * as z from "zod"
 import { format, addDays, startOfDay, isSameDay } from "date-fns"
 import { es } from "date-fns/locale"
 import { motion, AnimatePresence } from "framer-motion"
-import { Loader2, ArrowRight, ArrowLeft, MapPin, Check, Car, Clock, DollarSign, ShieldAlert } from "lucide-react"
+import { Loader2, ArrowRight, ArrowLeft, MapPin, Check, Car, Clock, DollarSign, ShieldAlert, Radio, Wrench } from "lucide-react"
 import dynamic from "next/dynamic"
 
 import { cn } from "@/lib/utils"
@@ -88,6 +88,18 @@ export function ServiceRequestForm() {
     const [formMode, setFormMode] = useState<"normal" | "mechanics" | "recovery">("normal")
     const [suppliesProvider, setSuppliesProvider] = useState<"client" | "technician">("client")
     const [suppliesNotes, setSuppliesNotes] = useState("")
+
+    useEffect(() => {
+        if (typeof window === "undefined") return
+        const tipo = new URLSearchParams(window.location.search).get("tipo")
+        if (tipo === "mecanica" || tipo === "mechanics") {
+            setFormMode("mechanics")
+        } else if (tipo === "recuperacion" || tipo === "recovery") {
+            setFormMode("recovery")
+        } else if (tipo === "instalacion") {
+            setFormMode("normal")
+        }
+    }, [])
 
     // Recovery-specific state
     const [recStolenDate, setRecStolenDate] = useState("")
@@ -378,8 +390,8 @@ export function ServiceRequestForm() {
 
     return (
         <div className="max-w-2xl mx-auto">
-            {/* ========== MODE SELECTOR ========== */}
-            <div className="mb-8 grid grid-cols-3 gap-3">
+            {/* ========== 3-PILLAR MODE SELECTOR ========== */}
+            <div className="mb-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <button
                     type="button"
                     onClick={() => {
@@ -390,14 +402,17 @@ export function ServiceRequestForm() {
                         }
                     }}
                     className={cn(
-                        "flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all duration-200",
+                        "flex flex-col items-center justify-center gap-1.5 p-3.5 sm:p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer text-center",
                         formMode === "normal"
-                            ? "border-primary bg-primary/10 text-primary shadow-lg shadow-primary/20"
-                            : "border-muted hover:border-primary/50 bg-muted/20"
+                            ? "border-violet-500 bg-violet-600/15 text-white shadow-lg shadow-violet-600/25 ring-1 ring-violet-500/40"
+                            : "border-white/[0.08] hover:border-violet-500/40 bg-[#0B0F19]/90 text-slate-400 hover:text-white"
                     )}
                 >
-                    <span className="text-2xl">🔧</span>
-                    <span className="font-semibold text-sm sm:text-base">Instalaciones</span>
+                    <div className="flex items-center gap-2">
+                        <Radio className={cn("h-4 w-4", formMode === "normal" ? "text-violet-400" : "text-slate-400")} />
+                        <span className="font-bold text-sm sm:text-base font-display">Instalaciones</span>
+                    </div>
+                    <span className="text-[11px] font-mono text-slate-400">GPS, Dashcam & Alarmas</span>
                 </button>
                 <button
                     type="button"
@@ -409,27 +424,33 @@ export function ServiceRequestForm() {
                         }
                     }}
                     className={cn(
-                        "flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all duration-200",
+                        "flex flex-col items-center justify-center gap-1.5 p-3.5 sm:p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer text-center",
                         formMode === "mechanics"
-                            ? "border-amber-500 bg-amber-500/10 text-amber-400 shadow-lg shadow-amber-500/20"
-                            : "border-muted hover:border-amber-500/50 bg-muted/20 text-muted-foreground"
+                            ? "border-amber-500 bg-amber-500/15 text-white shadow-lg shadow-amber-500/25 ring-1 ring-amber-500/40"
+                            : "border-white/[0.08] hover:border-amber-500/40 bg-[#0B0F19]/90 text-slate-400 hover:text-white"
                     )}
                 >
-                    <span className="text-2xl">🔩</span>
-                    <span className="font-semibold text-sm sm:text-base">Mecánica Rápida</span>
+                    <div className="flex items-center gap-2">
+                        <Wrench className={cn("h-4 w-4", formMode === "mechanics" ? "text-amber-400" : "text-slate-400")} />
+                        <span className="font-bold text-sm sm:text-base font-display">Mecánica Básica</span>
+                    </div>
+                    <span className="text-[11px] font-mono text-slate-400">Express (&lt; 45 min)</span>
                 </button>
                 <button
                     type="button"
                     onClick={() => setFormMode("recovery")}
                     className={cn(
-                        "flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all duration-200",
+                        "flex flex-col items-center justify-center gap-1.5 p-3.5 sm:p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer text-center",
                         formMode === "recovery"
-                            ? "border-red-500 bg-red-500/10 text-red-400 shadow-lg shadow-red-500/20"
-                            : "border-muted hover:border-red-500/50 bg-muted/20 text-muted-foreground"
+                            ? "border-rose-500 bg-rose-500/15 text-white shadow-lg shadow-rose-500/25 ring-1 ring-rose-500/40"
+                            : "border-white/[0.08] hover:border-rose-500/40 bg-[#0B0F19]/90 text-slate-400 hover:text-white"
                     )}
                 >
-                    <ShieldAlert className="h-5 w-5" />
-                    <span className="font-semibold text-sm sm:text-base">Equipo de Reacción</span>
+                    <div className="flex items-center gap-2">
+                        <ShieldAlert className={cn("h-4 w-4", formMode === "recovery" ? "text-rose-400 animate-pulse" : "text-slate-400")} />
+                        <span className="font-bold text-sm sm:text-base font-display">Reacción 24/7</span>
+                    </div>
+                    <span className="text-[11px] font-mono text-slate-400">Recuperación Inmediata</span>
                 </button>
             </div>
 

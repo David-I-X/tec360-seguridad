@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000">
+  <defs>
+    
+    <radialGradient id="bb-p6-aur-violet" cx="24%" cy="88%" r="58%">
+      <stop offset="0%" stop-color="#7C3AED" stop-opacity="0.34"/>
+      <stop offset="55%" stop-color="#3B82F6" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#050810" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="bb-p6-aur-cyan" cx="82%" cy="18%" r="48%">
+      <stop offset="0%" stop-color="#00F0FF" stop-opacity="0.20"/>
+      <stop offset="55%" stop-color="#7C3AED" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#050810" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="bb-p6-grid" width="44" height="44" patternUnits="userSpaceOnUse">
+      <path d="M 44 0 L 0 0 0 44" fill="none" stroke="#6366F1" stroke-opacity="0.06" stroke-width="1"/>
+    </pattern>
+    
+    <linearGradient id="bb-p6-hdr-ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="55%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+    <linearGradient id="bb-p6-hdr-sub" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00F0FF" stop-opacity="0.92"/>
+      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="bb-p6-hdr-sweep" x1="0.15" y1="0.85" x2="0.9" y2="0.1">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.55"/>
+      <stop offset="65%" stop-color="#00F0FF" stop-opacity="0.38"/>
+      <stop offset="100%" stop-color="#00F0FF" stop-opacity="0.08"/>
+    </linearGradient>
+    
+  </defs>
+  <rect width="1600" height="1000" fill="#050810"/>
+  <rect width="1600" height="1000" fill="url(#bb-p6-aur-violet)"/>
+  <rect width="1600" height="1000" fill="url(#bb-p6-aur-cyan)"/>
+  <rect width="1600" height="1000" fill="url(#bb-p6-grid)"/>
+
+  <!-- Barra Superior Editorial -->
+  <g transform="translate(56 26) scale(0.058594)">
+    <path d="M 467.48 241.21 A 212 212 0 1 1 314.44 52.21 L 268 84.42 A 172 172 0 1 0 421.34 208.59 Z" fill="url(#bb-p6-hdr-ring)"/>
+    <path d="M 350.47 364.68 A 144 144 0 0 1 161.53 147.32 L 162.42 174.65 A 124 124 0 0 0 349.58 337.35 Z" fill="url(#bb-p6-hdr-sub)" opacity="1"/>
+    <path d="M 284.5 138.89 A 138 138 0 0 1 373.11 227.5 L 289.41 254.69 A 50 50 0 0 0 257.31 222.59 Z" fill="url(#bb-p6-hdr-sweep)" opacity="1"/>
+    <path d="M 284.56 134.71 A 142 142 0 0 1 298.48 139.92 L 261.8 224.29 A 50 50 0 0 0 256.9 222.45 Z" fill="#00F0FF"/>
+    <circle cx="364.9" cy="147.1" r="23" fill="#00F0FF"/>
+    <path d="M 206.86 270.14 A 35 35 0 1 0 276.86 270.14 A 35 35 0 1 0 206.86 270.14 Z M 225.86 270.14 A 16 16 0 1 0 257.86 270.14 A 16 16 0 1 0 225.86 270.14 Z" fill="#F8FAFC" fill-rule="evenodd"/>
+    <circle cx="241.86" cy="270.14" r="8.5" fill="#00F0FF"/></g>
+  <text x="98" y="47" font-family="Consolas" font-size="12" font-weight="700" letter-spacing="2" fill="#B4B0C8">TEC360 SEGURIDAD · MANUAL DE IDENTIDAD &amp; SISTEMA DE DISEÑO v3.0</text>
+  <text x="1544" y="47" text-anchor="end" font-family="Consolas" font-size="12" font-weight="700" letter-spacing="1.8" fill="#00F0FF">[PÁGINA 06 / 08]</text>
+  <line x1="56" y1="66" x2="1544" y2="66" stroke="#FFFFFF" stroke-opacity="0.09" stroke-width="1"/>
+
+  <!-- Titular de Doble Luminancia + Énfasis entre Corchetes (Cero Kickers) -->
+  <text x="56" y="124" font-family="Bahnschrift" font-size="38" font-weight="700" fill="#F8FAFC">
+    Tres voces tipográficas. <tspan font-weight="400" fill="#A39EB8">Escala modular 1.250 y sintaxis </tspan><tspan font-family="Bahnschrift" font-weight="700" fill="#00F0FF">[EN CORCHETES]</tspan>
+  </text>
+
+  
+    <!-- Voz 1: Archivo Display -->
+    <rect x="56" y="162" width="940" height="360" rx="22" fill="#0B0F19" stroke="#8B5CF6" stroke-opacity="0.35"/>
+    <text x="88" y="204" font-family="Consolas" font-size="13" font-weight="700" fill="#8B5CF6">VOZ 01 · DISPLAY EDITORIAL · ARCHIVO (WDTH 106–122 · PESOS 400 / 600 / 800)</text>
+    <text x="88" y="274" font-family="Bahnschrift" font-size="48" font-weight="700" fill="#F8FAFC">Control total sobre tu vehículo.</text>
+    <text x="88" y="332" font-family="Bahnschrift" font-size="48" font-weight="400" fill="#A39EB8">Detén el motor a <tspan font-weight="700" fill="#00F0FF">[0 KM/H]</tspan> hoy.</text>
+    <line x1="88" y1="366" x2="964" y2="366" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <text x="88" y="402" font-family="Segoe UI" font-size="15" fill="#B4B0C8">• <tspan font-weight="700" fill="#F8FAFC">Fórmula obligatoria:</tspan> Frase líder en #F8FAFC + continuación en #A39EB8 + foco en #00F0FF entre [CORCHETES].</text>
+    <text x="88" y="432" font-family="Segoe UI" font-size="15" fill="#B4B0C8">• <tspan font-weight="700" fill="#F8FAFC">Cero kickers:</tspan> Nunca colocar etiquetas pequeñas ni numeraciones decorativas sobre un titular.</text>
+    <text x="88" y="462" font-family="Segoe UI" font-size="15" fill="#B4B0C8">• <tspan font-weight="700" fill="#F8FAFC">No partir corchetes:</tspan> Aplicar siempre whitespace-nowrap al bloque [ENTRE CORCHETES].</text>
+    <text x="88" y="494" font-family="Consolas" font-size="13" fill="#00F0FF">TRACKING: -0.032em a -0.034em   ·   LINE-HEIGHT: 1.04 – 1.08</text>
+
+    <!-- Escala Modular Derecha -->
+    <rect x="1024" y="162" width="520" height="360" rx="22" fill="#0B0F19" stroke="#FFFFFF" stroke-opacity="0.10"/>
+    <text x="1056" y="204" font-family="Consolas" font-size="13" font-weight="700" fill="#00F0FF">ESCALA MODULAR 1.250 (MAJOR THIRD)</text>
+    <text x="1056" y="256" font-family="Bahnschrift" font-size="38" font-weight="700" fill="#F8FAFC">Display · 61 px</text>
+    <text x="1512" y="252" text-anchor="end" font-family="Consolas" font-size="13" fill="#94A3B8">3.815 rem</text>
+    <text x="1056" y="308" font-family="Bahnschrift" font-size="31" font-weight="700" fill="#F8FAFC">Heading 1 · 46 px</text>
+    <text x="1512" y="304" text-anchor="end" font-family="Consolas" font-size="13" fill="#94A3B8">2.850 rem</text>
+    <text x="1056" y="354" font-family="Bahnschrift" font-size="25" font-weight="700" fill="#F8FAFC">Heading 2 · 31 px</text>
+    <text x="1512" y="350" text-anchor="end" font-family="Consolas" font-size="13" fill="#94A3B8">1.953 rem</text>
+    <text x="1056" y="396" font-family="Segoe UI" font-size="20" font-weight="600" fill="#F8FAFC">Heading 3 · 20 px</text>
+    <text x="1512" y="394" text-anchor="end" font-family="Consolas" font-size="13" fill="#94A3B8">1.250 rem</text>
+    <text x="1056" y="436" font-family="Segoe UI" font-size="16" fill="#B4B0C8">Body Copy · 16 px (line-height 1.62)</text>
+    <text x="1512" y="434" text-anchor="end" font-family="Consolas" font-size="13" fill="#94A3B8">1.000 rem</text>
+    <text x="1056" y="476" font-family="Consolas" font-size="14" font-weight="700" fill="#00F0FF">TELEMETRY · 14 PX TABULAR</text>
+    <text x="1512" y="474" text-anchor="end" font-family="Consolas" font-size="13" fill="#94A3B8">0.875 rem</text>
+
+    <!-- Voz 2: Geist UI & Body -->
+    <rect x="56" y="550" width="728" height="362" rx="22" fill="#0B0F19" stroke="#FFFFFF" stroke-opacity="0.10"/>
+    <text x="88" y="594" font-family="Consolas" font-size="13" font-weight="700" fill="#B4B0C8">VOZ 02 · INTERFAZ Y LECTURA · GEIST / INTER (PESOS 400 – 600)</text>
+    <text x="88" y="642" font-family="Segoe UI" font-size="20" font-weight="600" fill="#F8FAFC">Claridad inmediata en situaciones críticas</text>
+    <text x="88" y="680" font-family="Segoe UI" font-size="16" fill="#B4B0C8">Cuando un conductor necesita desvararse en vía o reportar una novedad de</text>
+    <text x="88" y="706" font-family="Segoe UI" font-size="16" fill="#B4B0C8">seguridad, la interfaz responde con calma, alto contraste y controles directos</text>
+    <text x="88" y="732" font-family="Segoe UI" font-size="16" fill="#B4B0C8">que nombran exactamente la acción que ejecutan.</text>
+    <rect x="88" y="768" width="664" height="108" rx="14" fill="#050810" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <text x="114" y="806" font-family="Segoe UI" font-size="15" font-weight="600" fill="#F8FAFC">Medida óptima de párrafo: 54 a 65 caracteres por línea</text>
+    <text x="114" y="838" font-family="Segoe UI" font-size="14" fill="#B4B0C8">Evita renglones excesivamente anchos en escritorio y garantiza lectura veloz en móvil.</text>
+
+    <!-- Voz 3: Geist Mono Tabular -->
+    <rect x="816" y="550" width="728" height="362" rx="22" fill="#0B0F19" stroke="#00F0FF" stroke-opacity="0.32"/>
+    <text x="848" y="594" font-family="Consolas" font-size="13" font-weight="700" fill="#00F0FF">VOZ 03 · TELEMETRÍA VIVA · GEIST MONO (TABULAR-NUMS OBLIGATORIO)</text>
+    <rect x="848" y="622" width="664" height="54" rx="12" fill="#050810" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <text x="872" y="655" font-family="Segoe UI" font-size="15" fill="#B4B0C8">Coordenadas GPS</text>
+    <text x="1488" y="655" text-anchor="end" font-family="Consolas" font-size="16" font-weight="700" fill="#00F0FF">6.2088° N, 75.5659° W</text>
+
+    <rect x="848" y="688" width="664" height="54" rx="12" fill="#050810" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <text x="872" y="721" font-family="Segoe UI" font-size="15" fill="#B4B0C8">Estado Corte CAN-Bus</text>
+    <text x="1488" y="721" text-anchor="end" font-family="Consolas" font-size="16" font-weight="700" fill="#FF2A55">0 KM/H · CORTE 1.1S</text>
+
+    <rect x="848" y="754" width="664" height="54" rx="12" fill="#050810" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <text x="872" y="787" font-family="Segoe UI" font-size="15" fill="#B4B0C8">Tiempo Mecánica Express</text>
+    <text x="1488" y="787" text-anchor="end" font-family="Consolas" font-size="16" font-weight="700" fill="#F59E0B">&lt; 30 MIN EN SITIO</text>
+
+    <rect x="848" y="820" width="664" height="54" rx="12" fill="#050810" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <text x="872" y="853" font-family="Segoe UI" font-size="15" fill="#B4B0C8">Duración de Video Corto</text>
+    <text x="1488" y="853" text-anchor="end" font-family="Consolas" font-size="16" font-weight="700" fill="#10B981">REEL 16:9 · 00:18</text>
+    
+
+  <!-- Pie Editorial -->
+  <line x1="56" y1="946" x2="1544" y2="946" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1"/>
+  <text x="56" y="972" font-family="Consolas" font-size="11" fill="#94A3B8">ORBITAL RADAR 360° V2 · INSTALACIONES · EQUIPO DE REACCIÓN 24/7 · MECÁNICA BÁSICA · TÉCNICOS CERTIFICADOS</text>
+  <text x="1544" y="972" text-anchor="end" font-family="Consolas" font-size="11" fill="#00F0FF">tec360seguridad.com · +57 305 215 6601</text>
+</svg>

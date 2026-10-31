@@ -3,17 +3,19 @@ import { Features } from "@/components/features"
 import { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Tec360 Seguridad | Telemetría Satelital & Protección Vehicular 360°",
-  description: "Plataforma telemática avanzada de seguridad vehicular: telemetría satelital 4G, corte de motor remoto, dashcams HD y respuesta táctica 24/7 con técnicos verificados en toda Colombia.",
+  title: "Tec360 Seguridad | Telemetría Satelital, Reacción 24/7 & Mecánica a Domicilio",
+  description:
+    "Plataforma de seguridad y asistencia vehicular en Colombia: instalaciones de GPS 4G anti-jammer y dashcams HD, equipo de reacción 24/7 y mecánica básica a domicilio por técnicos certificados.",
   openGraph: {
-    title: "Blindaje Tecnológico & Telemetría 360° en Tiempo Real | Tec360 Seguridad",
-    description: "Monitoreo satelital 24/7, corte de corriente remoto instantáneo y red de técnicos especializados en seguridad vehicular en Colombia.",
-  }
+    title: "Blindaje Vehicular 360°, Equipo de Reacción & Mecánica Básica | Tec360 Seguridad",
+    description:
+      "Instalaciones telemáticas, corte de motor remoto inmediato, equipo de reacción 24/7 y mecánica básica express con técnicos certificados en toda Colombia.",
+  },
 }
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main className="min-h-screen bg-[#050810] text-[#F8FAFC] overflow-x-clip">
       <Hero />
       <Features />
     </main>

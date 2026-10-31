@@ -1,52 +1,46 @@
 ---
 name: brand-style-agent
-description: Definicion estrategica de identidad visual desde cero para perfiles tecnicos sin formacion estetica. Estructura 5 marcos obligatorios (Brand Identity Prism, Color Psychology Framework, Typography Hierarchy, Imagery Direction Framework, Design System Principles) y los compila en tokens matematicos verificables.
+description: Definicion estrategica de identidad visual de Tec360 Seguridad v3.0. Estructura los 5 marcos obligatorios (Brand Identity Prism, Color Psychology Framework, Typography Hierarchy, Imagery Direction Framework, Design System Principles) alineados con el logo Orbital Radar 360 V2, las 3 lineas de servicio y la landing Dark Immersive.
 ---
 
-# Brand Style Agent — Dirección Estratégica de Identidad Visual
+# Brand Style Agent — Dirección Estratégica de Identidad Visual (v3.0 Oficial)
 
-Esta Skill traduce atributos funcionales y técnicos de un producto en una especificación matemática de identidad visual, eliminando la necesidad de que el ingeniero tome decisiones subjetivas sobre colores, fuentes o proporciones.
+Esta Skill traduce la arquitectura comercial y operativa de **Tec360 Seguridad** en reglas matemáticas verificables para mantener coherencia visual absoluta en web, móvil, video, redes sociales y material corporativo.
 
 ## Los 5 Marcos Obligatorios
 
 ### 1. Brand Identity Prism (Prisma de Identidad de Marca)
-Define las seis facetas de Kapferer aplicadas al producto tecnológico:
-- **Físico (Physique):** Superficies de cristal oscuro blindado (*dark obsidian glass*), telemetría satelital en tiempo real, retículas de precisión aeroespacial, escudo 3D con loop 360°.
-- **Personalidad (Personality):** Vanguardista, táctica, implacable ante el robo, serena bajo presión, técnicamente rigurosa.
-- **Cultura (Culture):** Ingeniería de precisión en tiempo real, seguridad preventiva y reacción inmediata 24/7 respaldada por técnicos certificados por el SENA.
-- **Relación (Relationship):** Centro de mando personal que otorga al propietario control absoluto sobre su vehículo desde el bolsillo.
-- **Reflejo (Reflection):** Conductores y gerentes de flota previsores que exigen tecnología de nivel militar en lugar de alarmas genéricas.
-- **Autoimagen (Self-Image):** *"Mi vehículo está protegido por telemetría activa; tengo el control en un toque."*
+- **Físico (Physique):** Lienzo obsidiana `#050810` con auroras de seda lentas, isotipo **Orbital Radar 360° V2**, muescas esculpidas de telemetría, trazos de circuito luminoso de `1px` y vehículos/componentes fotografiados en estudio oscuro.
+- **Personalidad (Personality):** Vanguardista, táctica, precisa, ágil y serena bajo presión.
+- **Cultura (Culture):** Ingeniería colombiana de protección electrónica, reacción inmediata 24/7 y asistencia de mecánica básica a domicilio ejecutada exclusivamente por **técnicos certificados** (sin mencionar entidades terceras).
+- **Relación (Relationship):** Control total en un toque desde el bolsillo: corte de motor remoto a `[0 KM/H]`, cerco satelital cada 10 s y seguimiento en vivo del especialista en camino.
+- **Reflejo (Reflection):** Propietarios de automóviles, motociclistas y transportadores de carga que exigen tecnología real y servicio express sin talleres ni filas.
+- **Autoimagen (Self-Image):** *"Tengo control absoluto sobre la seguridad y asistencia de mi vehículo en tiempo real."*
 
-### 2. Color Psychology Framework (Marco de Psicología y Matemática del Color)
-Todo color del sistema debe justificarse psicológicamente y superar validación algorítmica de contraste **WCAG 2.2 AA/AAA**:
-- **Fondo Principal (`void-bg`: `#050810`):** Vacío profundo aeroespacial (`L = 0.004`). Maximiza el contraste de los indicadores luminosos en uso nocturno.
-- **Superficie Elevada (`obsidian-surface`: `#0B0F19` / `#111827`):** Separa planos de información mediante luminancia progresiva sin recurrir a bordes pesados.
-- **Primario de Marca (`electric-violet`: `#8B5CF6` / `#6836C6`):** Autoridad tecnológica, blindaje inteligente y vanguardia.
-- **Acento Telemático (`quantum-cyan`: `#00F0FF` / `#38BDF8`):** Precisión satelital GPS 4G, señal en vivo y barrido de radar (contraste `14.2:1` sobre `#050810`, AAA).
-- **Estado Seguro (`tactical-emerald`: `#10B981`):** Vehículo asegurado, telemetría nominal, técnico verificado SENA (contraste `8.4:1` sobre `#050810`, AAA).
-- **Estado de Alerta / Corte de Motor (`crimson-alert`: `#FF2A55` / `#EF4444`):** Intrusión detectada, inmovilización remota activa (contraste `5.9:1` sobre `#050810`, AA).
+### 2. Color Psychology Framework (Psicología y Matemática del Color WCAG 2.2)
+- **Lienzos Oscuros (`#050810` Void / `#0B0F19` Obsidian / `#111827` Elevated):** Maximizan el contraste nocturno y hacen brillar los pulsos de estado (`19.3:1` a `15.6:1` AAA frente a `#F8FAFC`).
+- **Violeta Corporativo (`#7C3AED` / `#8B5CF6`):** Autoridad tecnológica e **Instalaciones Vehiculares** (`5.7:1` AA con texto blanco).
+- **Cian Telemetría (`#00F0FF`):** Pulso satelital 4G, énfasis `[ENTRE CORCHETES]` y **Equipo de Reacción 24/7** (`14.2:1` AAA sobre `#050810`).
+- **Ámbar Táctico (`#F59E0B`):** **Mecánica Básica Express a Domicilio** y calificaciones verificadas (`8.9:1` AAA sobre `#050810`; texto `#050810` sobre botón ámbar `10.1:1` AAA).
+- **Esmeralda Operativo (`#10B981`):** Ignición nominal, red 4G activa y técnico certificado auditado (`8.4:1` AAA).
+- **Carmesí de Inmovilización (`#FF2A55`):** Corte de motor remoto activo (`0 KM/H LOCKED`) y alerta crítica (`5.9:1` AA).
+- **Textos Secundarios Teñidos (`#B4B0C8` cuerpo `9.4:1` / `#A39EB8` titular dual `7.8:1`):** Teñidos desde la gama violeta para evitar grises apagados.
 
-### 3. Typography Hierarchy (Jerarquía Tipográfica Modular)
-Escala modular estricta **1.250 (Major Third)** con base `16px (1rem)`:
-- **Display / Títulos (`Geist` / `Inter`, pesos 700–800):** Tracking cerrado (`-0.03em`), altura de línea compacta (`1.08–1.15`) para autoridad visual.
-  - `display-2xl`: `3.815rem (61px)`
-  - `display-xl`: `3.052rem (48.8px)`
-  - `h1`: `2.441rem (39px)`
-  - `h2`: `1.953rem (31.25px)`
-  - `h3`: `1.563rem (25px)`
-  - `h4`: `1.25rem (20px)`
-- **Body (`Geist` / `Inter`, pesos 400–500):** Medida óptima de lectura `60–70ch`, altura de línea `1.6`.
-- **Telemetría y Datos (`Geist Mono` / `JetBrains Mono`, pesos 500–700):** `font-variant-numeric: tabular-nums` obligatorio para coordenadas GPS, velocidades, placas, conteos regresivos y métricas de latencia.
+### 3. Typography Hierarchy (Tres Voces en Escala Modular 1.250 Major Third)
+1. **Display Editorial (`Archivo`, `wdth 106–122`, `wght 400 / 600 / 800`):**
+   - Tracking `-0.032em` a `-0.034em`, `line-height: 1.04–1.08`.
+   - Sintaxis oficial: frase principal en `#F8FAFC` (`600`) + complemento en `#A39EB8` (`400`) + foco técnico `[ENTRE CORCHETES]` en `#00F0FF` (`whitespace-nowrap`). Cero kickers encima de titulares.
+2. **Interfaz y Cuerpo (`Geist` / `Inter`, `wght 400–600`):**
+   - Medida de lectura `54–65ch`, `line-height: 1.62`.
+3. **Telemetría y Medición (`Geist Mono` / `JetBrains Mono`, `tabular-nums`, `wght 600–700`):**
+   - Exclusiva para coordenadas GPS, velocidades, voltajes, timecodes de video (`00:18`), tiempos (`< 30 MIN`) y líneas de atención (`+57 305 215 6601`).
 
-### 4. Imagery Direction Framework (Dirección Fotográfica y de Activos)
-- **Prohibido el stock corporativo genérico:** Nunca usar fotos de archivo de personas sonriendo en oficinas blancas.
-- **Tratamiento en PhotoCraft MCP:**
-  1. Nitidez inteligente sobre detalles de interfaz y hardware (`filter.sharpen.smartSharpen`).
-  2. Armonización cromática hacia sombras frío-violeta (`#050810`) y altas luces cian/púrpura mediante curvas no destructivas.
-  3. Marcos de dispositivo con sombra de oclusión ambiental suave y borde especular de `1px` (`rgba(255,255,255,0.12)`).
+### 4. Imagery & Short-Video Direction Framework
+- **Estudio Oscuro Automotriz:** Iluminación rasante violeta/cian/ámbar sobre superficies metálicas, fibra de carbono o bahías limpias con guantes negros y herramientas digitales de precisión.
+- **Formato de Reels de Servicio:** Marcos `16:10` / `16:9` en web con muesca esculpida superior derecha (`REEL 16:9 · 00:18`), viñeta cinematográfica inferior y barra de progreso en el color de la línea de servicio.
+- **Tratamiento en PhotoCraft:** `filter.sharpen.smartSharpen` sobre la capa base *antes* de aplicar `curves` y `hueSaturation` no destructivos.
 
-### 5. Design System Principles (Principios del Sistema de Diseño)
-1. **Unidad Espacial de 8pt:** Todos los paddings, gaps y márgenes son múltiplos de `4px` / `8px` (`4, 8, 12, 16, 24, 32, 48, 64, 96`).
-2. **Glassmorphism Funcional:** Máximo 2 capas translúcidas superpuestas por vista (`backdrop-blur-xl`, fondo `rgba(11, 15, 25, 0.78)`), siempre con borde luminoso de `1px`.
-3. **Densidad Táctica Controlada:** Máximo 4 puntos de datos por tarjeta y máximo 3 tarjetas por fila en desktop.
+### 5. Design System Principles
+1. **Cuadrícula de 8pt:** Múltiplos exactos de `4px` / `8px` (`8, 16, 24, 32, 48, 64, 96px`).
+2. **Elevación Única:** Separación por luminancia + borde limpio de `1px` (sin sombras difusas bajo tarjetas con borde).
+3. **Paridad Multicanal:** Web (`Next.js`), App Móvil (`Expo`), OpenGraph (`1200×630`), portadas de video y Brand Book PDF consumen exactamente `brand-tokens.json` v3.0.

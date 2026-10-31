@@ -1,420 +1,791 @@
 "use client"
 
-import {
-  ShieldCheck, Camera, Wifi, Radio, Lock, Eye, ArrowRight,
-  Search, FileText, CheckCircle, Star, Clock, MapPin, BadgeCheck,
-  Car, Radar, Fingerprint, AlertTriangle, Siren, Crosshair,
-  Gauge, Cctv, Wrench
-} from "lucide-react"
-import { motion, useInView } from "framer-motion"
-import { useRef } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import Link from "next/link"
+import {
+  ArrowRight,
+  ArrowUpRight,
+  BadgeCheck,
+  BatteryCharging,
+  Camera,
+  Clock,
+  Crosshair,
+  Disc,
+  Droplets,
+  Lock,
+  MapPin,
+  Pause,
+  PhoneCall,
+  Play,
+  Radio,
+  ShieldCheck,
+  Siren,
+  Star,
+  Wrench,
+} from "lucide-react"
+import { Tec360Logo } from "@/components/brand/tec360-logo"
 
-/* ─── Scroll Reveal Wrapper ────────────────────────── */
-function Reveal({ children, className, delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
-  const ref = useRef(null)
-  const inView = useInView(ref, { once: true, margin: "-60px" })
-  return (
-    <div ref={ref} className={className}>
-      <motion.div
-        initial={{ opacity: 0, y: 32 }}
-        animate={inView ? { opacity: 1, y: 0 } : {}}
-        transition={{ duration: 0.65, delay, ease: [0.22, 1, 0.36, 1] }}
-      >
-        {children}
-      </motion.div>
-    </div>
-  )
+/* ════════════════════════════════════════════════════════════════════════
+   CONFIGURACIÓN DE VIDEOS CORTOS DE SERVICIOS
+   Cuando tengas los archivos definitivos en `frontend/public/videos/`,
+   basta con asignar su ruta aquí (ej: "/videos/instalaciones.mp4").
+   ════════════════════════════════════════════════════════════════════════ */
+export const SERVICE_VIDEOS: Record<
+  "instalacion" | "recuperacion" | "mecanica",
+  string | null
+> = {
+  instalacion: null,
+  recuperacion: null,
+  mecanica: null,
 }
 
-/* ─── Section Label ────────────────────────────────── */
-function SectionLabel({ label, title, highlight, neonColor = "purple" }: { label: string; title: string; highlight: string; neonColor?: "purple" | "blue" }) {
+/* ════════════════════════════════════════════════════════════════════════
+   1. ESCENARIO DE LOS 3 SERVICIOS CON PLACEHOLDERS DE VIDEO CORTO
+   ════════════════════════════════════════════════════════════════════════ */
+
+interface ServiceReelSpec {
+  id: "instalacion" | "recuperacion" | "mecanica"
+  badge: string
+  title: string
+  summary: string
+  posterSrc: string
+  posterAlt: string
+  durationLabel: string
+  durationSec: number
+  accentHex: string
+  ctaLabel: string
+  ctaHref: string
+  videoSide: "left" | "right"
+  previewCaptions: [string, string, string]
+  highlights: {
+    icon: typeof Radio
+    label: string
+    meta: string
+  }[]
+}
+
+const SERVICE_REELS: ServiceReelSpec[] = [
+  {
+    id: "instalacion",
+    badge: "Motos · Automóviles · Carga Pesada",
+    title: "Instalaciones Vehiculares",
+    summary:
+      "Técnicos certificados llegan a tu domicilio o empresa para instalar equipos de seguridad electrónica con conectores originales OEM, sin filas ni talleres.",
+    posterSrc: "/images/landing/tactical-installation-bay.jpg",
+    posterAlt:
+      "Técnico certificado conectando módulo telemático 4G en arnés automotriz original",
+    durationLabel: "00:18",
+    durationSec: 18,
+    accentHex: "#8B5CF6",
+    ctaLabel: "Solicitar Instalación",
+    ctaHref: "/servicios/nuevo?tipo=instalacion",
+    videoSide: "left",
+    previewCaptions: [
+      "01 · Diagnóstico del sistema eléctrico en tu domicilio",
+      "02 · Conexión limpia con arnés OEM sin pelar cables",
+      "03 · Calibración satelital 4G y entrega activa en tu app",
+    ],
+    highlights: [
+      { icon: Radio, label: "GPS 4G L1/L5", meta: "Anti-jammer activo" },
+      { icon: Camera, label: "Dashcam HD", meta: "Grabación en nube" },
+      { icon: Siren, label: "Alarmas Inteligentes", meta: "Sensores digitales" },
+      { icon: Lock, label: "Bloqueo CAN-Bus", meta: "Corte seguro 0 km/h" },
+    ],
+  },
+  {
+    id: "recuperacion",
+    badge: "Respuesta Inmediata 24/7 · Cobertura Nacional",
+    title: "Equipo de Reacción & Recuperación",
+    summary:
+      "Ante hurto o intento de sabotaje activamos corte de motor remoto en segundos, cerco satelital continuo y despliegue de nuestro equipo de reacción en coordinación con la Policía Nacional.",
+    posterSrc: "/images/landing/reaction-team-poster.jpg",
+    posterAlt:
+      "Vehículo asegurado de noche bajo protocolo de equipo de reacción 24/7 y enlace policial",
+    durationLabel: "00:22",
+    durationSec: 22,
+    accentHex: "#00F0FF",
+    ctaLabel: "Activar Equipo de Reacción",
+    ctaHref: "/servicios/nuevo?tipo=recuperacion",
+    videoSide: "right",
+    previewCaptions: [
+      "01 · Alerta inmediata e inmovilización digital a 0 km/h",
+      "02 · Fijación de coordenadas L1/L5 contra inhibidores",
+      "03 · Despliegue del equipo de reacción y enlace policial",
+    ],
+    highlights: [
+      { icon: Lock, label: "Corte Remoto", meta: "Inmovilización 1.1 s" },
+      { icon: Siren, label: "Equipo de Reacción", meta: "Operación en campo" },
+      { icon: Crosshair, label: "Cerco Satelital", meta: "Pulso cada 10 seg" },
+      { icon: ShieldCheck, label: "Enlace Oficial", meta: "Policía Nacional" },
+    ],
+  },
+  {
+    id: "mecanica",
+    badge: "Asistencia Express · En Casa, Oficina o Vía",
+    title: "Mecánica Básica a Domicilio",
+    summary:
+      "Resuelve desvares y mantenimiento preventivo sin mover tu vehículo. Un técnico certificado acude en minutos con herramientas de precisión y seguimiento en el mapa.",
+    posterSrc: "/images/landing/basic-mechanics-poster.jpg",
+    posterAlt:
+      "Técnico certificado realizando servicio de mecánica básica con herramienta digital de torque",
+    durationLabel: "00:16",
+    durationSec: 16,
+    accentHex: "#F59E0B",
+    ctaLabel: "Solicitar Mecánica Básica",
+    ctaHref: "/servicios/nuevo?tipo=mecanica",
+    videoSide: "left",
+    previewCaptions: [
+      "01 · Solicitud express con insumos tuyos o del técnico",
+      "02 · Servicio limpio de batería, llantas, aceite o frenos",
+      "03 · Verificación de torque, niveles y garantía en plataforma",
+    ],
+    highlights: [
+      { icon: BatteryCharging, label: "Batería y Corriente", meta: "Inicio o cambio < 30m" },
+      { icon: Disc, label: "Cambio de Llantas", meta: "Desvare en sitio < 30m" },
+      { icon: Droplets, label: "Aceite y Filtros", meta: "Servicio limpio < 45m" },
+      { icon: Wrench, label: "Frenos, Kit y Luces", meta: "Ajuste certificado" },
+    ],
+  },
+]
+
+function formatSeconds(sec: number) {
+  const s = Math.max(0, Math.floor(sec))
+  return `00:${s.toString().padStart(2, "0")}`
+}
+
+function ServiceVideoPlaceholderCard({ service }: { service: ServiceReelSpec }) {
+  const videoSrc = SERVICE_VIDEOS[service.id]
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false)
+  const [elapsed, setElapsed] = useState(0)
+
+  useEffect(() => {
+    if (!isPlayingPreview || videoSrc) return
+
+    const tick = setInterval(() => {
+      setElapsed((prev) => {
+        if (prev + 0.25 >= service.durationSec) {
+          return 0
+        }
+        return prev + 0.25
+      })
+    }, 250)
+
+    return () => clearInterval(tick)
+  }, [isPlayingPreview, service.durationSec, videoSrc])
+
+  const progressPct = Math.min(100, (elapsed / service.durationSec) * 100)
+  const captionIdx =
+    progressPct < 34 ? 0 : progressPct < 68 ? 1 : 2
+
+  if (videoSrc) {
+    return (
+      <div className="relative rounded-2xl overflow-hidden bg-[#0B0F19] border border-violet-500/25 aspect-[16/10]">
+        <video
+          src={videoSrc}
+          poster={service.posterSrc}
+          controls
+          playsInline
+          preload="metadata"
+          className="w-full h-full object-cover"
+        />
+      </div>
+    )
+  }
+
   return (
-    <div className="mb-12 text-center">
-      <span className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-[0.2em] font-mono">{label}</span>
-      <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl text-slate-900 dark:text-white">
-        {title}{" "}
-        <span
-          className={neonColor === "blue" ? "text-blue-600 dark:text-blue-500" : "text-violet-600 dark:text-violet-500"}
-          style={{ textShadow: neonColor === "blue" ? "0 0 15px rgba(59,130,246,0.2)" : "0 0 15px rgba(139,92,246,0.2)" }}
+    <div className="group relative rounded-2xl overflow-hidden bg-[#0B0F19] border border-violet-500/25 select-none">
+      <div className="relative aspect-[16/10] w-full overflow-hidden">
+        {/* Dark-Studio Poster Frame with Subtle Preview Motion */}
+        <img
+          src={service.posterSrc}
+          alt={service.posterAlt}
+          width={1408}
+          height={768}
+          loading="lazy"
+          className={`w-full h-full object-cover object-center transition-transform duration-1000 ease-out ${
+            isPlayingPreview ? "scale-105" : "group-hover:scale-[1.02]"
+          }`}
+        />
+
+        {/* Cinema Vignette */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(5,8,16,0.45) 0%, rgba(5,8,16,0.12) 45%, rgba(5,8,16,0.88) 100%)",
+          }}
+          aria-hidden="true"
+        />
+
+        {/* Top-Left Placeholder Status Pill */}
+        <div className="absolute top-3.5 left-3.5 sm:top-4 sm:left-4 z-20 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#050810]/85 backdrop-blur-md border border-white/12 whitespace-nowrap">
+          <span
+            className={`w-2 h-2 rounded-full shrink-0 ${
+              isPlayingPreview ? "animate-ping" : ""
+            }`}
+            style={{ backgroundColor: service.accentHex }}
+          />
+          <span className="text-[11px] font-semibold text-[#F8FAFC] tracking-wide">
+            {isPlayingPreview ? "Vista previa activa" : "Video corto · Próximamente"}
+          </span>
+        </div>
+
+        {/* Sculpted Top-Right Interlocking Duration Notch */}
+        <div className="hidden sm:flex items-center gap-2 absolute top-0 right-0 z-20 bg-[#050810] pl-4 pr-3.5 py-2 rounded-bl-2xl border-l border-b border-violet-500/25">
+          <span className="tabular-telemetry text-[11px] font-semibold text-[#B4B0C8]">
+            REEL 16:9 ·{" "}
+            <strong className="text-[#F8FAFC]">{service.durationLabel}</strong>
+          </span>
+        </div>
+
+        {/* Center Tactile Play / Pause Control */}
+        <button
+          type="button"
+          onClick={() => setIsPlayingPreview((p) => !p)}
+          aria-label={
+            isPlayingPreview
+              ? `Pausar vista previa de ${service.title}`
+              : `Reproducir vista previa de ${service.title}`
+          }
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 cursor-pointer focus:outline-none"
         >
-          {highlight}
-        </span>
-      </h2>
+          <span
+            className="flex h-16 w-16 sm:h-[4.5rem] sm:w-[4.5rem] items-center justify-center rounded-full bg-[#050810]/82 backdrop-blur-md border transition-transform duration-300 group-hover:scale-105"
+            style={{ borderColor: service.accentHex }}
+          >
+            {isPlayingPreview ? (
+              <Pause className="w-6 h-6 text-[#F8FAFC]" />
+            ) : (
+              <Play className="w-6 h-6 text-[#F8FAFC] fill-[#F8FAFC] translate-x-0.5" />
+            )}
+          </span>
+          {!isPlayingPreview && (
+            <span className="px-3 py-1 rounded-full bg-[#050810]/80 backdrop-blur-md border border-white/10 text-[11px] font-medium text-[#F8FAFC]">
+              Ver storyboard del video
+            </span>
+          )}
+        </button>
+
+        {/* Bottom Player HUD & Timeline Scrubber */}
+        <div className="absolute inset-x-0 bottom-0 z-20 p-3.5 sm:p-4 flex flex-col gap-2.5 pointer-events-none">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs sm:text-sm font-medium text-[#F8FAFC] truncate">
+              {isPlayingPreview
+                ? service.previewCaptions[captionIdx]
+                : `Espacio preparado para reel de ${service.title.toLowerCase()}`}
+            </p>
+            <span className="tabular-telemetry text-[11px] font-semibold text-[#B4B0C8] shrink-0">
+              {formatSeconds(elapsed)} / {service.durationLabel}
+            </span>
+          </div>
+
+          <div className="w-full h-1 rounded-full bg-white/15 overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-200"
+              style={{
+                width: `${isPlayingPreview ? Math.max(6, progressPct) : 22}%`,
+                backgroundColor: service.accentHex,
+              }}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
 
-/* ════════════════════════════════════════════════════
-   TWO PILLARS SECTION
-   ════════════════════════════════════════════════════ */
-
-const installationItems = [
-  { icon: Radar, label: "GPS Vehicular" },
-  { icon: Camera, label: "Dashcam HD" },
-  { icon: Siren, label: "Alarmas Vehiculares" },
-  { icon: Lock, label: "Bloqueo Remoto" },
-]
-
-const recoveryItems = [
-  { icon: Crosshair, label: "Rastreo GPS 4G", color: "blue" },
-  { icon: MapPin, label: "Ubicación Activa", color: "blue" },
-  { icon: AlertTriangle, label: "Respuesta Rápida", color: "red" },
-  { icon: Gauge, label: "Corte de Motor", color: "blue" },
-]
-
-function PillarsSection() {
+function ServicesVideoShowcaseSection() {
   return (
-    <section className="py-20 relative">
-      <div className="container mx-auto px-4">
-        <Reveal>
-          <SectionLabel label="Nuestros servicios" title="Dos Pilares." highlight="Protección Total." />
-        </Reveal>
-        <Reveal>
-          <p className="text-center text-slate-600 dark:text-slate-400 text-sm mb-12 -mt-8 max-w-2xl mx-auto">
-            Soluciones especializadas diseñadas para cubrir todas tus necesidades de seguridad vehicular.
-          </p>
-        </Reveal>
+    <section
+      id="servicios"
+      className="scroll-mt-16 relative py-24 md:py-32 bg-[#050810] border-b border-white/[0.06]"
+    >
+      <div className="max-w-7xl mx-auto px-4 md:px-8">
+        {/* Heading — Zero kicker above heading */}
+        <div className="max-w-3xl mb-16 md:mb-20">
+          <h2 className="font-display text-3xl sm:text-4xl md:text-[2.85rem] font-semibold leading-[1.08] tracking-[-0.032em] text-[#F8FAFC] text-balance">
+            Tres líneas de servicio.{" "}
+            <span className="text-[#A39EB8] font-normal">
+              Seguridad electrónica, reacción táctica y{" "}
+            </span>
+            <span className="font-semibold text-[#00F0FF] whitespace-nowrap">
+              [MECÁNICA EXPRESS]
+            </span>
+            <span className="text-[#A39EB8] font-normal">.</span>
+          </h2>
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
-          {/* Pilar 1: Instalaciones Vehiculares */}
-          <Reveal delay={0}>
-            <motion.div
-              className="group relative h-full rounded-2xl p-8 flex flex-col gap-6 overflow-hidden transition-colors duration-500 bg-white/50 dark:bg-[#0a0a0a]/50 backdrop-blur-xl border border-slate-200 dark:border-violet-500/15 shadow-sm dark:shadow-none"
-              whileHover={{ borderColor: "rgba(139,92,246,0.4)" }}
-            >
-              {/* Gradient border overlay */}
-              <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ boxShadow: "inset 0 0 0 1px rgba(139,92,246,0.3)" }} />
-
-              <div className="flex items-start justify-between">
+        {/* 3 Alternating 12-Column Service Video Bands */}
+        <div className="flex flex-col gap-20 md:gap-24">
+          {SERVICE_REELS.map((service) => {
+            const isVideoRight = service.videoSide === "right"
+            return (
+              <article
+                key={service.id}
+                className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center"
+              >
+                {/* Video Column (7 cols) */}
                 <div
-                  className="w-14 h-14 rounded-xl bg-violet-100 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/20 flex items-center justify-center transition-all"
+                  className={`lg:col-span-7 ${
+                    isVideoRight ? "lg:order-2" : "lg:order-1"
+                  }`}
                 >
-                  <Car className="w-7 h-7 text-violet-600 dark:text-violet-500" />
+                  <ServiceVideoPlaceholderCard service={service} />
                 </div>
-                <span className="px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-600 dark:text-slate-300 font-medium">
-                  Motos · Carros · Carga Pesada
-                </span>
-              </div>
 
-              <div>
-                <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-3 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
-                  Instalaciones Vehiculares
-                </h3>
-                <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-sm mb-6">
-                  Conecta con técnicos certificados para la instalación de dispositivos de seguridad en tu vehículo: GPS, dashcam, alarmas y más para motos, carros y carga pesada.
-                </p>
-              </div>
+                {/* Spec & Conversion Column (5 cols) */}
+                <div
+                  className={`lg:col-span-5 flex flex-col gap-6 ${
+                    isVideoRight ? "lg:order-1" : "lg:order-2"
+                  }`}
+                >
+                  <div className="flex flex-col gap-3.5">
+                    <h3 className="font-display text-2xl sm:text-3xl font-semibold text-[#F8FAFC] tracking-[-0.025em]">
+                      {service.title}
+                    </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-auto">
-                {installationItems.map((item) => (
-                  <div
-                    key={item.label}
-                    className="bg-slate-50 dark:bg-[#0a0a0a]/50 border border-slate-200 dark:border-white/5 rounded-xl p-4 flex items-center gap-3"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-500/10 flex items-center justify-center flex-shrink-0">
-                      <item.icon className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                    <div className="inline-flex w-fit items-center gap-2 px-3 py-1 rounded-full bg-[#0B0F19] border border-white/10 text-xs font-medium text-[#B4B0C8]">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ backgroundColor: service.accentHex }}
+                      />
+                      <span>{service.badge}</span>
                     </div>
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{item.label}</span>
+
+                    <p className="text-sm sm:text-base text-[#B4B0C8] leading-relaxed">
+                      {service.summary}
+                    </p>
                   </div>
-                ))}
-              </div>
-              
-              <div className="mt-6">
-                <Link href="/servicios/nuevo?tipo=instalacion" className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold transition-all shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40">
-                  Solicitar Instalación
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-            </motion.div>
-          </Reveal>
 
-          {/* Pilar 2: Recuperación */}
-          <Reveal delay={0.1}>
-            <motion.div
-              className="group relative h-full rounded-2xl p-8 flex flex-col gap-6 overflow-hidden transition-colors duration-500 bg-white/50 dark:bg-[#0a0a0a]/50 backdrop-blur-xl border border-slate-200 dark:border-blue-500/15 shadow-sm dark:shadow-none"
-              whileHover={{ borderColor: "rgba(59,130,246,0.4)" }}
-            >
-              <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ boxShadow: "inset 0 0 0 1px rgba(59,130,246,0.3)" }} />
+                  {/* 2x2 Sub-service Capabilities */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {service.highlights.map((item) => {
+                      const Icon = item.icon
+                      return (
+                        <div
+                          key={item.label}
+                          className="rounded-xl p-3.5 bg-[#0B0F19] border border-white/[0.08] flex items-start gap-3"
+                        >
+                          <div
+                            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#111827] border border-white/[0.06]"
+                            style={{ color: service.accentHex }}
+                          >
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-[#F8FAFC] leading-tight">
+                              {item.label}
+                            </p>
+                            <p className="text-xs text-[#B4B0C8] mt-0.5">
+                              {item.meta}
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
 
-              <div className="flex items-start justify-between">
-                <div
-                  className="w-14 h-14 rounded-xl bg-blue-100 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-center transition-all"
-                >
-                  <Crosshair className="w-7 h-7 text-blue-600 dark:text-blue-500" />
-                </div>
-                <span className="px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-600 dark:text-slate-300 font-medium">
-                  Flotas &amp; Particulares
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                  Recuperación de Vehículos
-                </h3>
-                <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-sm mb-6">
-                  Sistema avanzado de rastreo y protocolo de respuesta inmediata para garantizar la localización de tu vehículo en caso de siniestro.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-auto">
-                {recoveryItems.map((item) => {
-                  const isRed = item.color === "red"
-                  return (
-                    <div
-                      key={item.label}
-                      className="bg-slate-50 dark:bg-[#0a0a0a]/50 border border-slate-200 dark:border-white/5 rounded-xl p-4 flex items-center gap-3"
+                  {/* Service Actions */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
+                    <Link
+                      href={service.ctaHref}
+                      className={`inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl font-semibold text-sm transition-colors border ${
+                        service.id === "recuperacion"
+                          ? "bg-[#00F0FF] hover:bg-[#67f6ff] text-[#050810] border-[#00F0FF]"
+                          : service.id === "mecanica"
+                            ? "bg-[#F59E0B] hover:bg-[#fbbf24] text-[#050810] border-[#F59E0B]"
+                            : "bg-[#7C3AED] hover:bg-[#8B5CF6] text-[#F8FAFC] border-violet-400/35"
+                      }`}
                     >
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isRed ? "bg-red-100 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20" : "bg-blue-100 dark:bg-blue-500/10"}`}>
-                        <item.icon className={`w-4 h-4 ${isRed ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"}`} />
-                      </div>
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{item.label}</span>
-                    </div>
-                  )
-                })}
-              </div>
+                      <span>{service.ctaLabel}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
 
-              <div className="mt-6">
-                <Link href="/servicios/nuevo?tipo=recuperacion" className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40">
-                  Solicitar Recuperación
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-            </motion.div>
-          </Reveal>
+                    {service.id === "recuperacion" && (
+                      <a
+                        href="tel:+573052156601"
+                        className="inline-flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-[#0B0F19] hover:bg-[#111827] text-[#F8FAFC] text-xs sm:text-sm font-medium border border-white/10 transition-colors"
+                      >
+                        <PhoneCall className="w-4 h-4 text-[#00F0FF]" />
+                        <span className="tabular-telemetry font-semibold text-[#00F0FF]">
+                          +57 305 215 6601
+                        </span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </article>
+            )
+          })}
         </div>
       </div>
     </section>
   )
 }
 
-/* ════════════════════════════════════════════════════
-   WHY TEC360 — 3 differentiators
-   ════════════════════════════════════════════════════ */
-const whys = [
+/* ════════════════════════════════════════════════════════════════════════
+   2. CIRCUITO RADIAL DE ECOSISTEMA — ORBITAL RADAR 360° V2
+   ════════════════════════════════════════════════════════════════════════ */
+
+interface CircuitNode {
+  id: string
+  side: "left" | "right"
+  title: string
+  metric: string
+  desc: string
+  pathD: string
+  icon: typeof Radio
+}
+
+const CIRCUIT_NODES: CircuitNode[] = [
+  {
+    id: "gps-node",
+    side: "left",
+    title: "GPS 4G L1/L5 Anti-Jammer",
+    metric: "CADA 10 SEG",
+    desc: "Doble banda satelital con detección activa de inhibidores de frecuencia.",
+    pathD: "M 310 95 H 410 L 455 185 H 520",
+    icon: Radio,
+  },
+  {
+    id: "dashcam-node",
+    side: "left",
+    title: "Dashcam HD en Nube",
+    metric: "1080P LTE",
+    desc: "Evidencia visual de vía y cabina transmitida sobre red celular 4G.",
+    pathD: "M 310 240 H 520",
+    icon: Camera,
+  },
+  {
+    id: "canbus-node",
+    side: "left",
+    title: "Corte Remoto CAN-Bus",
+    metric: "0 KM/H SEGURO",
+    desc: "Bloqueo progresivo de ignición desde la app o central de monitoreo.",
+    pathD: "M 310 385 H 410 L 455 295 H 520",
+    icon: Lock,
+  },
+  {
+    id: "reaction-node",
+    side: "right",
+    title: "Equipo de Reacción 24/7",
+    metric: "24/7 EN CAMPO",
+    desc: "Coordinación inmediata en campo y enlace en vivo con Policía Nacional.",
+    pathD: "M 890 95 H 790 L 745 185 H 680",
+    icon: Siren,
+  },
+  {
+    id: "mechanics-node",
+    side: "right",
+    title: "Mecánica Básica Express",
+    metric: "< 30 MIN EN SITIO",
+    desc: "Batería, llantas, aceite, frenos y desvare rápido donde te encuentres.",
+    pathD: "M 890 240 H 680",
+    icon: Wrench,
+  },
+  {
+    id: "certified-node",
+    side: "right",
+    title: "Técnicos Certificados",
+    metric: "100% AUDITADOS",
+    desc: "Especialistas verificados para motos, automóviles y transporte de carga.",
+    pathD: "M 890 385 H 790 L 745 295 H 680",
+    icon: BadgeCheck,
+  },
+]
+
+function EcosystemCircuitSection() {
+  const [activeNodeId, setActiveNodeId] = useState<string>("reaction-node")
+
+  const leftNodes = CIRCUIT_NODES.filter((n) => n.side === "left")
+  const rightNodes = CIRCUIT_NODES.filter((n) => n.side === "right")
+
+  return (
+    <section
+      id="ecosistema"
+      className="scroll-mt-16 relative py-24 md:py-32 bg-[#050810] border-b border-white/[0.06] overflow-hidden"
+    >
+      <div
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[620px] h-[620px] rounded-full pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(circle, rgba(124,58,237,0.16) 0%, rgba(0,240,255,0.06) 38%, transparent 70%)",
+        }}
+        aria-hidden="true"
+      />
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8">
+        <div className="max-w-3xl mx-auto text-left md:text-center mb-14 md:mb-20">
+          <h2 className="font-display text-3xl sm:text-4xl md:text-[2.85rem] font-semibold leading-[1.08] tracking-[-0.032em] text-[#F8FAFC] text-balance">
+            Un solo núcleo operativo.{" "}
+            <span className="text-[#A39EB8] font-normal">
+              Conectado en tiempo real a cada capa de{" "}
+            </span>
+            <span className="font-semibold text-[#00F0FF] whitespace-nowrap">
+              [PROTECCIÓN]
+            </span>
+            <span className="text-[#A39EB8] font-normal">.</span>
+          </h2>
+        </div>
+
+        <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-0 items-center">
+          <svg
+            viewBox="0 0 1200 480"
+            className="hidden lg:block absolute inset-0 w-full h-full pointer-events-none z-0"
+            aria-hidden="true"
+          >
+            {CIRCUIT_NODES.map((node) => {
+              const highlighted = node.id === activeNodeId
+              return (
+                <g key={node.id}>
+                  <path
+                    d={node.pathD}
+                    fill="none"
+                    stroke={
+                      highlighted
+                        ? "rgba(0, 240, 255, 0.55)"
+                        : "rgba(139, 92, 246, 0.24)"
+                    }
+                    strokeWidth={highlighted ? "1.6" : "1"}
+                  />
+                  <path
+                    d={node.pathD}
+                    fill="none"
+                    stroke="#00F0FF"
+                    strokeWidth={highlighted ? "2" : "1.2"}
+                    strokeOpacity={highlighted ? "0.95" : "0.45"}
+                    className="t360-circuit-signal"
+                  />
+                </g>
+              )
+            })}
+          </svg>
+
+          <div className="lg:col-span-4 flex flex-col gap-5 relative z-10">
+            {leftNodes.map((node) => {
+              const Icon = node.icon
+              const active = node.id === activeNodeId
+              return (
+                <button
+                  key={node.id}
+                  type="button"
+                  onMouseEnter={() => setActiveNodeId(node.id)}
+                  onFocus={() => setActiveNodeId(node.id)}
+                  onClick={() => setActiveNodeId(node.id)}
+                  className={`text-left rounded-2xl p-5 bg-[#0B0F19]/92 border transition-colors cursor-pointer ${
+                    active
+                      ? "border-[#00F0FF]/60"
+                      : "border-violet-500/18 hover:border-violet-400/40"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2.5">
+                      <Icon
+                        className={`w-4 h-4 ${
+                          active ? "text-[#00F0FF]" : "text-violet-400"
+                        }`}
+                      />
+                      <h3 className="text-sm sm:text-base font-semibold text-[#F8FAFC]">
+                        {node.title}
+                      </h3>
+                    </div>
+                    <span className="tabular-telemetry text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#111827] text-[#00F0FF] border border-white/[0.08] whitespace-nowrap">
+                      {node.metric}
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-[#B4B0C8] leading-relaxed">
+                    {node.desc}
+                  </p>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="lg:col-span-4 flex flex-col items-center justify-center py-6 lg:py-0 relative z-10">
+            <div className="relative flex items-center justify-center w-44 h-44 sm:w-52 sm:h-52 rounded-3xl bg-[#0B0F19] border border-violet-500/35">
+              <div
+                className="absolute inset-3 rounded-2xl border border-[#00F0FF]/15 pointer-events-none"
+                aria-hidden="true"
+              />
+              <Tec360Logo iconOnly size="xl" className="w-28 h-28 sm:w-32 sm:h-32" iconClassName="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl" />
+            </div>
+            <span className="mt-4 text-xs font-semibold text-[#B4B0C8] tracking-wider">
+              NÚCLEO ORBITAL TEC360 · <span className="tabular-telemetry text-[#F8FAFC]">4G L1/L5</span>
+            </span>
+          </div>
+
+          <div className="lg:col-span-4 flex flex-col gap-5 relative z-10">
+            {rightNodes.map((node) => {
+              const Icon = node.icon
+              const active = node.id === activeNodeId
+              return (
+                <button
+                  key={node.id}
+                  type="button"
+                  onMouseEnter={() => setActiveNodeId(node.id)}
+                  onFocus={() => setActiveNodeId(node.id)}
+                  onClick={() => setActiveNodeId(node.id)}
+                  className={`text-left rounded-2xl p-5 bg-[#0B0F19]/92 border transition-colors cursor-pointer ${
+                    active
+                      ? "border-[#00F0FF]/60"
+                      : "border-violet-500/18 hover:border-violet-400/40"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2.5">
+                      <Icon
+                        className={`w-4 h-4 ${
+                          active ? "text-[#00F0FF]" : "text-violet-400"
+                        }`}
+                      />
+                      <h3 className="text-sm sm:text-base font-semibold text-[#F8FAFC]">
+                        {node.title}
+                      </h3>
+                    </div>
+                    <span className="tabular-telemetry text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#111827] text-[#00F0FF] border border-white/[0.08] whitespace-nowrap">
+                      {node.metric}
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-[#B4B0C8] leading-relaxed">
+                    {node.desc}
+                  </p>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   3. RESPALDO DE TÉCNICOS CERTIFICADOS + RESEÑAS VERIFICADAS
+   ════════════════════════════════════════════════════════════════════════ */
+
+const TRUST_COMMITMENTS = [
   {
     icon: BadgeCheck,
-    color: "text-blue-600 dark:text-blue-400",
-    bg: "bg-blue-100 dark:bg-blue-500/10",
-    title: "Técnicos verificados",
-    desc: "Cada técnico pasa por validación de identidad, certificación SENA y revisión de antecedentes antes de operar en la plataforma.",
+    metric: "4.9 ★",
+    title: "Técnicos certificados y auditados",
+    desc: "Cada especialista supera validación de identidad, revisión de antecedentes y pruebas técnicas antes de operar en Tec360.",
   },
   {
     icon: Clock,
-    color: "text-amber-600 dark:text-amber-400",
-    bg: "bg-amber-100 dark:bg-amber-500/10",
-    title: "Mismo día disponible",
-    desc: "Servicios express disponibles hoy mismo. Sin esperas de días — un técnico llega en horas cuando lo necesitas.",
+    metric: "< 30 MIN",
+    title: "Atención express el mismo día",
+    desc: "Desde un inicio de batería o cambio de llanta hasta una instalación completa de GPS 4G en tu propio parqueadero.",
   },
   {
     icon: MapPin,
-    color: "text-emerald-600 dark:text-emerald-400",
-    bg: "bg-emerald-100 dark:bg-emerald-500/10",
-    title: "Seguimiento en vivo",
-    desc: "Sabe exactamente dónde está tu técnico en tiempo real. Rastreo GPS integrado durante todo el recorrido.",
+    metric: "GPS 24/7",
+    title: "Rastreo del especialista en camino",
+    desc: "Conoce el nombre, foto, calificación y ubicación exacta en mapa del técnico asignado desde que acepta tu solicitud.",
   },
 ]
 
-function WhySection() {
-  return (
-    <section className="py-20 relative">
-      <div className="container mx-auto px-4">
-        <Reveal>
-          <SectionLabel label="Por qué elegirnos" title="Expertos en" highlight="Seguridad Integral" />
-        </Reveal>
-        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {whys.map((w, i) => (
-            <Reveal key={i} delay={i * 0.1}>
-              <div className="group p-7 rounded-2xl border border-slate-200 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-all duration-300 shadow-sm dark:shadow-none">
-                <div className={`w-12 h-12 rounded-xl ${w.bg} flex items-center justify-center mb-5`}>
-                  <w.icon className={`w-6 h-6 ${w.color}`} />
-                </div>
-                <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white">{w.title}</h3>
-                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{w.desc}</p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-/* ════════════════════════════════════════════════════
-   STEPS — SIDE BY SIDE (Instalación + Recuperación)
-   ════════════════════════════════════════════════════ */
-const installSteps = [
-  { num: "01", title: "Diagnóstico & Selección", desc: "Elige los dispositivos requeridos: GPS 4G anti-jammer, dashcam HD o alarma inteligente. Indica tu ubicación.", icon: MapPin },
-  { num: "02", title: "Asignación Técnica Verificada", desc: "Un técnico especializado y certificado cerca de ti acepta la orden con perfil verificado y precio fijado.", icon: BadgeCheck },
-  { num: "03", title: "Instalación & Calibración", desc: "Despliegue en sitio, conexión de arneses automotrices, calibración telemática y verificación de señal 4G en plataforma.", icon: Wrench },
-  { num: "04", title: "Garantía & Monitoreo 360°", desc: "Verificación de telemetría en tu smartphone, activación de garantía integral y soporte continuo.", icon: ShieldCheck },
+const VERIFIED_VOICES = [
+  {
+    quote:
+      "Pedí la instalación de una dashcam y el técnico llegó en menos de 2 horas. Dejó el cableado oculto de fábrica y todo configurado en el celular.",
+    author: "Luis M.",
+    city: "Medellín",
+    vehicle: "Instalación Dashcam HD",
+  },
+  {
+    quote:
+      "Me quedé sin batería en la oficina; solicité mecánica básica en la plataforma, vi la foto del técnico certificado y en 25 minutos ya tenía el carro encendido.",
+    author: "Carolina V.",
+    city: "Bogotá",
+    vehicle: "Mecánica Básica Express",
+  },
+  {
+    quote:
+      "Instalaron el GPS 4G y bloqueo remoto de mi camión con garantía. Puntualidad absoluta y respaldo permanente del equipo de reacción.",
+    author: "Andrés T.",
+    city: "Cali",
+    vehicle: "GPS 4G + Reacción 24/7",
+  },
 ]
 
-const recoverySteps = [
-  { num: "01", title: "Bloqueo Digital Inmediato", desc: "Reporta el evento en la app o central 24/7. Ejecutamos corte de motor remoto y fijación satelital en segundos.", icon: Lock, highlight: true },
-  { num: "02", title: "Cerco Satelital Activo", desc: "Rastreo continuo de coordenadas, velocidad y detección anti-jamming en tiempo real sobre la red satelital.", icon: Radar },
-  { num: "03", title: "Coordinación Táctica con Autoridades", desc: "Enlace directo con cuadrantes de la Policía Nacional y Fiscalía con vector de posición en vivo.", icon: Siren },
-  { num: "04", title: "Recuperación y Entrega Asistida", desc: "Aseguramiento del vehículo en sitio, verificación pericial de integridad y entrega asistida al propietario.", icon: ShieldCheck },
-]
-
-function StepItem({ s, i, total, accentColor = "purple" }: { s: { num: string; title: string; desc: string; icon: any; highlight?: boolean }; i: number; total: number; accentColor?: "purple" | "blue" }) {
-  const isHighlight = s.highlight
-  const Icon = s.icon
+function CertifiedTrustAndVoicesSection() {
   return (
-    <Reveal delay={i * 0.1}>
-      <div className={`flex items-start gap-4 py-5 ${i < total - 1 ? "border-b border-slate-200 dark:border-white/5" : ""}`}>
-        <motion.div className="flex-shrink-0 relative" whileHover={{ scale: 1.06 }}>
-          <div className={`flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-xl border ${
-            isHighlight ? "border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-amber-500" : "border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04] text-slate-700 dark:text-slate-200"
-          }`}>
-            <Icon className="w-5 h-5 md:w-6 md:h-6" />
-          </div>
-          <span className={`absolute -top-1.5 -left-1.5 flex h-5 w-5 items-center justify-center rounded-full text-white text-[10px] font-bold font-mono shadow-md ${
-            isHighlight ? "bg-amber-500" : accentColor === "blue" ? "bg-blue-600" : "bg-violet-600"
-          }`}>{s.num}</span>
-        </motion.div>
-        <div className="flex-1 min-w-0 pt-0.5">
-          <h4 className={`text-base font-bold mb-1 ${isHighlight ? "text-amber-600 dark:text-amber-400" : "text-slate-900 dark:text-white"}`}>{s.title}</h4>
-          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{s.desc}</p>
+    <section
+      id="respaldo"
+      className="scroll-mt-16 relative py-24 md:py-32 bg-[#050810] border-b border-white/[0.06]"
+    >
+      <div className="max-w-7xl mx-auto px-4 md:px-8">
+        <div className="max-w-3xl mb-14 md:mb-16">
+          <h2 className="font-display text-3xl sm:text-4xl md:text-[2.85rem] font-semibold leading-[1.08] tracking-[-0.032em] text-[#F8FAFC] text-balance">
+            Técnicos certificados en tu puerta.{" "}
+            <span className="text-[#A39EB8] font-normal">
+              Transparencia total en cada{" "}
+            </span>
+            <span className="font-semibold text-[#00F0FF] whitespace-nowrap">
+              [SERVICIO]
+            </span>
+            <span className="text-[#A39EB8] font-normal">.</span>
+          </h2>
         </div>
-      </div>
-    </Reveal>
-  )
-}
 
-function ParallelSteps() {
-  return (
-    <section className="py-20 relative">
-      <div className="container mx-auto px-4">
-        <Reveal>
-          <SectionLabel label="¿Cómo funciona?" title="Dos procesos," highlight="una sola plataforma" />
-        </Reveal>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
-          {/* Columna Izquierda — Instalación */}
-          <Reveal delay={0}>
-            <div
-              className="rounded-2xl p-6 md:p-8 h-full bg-white/50 dark:bg-[#0a0a0a]/50 backdrop-blur-xl border border-slate-200 dark:border-violet-500/15 shadow-sm dark:shadow-none"
-            >
-              {/* Header */}
-              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200 dark:border-white/5">
-                <div className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/20 flex items-center justify-center">
-                  <Wrench className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+        {/* Architectural Horizontal Ledger */}
+        <div className="divide-y divide-white/[0.08] border-y border-white/[0.08]">
+          {TRUST_COMMITMENTS.map((item) => {
+            const Icon = item.icon
+            return (
+              <div
+                key={item.title}
+                className="py-7 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-8 items-center"
+              >
+                <div className="md:col-span-3 flex items-center gap-3.5">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0B0F19] border border-violet-500/25 text-[#00F0FF]">
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className="tabular-telemetry text-xl sm:text-2xl font-bold text-[#F8FAFC]">
+                    {item.metric}
+                  </span>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Instalación</h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">Agendamiento inteligente y servicio geolocalizado</p>
-                </div>
-              </div>
-              {/* Steps */}
-              {installSteps.map((s, i) => (
-                <StepItem key={i} s={s} i={i} total={installSteps.length} accentColor="purple" />
-              ))}
-            </div>
-          </Reveal>
-
-          {/* Columna Derecha — Recuperación */}
-          <Reveal delay={0.1}>
-            <div
-              className="rounded-2xl p-6 md:p-8 h-full bg-white/50 dark:bg-[#0a0a0a]/50 backdrop-blur-xl border border-slate-200 dark:border-blue-500/15 shadow-sm dark:shadow-none"
-            >
-              {/* Header */}
-              <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200 dark:border-white/5">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-center">
-                  <ShieldCheck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recuperación</h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">Protocolo de respuesta táctica inmediata</p>
-                </div>
-              </div>
-              {/* Tactical Alert Banner */}
-              <div className="mb-4 p-3 rounded-xl border border-blue-500/20 bg-blue-500/5 flex items-start gap-2.5">
-                <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
-                  <strong className="font-semibold text-blue-800 dark:text-blue-200">Activación Inmediata:</strong> El corte de motor remoto y fijación satelital se ejecutan en segundos mientras se coordina con la Policía Nacional.
+                <h3 className="md:col-span-4 text-lg font-semibold text-[#F8FAFC] tracking-[-0.015em]">
+                  {item.title}
+                </h3>
+                <p className="md:col-span-5 text-sm text-[#B4B0C8] leading-relaxed">
+                  {item.desc}
                 </p>
               </div>
-              {/* Steps */}
-              {recoverySteps.map((s, i) => (
-                <StepItem key={i} s={s} i={i} total={recoverySteps.length} accentColor="blue" />
-              ))}
-            </div>
-          </Reveal>
+            )
+          })}
         </div>
-      </div>
-    </section>
-  )
-}
 
-/* ════════════════════════════════════════════════════
-   TESTIMONIALS
-   ════════════════════════════════════════════════════ */
-const testimonials = [
-  {
-    name: "Luis M.",
-    location: "Medellín",
-    rating: 5,
-    text: "Pedí la instalación de una dashcam y el técnico llegó en menos de 2 horas. Excelente trabajo, muy profesional.",
-    initials: "LM",
-    color: "from-blue-500 to-indigo-600",
-  },
-  {
-    name: "Carolina V.",
-    location: "Bogotá",
-    rating: 5,
-    text: "Nunca pensé que fuera tan fácil. Elegí el servicio, vi la foto del técnico y en minutos ya estaba en camino con seguimiento en el mapa.",
-    initials: "CV",
-    color: "from-purple-500 to-pink-600",
-  },
-  {
-    name: "Andrés T.",
-    location: "Cali",
-    rating: 5,
-    text: "Instalaron el GPS de mi camión con garantía. El técnico fue puntual, dejó todo limpio y me explicó cómo funciona la app.",
-    initials: "AT",
-    color: "from-emerald-500 to-teal-600",
-  },
-]
-
-function Testimonials() {
-  return (
-    <section className="py-20 relative overflow-hidden">
-      <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.03]"
-        style={{ background: "radial-gradient(circle at 50% 50%, rgba(59,130,246,1) 0%, transparent 60%)" }}
-      />
-      <div className="container mx-auto px-4">
-        <Reveal><SectionLabel label="Reseñas" title="Lo que dicen" highlight="nuestros clientes" /></Reveal>
-        <div className="grid md:grid-cols-3 gap-5 max-w-5xl mx-auto">
-          {testimonials.map((t, i) => (
-            <Reveal key={i} delay={i * 0.1}>
-              <motion.div
-                className="p-6 rounded-2xl border border-slate-200 dark:border-white/5 bg-white/60 dark:bg-white/[0.025] flex flex-col gap-4 shadow-sm dark:shadow-none"
-                whileHover={{ y: -3 }}
-                transition={{ duration: 0.2 }}
+        {/* Verified Voices Strip */}
+        <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-0 md:divide-x md:divide-white/[0.08]">
+          {VERIFIED_VOICES.map((v, idx) => (
+            <blockquote
+              key={v.author}
+              className={`flex flex-col justify-between gap-5 ${
+                idx === 0 ? "md:pr-8" : idx === 1 ? "md:px-8" : "md:pl-8"
+              }`}
+            >
+              <div
+                className="flex gap-1"
+                aria-label="Calificación 5 de 5 estrellas"
               >
-                {/* Stars */}
-                <div className="flex gap-0.5">
-                  {[...Array(t.rating)].map((_, j) => (
-                    <Star key={j} className="w-4 h-4 text-amber-400 fill-amber-400" />
-                  ))}
-                </div>
-                {/* Text */}
-                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed flex-1">&quot;{t.text}&quot;</p>
-                {/* Author */}
-                <div className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${t.color} flex items-center justify-center text-xs font-bold text-white`}>
-                    {t.initials}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{t.name}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                      <MapPin className="w-2.5 h-2.5" />{t.location}
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            </Reveal>
+                {[0, 1, 2, 3, 4].map((star) => (
+                  <Star
+                    key={star}
+                    className="w-3.5 h-3.5 text-[#F59E0B] fill-[#F59E0B]"
+                  />
+                ))}
+              </div>
+              <p className="text-sm text-[#F8FAFC]/90 leading-relaxed">
+                &ldquo;{v.quote}&rdquo;
+              </p>
+              <footer className="flex items-center justify-between text-xs text-[#B4B0C8]">
+                <span className="font-semibold text-[#F8FAFC]">{v.author}</span>
+                <span>
+                  {v.city} · {v.vehicle}
+                </span>
+              </footer>
+            </blockquote>
           ))}
         </div>
       </div>
@@ -422,124 +793,178 @@ function Testimonials() {
   )
 }
 
-/* ════════════════════════════════════════════════════
-   CTA
-   ════════════════════════════════════════════════════ */
-function CTA() {
-  return (
-    <section className="py-20 relative">
-      <div className="container mx-auto px-4">
-        <Reveal>
-          <div
-            className="w-full relative rounded-3xl p-10 md:p-16 text-center overflow-hidden border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-black/60 backdrop-blur-xl shadow-lg dark:shadow-none"
-          >
-            {/* Big glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-violet-500/10 dark:bg-violet-500/30 rounded-full blur-[100px] pointer-events-none" />
+/* ════════════════════════════════════════════════════════════════════════
+   4. CIERRE MONUMENTAL NEXAFLOW & HORIZONTE VECTORIAL TEC360
+   ════════════════════════════════════════════════════════════════════════ */
 
-            <div className="relative z-10 flex flex-col items-center gap-6">
-              <div
-                className="w-20 h-20 bg-slate-100 dark:bg-white/5 rounded-2xl flex items-center justify-center border border-slate-200 dark:border-white/10 mb-2"
-              >
-                <Lock className="h-9 w-9 text-slate-800 dark:text-white" />
-              </div>
-              <h2 className="text-3xl md:text-5xl font-bold text-slate-900 dark:text-white tracking-tight">
-                ¿Listo para la protección 360°?
-              </h2>
-              <p className="text-slate-600 dark:text-slate-400 text-lg max-w-lg mx-auto">
-                Únete a la red de seguridad tecnológica y monitoreo vehicular más confiable de Colombia.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 mt-6 w-full justify-center">
-                <Link href="/register">
-                  <motion.button
-                    whileHover={{ scale: 1.04, y: -2 }}
-                    whileTap={{ scale: 0.97 }}
-                    className="bg-gradient-to-r from-violet-600 to-blue-500 hover:from-violet-500 hover:to-blue-400 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg shadow-violet-500/30"
-                  >
-                    Crear Cuenta Gratis
-                  </motion.button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  )
-}
+const footerNav = [
+  { label: "Instalaciones", href: "/servicios/nuevo?tipo=instalacion" },
+  { label: "Equipo de Reacción 24/7", href: "/servicios/nuevo?tipo=recuperacion" },
+  { label: "Mecánica Básica", href: "/servicios/nuevo?tipo=mecanica" },
+  { label: "Mis Servicios", href: "/servicios" },
+  { label: "Descargar App", href: "/descargar-app" },
+  { label: "Iniciar Sesión", href: "/login" },
+]
 
-/* ════════════════════════════════════════════════════
-   FOOTER
-   ════════════════════════════════════════════════════ */
-function Footer() {
+function NexaflowClosingFooter() {
+  const closeRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    const el = closeRef.current
+    if (!el) return
+
+    let frame = 0
+    const onMove = (event: PointerEvent) => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const rect = el.getBoundingClientRect()
+        if (event.clientY < rect.top - 200 || event.clientY > rect.bottom + 200) {
+          return
+        }
+        const x = Math.max(
+          0,
+          Math.min(100, ((event.clientX - rect.left) / rect.width) * 100)
+        )
+        const y = Math.max(
+          0,
+          Math.min(100, ((event.clientY - rect.top) / rect.height) * 100)
+        )
+        el.style.setProperty("--mouse-x", `${x.toFixed(1)}%`)
+        el.style.setProperty("--mouse-y", `${y.toFixed(1)}%`)
+      })
+    }
+
+    window.addEventListener("pointermove", onMove, { passive: true })
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener("pointermove", onMove)
+    }
+  }, [])
+
   return (
-    <footer className="border-t border-slate-200 dark:border-white/5 py-14 bg-slate-50 dark:bg-[#0a0a0a]">
-      <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
-          <div className="md:col-span-2">
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl gradient-brand shadow-lg">
-                <ShieldCheck className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-lg font-bold text-slate-900 dark:text-white">
-                Tec360 <span className="text-violet-600 dark:text-violet-500">Seguridad</span>
+    <footer
+      id="contacto"
+      ref={closeRef}
+      className="scroll-mt-16 t360-silk-stage relative overflow-hidden pt-24 md:pt-32 pb-10"
+    >
+      <div className="t360-aurora-one" aria-hidden="true" />
+      <div className="t360-aurora-two" aria-hidden="true" />
+      <div className="t360-pointer-light" aria-hidden="true" />
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 flex flex-col gap-16 md:gap-20">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-end">
+          <div className="lg:col-span-7 flex flex-col gap-6">
+            <h2 className="font-display text-3xl sm:text-4xl md:text-[3.1rem] font-semibold leading-[1.06] tracking-[-0.034em] text-[#F8FAFC] text-balance">
+              ¿Listo para blindar tu vehículo,{" "}
+              <span className="text-[#A39EB8] font-normal">
+                pedir mecánica a domicilio o activar nuestra central{" "}
               </span>
-            </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400 max-w-xs leading-relaxed mb-5">
-              Plataforma líder de servicios de seguridad técnica. Conectamos clientes con técnicos certificados para instalaciones y recuperación vehicular en toda Colombia.
-            </p>
-            <div className="flex gap-2">
-              {["Telemetría 4G", "Técnicos Verificados", "Red 24/7"].map((tag) => (
-                <span key={tag} className="text-[10px] font-mono border border-slate-300 dark:border-white/10 px-2 py-1 rounded text-slate-500">{tag}</span>
-              ))}
+              <span className="tabular-telemetry font-semibold text-[#00F0FF] whitespace-nowrap">
+                [24/7]
+              </span>
+              <span className="text-[#A39EB8] font-normal">?</span>
+            </h2>
+
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <Link
+                href="/servicios/nuevo?tipo=instalacion"
+                className="inline-flex items-center gap-2.5 px-7 py-4 rounded-xl bg-[#7C3AED] hover:bg-[#8B5CF6] text-[#F8FAFC] font-semibold text-sm sm:text-base border border-violet-400/35 transition-colors"
+              >
+                <span>Agendar Servicio</span>
+                <ArrowRight className="w-4 h-4 text-[#00F0FF]" />
+              </Link>
+              <Link
+                href="/descargar-app"
+                className="inline-flex items-center gap-2 px-6 py-4 rounded-xl bg-[#0B0F19]/90 hover:bg-[#111827] text-[#F8FAFC] font-medium text-sm sm:text-base border border-white/12 transition-colors"
+              >
+                <span>Descargar App Android</span>
+                <ArrowUpRight className="w-4 h-4 text-[#00F0FF]" />
+              </Link>
             </div>
           </div>
-          <div>
-            <h4 className="font-semibold mb-4 text-sm text-slate-900 dark:text-white">Plataforma</h4>
-            <ul className="space-y-2.5 text-sm text-slate-600 dark:text-slate-400">
-              {[
-                { label: "Servicios", href: "/servicios" },
-                { label: "Registrarse", href: "/register" },
-                { label: "Iniciar sesión", href: "/login" },
-              ].map((link) => (
-                <li key={link.label}>
-                  <a href={link.href} className="hover:text-violet-600 dark:hover:text-white transition-colors inline-flex items-center gap-1.5">
-                    <ArrowRight className="w-3 h-3 opacity-40" />
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-semibold mb-4 text-sm text-slate-900 dark:text-white">Central Operativa &amp; Contacto</h4>
-            <ul className="space-y-2.5 text-sm text-slate-600 dark:text-slate-400">
-              <li className="flex items-center gap-2">
-                <span className="text-[10px] font-mono font-bold text-violet-400 bg-violet-950/60 border border-violet-500/30 px-1.5 py-0.5 rounded">24/7</span>
-                <a href="tel:+573052156601" className="font-mono text-slate-800 dark:text-slate-200 text-xs font-semibold hover:text-violet-600 dark:hover:text-violet-400 transition-colors">
-                  Línea de Atención: +57 (305) 215-6601
-                </a>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-base">📧</span>
-                <a href="mailto:tracktec.soporte@gmail.com" className="hover:text-violet-600 dark:hover:text-white transition-colors truncate">
-                  tracktec.soporte@gmail.com
-                </a>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-base">📍</span>
-                <span>Medellín · Bogotá · Cobertura Nacional</span>
-              </li>
-            </ul>
+
+          <div className="lg:col-span-5 flex flex-col gap-5 lg:items-end lg:text-right">
+            <div>
+              <span className="block text-xs text-[#B4B0C8] mb-1.5">
+                Central Operativa &amp; WhatsApp 24/7:
+              </span>
+              <a
+                href="https://wa.me/573052156601?text=Hola%20Tec360%2C%20quiero%20solicitar%20un%20servicio%20vehicular"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="t360-hairline-link tabular-telemetry text-xl sm:text-2xl font-semibold text-[#F8FAFC] hover:text-[#00F0FF] transition-colors"
+              >
+                <span>+57 305 215 6601</span>
+                <ArrowUpRight className="w-5 h-5 text-[#00F0FF]" />
+              </a>
+            </div>
+
+            <div>
+              <span className="block text-xs text-[#B4B0C8] mb-1.5">
+                Soporte técnico y corporativo:
+              </span>
+              <a
+                href="mailto:tracktec.soporte@gmail.com"
+                className="t360-hairline-link text-base sm:text-lg font-medium text-[#F8FAFC] hover:text-[#00F0FF] transition-colors"
+              >
+                <span>tracktec.soporte@gmail.com</span>
+                <ArrowUpRight className="w-4 h-4 text-[#00F0FF]" />
+              </a>
+            </div>
           </div>
         </div>
-        <div className="border-t border-slate-200 dark:border-white/5 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-slate-500">© 2026 Tec360 Seguridad. Plataforma Telemática Avanzada.</p>
-          <div className="flex items-center gap-3 text-xs text-slate-500">
-            <a href="/terminos" className="hover:text-violet-600 dark:hover:text-white transition-colors">Términos y Condiciones</a>
-            <span>·</span>
-            <a href="/privacidad" className="hover:text-violet-600 dark:hover:text-white transition-colors">Privacidad</a>
-            <span>·</span>
-            <span>Respaldo Institucional</span>
+
+        <nav
+          aria-label="Navegación de pie de página"
+          className="pt-8 border-t border-white/[0.10] flex flex-wrap items-center justify-between gap-x-6 gap-y-3"
+        >
+          <div className="flex flex-wrap items-center gap-x-7 gap-y-2.5">
+            {footerNav.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="t360-hairline-link text-sm font-medium text-[#B4B0C8] hover:text-[#F8FAFC] transition-colors"
+              >
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </div>
+
+          <span className="text-xs text-[#B4B0C8]">
+            Medellín · Bogotá · Cali · Cobertura Nacional
+          </span>
+        </nav>
+
+        <div className="pt-2 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 select-none">
+          <Tec360Logo size="xl" />
+          <div className="flex flex-col md:items-end text-left md:text-right">
+            <span className="text-[11px] font-mono font-bold uppercase tracking-[0.08em] text-[#00F0FF]">
+              Seguridad Vehicular Integral 360°
+            </span>
+            <span className="text-xs text-[#B4B0C8] mt-1">
+              Blindaje electrónico · Reacción 24/7 · Mecánica express en Colombia
+            </span>
+          </div>
+        </div>
+
+        <div className="pt-6 border-t border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#B4B0C8]">
+          <p>
+            © 2026 Tec360 Seguridad. Instalaciones, Reacción 24/7 &amp; Mecánica
+            Básica.
+          </p>
+          <div className="flex items-center gap-5">
+            <Link
+              href="/terminos"
+              className="hover:text-[#F8FAFC] transition-colors"
+            >
+              Términos y Condiciones
+            </Link>
+            <Link
+              href="/privacidad"
+              className="hover:text-[#F8FAFC] transition-colors"
+            >
+              Política de Privacidad
+            </Link>
           </div>
         </div>
       </div>
@@ -547,29 +972,13 @@ function Footer() {
   )
 }
 
-/* ════════════════════════════════════════════════════
-   EXPORT
-   ════════════════════════════════════════════════════ */
 export function Features() {
   return (
     <>
-      {/* Two Pillars */}
-      <PillarsSection />
-
-      {/* Why us */}
-      <WhySection />
-
-      {/* Steps — Side by Side */}
-      <ParallelSteps />
-
-      {/* Testimonials */}
-      <Testimonials />
-
-      {/* CTA */}
-      <CTA />
-
-      {/* Footer */}
-      <Footer />
+      <ServicesVideoShowcaseSection />
+      <EcosystemCircuitSection />
+      <CertifiedTrustAndVoicesSection />
+      <NexaflowClosingFooter />
     </>
   )
 }

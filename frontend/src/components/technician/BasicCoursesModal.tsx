@@ -54,12 +54,12 @@ export function BasicCoursesModal({
       <DialogContent className="max-w-lg bg-card/95 backdrop-blur-xl border-border/80 shadow-2xl p-6 md:p-8">
         <DialogHeader className="text-center sm:text-center items-center pb-2">
           {/* Badge */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold mb-3">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-semibold mb-3">
             <GraduationCap className="h-3.5 w-3.5" />
-            <span>ESCUELA TEC360 · INDUCCIÓN</span>
+            <span>ESCUELA TEC360 · INDUCCIÓN OFICIAL</span>
           </div>
 
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/25 mb-3 text-white">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-violet-600 to-cyan-500 shadow-lg shadow-violet-600/25 mb-3 text-white">
             <Sparkles className="h-7 w-7" />
           </div>
 

@@ -1,8 +1,6 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-// Importamos motion para permitir animaciones futuras si es necesario
-// aunque por ahora es un wrapper de estilo
 import { HTMLMotionProps, motion } from "framer-motion"
 
 interface GlassCardProps extends HTMLMotionProps<"div"> {
@@ -15,14 +13,13 @@ export function GlassCard({ children, className, gradient = false, ...props }: G
     return (
         <motion.div
             className={cn(
-                "relative overflow-hidden rounded-xl border border-white/20 bg-white/10 backdrop-blur-md shadow-xl",
-                "dark:bg-black/20 dark:border-white/10",
-                gradient && "bg-gradient-to-br from-white/10 to-white/5",
+                "relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0b0f19]/85 backdrop-blur-xl shadow-2xl transition-all duration-300",
+                "hover:border-violet-500/25",
+                gradient && "bg-gradient-to-br from-[#0b0f19] via-[#0b0f19]/95 to-[#111827]",
                 className
             )}
             {...props}
         >
-            {/* Optional: Noise texture or subtle gradient overlay could go here */}
             {children}
         </motion.div>
     )

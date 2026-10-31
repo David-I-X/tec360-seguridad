@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000">
+  <defs>
+    
+    <radialGradient id="bb-p7-aur-violet" cx="24%" cy="88%" r="58%">
+      <stop offset="0%" stop-color="#7C3AED" stop-opacity="0.34"/>
+      <stop offset="55%" stop-color="#3B82F6" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#050810" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="bb-p7-aur-cyan" cx="82%" cy="18%" r="48%">
+      <stop offset="0%" stop-color="#00F0FF" stop-opacity="0.20"/>
+      <stop offset="55%" stop-color="#7C3AED" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#050810" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="bb-p7-grid" width="44" height="44" patternUnits="userSpaceOnUse">
+      <path d="M 44 0 L 0 0 0 44" fill="none" stroke="#6366F1" stroke-opacity="0.06" stroke-width="1"/>
+    </pattern>
+    
+    <linearGradient id="bb-p7-hdr-ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="55%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+    <linearGradient id="bb-p7-hdr-sub" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00F0FF" stop-opacity="0.92"/>
+      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="bb-p7-hdr-sweep" x1="0.15" y1="0.85" x2="0.9" y2="0.1">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.55"/>
+      <stop offset="65%" stop-color="#00F0FF" stop-opacity="0.38"/>
+      <stop offset="100%" stop-color="#00F0FF" stop-opacity="0.08"/>
+    </linearGradient>
+    
+    <linearGradient id="p7-iso-ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="55%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+    <linearGradient id="p7-iso-sub" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00F0FF" stop-opacity="0.92"/>
+      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="p7-iso-sweep" x1="0.15" y1="0.85" x2="0.9" y2="0.1">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.55"/>
+      <stop offset="65%" stop-color="#00F0FF" stop-opacity="0.38"/>
+      <stop offset="100%" stop-color="#00F0FF" stop-opacity="0.08"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="1000" fill="#050810"/>
+  <rect width="1600" height="1000" fill="url(#bb-p7-aur-violet)"/>
+  <rect width="1600" height="1000" fill="url(#bb-p7-aur-cyan)"/>
+  <rect width="1600" height="1000" fill="url(#bb-p7-grid)"/>
+
+  <!-- Barra Superior Editorial -->
+  <g transform="translate(56 26) scale(0.058594)">
+    <path d="M 467.48 241.21 A 212 212 0 1 1 314.44 52.21 L 268 84.42 A 172 172 0 1 0 421.34 208.59 Z" fill="url(#bb-p7-hdr-ring)"/>
+    <path d="M 350.47 364.68 A 144 144 0 0 1 161.53 147.32 L 162.42 174.65 A 124 124 0 0 0 349.58 337.35 Z" fill="url(#bb-p7-hdr-sub)" opacity="1"/>
+    <path d="M 284.5 138.89 A 138 138 0 0 1 373.11 227.5 L 289.41 254.69 A 50 50 0 0 0 257.31 222.59 Z" fill="url(#bb-p7-hdr-sweep)" opacity="1"/>
+    <path d="M 284.56 134.71 A 142 142 0 0 1 298.48 139.92 L 261.8 224.29 A 50 50 0 0 0 256.9 222.45 Z" fill="#00F0FF"/>
+    <circle cx="364.9" cy="147.1" r="23" fill="#00F0FF"/>
+    <path d="M 206.86 270.14 A 35 35 0 1 0 276.86 270.14 A 35 35 0 1 0 206.86 270.14 Z M 225.86 270.14 A 16 16 0 1 0 257.86 270.14 A 16 16 0 1 0 225.86 270.14 Z" fill="#F8FAFC" fill-rule="evenodd"/>
+    <circle cx="241.86" cy="270.14" r="8.5" fill="#00F0FF"/></g>
+  <text x="98" y="47" font-family="Consolas" font-size="12" font-weight="700" letter-spacing="2" fill="#B4B0C8">TEC360 SEGURIDAD · MANUAL DE IDENTIDAD &amp; SISTEMA DE DISEÑO v3.0</text>
+  <text x="1544" y="47" text-anchor="end" font-family="Consolas" font-size="12" font-weight="700" letter-spacing="1.8" fill="#00F0FF">[PÁGINA 07 / 08]</text>
+  <line x1="56" y1="66" x2="1544" y2="66" stroke="#FFFFFF" stroke-opacity="0.09" stroke-width="1"/>
+
+  <!-- Titular de Doble Luminancia + Énfasis entre Corchetes (Cero Kickers) -->
+  <text x="56" y="124" font-family="Bahnschrift" font-size="38" font-weight="700" fill="#F8FAFC">
+    Lenguaje de interfaz y video. <tspan font-weight="400" fill="#A39EB8">Muescas esculpidas y estudio </tspan><tspan font-family="Bahnschrift" font-weight="700" fill="#00F0FF">[OSCURO 16:9]</tspan>
+  </text>
+
+  
+    <!-- Izquierda: Anatomía del Reproductor de Video Corto de Servicio -->
+    <rect x="56" y="162" width="840" height="460" rx="22" fill="#0B0F19" stroke="#8B5CF6" stroke-opacity="0.35"/>
+    <text x="88" y="206" font-family="Bahnschrift" font-size="24" font-weight="700" fill="#F8FAFC">Estándar de Reproductor &amp; Portada de Video Corto (3 Servicios)</text>
+
+    <!-- Mockup del Player -->
+    <rect x="88" y="230" width="776" height="356" rx="20" fill="#050810" stroke="#00F0FF" stroke-opacity="0.38" stroke-width="1.5"/>
+    <!-- Muesca Esculpida -->
+    <path d="M 676 230 H 864 V 274 H 698 Q 676 274 676 252 Z" fill="#0B0F19" stroke="#00F0FF" stroke-opacity="0.38"/>
+    <text x="702" y="257" font-family="Consolas" font-size="13" font-weight="700" fill="#F8FAFC">REEL 16:9 · 00:22</text>
+
+    <!-- Pill Estado -->
+    <rect x="110" y="248" width="236" height="34" rx="17" fill="#0B0F19" stroke="#FFFFFF" stroke-opacity="0.14"/>
+    <circle cx="128" cy="265" r="5" fill="#00F0FF"/>
+    <text x="142" y="270" font-family="Segoe UI" font-size="13" font-weight="600" fill="#F8FAFC">Vista previa / Video activo</text>
+
+    <!-- Botón Play Central -->
+    <circle cx="476" cy="396" r="44" fill="#0B0F19" stroke="#00F0FF" stroke-width="2"/>
+    <polygon points="466,378 466,414 496,396" fill="#F8FAFC"/>
+
+    <!-- Barra Scrubber Inferior -->
+    <text x="112" y="544" font-family="Segoe UI" font-size="14" font-weight="600" fill="#F8FAFC">02 · Fijación satelital L1/L5 y despliegue del equipo de reacción</text>
+    <text x="840" y="544" text-anchor="end" font-family="Consolas" font-size="13" fill="#B4B0C8">00:09 / 00:22</text>
+    <rect x="112" y="558" width="728" height="6" rx="3" fill="#FFFFFF" fill-opacity="0.16"/>
+    <rect x="112" y="558" width="310" height="6" rx="3" fill="#00F0FF"/>
+
+    <!-- Derecha: Dirección Fotográfica y Colorimetría -->
+    <rect x="928" y="162" width="616" height="460" rx="22" fill="#0B0F19" stroke="#FFFFFF" stroke-opacity="0.10"/>
+    <text x="960" y="206" font-family="Bahnschrift" font-size="24" font-weight="700" fill="#F8FAFC">Dirección Fotográfica &amp; Video</text>
+    <rect x="960" y="232" width="552" height="74" rx="14" fill="#050810" stroke="#8B5CF6" stroke-opacity="0.28"/>
+    <text x="984" y="262" font-family="Segoe UI" font-size="16" font-weight="700" fill="#F8FAFC">1. Estudio Automotriz Oscuro (#050810)</text>
+    <text x="984" y="288" font-family="Segoe UI" font-size="14" fill="#B4B0C8">Asfalto húmedo o bahía limpia sin fondos blancos de oficina.</text>
+
+    <rect x="960" y="320" width="552" height="74" rx="14" fill="#050810" stroke="#00F0FF" stroke-opacity="0.28"/>
+    <text x="984" y="350" font-family="Segoe UI" font-size="16" font-weight="700" fill="#F8FAFC">2. Iluminación de Recorte por Servicio</text>
+    <text x="984" y="376" font-family="Segoe UI" font-size="14" fill="#B4B0C8">Rim-light violeta (instalación), cian (reacción) o ámbar (mecánica).</text>
+
+    <rect x="960" y="408" width="552" height="74" rx="14" fill="#050810" stroke="#F59E0B" stroke-opacity="0.28"/>
+    <text x="984" y="438" font-family="Segoe UI" font-size="16" font-weight="700" fill="#F8FAFC">3. Autenticidad Técnica Real</text>
+    <text x="984" y="464" font-family="Segoe UI" font-size="14" fill="#B4B0C8">Guantes de nitrilo negros, arnés OEM y torquímetro digital.</text>
+
+    <rect x="960" y="496" width="552" height="96" rx="14" fill="#111827"/>
+    <text x="984" y="530" font-family="Consolas" font-size="13" font-weight="700" fill="#10B981">PIPELINE PHOTOCRAFT (.PSD MULTICAPA):</text>
+    <text x="984" y="556" font-family="Consolas" font-size="12" fill="#B4B0C8">smartSharpen(65, 1.2) → curves() → hueSaturation(+8)</text>
+    <text x="984" y="576" font-family="Consolas" font-size="12" fill="#94A3B8">RUTA: brand-workspace/deliverables/imagery/</text>
+
+    <!-- Fila Inferior: Set de 6 Iconos Tácticos + Circuito Radial -->
+    <rect x="56" y="650" width="1488" height="262" rx="22" fill="#0B0F19" stroke="#FFFFFF" stroke-opacity="0.10"/>
+    <text x="88" y="694" font-family="Bahnschrift" font-size="24" font-weight="700" fill="#F8FAFC">Iconografía Táctica Oficial (24 × 24 pt · Trazo Uniforme 2 px) &amp; Circuito de 1 px</text>
+
+    
+      <rect x="88" y="722" width="216" height="156" rx="16" fill="#050810" stroke="#00F0FF" stroke-opacity="0.35"/>
+      <rect x="168" y="742" width="56" height="56" rx="14" fill="#0B0F19" stroke="#00F0FF" stroke-opacity="0.30"/>
+      <g transform="translate(172 746) scale(2)" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5a6.5 6.5 0 0 0-6.5 6.5c0 4.9 6.5 12.5 6.5 12.5s6.5-7.6 6.5-12.5A6.5 6.5 0 0 0 12 2.5Z" stroke="#00F0FF"/><circle cx="12" cy="9" r="2.3" stroke="#8B5CF6"/></g>
+      <text x="196" y="832" text-anchor="middle" font-family="Segoe UI" font-size="15" font-weight="700" fill="#F8FAFC">GPS 4G L1/L5</text>
+      <text x="196" y="856" text-anchor="middle" font-family="Consolas" font-size="11" fill="#94A3B8">icon-gps-4g</text>
+      <rect x="328" y="722" width="216" height="156" rx="16" fill="#050810" stroke="#FF2A55" stroke-opacity="0.35"/>
+      <rect x="408" y="742" width="56" height="56" rx="14" fill="#0B0F19" stroke="#FF2A55" stroke-opacity="0.30"/>
+      <g transform="translate(412 746) scale(2)" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 6.8a8 8 0 1 1-11.6 0" stroke="#FF2A55"/><line x1="12" y1="3" x2="12" y2="11.5" stroke="#00F0FF"/></g>
+      <text x="436" y="832" text-anchor="middle" font-family="Segoe UI" font-size="15" font-weight="700" fill="#F8FAFC">Corte 0 km/h</text>
+      <text x="436" y="856" text-anchor="middle" font-family="Consolas" font-size="11" fill="#94A3B8">icon-engine-cut</text>
+      <rect x="568" y="722" width="216" height="156" rx="16" fill="#050810" stroke="#8B5CF6" stroke-opacity="0.35"/>
+      <rect x="648" y="742" width="56" height="56" rx="14" fill="#0B0F19" stroke="#8B5CF6" stroke-opacity="0.30"/>
+      <g transform="translate(652 746) scale(2)" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="6.5" width="17" height="12" rx="2.5" stroke="#8B5CF6"/><circle cx="12" cy="12.5" r="3.2" stroke="#00F0FF"/><circle cx="17.2" cy="9.2" r="0.9" fill="#FF2A55" stroke="none"/></g>
+      <text x="676" y="832" text-anchor="middle" font-family="Segoe UI" font-size="15" font-weight="700" fill="#F8FAFC">Dashcam HD</text>
+      <text x="676" y="856" text-anchor="middle" font-family="Consolas" font-size="11" fill="#94A3B8">icon-dashcam-hd</text>
+      <rect x="808" y="722" width="216" height="156" rx="16" fill="#050810" stroke="#00F0FF" stroke-opacity="0.35"/>
+      <rect x="888" y="742" width="56" height="56" rx="14" fill="#0B0F19" stroke="#00F0FF" stroke-opacity="0.30"/>
+      <g transform="translate(892 746) scale(2)" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.2" stroke="#8B5CF6"/><circle cx="12" cy="12" r="3.8" stroke="#00F0FF"/><line x1="12" y1="2.5" x2="12" y2="5.2" stroke="#00F0FF"/><line x1="12" y1="18.8" x2="12" y2="21.5" stroke="#00F0FF"/><line x1="2.5" y1="12" x2="5.2" y2="12" stroke="#00F0FF"/><line x1="18.8" y1="12" x2="21.5" y2="12" stroke="#00F0FF"/></g>
+      <text x="916" y="832" text-anchor="middle" font-family="Segoe UI" font-size="15" font-weight="700" fill="#F8FAFC">Reacción 24/7</text>
+      <text x="916" y="856" text-anchor="middle" font-family="Consolas" font-size="11" fill="#94A3B8">icon-reaction-24-7</text>
+      <rect x="1048" y="722" width="216" height="156" rx="16" fill="#050810" stroke="#F59E0B" stroke-opacity="0.35"/>
+      <rect x="1128" y="742" width="56" height="56" rx="14" fill="#0B0F19" stroke="#F59E0B" stroke-opacity="0.30"/>
+      <g transform="translate(1132 746) scale(2)" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4.5 4.5 0 0 0-5.8 5.8L4.3 16.7a1.6 1.6 0 0 0 2.3 2.3l4.6-4.6a4.5 4.5 0 0 0 5.8-5.8l-2.6 2.6-2.1-2.1 2.4-2.8Z" stroke="#F59E0B"/><circle cx="18" cy="18" r="2" stroke="#10B981"/></g>
+      <text x="1156" y="832" text-anchor="middle" font-family="Segoe UI" font-size="15" font-weight="700" fill="#F8FAFC">Mecánica Básica</text>
+      <text x="1156" y="856" text-anchor="middle" font-family="Consolas" font-size="11" fill="#94A3B8">icon-mechanics-express</text>
+      <rect x="1288" y="722" width="216" height="156" rx="16" fill="#050810" stroke="#10B981" stroke-opacity="0.35"/>
+      <rect x="1368" y="742" width="56" height="56" rx="14" fill="#0B0F19" stroke="#10B981" stroke-opacity="0.30"/>
+      <g transform="translate(1372 746) scale(2)" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5.5c0 4.8 3 8.8 7 10 4-1.2 7-5.2 7-10V6l-7-3Z" stroke="#10B981"/><path d="m9.2 12.2 2 2 3.8-4" stroke="#00F0FF"/></g>
+      <text x="1396" y="832" text-anchor="middle" font-family="Segoe UI" font-size="15" font-weight="700" fill="#F8FAFC">Certificados</text>
+      <text x="1396" y="856" text-anchor="middle" font-family="Consolas" font-size="11" fill="#94A3B8">icon-certified-tech</text>
+    
+
+  <!-- Pie Editorial -->
+  <line x1="56" y1="946" x2="1544" y2="946" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1"/>
+  <text x="56" y="972" font-family="Consolas" font-size="11" fill="#94A3B8">ORBITAL RADAR 360° V2 · INSTALACIONES · EQUIPO DE REACCIÓN 24/7 · MECÁNICA BÁSICA · TÉCNICOS CERTIFICADOS</text>
+  <text x="1544" y="972" text-anchor="end" font-family="Consolas" font-size="11" fill="#00F0FF">tec360seguridad.com · +57 305 215 6601</text>
+</svg>
