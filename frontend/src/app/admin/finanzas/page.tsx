@@ -4,10 +4,11 @@ import { useEffect, useState } from "react"
 import {
     DollarSign, Clock, CheckCircle2, AlertCircle,
     Search, Lock, ShieldCheck, ArrowUpRight,
-    Check, Filter
+    Check, Download, RefreshCw
 } from "lucide-react"
 import api from "@/lib/api"
 import Link from "next/link"
+import { toast } from "react-hot-toast"
 
 interface Payment {
     id: string
@@ -118,23 +119,40 @@ export default function FinanzasPage() {
     const [filter, setFilter] = useState<string>("all")
     const [validating, setValidating] = useState<string | null>(null)
     const [searchTerm, setSearchTerm] = useState("")
+    const [statsRevenue, setStatsRevenue] = useState<{ grossVolume: number; escrowActive: number } | null>(null)
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const urlParams = new URLSearchParams(window.location.search)
+            const q = urlParams.get("search")
+            if (q) setSearchTerm(q)
+        }
+    }, [])
 
     const fetchPayments = async () => {
         try {
-            const params = filter !== "all" ? `?status=${filter}` : ""
-            const res = await api.get(`/payments${params}`)
-            const items = res.data.items || []
-            if (items.length > 0) {
+            const [payRes, statsRes] = await Promise.allSettled([
+                api.get("/payments?limit=100"),
+                api.get("/admin/stats"),
+            ])
+            if (statsRes.status === "fulfilled" && statsRes.value.data?.revenue) {
+                setStatsRevenue({
+                    grossVolume: statsRes.value.data.revenue.gross_volume ?? 0,
+                    escrowActive: statsRes.value.data.revenue.escrow_active ?? 0,
+                })
+            }
+            if (payRes.status === "fulfilled") {
+                const items = payRes.value.data?.items || []
                 setPayments(items)
-                setTotal(res.data.total || items.length)
+                setTotal(payRes.value.data?.total ?? items.length)
             } else {
-                setPayments(fallbackPayments)
-                setTotal(fallbackPayments.length)
+                setPayments([])
+                setTotal(0)
             }
         } catch (error: unknown) {
-            console.error("Error fetching payments, using fallback:", error)
-            setPayments(fallbackPayments)
-            setTotal(fallbackPayments.length)
+            console.error("Error fetching payments:", error)
+            setPayments([])
+            setTotal(0)
         } finally {
             setLoading(false)
         }
@@ -143,44 +161,74 @@ export default function FinanzasPage() {
     useEffect(() => {
         setLoading(true)
         fetchPayments()
-    }, [filter])
+    }, [])
 
     const handleValidate = async (paymentId: string) => {
         setValidating(paymentId)
         try {
             await api.put(`/payments/${paymentId}/validate`)
+            toast.success("Pago validado exitosamente")
             fetchPayments()
         } catch (error) {
             console.error("Error validating payment:", error)
-            // Optimistic update for UI polish
-            setPayments(prev => prev.map(p => p.id === paymentId ? { ...p, status: "confirmed_by_admin" } : p))
+            toast.error("No se pudo validar el pago")
         } finally {
             setValidating(null)
         }
     }
 
-    // Computed stats
-    const totalCollected = payments
+    // Computed stats over all payments (coherent across tabs)
+    const collectedFromPayments = payments
         .filter(p => ["confirmed_by_technician", "confirmed_by_admin", "approved"].includes(p.status))
         .reduce((sum, p) => sum + p.amount, 0)
+    const totalCollected = payments.length > 0 ? collectedFromPayments : (statsRevenue?.grossVolume ?? 0)
     const pendingCount = payments.filter(p => p.status === "confirmed_by_technician").length
     const validatedCount = payments.filter(p => p.status === "confirmed_by_admin").length
-    const escrowHoldAmount = payments
+    const escrowFromPayments = payments
         .filter(p => p.status === "approved" || p.status === "confirmed_by_technician")
         .reduce((sum, p) => sum + p.amount, 0)
+    const escrowHoldAmount = payments.length > 0 ? escrowFromPayments : (statsRevenue?.escrowActive ?? 0)
 
     // Filtered by search & tab
     const filtered = payments.filter(p => {
         if (filter !== "all" && p.status !== filter) return false
-        if (!searchTerm) return true
-        const q = searchTerm.toLowerCase()
+        if (!searchTerm.trim()) return true
+        const q = searchTerm.toLowerCase().trim()
         return (
             p.service_title?.toLowerCase().includes(q) ||
             p.technician_name?.toLowerCase().includes(q) ||
             p.client_name?.toLowerCase().includes(q) ||
+            p.payment_method?.toLowerCase().includes(q) ||
+            p.notes?.toLowerCase().includes(q) ||
             p.id.toLowerCase().includes(q)
         )
     })
+
+    const handleExportCSV = () => {
+        if (filtered.length === 0) {
+            toast.error("No hay transacciones para exportar")
+            return
+        }
+        const headers = ["ID", "Servicio", "Cliente", "Especialista", "Metodo", "Estado", "Monto_COP", "Fecha"]
+        const rows = filtered.map((p) => [
+            p.id,
+            `"${(p.service_title || p.service_id).replace(/"/g, '""')}"`,
+            `"${(p.client_name || p.client_id).replace(/"/g, '""')}"`,
+            `"${(p.technician_name || p.technician_id || "").replace(/"/g, '""')}"`,
+            p.payment_method,
+            p.status,
+            String(p.amount),
+            p.created_at,
+        ])
+        const csv = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
+        const link = document.createElement("a")
+        link.setAttribute("href", encodeURI(csv))
+        link.setAttribute("download", `tec360_conciliacion_pagos_${new Date().toISOString().slice(0, 10)}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        toast.success(`Exportadas ${filtered.length} transacciones a CSV`)
+    }
 
     if (loading) {
         return (
@@ -205,7 +253,23 @@ export default function FinanzasPage() {
                         Control inmutable de pagos, recaudo Wompi, fondos en custodia y validación en efectivo (Operación sin dispersiones a terceros)
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={fetchPayments}
+                        className="px-3 py-2 rounded-xl bg-[#0B132B] hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-mono font-semibold flex items-center gap-1.5 transition-all"
+                    >
+                        <RefreshCw className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Sincronizar</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleExportCSV}
+                        className="px-3.5 py-2 rounded-xl bg-[#0B132B] hover:bg-slate-800 border border-slate-800 text-slate-200 text-xs font-mono font-semibold flex items-center gap-1.5 transition-all"
+                    >
+                        <Download className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Exportar CSV</span>
+                    </button>
                     <Link
                         href="/admin/contabilidad"
                         className="px-3.5 py-2 rounded-xl bg-[#0B1736] border border-[#1E3A8A] text-[#93C5FD] text-xs font-mono font-semibold flex items-center gap-2 shadow-sm hover:bg-[#102456] transition-all"
@@ -245,7 +309,7 @@ export default function FinanzasPage() {
                     </div>
                     <div className="flex items-baseline gap-2">
                         <span className="text-2xl sm:text-3xl font-black font-mono text-amber-400">
-                            ${(escrowHoldAmount > 0 ? escrowHoldAmount : 18400000).toLocaleString("es-CO")}
+                            ${escrowHoldAmount.toLocaleString("es-CO")}
                         </span>
                     </div>
                     <p className="text-[10px] sm:text-[11px] font-mono text-slate-400 mt-1.5 truncate">

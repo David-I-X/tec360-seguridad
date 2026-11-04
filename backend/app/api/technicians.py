@@ -290,28 +290,31 @@ async def verify_technician(
     session: Session = Depends(get_session)
 ):
     """
-    Verifica o desverifica a un técnico.
+    Verifica o desverifica a un técnico y da por cursados los cursos obligatorios.
     """
-    # Fix: technician_service no tiene metodo verify directo, 
-    # pero podemos hacer update simple o agregar método.
-    # Agregaré lógica aquí mismo o idealmente en service.
-    # Por consistencia, usaré update_technician_profile pero requiere TechnicianUpdate
-    # Mejor crear un método ad-hoc en service si no existe, o usar update.
-    # El service original usaba update directo a supabase.
-    # En mi refactor service no puse 'verify_technician'.
-    # Voy a user update_technician_profile con un objeto parcial.
-    
+    from uuid import UUID
+    from app.api.courses import grant_all_required_courses, revoke_admin_granted_courses
+
     await technician_service.update_technician_profile(
         session=session,
         user_id=user_id,
         technician_data=TechnicianUpdate(is_verified=verified)
     )
+
+    u_uuid = UUID(str(user_id))
+    courses_completed = 0
+    if verified:
+        courses_completed = grant_all_required_courses(session, u_uuid)
+    else:
+        revoke_admin_granted_courses(session, u_uuid)
+    session.commit()
     
     status_text = "verificado" if verified else "desverificado"
     return {
         "message": f"Técnico {status_text} exitosamente",
         "user_id": user_id,
-        "is_verified": verified
+        "is_verified": verified,
+        "courses_completed": courses_completed,
     }
 
 

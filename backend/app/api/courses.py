@@ -228,6 +228,205 @@ async def get_my_courses(
     return items
 
 
+def get_technician_course_gate_status(session: Session, user_id: str) -> dict:
+    """
+    Evalúa si un técnico está habilitado para aceptar o cotizar servicios:
+    - Puede operar si fue validado por un administrador (tech.is_verified == True)
+      O si completó todos los cursos obligatorios (Course.is_required_for_technicians == True).
+    """
+    u_id = uuid.UUID(str(user_id))
+    user = session.get(User, u_id)
+    if user and user.role in ("reaction_team", "admin"):
+        return {
+            "can_operate": True,
+            "is_verified": True,
+            "required_courses_completed": True,
+            "required_count": 0,
+            "completed_count": 0,
+            "pending_courses": [],
+        }
+
+    tech = session.exec(select(Technician).where(Technician.user_id == u_id)).first()
+    is_verified = bool(tech and tech.is_verified)
+
+    required_courses = session.exec(
+        select(Course)
+        .where(Course.is_published.is_(True), Course.is_required_for_technicians.is_(True))
+        .order_by(Course.sort_order.asc())
+    ).all()
+
+    enrollments = session.exec(
+        select(Enrollment).where(Enrollment.user_id == u_id)
+    ).all()
+    completed_course_ids = {
+        e.course_id
+        for e in enrollments
+        if e.status == EnrollmentStatus.completed.value or e.quiz_passed
+    }
+
+    pending_courses = [c for c in required_courses if c.id not in completed_course_ids]
+    required_courses_completed = len(required_courses) > 0 and len(pending_courses) == 0
+
+    if is_verified:
+        can_operate = True
+    elif len(required_courses) > 0:
+        can_operate = len(pending_courses) == 0
+    else:
+        can_operate = False
+
+    return {
+        "can_operate": can_operate,
+        "is_verified": is_verified,
+        "required_courses_completed": required_courses_completed or is_verified,
+        "required_count": len(required_courses),
+        "completed_count": len(required_courses) - len(pending_courses),
+        "pending_courses": [
+            {
+                "id": str(c.id),
+                "title": c.title,
+                "slug": c.slug,
+                "category": c.category,
+                "estimated_hours": c.estimated_hours,
+            }
+            for c in pending_courses
+        ],
+    }
+
+
+def grant_all_required_courses(session: Session, user_id: uuid.UUID) -> int:
+    """
+    Inscribe y marca como completados al 100% todos los cursos obligatorios
+    para un técnico cuando el administrador lo valida desde el panel.
+    """
+    required_courses = session.exec(
+        select(Course).where(Course.is_required_for_technicians.is_(True))
+    ).all()
+    if not required_courses:
+        required_courses = session.exec(
+            select(Course).where(
+                Course.slug.in_([
+                    "fundamentos-instalacion-seguridad",
+                    "instalacion-profesional-gps-4g",
+                ])
+            )
+        ).all()
+
+    now = datetime.utcnow()
+    granted_count = 0
+
+    for course in required_courses:
+        total_lessons = session.exec(
+            select(func.count(Lesson.id)).where(
+                Lesson.course_id == course.id, Lesson.is_published.is_(True)
+            )
+        ).one()
+
+        enrollment = session.exec(
+            select(Enrollment).where(
+                Enrollment.user_id == user_id,
+                Enrollment.course_id == course.id,
+            )
+        ).first()
+
+        cert_code = (
+            enrollment.certificate_code
+            if (enrollment and enrollment.certificate_code)
+            else f"TEC-ADM-{uuid.uuid4().hex[:4].upper()}-{uuid.uuid4().hex[4:8].upper()}"
+        )
+
+        if not enrollment:
+            enrollment = Enrollment(
+                user_id=user_id,
+                course_id=course.id,
+                status=EnrollmentStatus.completed.value,
+                progress_pct=100.0,
+                completed_lessons=total_lessons,
+                quiz_passed=True,
+                quiz_score=100.0,
+                certificate_code=cert_code,
+                enrolled_at=now,
+                completed_at=now,
+                updated_at=now,
+            )
+            course.enrolled_count = (course.enrolled_count or 0) + 1
+            session.add(course)
+        else:
+            enrollment.status = EnrollmentStatus.completed.value
+            enrollment.progress_pct = 100.0
+            enrollment.completed_lessons = total_lessons
+            enrollment.quiz_passed = True
+            enrollment.quiz_score = 100.0
+            enrollment.certificate_code = cert_code
+            enrollment.completed_at = enrollment.completed_at or now
+            enrollment.updated_at = now
+
+        session.add(enrollment)
+        session.flush()
+
+        lessons = session.exec(
+            select(Lesson).where(
+                Lesson.course_id == course.id, Lesson.is_published.is_(True)
+            )
+        ).all()
+        for lesson in lessons:
+            prog = session.exec(
+                select(LessonProgress).where(
+                    LessonProgress.enrollment_id == enrollment.id,
+                    LessonProgress.lesson_id == lesson.id,
+                )
+            ).first()
+            if not prog:
+                session.add(
+                    LessonProgress(
+                        enrollment_id=enrollment.id,
+                        lesson_id=lesson.id,
+                        completed=True,
+                        completed_at=now,
+                    )
+                )
+            elif not prog.completed:
+                prog.completed = True
+                prog.completed_at = now
+                session.add(prog)
+
+        granted_count += 1
+
+    return granted_count
+
+
+def revoke_admin_granted_courses(session: Session, user_id: uuid.UUID) -> int:
+    """
+    Revoca las homologaciones automáticas hechas por administrador (TEC-ADM-*)
+    si se desvalida al técnico.
+    """
+    enrollments = session.exec(
+        select(Enrollment).where(Enrollment.user_id == user_id)
+    ).all()
+    revoked = 0
+    for enr in enrollments:
+        if enr.certificate_code and enr.certificate_code.startswith("TEC-ADM-"):
+            enr.status = EnrollmentStatus.enrolled.value
+            enr.progress_pct = 0.0
+            enr.completed_lessons = 0
+            enr.quiz_passed = False
+            enr.quiz_score = None
+            enr.certificate_code = None
+            enr.completed_at = None
+            enr.updated_at = datetime.utcnow()
+            session.add(enr)
+            revoked += 1
+    return revoked
+
+
+@router.get("/onboarding-status")
+async def get_onboarding_status(
+    session: Session = Depends(get_session),
+    current_user: dict = Depends(get_current_user),
+):
+    """Retorna si el técnico completó los cursos obligatorios o fue validado por el admin."""
+    return get_technician_course_gate_status(session, str(current_user["id"]))
+
+
 # ============================================
 # DETALLE DEL CURSO Y LECCIONES
 # ============================================

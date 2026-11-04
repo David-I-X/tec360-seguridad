@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Modal, TextInput, Platform, KeyboardAvoidingView, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Modal, TextInput, Platform, KeyboardAvoidingView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,11 +8,15 @@ import { fetchWithAuth, rechargeCreditsIntent, rechargeCreditsConfirm } from '@/
 import { useFocusEffect } from 'expo-router';
 
 interface BalanceData {
-  technician_id: string;
+  technician_id?: string;
   balance: number;
+  total_recharged?: number;
+  total_consumed?: number;
   free_services_remaining: number;
   commission_rate: number;
   can_accept_services: boolean;
+  welcome_bonus_granted?: boolean;
+  welcome_bonus_amount?: number;
 }
 
 interface CreditTransaction {
@@ -42,6 +46,28 @@ export default function WalletScreen() {
     balanceAfter: number;
   } | null>(null);
 
+  const welcomeShownRef = useRef(false);
+
+  const showWelcomeBonusAlert = (bonusAmount = 200000) => {
+    Alert.alert(
+      '🎁 ¡Te regalamos $200.000 en créditos por bienvenida!',
+      `Hemos recargado automáticamente ${formatCOP(bonusAmount)} COP en tu billetera operativa para que puedas empezar a aceptar servicios sin recargar de tu bolsillo.\n\n• Bono acreditado: +${formatCOP(bonusAmount)} COP\n• Comisión por servicio: 10%\n• Cobertura en servicios: ${formatCOP(bonusAmount * 10)} COP`,
+      [{ text: '¡Excelente!', style: 'default' }]
+    );
+  };
+
+  const showReportAlert = () => {
+    const bal = balance?.balance ?? 200000;
+    const recharged = balance?.total_recharged ?? 200000;
+    const consumed = balance?.total_consumed ?? 0;
+    const rate = (balance?.commission_rate ?? 0.1) * 100;
+    Alert.alert(
+      '📊 Reporte Operativo de Billetera',
+      `• Saldo disponible: ${formatCOP(bal)} COP\n• Bono de bienvenida: $200.000 COP\n• Total acreditado: ${formatCOP(recharged)} COP\n• Consumido en comisiones: ${formatCOP(consumed)} COP\n• Tarifa de comisión: ${rate.toFixed(0)}% por servicio`,
+      [{ text: 'Cerrar', style: 'cancel' }]
+    );
+  };
+
   const fetchData = async () => {
     try {
       const [balRes, txnRes] = await Promise.all([
@@ -49,7 +75,14 @@ export default function WalletScreen() {
         fetchWithAuth('/credits/transactions?limit=50')
       ]);
 
-      if (balRes.ok) setBalance(await balRes.json());
+      if (balRes.ok) {
+        const balData = await balRes.json();
+        setBalance(balData);
+        if (!welcomeShownRef.current) {
+          welcomeShownRef.current = true;
+          showWelcomeBonusAlert(balData.welcome_bonus_amount || 200000);
+        }
+      }
       if (txnRes.ok) setTransactions(await txnRes.json());
     } catch (e) {
       console.error('[Wallet] Error loading data:', e);
@@ -166,11 +199,11 @@ export default function WalletScreen() {
             {balance ? formatCOP(balance.balance) : '$0'}
           </Text>
           
-          {balance?.free_services_remaining ? (
-             <Text style={styles.freeServicesLabel}>
-               🎉 {balance.free_services_remaining} servicio(s) gratis restante(s)
-             </Text>
-          ) : null}
+          <TouchableOpacity onPress={() => showWelcomeBonusAlert(balance?.welcome_bonus_amount || 200000)}>
+            <Text style={styles.freeServicesLabel}>
+              🎁 ¡Te regalamos $200.000 en créditos por bienvenida!
+            </Text>
+          </TouchableOpacity>
 
           <View style={styles.actionsRow}>
             <TouchableOpacity 
@@ -182,7 +215,7 @@ export default function WalletScreen() {
                 <Text style={styles.btnText}>Recargar</Text>
               </LinearGradient>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryAction}>
+            <TouchableOpacity style={styles.secondaryAction} onPress={showReportAlert}>
               <Ionicons name="document-text-outline" size={20} color={COLORS.textSecondary} />
               <Text style={styles.secondaryBtnText}>Reporte</Text>
             </TouchableOpacity>

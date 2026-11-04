@@ -42,6 +42,8 @@ import {
     acceptDispatchOffer,
     rejectDispatchOffer,
     getDemandHotspots,
+    getCourseOnboardingStatus,
+    CourseOnboardingStatus,
     DispatchOffer,
     DemandHotspot
 } from "@/lib/api"
@@ -149,11 +151,22 @@ export function TechnicianDashboard() {
     const [myServicesFilter, setMyServicesFilter] = useState<MyServicesFilter>("all")
     const [availableCategory, setAvailableCategory] = useState<CategoryFilter>("all")
     const [showBasicCoursesModal, setShowBasicCoursesModal] = useState(false)
+    const [coursesModalMode, setCoursesModalMode] = useState<"intro" | "gate">("intro")
+    const [courseStatus, setCourseStatus] = useState<CourseOnboardingStatus | null>(null)
 
     // Estados de despacho inteligente
     const [dispatchOffers, setDispatchOffers] = useState<DispatchOffer[]>([])
     const [demandHotspots, setDemandHotspots] = useState<DemandHotspot[]>([])
     const [isDispatchProcessing, setIsDispatchProcessing] = useState(false)
+
+    const fetchCourseOnboarding = async () => {
+        try {
+            const status = await getCourseOnboardingStatus()
+            setCourseStatus(status)
+        } catch {
+            // Si falla la consulta, no bloquear la carga de consola
+        }
+    }
 
     const fetchDispatchData = async () => {
         try {
@@ -168,7 +181,18 @@ export function TechnicianDashboard() {
         }
     }
 
+    const requireCourseCompleted = (): boolean => {
+        if (user?.role === "reaction_team") return true
+        if (courseStatus && !courseStatus.can_operate) {
+            setCoursesModalMode("gate")
+            setShowBasicCoursesModal(true)
+            return false
+        }
+        return true
+    }
+
     const handleAcceptOffer = async (offerId: string) => {
+        if (!requireCourseCompleted()) return
         try {
             setIsDispatchProcessing(true)
             const res = await acceptDispatchOffer(offerId)
@@ -182,6 +206,11 @@ export function TechnicianDashboard() {
                 window.location.href = `/tecnicos/servicio/${res.service_id}`
             }, 800)
         } catch (err: any) {
+            if (err?.message?.includes("COURSE_REQUIRED")) {
+                setCoursesModalMode("gate")
+                setShowBasicCoursesModal(true)
+                return
+            }
             toast({
                 title: "Error al aceptar oferta",
                 description: err.message || "La oferta pudo haber expirado o fue asignada a otro especialista.",
@@ -248,6 +277,7 @@ export function TechnicianDashboard() {
     useEffect(() => {
         fetchData()
         fetchDispatchData()
+        fetchCourseOnboarding()
 
         // Polling táctico cada 7 segundos para ofertas prioritarias en vivo
         const dispatchInterval = setInterval(() => {
@@ -257,7 +287,13 @@ export function TechnicianDashboard() {
         return () => clearInterval(dispatchInterval)
     }, [])
 
+    const handleQuote = (serviceId: string) => {
+        if (!requireCourseCompleted()) return
+        router.push(`/tecnicos/cotizar/${serviceId}`)
+    }
+
     const handleAccept = async (serviceId: string) => {
+        if (!requireCourseCompleted()) return
         try {
             setProcessingId(serviceId)
             await acceptService(serviceId)
@@ -274,6 +310,11 @@ export function TechnicianDashboard() {
             }, 1000)
 
         } catch (error: any) {
+            if (error?.message?.includes("COURSE_REQUIRED")) {
+                setCoursesModalMode("gate")
+                setShowBasicCoursesModal(true)
+                return
+            }
             toast({
                 title: "Error",
                 description: error.message || "No se pudo aceptar el servicio",
@@ -595,7 +636,7 @@ export function TechnicianDashboard() {
                                         <ServiceCard
                                             service={service}
                                             onAction={() => handleAccept(service.id)}
-                                            onQuote={() => router.push(`/tecnicos/cotizar/${service.id}`)}
+                                            onQuote={() => handleQuote(service.id)}
                                             isProcessing={processingId === service.id}
                                             variant="available"
                                         />
@@ -713,6 +754,9 @@ export function TechnicianDashboard() {
                 isOpen={showBasicCoursesModal}
                 onClose={() => setShowBasicCoursesModal(false)}
                 onDismissForever={handleDismissIntroModal}
+                mode={coursesModalMode}
+                pendingCourseSlug={courseStatus?.pending_courses?.[0]?.slug}
+                pendingCourseTitle={courseStatus?.pending_courses?.[0]?.title}
             />
         </div>
     )

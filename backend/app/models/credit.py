@@ -63,4 +63,6 @@ class CreditTransaction(SQLModel, table=True):
 
 # ── Constants ──
 COMMISSION_RATE = 0.10  # 10% del valor del servicio
-FREE_SERVICES_LIMIT = 3  # Primeros 3 servicios gratis
+WELCOME_BONUS_AMOUNT = 200000.0  # Bono de bienvenida de $200.000 COP en créditos
+FREE_SERVICES_LIMIT = 0  # Reemplazado por bono de bienvenida de $200.000 COP en créditos
+WELCOME_BONUS_REFERENCE = "WELCOME-BONUS-200K"

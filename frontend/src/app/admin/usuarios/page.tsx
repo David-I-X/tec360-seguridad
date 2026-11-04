@@ -120,52 +120,91 @@ export default function AdminUsersPage() {
     const [roleFilter, setRoleFilter] = useState("")
     const [searchQuery, setSearchQuery] = useState("")
     const [changingRole, setChangingRole] = useState<string | null>(null)
+    const [globalRoleCounts, setGlobalRoleCounts] = useState<{
+        clients: number
+        technicians: number
+        reaction_team: number
+        pending_verifications: number
+    } | null>(null)
 
-    const fetchUsers = async () => {
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const urlParams = new URLSearchParams(window.location.search)
+            const q = urlParams.get("search")
+            if (q) setSearchQuery(q)
+        }
+    }, [])
+
+    const fetchGlobalCounts = async () => {
+        try {
+            const res = await api.get("/admin/stats")
+            if (res.data?.users) {
+                setGlobalRoleCounts({
+                    clients: res.data.users.clients ?? 0,
+                    technicians: res.data.users.technicians ?? 0,
+                    reaction_team: res.data.users.reaction_team ?? 0,
+                    pending_verifications:
+                        res.data.users.pending_verifications ??
+                        res.data.users.unverified_technicians ??
+                        0,
+                })
+            }
+        } catch {
+            // Silent fallback to local calculation
+        }
+    }
+
+    const fetchUsers = async (customSearch?: string, customRole?: string) => {
         setLoading(true)
         try {
+            const activeRole = customRole !== undefined ? customRole : roleFilter
+            const activeSearch = (customSearch !== undefined ? customSearch : searchQuery).trim()
             const params = new URLSearchParams()
-            if (roleFilter) params.append("role", roleFilter)
-            if (searchQuery.length >= 2) params.append("search", searchQuery)
+            if (activeRole) params.append("role", activeRole)
+            if (activeSearch.length >= 1) params.append("search", activeSearch)
             const response = await api.get(`/admin/users?${params.toString()}`)
             const items = response.data?.items || []
-            if (items.length > 0) {
-                setUsers(items)
-                setTotal(response.data.total || items.length)
-            } else {
-                setUsers(fallbackUsers)
-                setTotal(fallbackUsers.length)
-            }
+            setUsers(items)
+            setTotal(response.data?.total ?? items.length)
         } catch (error) {
-            console.error("Error fetching users, using fallback:", error)
-            setUsers(fallbackUsers)
-            setTotal(fallbackUsers.length)
+            console.error("Error fetching users:", error)
+            toast.error("Error al consultar el directorio de usuarios")
+            setUsers([])
+            setTotal(0)
         } finally {
             setLoading(false)
         }
     }
 
     useEffect(() => {
-        fetchUsers()
+        fetchGlobalCounts()
+    }, [])
+
+    useEffect(() => {
+        fetchUsers(searchQuery, roleFilter)
     }, [roleFilter])
 
     useEffect(() => {
-        if (searchQuery.length >= 2 || searchQuery.length === 0) {
-            const t = setTimeout(fetchUsers, 400)
-            return () => clearTimeout(t)
-        }
+        const t = setTimeout(() => {
+            fetchUsers(searchQuery, roleFilter)
+        }, 300)
+        return () => clearTimeout(t)
     }, [searchQuery])
 
     const handleVerify = async (userId: string, currentStatus: boolean | undefined) => {
         try {
-            await api.put(`/admin/users/${userId}/verify?is_verified=${!currentStatus}`)
-            toast.success(currentStatus ? "Certificación removida" : "Técnico verificado exitosamente")
+            const res = await api.put(`/admin/users/${userId}/verify?is_verified=${!currentStatus}`)
+            const msg = res?.data?.message || (
+                currentStatus
+                    ? "Validación revocada: el técnico deberá realizar los cursos obligatorios"
+                    : "Técnico validado: cursos obligatorios dados por cursados automáticamente"
+            )
+            toast.success(msg)
             fetchUsers()
+            fetchGlobalCounts()
         } catch (error) {
             console.error(error)
-            // Optimistic update
-            setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_verified: !currentStatus } : u))
-            toast.success(currentStatus ? "Certificación actualizada" : "Técnico verificado exitosamente")
+            toast.error("No se pudo actualizar el estado de validación y cursos")
         }
     }
 
@@ -176,8 +215,7 @@ export default function AdminUsersPage() {
             fetchUsers()
         } catch (error) {
             console.error(error)
-            setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_active: !currentActive } : u))
-            toast.success(currentActive ? "Usuario suspendido" : "Usuario activado")
+            toast.error("No se pudo cambiar el estado del usuario")
         }
     }
 
@@ -187,10 +225,10 @@ export default function AdminUsersPage() {
             await api.put(`/admin/users/${userId}/role`, { role: newRole })
             toast.success(`Rol cambiado a ${ROLE_CONFIG[newRole]?.label || newRole}`)
             fetchUsers()
+            fetchGlobalCounts()
         } catch (error) {
             console.error(error)
-            setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
-            toast.success(`Rol actualizado a ${ROLE_CONFIG[newRole]?.label || newRole}`)
+            toast.error("No se pudo actualizar el rol del usuario")
         } finally {
             setChangingRole(null)
         }
@@ -198,8 +236,8 @@ export default function AdminUsersPage() {
 
     const filteredUsers = users.filter(u => {
         if (roleFilter && u.role !== roleFilter) return false
-        if (!searchQuery) return true
-        const q = searchQuery.toLowerCase()
+        if (!searchQuery.trim()) return true
+        const q = searchQuery.toLowerCase().trim()
         return (
             u.full_name?.toLowerCase().includes(q) ||
             u.email.toLowerCase().includes(q) ||
@@ -208,10 +246,12 @@ export default function AdminUsersPage() {
         )
     })
 
-    const techCount = users.filter(u => u.role === "technician").length
-    const clientCount = users.filter(u => u.role === "client").length
-    const reactionCount = users.filter(u => u.role === "reaction_team").length
-    const pendingVerificationCount = users.filter(u => u.role === "technician" && !u.is_verified).length
+    const techCount = globalRoleCounts?.technicians ?? users.filter(u => u.role === "technician").length
+    const clientCount = globalRoleCounts?.clients ?? users.filter(u => u.role === "client").length
+    const reactionCount = globalRoleCounts?.reaction_team ?? users.filter(u => u.role === "reaction_team").length
+    const pendingVerificationCount =
+        globalRoleCounts?.pending_verifications ??
+        users.filter(u => u.role === "technician" && !u.is_verified).length
 
     return (
         <div className="space-y-6 font-sans">
@@ -232,7 +272,7 @@ export default function AdminUsersPage() {
                         className="px-3.5 py-2 rounded-xl bg-[#0B1736] border border-[#1E3A8A] text-[#93C5FD] text-xs font-mono font-semibold flex items-center gap-2 shadow-sm hover:bg-[#102456] transition-all"
                     >
                         <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                        <span>Mesa de Verificación Documental ({pendingVerificationCount > 0 ? pendingVerificationCount : 6})</span>
+                        <span>Mesa de Verificación Documental ({pendingVerificationCount})</span>
                         <ChevronRight className="w-3.5 h-3.5 text-blue-400" />
                     </Link>
                 </div>
@@ -241,7 +281,13 @@ export default function AdminUsersPage() {
             {/* ─── Top 4 KPI Cards Matrix ─── */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
                 {/* KPI 1: Clientes */}
-                <div className="bg-[#0B132B] border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-md">
+                <button
+                    type="button"
+                    onClick={() => setRoleFilter(roleFilter === "client" ? "" : "client")}
+                    className={`text-left bg-[#0B132B] border rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-md transition-all ${
+                        roleFilter === "client" ? "border-sky-500 ring-1 ring-sky-500/40" : "border-slate-800/80 hover:border-slate-700"
+                    }`}
+                >
                     <div className="flex items-center justify-between text-slate-400 mb-2">
                         <span className="text-[10px] sm:text-[11px] font-mono font-semibold tracking-wider text-slate-300 flex items-center gap-1.5">
                             <Users className="w-3.5 h-3.5 text-sky-400" /> CLIENTES ACTIVOS
@@ -249,16 +295,22 @@ export default function AdminUsersPage() {
                     </div>
                     <div className="flex items-baseline gap-2">
                         <span className="text-2xl sm:text-3xl font-black font-mono text-slate-100">
-                            {clientCount > 0 ? clientCount.toLocaleString("es-CO") : "1.280"}
+                            {clientCount.toLocaleString("es-CO")}
                         </span>
                     </div>
                     <p className="text-[10px] sm:text-[11px] font-mono text-slate-400 mt-1.5 truncate">
-                        Con vehículos registrados en app
+                        Registrados en plataforma
                     </p>
-                </div>
+                </button>
 
                 {/* KPI 2: Especialistas */}
-                <div className="bg-[#0B132B] border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-md">
+                <button
+                    type="button"
+                    onClick={() => setRoleFilter(roleFilter === "technician" ? "" : "technician")}
+                    className={`text-left bg-[#0B132B] border rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-md transition-all ${
+                        roleFilter === "technician" ? "border-blue-500 ring-1 ring-blue-500/40" : "border-slate-800/80 hover:border-slate-700"
+                    }`}
+                >
                     <div className="flex items-center justify-between text-slate-400 mb-2">
                         <span className="text-[10px] sm:text-[11px] font-mono font-semibold tracking-wider text-[#93C5FD] flex items-center gap-1.5">
                             <ShieldCheck className="w-3.5 h-3.5 text-blue-400" /> ESPECIALISTAS TEC360
@@ -266,16 +318,22 @@ export default function AdminUsersPage() {
                     </div>
                     <div className="flex items-baseline gap-2">
                         <span className="text-2xl sm:text-3xl font-black font-mono text-blue-400">
-                            {techCount > 0 ? techCount.toLocaleString("es-CO") : "124"}
+                            {techCount.toLocaleString("es-CO")}
                         </span>
                     </div>
                     <p className="text-[10px] sm:text-[11px] font-mono text-slate-400 mt-1.5 truncate">
-                        100% Técnicos Certificados Tec360
+                        Técnicos Certificados Tec360
                     </p>
-                </div>
+                </button>
 
                 {/* KPI 3: Reacción 24/7 */}
-                <div className="bg-[#0B132B] border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-md">
+                <button
+                    type="button"
+                    onClick={() => setRoleFilter(roleFilter === "reaction_team" ? "" : "reaction_team")}
+                    className={`text-left bg-[#0B132B] border rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-md transition-all ${
+                        roleFilter === "reaction_team" ? "border-rose-500 ring-1 ring-rose-500/40" : "border-slate-800/80 hover:border-slate-700"
+                    }`}
+                >
                     <div className="flex items-center justify-between text-slate-400 mb-2">
                         <span className="text-[10px] sm:text-[11px] font-mono font-semibold tracking-wider text-rose-300 flex items-center gap-1.5">
                             <AlertTriangle className="w-3.5 h-3.5 text-rose-400" /> REACCIÓN 24/7
@@ -283,16 +341,19 @@ export default function AdminUsersPage() {
                     </div>
                     <div className="flex items-baseline gap-2">
                         <span className="text-2xl sm:text-3xl font-black font-mono text-rose-400">
-                            {reactionCount > 0 ? reactionCount : "24"}
+                            {reactionCount.toLocaleString("es-CO")}
                         </span>
                     </div>
                     <p className="text-[10px] sm:text-[11px] font-mono text-slate-400 mt-1.5 truncate">
                         Patrullas tácticas motorizadas
                     </p>
-                </div>
+                </button>
 
                 {/* KPI 4: Mesa de Verificación */}
-                <div className="bg-[#0B132B] border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-md">
+                <Link
+                    href="/admin/verificaciones"
+                    className="bg-[#0B132B] border border-slate-800/80 hover:border-amber-500/40 rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-md transition-all block"
+                >
                     <div className="flex items-center justify-between text-slate-400 mb-2">
                         <span className="text-[10px] sm:text-[11px] font-mono font-semibold tracking-wider text-amber-300 flex items-center gap-1.5">
                             <Sparkles className="w-3.5 h-3.5 text-amber-400" /> PENDIENTES VALIDAR
@@ -300,13 +361,13 @@ export default function AdminUsersPage() {
                     </div>
                     <div className="flex items-baseline gap-2">
                         <span className="text-2xl sm:text-3xl font-black font-mono text-amber-400">
-                            {pendingVerificationCount > 0 ? pendingVerificationCount : "6"}
+                            {pendingVerificationCount.toLocaleString("es-CO")}
                         </span>
                     </div>
                     <p className="text-[10px] sm:text-[11px] font-mono text-slate-400 mt-1.5 truncate">
                         Documentos en cola de revisión
                     </p>
-                </div>
+                </Link>
             </div>
 
             {/* ─── Main Directory Card ─── */}
@@ -432,14 +493,14 @@ export default function AdminUsersPage() {
                                                     <div>
                                                         {user.is_verified ? (
                                                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
-                                                                <ShieldCheck className="w-3 h-3 text-emerald-400" /> Técnico Certificado Tec360
+                                                                <ShieldCheck className="w-3 h-3 text-emerald-400" /> Cursos Homologados · Certificado Tec360
                                                             </span>
                                                         ) : (
                                                             <Link
                                                                 href="/admin/verificaciones"
                                                                 className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25"
                                                             >
-                                                                <span>En Verificación</span>
+                                                                <span>Cursos Pendientes / En Validación</span>
                                                                 <ExternalLink className="w-2.5 h-2.5" />
                                                             </Link>
                                                         )}
@@ -477,6 +538,11 @@ export default function AdminUsersPage() {
                                                     {user.role === "technician" && (
                                                         <button
                                                             onClick={() => handleVerify(user.id, user.is_verified)}
+                                                            title={
+                                                                user.is_verified
+                                                                    ? "Revocar validación de cursos obligatorios"
+                                                                    : "Dar por cursados los cursos obligatorios y habilitar al técnico para operar sin trabas"
+                                                            }
                                                             className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border transition-all text-[11px] font-bold ${user.is_verified
                                                                 ? 'border-slate-700 text-slate-400 hover:text-rose-400 hover:border-rose-700 bg-slate-900/60'
                                                                 : 'bg-[#0B1736] border-[#1E3A8A] text-[#93C5FD] hover:bg-[#102456]'

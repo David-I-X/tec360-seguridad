@@ -19,6 +19,7 @@ interface BasicCoursesModalProps {
   onDismiss: () => void;
   onStartCourse: () => void;
   onViewAllCourses: () => void;
+  mode?: 'intro' | 'gate';
 }
 
 export function BasicCoursesModal({
@@ -26,8 +27,10 @@ export function BasicCoursesModal({
   onDismiss,
   onStartCourse,
   onViewAllCourses,
+  mode = 'intro',
 }: BasicCoursesModalProps) {
   if (!visible) return null;
+  const isGate = mode === 'gate';
 
   const handleStart = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -71,23 +74,29 @@ export function BasicCoursesModal({
             {/* Header Icon / Badge */}
             <View style={styles.badgeRow}>
               <View style={styles.badge}>
-                <Ionicons name="school" size={14} color={COLORS.primaryLight} />
-                <Text style={styles.badgeText}>ESCUELA TEC360</Text>
+                <Ionicons name={isGate ? 'lock-closed' : 'school'} size={14} color={COLORS.primaryLight} />
+                <Text style={styles.badgeText}>
+                  {isGate ? 'REQUISITO PARA OPERAR · ESCUELA TEC360' : 'ESCUELA TEC360'}
+                </Text>
               </View>
             </View>
 
             <View style={styles.iconCircle}>
               <LinearGradient
-                colors={['#7c3aed', '#6366f1']}
+                colors={isGate ? ['#f59e0b', '#ea580c'] : ['#7c3aed', '#6366f1']}
                 style={styles.iconGradient}
               >
                 <Ionicons name="ribbon-outline" size={36} color="#fff" />
               </LinearGradient>
             </View>
 
-            <Text style={styles.title}>¡Bienvenido al Equipo Técnico!</Text>
+            <Text style={styles.title}>
+              {isGate ? '¡Debes realizar el curso primero!' : '¡Bienvenido al Equipo Técnico!'}
+            </Text>
             <Text style={styles.subtitle}>
-              Comienza con el pie derecho completando los cursos de inducción y estándares de calidad oficiales de Tec360.
+              {isGate
+                ? 'Para poder aceptar o cotizar un trabajo disponible, primero debes completar el curso obligatorio en Escuela Tec360.'
+                : 'Comienza con el pie derecho completando el curso de inducción. Puedes omitirlo por ahora para explorar los trabajos disponibles.'}
             </Text>
 
             {/* Course Card Preview */}
@@ -125,23 +134,35 @@ export function BasicCoursesModal({
               </View>
             </NeuCard>
 
-            {/* Non-mandatory notice */}
+            {/* Notice */}
             <NeuWell style={styles.noticeWell}>
               <Ionicons name="information-circle-outline" size={18} color={COLORS.primaryLight} />
               <Text style={styles.noticeText}>
-                <Text style={{ fontWeight: '700', color: COLORS.text }}>Paso opcional por ahora: </Text>
-                Puedes continuar sin realizar el curso y hacerlo cuando tengas tiempo desde tu panel o perfil.
+                <Text style={{ fontWeight: '700', color: COLORS.text }}>
+                  {isGate ? 'Curso obligatorio para tomar servicios: ' : 'Explora los trabajos disponibles: '}
+                </Text>
+                {isGate
+                  ? 'Puedes seguir viendo el radar de servicios, pero debes completar el curso antes de aceptar o cotizar un trabajo.'
+                  : 'Pulsa en "Omitir por ahora" para ver los trabajos disponibles; cuando quieras aceptar o cotizar uno te avisaremos para hacer el curso.'}
               </Text>
             </NeuWell>
 
             {/* Actions */}
             <View style={styles.actionsContainer}>
               <NeuButton
-                label="Comenzar Curso Básico"
+                label={isGate ? 'Ir a Realizar el Curso Ahora' : 'Comenzar Curso Básico'}
                 icon="play"
                 onPress={handleStart}
                 style={styles.primaryBtn}
               />
+
+              <TouchableOpacity
+                style={styles.dismissBtn}
+                onPress={handleDismiss}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.dismissBtnText}>Omitir por ahora</Text>
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.secondaryBtn}
@@ -149,14 +170,6 @@ export function BasicCoursesModal({
                 activeOpacity={0.7}
               >
                 <Text style={styles.secondaryBtnText}>Ver catálogo de cursos</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.dismissBtn}
-                onPress={handleDismiss}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.dismissBtnText}>Hacerlo más tarde, ir al panel</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -357,12 +370,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   dismissBtn: {
-    paddingVertical: 6,
+    width: '100%',
+    paddingVertical: 12,
     paddingHorizontal: 16,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    alignItems: 'center',
   },
   dismissBtnText: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: '500',
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

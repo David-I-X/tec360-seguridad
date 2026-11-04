@@ -30,9 +30,11 @@ class BalanceResponse(BaseModel):
     balance: float
     total_recharged: float
     total_consumed: float
-    free_services_remaining: int
+    free_services_remaining: int = 0
     can_accept_services: bool
     commission_rate: float
+    welcome_bonus_granted: bool = True
+    welcome_bonus_amount: float = 200000.0
 
 
 class RechargeRequest(BaseModel):

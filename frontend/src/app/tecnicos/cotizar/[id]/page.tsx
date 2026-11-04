@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import { createQuotation, QuotationCreate } from "@/lib/quotations"
+import { getCourseOnboardingStatus, CourseOnboardingStatus } from "@/lib/api"
+import { BasicCoursesModal } from "@/components/technician/BasicCoursesModal"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
@@ -45,6 +47,8 @@ export function QuotationFormContent() {
     const [service, setService] = useState<ServiceInfo | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [courseStatus, setCourseStatus] = useState<CourseOnboardingStatus | null>(null)
+    const [showCourseGateModal, setShowCourseGateModal] = useState(false)
 
     // Form state
     const [amount, setAmount] = useState("480,000")
@@ -52,6 +56,17 @@ export function QuotationFormContent() {
         "Presupuesto técnico completo:\n- Mano de obra especializada de instalación oculta: $280.000 COP\n- Kit de arnés ignición, relevo 12V 40A y fusible antifricción: $120.000 COP\n- Calibración de antena GNSS y enlace de telemetría a plataforma: $80.000 COP\nGarantía de 30 días en mano de obra certificada Tec360."
     )
     const [expiresIn, setExpiresIn] = useState<number | undefined>(48)
+
+    useEffect(() => {
+        getCourseOnboardingStatus()
+            .then((st) => {
+                setCourseStatus(st)
+                if (!st.can_operate) {
+                    setShowCourseGateModal(true)
+                }
+            })
+            .catch(() => {})
+    }, [])
 
     useEffect(() => {
         async function fetchService() {
@@ -90,6 +105,11 @@ export function QuotationFormContent() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        if (courseStatus && !courseStatus.can_operate) {
+            setShowCourseGateModal(true)
+            return
+        }
 
         const numAmount = parseFloat(amount.replace(/,/g, ""))
         if (isNaN(numAmount) || numAmount <= 0) {
@@ -130,6 +150,10 @@ export function QuotationFormContent() {
 
             router.push("/tecnicos/mis-cotizaciones")
         } catch (err: any) {
+            if (err?.message?.includes("COURSE_REQUIRED")) {
+                setShowCourseGateModal(true)
+                return
+            }
             toast({
                 title: "Error al enviar",
                 description: err.message || "Error al procesar la propuesta",
@@ -338,6 +362,15 @@ export function QuotationFormContent() {
                     </div>
                 </motion.div>
             </div>
+
+            <BasicCoursesModal
+                isOpen={showCourseGateModal}
+                onClose={() => setShowCourseGateModal(false)}
+                onDismissForever={() => setShowCourseGateModal(false)}
+                mode="gate"
+                pendingCourseSlug={courseStatus?.pending_courses?.[0]?.slug}
+                pendingCourseTitle={courseStatus?.pending_courses?.[0]?.title}
+            />
         </div>
     )
 }

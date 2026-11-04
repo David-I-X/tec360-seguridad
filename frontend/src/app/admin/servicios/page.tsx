@@ -6,10 +6,10 @@ import {
     ShieldAlert, MapPin, User, X,
     Camera, Phone, CheckCircle, Clock, Loader2, Search,
     Activity, Lock, FileSpreadsheet,
-    Layers, Wrench, ShieldCheck
+    Layers, Wrench, ShieldCheck, Ban
 } from "lucide-react"
 import { toast } from "react-hot-toast"
-import api from "@/lib/api"
+import api, { getDispatchAnalytics, DispatchAnalytics } from "@/lib/api"
 import { DispatchTelemetryPanel } from "@/components/admin/dispatch-telemetry-panel"
 import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
@@ -111,6 +111,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
     arrived: { label: "En sitio", color: "text-purple-400", bg: "bg-purple-400/10 border-purple-400/30", dot: "bg-purple-400" },
     in_progress: { label: "En progreso", color: "text-sky-400", bg: "bg-sky-400/10 border-sky-400/30", dot: "bg-sky-400" },
     completed: { label: "Completado", color: "text-green-400", bg: "bg-green-400/10 border-green-400/30", dot: "bg-green-400" },
+    confirmed: { label: "Confirmado", color: "text-emerald-300", bg: "bg-emerald-500/15 border-emerald-500/35", dot: "bg-emerald-300" },
     cancelled: { label: "Cancelado", color: "text-rose-400", bg: "bg-rose-400/10 border-rose-400/30", dot: "bg-rose-400" },
     quoted: { label: "Cotizado", color: "text-cyan-400", bg: "bg-cyan-400/10 border-cyan-400/30", dot: "bg-cyan-400" },
 }
@@ -153,14 +154,35 @@ const PHOTO_LABELS: Record<string, { label: string; emoji: string }> = {
 function ServiceDetailDrawer({
     serviceId,
     onClose,
+    onUpdated,
 }: {
     serviceId: string
     onClose: () => void
+    onUpdated?: () => void
 }) {
     const [detail, setDetail] = useState<ServiceDetail | null>(null)
     const [photos, setPhotos] = useState<ServicePhoto[]>([])
     const [loading, setLoading] = useState(true)
     const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
+    const [forceClosing, setForceClosing] = useState(false)
+    const [forceCloseReason, setForceCloseReason] = useState("")
+    const [showForceCloseBox, setShowForceCloseBox] = useState(false)
+
+    const handleForceClose = async () => {
+        const reason = forceCloseReason.trim() || "Cerrado administrativamente desde Centro de Control"
+        try {
+            setForceClosing(true)
+            await api.post(`/admin/services/${serviceId}/force-close?reason=${encodeURIComponent(reason)}`, {})
+            toast.success("Servicio cancelado/cerrado forzosamente")
+            setDetail((prev) => (prev ? { ...prev, status: "cancelled" } : prev))
+            setShowForceCloseBox(false)
+            onUpdated?.()
+        } catch {
+            toast.error("No se pudo forzar el cierre del servicio")
+        } finally {
+            setForceClosing(false)
+        }
+    }
 
     useEffect(() => {
         const fetchAll = async () => {
@@ -470,6 +492,52 @@ function ServiceDetailDrawer({
                                 </p>
                             )}
                         </section>
+
+                        {/* ─── Administrative Force-Close Control ─── */}
+                        {!["completed", "confirmed", "cancelled"].includes(detail.status) && (
+                            <section className="pt-3 border-t border-slate-800/80 space-y-2.5">
+                                {!showForceCloseBox ? (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setShowForceCloseBox(true)}
+                                        className="w-full rounded-xl border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-mono font-bold gap-2"
+                                    >
+                                        <Ban className="w-3.5 h-3.5" />
+                                        Forzar Cierre / Cancelar Servicio Atascado
+                                    </Button>
+                                ) : (
+                                    <div className="p-3.5 rounded-xl bg-rose-950/30 border border-rose-500/40 space-y-2.5 font-mono text-xs">
+                                        <p className="text-rose-300 font-bold">Motivo de cierre administrativo:</p>
+                                        <input
+                                            type="text"
+                                            value={forceCloseReason}
+                                            onChange={(e) => setForceCloseReason(e.target.value)}
+                                            placeholder="Ej: Solicitud del cliente o servicio duplicado..."
+                                            className="w-full px-3 py-2 rounded-lg bg-[#050810] border border-slate-800 text-slate-100 text-xs outline-none focus:border-rose-500"
+                                        />
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setShowForceCloseBox(false)}
+                                                className="text-xs font-mono text-slate-400"
+                                            >
+                                                Volver
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                disabled={forceClosing}
+                                                onClick={handleForceClose}
+                                                className="bg-rose-600 hover:bg-rose-500 text-white text-xs font-mono font-bold rounded-lg"
+                                            >
+                                                {forceClosing ? "Cerrando..." : "Confirmar Cierre"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </section>
+                        )}
                     </div>
                 )}
             </motion.div>
@@ -514,18 +582,33 @@ export default function AdminServicesPage() {
     const [selectedPillar, setSelectedPillar] = useState<PillarKey>("all")
     const [searchQuery, setSearchQuery] = useState("")
     const [viewMode, setViewMode] = useState<"services" | "telemetry">("services")
+    const [dispatchMetrics, setDispatchMetrics] = useState<DispatchAnalytics | null>(null)
 
-    const fetchServices = async () => {
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const urlParams = new URLSearchParams(window.location.search)
+            const q = urlParams.get("search")
+            if (q) setSearchQuery(q)
+        }
+        getDispatchAnalytics(30)
+            .then((data) => setDispatchMetrics(data))
+            .catch(() => {})
+    }, [])
+
+    const fetchServices = async (customSearch?: string, customStatus?: string) => {
         setLoading(true)
         try {
+            const activeStatus = customStatus !== undefined ? customStatus : statusFilter
+            const activeSearch = (customSearch !== undefined ? customSearch : searchQuery).trim()
             const params = new URLSearchParams()
             params.append("limit", "100")
-            if (statusFilter) params.append("status", statusFilter)
-            if (searchQuery.length >= 3) params.append("search", searchQuery)
+            if (activeStatus) params.append("status", activeStatus)
+            if (activeSearch.length >= 1) params.append("search", activeSearch)
             
             const response = await api.get(`/admin/services?${params.toString()}`)
-            setServices(response.data.items || [])
-            setTotal(response.data.total || (response.data.items || []).length)
+            const items = response.data.items || []
+            setServices(items)
+            setTotal(response.data.total ?? items.length)
         } catch {
             toast.error("Error al cargar servicios operativos")
         } finally {
@@ -534,38 +617,90 @@ export default function AdminServicesPage() {
     }
 
     useEffect(() => {
-        fetchServices()
+        fetchServices(searchQuery, statusFilter)
     }, [statusFilter])
 
     // Debounced search
     useEffect(() => {
-        if (searchQuery.length >= 3 || searchQuery.length === 0) {
-            const t = setTimeout(fetchServices, 400)
-            return () => clearTimeout(t)
-        }
+        const t = setTimeout(() => {
+            fetchServices(searchQuery, statusFilter)
+        }, 300)
+        return () => clearTimeout(t)
     }, [searchQuery])
 
-    // Filter by Pillar locally
+    // Filter by Pillar and Search locally as well
     const filteredServices = useMemo(() => {
-        if (selectedPillar === "all") return services
-        return services.filter(s => getPillarInfo(s.service_type).key === selectedPillar)
-    }, [services, selectedPillar])
+        const q = searchQuery.trim().toLowerCase()
+        return services.filter((s) => {
+            if (selectedPillar !== "all" && getPillarInfo(s.service_type).key !== selectedPillar) {
+                return false
+            }
+            if (!q) return true
+            return (
+                s.title?.toLowerCase().includes(q) ||
+                s.vehicle_plate?.toLowerCase().includes(q) ||
+                s.client_name?.toLowerCase().includes(q) ||
+                s.client_phone?.toLowerCase().includes(q) ||
+                s.technician_name?.toLowerCase().includes(q) ||
+                s.service_address?.toLowerCase().includes(q) ||
+                s.id?.toLowerCase().includes(q)
+            )
+        })
+    }, [services, selectedPillar, searchQuery])
 
-    // Dynamic metrics calculation
+    // Dynamic metrics calculation (real values, zero fake numbers)
     const counts = useMemo(() => {
         const inst = services.filter(s => getPillarInfo(s.service_type).key === "instalaciones").length
         const reac = services.filter(s => getPillarInfo(s.service_type).key === "reaccion").length
         const mec = services.filter(s => getPillarInfo(s.service_type).key === "mecanica").length
-        const active = services.filter(s => ["en_route", "arrived", "in_progress"].includes(s.status)).length
+        const active = services.filter(s => !["completed", "confirmed", "cancelled"].includes(s.status)).length
         const enRoute = services.filter(s => s.status === "en_route").length
-        const inProg = services.filter(s => ["arrived", "in_progress"].includes(s.status)).length
-        const critical = services.filter(s => s.service_type === "vehicle_recovery" && s.status !== "completed").length
+        const inProg = services.filter(s => ["arrived", "in_progress", "assigned"].includes(s.status)).length
+        const critical = services.filter(s => s.service_type === "vehicle_recovery" && !["completed", "confirmed", "cancelled"].includes(s.status)).length
         return { inst, reac, mec, active, enRoute, inProg, critical }
     }, [services])
 
     const handleExport = () => {
-        toast.success("Generando reporte de auditoría y telemetría...")
+        if (filteredServices.length === 0) {
+            toast.error("No hay servicios en la lista actual para exportar")
+            return
+        }
+        const headers = ["ID", "Titulo", "Tipo", "Estado", "Placa", "Cliente", "Telefono", "Especialista", "Direccion", "Precio_COP", "Fecha"]
+        const rows = filteredServices.map((s) => [
+            s.id,
+            `"${(s.title || "").replace(/"/g, '""')}"`,
+            s.service_type,
+            s.status,
+            s.vehicle_plate || "",
+            `"${(s.client_name || "").replace(/"/g, '""')}"`,
+            s.client_phone || "",
+            `"${(s.technician_name || "").replace(/"/g, '""')}"`,
+            `"${(s.service_address || "").replace(/"/g, '""')}"`,
+            String(s.estimated_price ?? 0),
+            s.created_at,
+        ])
+        const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
+        const link = document.createElement("a")
+        link.setAttribute("href", encodeURI(csvContent))
+        link.setAttribute("download", `tec360_servicios_${new Date().toISOString().slice(0, 10)}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        toast.success(`Exportados ${filteredServices.length} servicios a CSV`)
     }
+
+    const p50Label =
+        dispatchMetrics?.assignment_p50_seconds !== null && dispatchMetrics?.assignment_p50_seconds !== undefined
+            ? `${Math.round(dispatchMetrics.assignment_p50_seconds)}s`
+            : "—"
+    const p95Label =
+        dispatchMetrics?.assignment_p95_seconds !== null && dispatchMetrics?.assignment_p95_seconds !== undefined
+            ? `${Math.round(dispatchMetrics.assignment_p95_seconds)}s`
+            : "—"
+    const acceptanceRateLabel =
+        dispatchMetrics?.overall_acceptance_rate !== null && dispatchMetrics?.overall_acceptance_rate !== undefined
+            ? `${dispatchMetrics.overall_acceptance_rate}%`
+            : "0%"
 
     return (
         <>
@@ -581,11 +716,11 @@ export default function AdminServicesPage() {
                         </div>
                         <div className="flex items-baseline gap-2">
                             <span className="text-2xl sm:text-3xl font-black font-mono text-slate-100">
-                                3.2 min
+                                {p50Label}
                             </span>
                         </div>
                         <p className="text-[11px] font-mono text-slate-400 mt-1">
-                            p95: 7.8 min · Despacho Olas V2
+                            p95: {p95Label} · Despacho Olas V2
                         </p>
                     </div>
 
@@ -598,11 +733,11 @@ export default function AdminServicesPage() {
                         </div>
                         <div className="flex items-baseline gap-2">
                             <span className="text-2xl sm:text-3xl font-black font-mono text-sky-400">
-                                88.4%
+                                {acceptanceRateLabel}
                             </span>
                         </div>
                         <p className="text-[11px] font-mono text-slate-400 mt-1">
-                            Ola 1: 72% aceptación directa
+                            {dispatchMetrics?.total_offers_sent ?? 0} ofertas enviadas (30d)
                         </p>
                     </div>
 
@@ -615,11 +750,11 @@ export default function AdminServicesPage() {
                         </div>
                         <div className="flex items-baseline gap-2">
                             <span className="text-2xl sm:text-3xl font-black font-mono text-emerald-400">
-                                {counts.active > 0 ? counts.active : 24} activos
+                                {counts.active} activos
                             </span>
                         </div>
                         <p className="text-[11px] font-mono text-slate-400 mt-1">
-                            {counts.enRoute || 14} en camino · {counts.inProg || 10} en ejecución
+                            {counts.enRoute} en camino · {counts.inProg} en ejecución
                         </p>
                     </div>
 
@@ -636,7 +771,7 @@ export default function AdminServicesPage() {
                             </span>
                         </div>
                         <p className="text-[11px] font-mono text-slate-400 mt-1">
-                            {"Respuesta < 45s · Escuadrón Activo"}
+                            {counts.reac} alertas totales en listado
                         </p>
                     </div>
                 </div>
@@ -1005,6 +1140,7 @@ export default function AdminServicesPage() {
                     <ServiceDetailDrawer
                         serviceId={selectedId}
                         onClose={() => setSelectedId(null)}
+                        onUpdated={() => fetchServices(searchQuery, statusFilter)}
                     />
                 )}
             </AnimatePresence>

@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react"
 import {
-    Shield, FileText, CheckCircle, XCircle, AlertCircle,
+    Shield, FileText, CheckCircle, XCircle,
     Clock, ChevronRight, UserCheck, ArrowLeft, ShieldCheck,
-    Check, X
+    X, Search, ExternalLink, RefreshCw
 } from "lucide-react"
 import { fetchWithAuth } from "@/lib/api"
+import { getImageUrl } from "@/lib/utils"
 import Link from "next/link"
+import { toast } from "react-hot-toast"
 
 type PendingVerification = {
     technician_id: string
@@ -26,59 +28,6 @@ type TechnicianDocument = {
     uploaded_at: string
 }
 
-const fallbackPending: PendingVerification[] = [
-    {
-        technician_id: "TECH-V1",
-        full_name: "Jorge Valencia",
-        phone: "+57 315 678 9012",
-        uploaded_at: "2026-10-30T10:00:00Z",
-        documents_count: 3,
-        specialty: "Instalación GPS 4G & Telemática",
-    },
-    {
-        technician_id: "TECH-V2",
-        full_name: "Mateo Cifuentes",
-        phone: "+57 300 123 4567",
-        uploaded_at: "2026-10-30T11:15:00Z",
-        documents_count: 3,
-        specialty: "Mecánica Express & Diagnóstico OBD2",
-    },
-    {
-        technician_id: "TECH-V3",
-        full_name: "Luis Fernando Rúa",
-        phone: "+57 318 901 2345",
-        uploaded_at: "2026-10-29T16:40:00Z",
-        documents_count: 2,
-        specialty: "Escuadrón Reacción Inmediata 24/7",
-    },
-]
-
-const fallbackDocs: Record<string, TechnicianDocument[]> = {
-    "TECH-V1": [
-        {
-            id: "DOC-101",
-            document_type: "cedula_ciudadania",
-            document_url: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80",
-            status: "pending",
-            uploaded_at: "2026-10-30T10:00:00Z",
-        },
-        {
-            id: "DOC-102",
-            document_type: "antecedentes_judiciales",
-            document_url: "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80",
-            status: "pending",
-            uploaded_at: "2026-10-30T10:02:00Z",
-        },
-        {
-            id: "DOC-103",
-            document_type: "certificacion_tecnica_tec360",
-            document_url: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&auto=format&fit=crop&q=80",
-            status: "pending",
-            uploaded_at: "2026-10-30T10:05:00Z",
-        },
-    ],
-}
-
 export default function VerificacionesAdmin() {
     const [pending, setPending] = useState<PendingVerification[]>([])
     const [loading, setLoading] = useState(true)
@@ -87,8 +36,14 @@ export default function VerificacionesAdmin() {
     const [docsLoading, setDocsLoading] = useState(false)
     const [rejectionReason, setRejectionReason] = useState("")
     const [actionMessage, setActionMessage] = useState<string | null>(null)
+    const [searchQuery, setSearchQuery] = useState("")
 
     useEffect(() => {
+        if (typeof window !== "undefined") {
+            const urlParams = new URLSearchParams(window.location.search)
+            const q = urlParams.get("search")
+            if (q) setSearchQuery(q)
+        }
         loadPending()
     }, [])
 
@@ -96,18 +51,24 @@ export default function VerificacionesAdmin() {
         try {
             setLoading(true)
             const res = await fetchWithAuth("/verification/admin/pending")
+            if (!res.ok) {
+                setPending([])
+                setSelectedTech(null)
+                return
+            }
             const data = await res.json()
-            if (Array.isArray(data) && data.length > 0) {
-                setPending(data)
-                handleSelectTech(data[0])
+            const list = Array.isArray(data) ? data : []
+            setPending(list)
+            if (list.length > 0) {
+                handleSelectTech(list[0])
             } else {
-                setPending(fallbackPending)
-                handleSelectTech(fallbackPending[0])
+                setSelectedTech(null)
+                setDocs([])
             }
         } catch (error) {
-            console.error("Error cargando verificaciones, usando fallback:", error)
-            setPending(fallbackPending)
-            handleSelectTech(fallbackPending[0])
+            console.error("Error cargando verificaciones:", error)
+            setPending([])
+            setSelectedTech(null)
         } finally {
             setLoading(false)
         }
@@ -121,27 +82,24 @@ export default function VerificacionesAdmin() {
         try {
             const res = await fetchWithAuth(`/verification/admin/${tech.technician_id}/documents`)
             const data = await res.json()
-            if (Array.isArray(data) && data.length > 0) {
-                setDocs(data)
-            } else {
-                setDocs(fallbackDocs[tech.technician_id] || fallbackDocs["TECH-V1"])
-            }
+            setDocs(Array.isArray(data) ? data : [])
         } catch (error) {
             console.error("Error cargando documentos:", error)
-            setDocs(fallbackDocs[tech.technician_id] || fallbackDocs["TECH-V1"])
+            setDocs([])
         } finally {
             setDocsLoading(false)
         }
     }
 
     const handleReview = async (status: "approved" | "rejected") => {
+        if (!selectedTech) return
         if (status === "rejected" && !rejectionReason.trim()) {
-            alert("Debes proporcionar una razón de rechazo formal")
+            toast.error("Debes proporcionar una razón de rechazo formal")
             return
         }
 
         try {
-            await fetchWithAuth(`/verification/admin/${selectedTech?.technician_id}/review`, {
+            const res = await fetchWithAuth(`/verification/admin/${selectedTech.technician_id}/review`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -149,18 +107,36 @@ export default function VerificacionesAdmin() {
                     rejection_reason: status === "rejected" ? rejectionReason : null
                 })
             })
-            
-            setActionMessage(`Especialista ${status === "approved" ? "aprobado como Técnico Certificado Tec360" : "rechazado"} exitosamente.`)
-            setPending(prev => prev.filter(t => t.technician_id !== selectedTech?.technician_id))
-            setSelectedTech(null)
+            if (!res.ok) {
+                toast.error("No se pudo procesar la revisión del especialista")
+                return
+            }
+            const msg = `Especialista ${status === "approved" ? "aprobado como Técnico Certificado Tec360" : "rechazado"} exitosamente.`
+            setActionMessage(msg)
+            toast.success(msg)
+            const remaining = pending.filter(t => t.technician_id !== selectedTech.technician_id)
+            setPending(remaining)
+            if (remaining.length > 0) {
+                handleSelectTech(remaining[0])
+            } else {
+                setSelectedTech(null)
+                setDocs([])
+            }
         } catch (error) {
             console.error("Error revisando documentos:", error)
-            // Optimistic feedback
-            setActionMessage(`Especialista ${status === "approved" ? "aprobado como Técnico Certificado Tec360" : "rechazado"} exitosamente.`)
-            setPending(prev => prev.filter(t => t.technician_id !== selectedTech?.technician_id))
-            setSelectedTech(null)
+            toast.error("Error de red al revisar documentos")
         }
     }
+
+    const filteredPending = pending.filter((t) => {
+        if (!searchQuery.trim()) return true
+        const q = searchQuery.toLowerCase().trim()
+        return (
+            t.full_name?.toLowerCase().includes(q) ||
+            t.phone?.toLowerCase().includes(q) ||
+            String(t.technician_id).toLowerCase().includes(q)
+        )
+    })
 
     return (
         <div className="space-y-6 font-sans">
@@ -181,6 +157,15 @@ export default function VerificacionesAdmin() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={loadPending}
+                        disabled={loading}
+                        className="px-3 py-1.5 rounded-xl bg-[#0B132B] hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-mono font-semibold flex items-center gap-1.5 transition-all"
+                    >
+                        <RefreshCw className={`w-3.5 h-3.5 text-blue-400 ${loading ? "animate-spin" : ""}`} />
+                        <span>Sincronizar</span>
+                    </button>
                     <span className="px-3 py-1.5 rounded-xl bg-[#0B1736] border border-[#1E3A8A] text-[#93C5FD] text-xs font-mono font-semibold flex items-center gap-2 shadow-sm">
                         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                         {pending.length} Pendientes en Cola
@@ -202,11 +187,23 @@ export default function VerificacionesAdmin() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Left: Lista de Pendientes (4 cols) */}
                 <div className="lg:col-span-4 bg-[#080F24] border border-slate-800/80 rounded-2xl shadow-xl backdrop-blur-xl overflow-hidden flex flex-col h-[700px]">
-                    <div className="p-4 border-b border-slate-800/80 bg-[#060B1A] flex items-center justify-between">
-                        <h3 className="font-bold text-xs font-mono text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                            <Clock className="w-3.5 h-3.5 text-amber-400" />
-                            Aspirantes por Validar ({pending.length})
-                        </h3>
+                    <div className="p-4 border-b border-slate-800/80 bg-[#060B1A] space-y-3">
+                        <div className="flex items-center justify-between">
+                            <h3 className="font-bold text-xs font-mono text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                                Aspirantes por Validar ({filteredPending.length})
+                            </h3>
+                        </div>
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Buscar por nombre o teléfono..."
+                                className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-[#0B132B] border border-slate-800 text-xs font-mono text-slate-200 placeholder:text-slate-500 outline-none focus:border-blue-500"
+                            />
+                        </div>
                     </div>
                     
                     <div className="overflow-y-auto flex-1 p-3 space-y-2.5">
@@ -215,14 +212,18 @@ export default function VerificacionesAdmin() {
                                 <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                                 <span>Cargando aspirantes...</span>
                             </div>
-                        ) : pending.length === 0 ? (
+                        ) : filteredPending.length === 0 ? (
                             <div className="text-center p-8 text-slate-400 font-mono text-xs">
                                 <Shield className="w-10 h-10 mx-auto mb-2 opacity-30 text-emerald-400" />
-                                <p className="font-bold text-slate-300">Todos los documentos están validados</p>
-                                <p className="text-[10px] text-slate-500 mt-1">No hay aspirantes pendientes en este momento</p>
+                                <p className="font-bold text-slate-300">
+                                    {searchQuery ? "Sin coincidencias en la cola" : "Todos los documentos están validados"}
+                                </p>
+                                <p className="text-[10px] text-slate-500 mt-1">
+                                    {searchQuery ? "Prueba otro término de búsqueda" : "No hay aspirantes pendientes en este momento"}
+                                </p>
                             </div>
                         ) : (
-                            pending.map(tech => {
+                            filteredPending.map(tech => {
                                 const isSelected = selectedTech?.technician_id === tech.technician_id
                                 return (
                                     <div 
@@ -252,7 +253,9 @@ export default function VerificacionesAdmin() {
                                                 <span>{tech.documents_count} documentos</span>
                                             </span>
                                             <span className="text-slate-500">
-                                                {new Date(tech.uploaded_at).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
+                                                {tech.uploaded_at
+                                                    ? new Date(tech.uploaded_at).toLocaleDateString("es-CO", { day: "numeric", month: "short" })
+                                                    : "Reciente"}
                                             </span>
                                         </div>
                                     </div>
@@ -274,7 +277,10 @@ export default function VerificacionesAdmin() {
                                         Expediente de {selectedTech.full_name}
                                     </h3>
                                     <p className="text-[11px] font-mono text-slate-400 mt-0.5">
-                                        ID Técnico: {selectedTech.technician_id} · Subido el {new Date(selectedTech.uploaded_at).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}
+                                        ID Técnico: {selectedTech.technician_id}
+                                        {selectedTech.uploaded_at && (
+                                            <> · Subido el {new Date(selectedTech.uploaded_at).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}</>
+                                        )}
                                     </p>
                                 </div>
                                 <span className="px-2.5 py-1 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-300 text-[10px] font-mono font-bold">
@@ -292,43 +298,57 @@ export default function VerificacionesAdmin() {
                                 ) : (
                                     <div className="space-y-4">
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            {docs.map(doc => (
-                                                <div key={doc.id} className="p-3.5 rounded-xl bg-[#0B132B] border border-slate-800/80 space-y-2">
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2">
-                                                            <FileText className="text-blue-400 w-4 h-4" />
-                                                            <h4 className="font-mono font-bold text-xs text-slate-200 capitalize">
-                                                                {doc.document_type.replace(/_/g, ' ')}
-                                                            </h4>
-                                                        </div>
-                                                        <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/20">
-                                                            Legible ✓
-                                                        </span>
-                                                    </div>
-
-                                                    <div className="h-44 rounded-lg bg-slate-950/80 border border-slate-800 flex items-center justify-center overflow-hidden relative group">
-                                                        {doc.document_url.endsWith('.pdf') ? (
+                                            {docs.map(doc => {
+                                                const resolvedUrl = getImageUrl(doc.document_url) || doc.document_url
+                                                return (
+                                                    <div key={doc.id} className="p-3.5 rounded-xl bg-[#0B132B] border border-slate-800/80 space-y-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <FileText className="text-blue-400 w-4 h-4" />
+                                                                <h4 className="font-mono font-bold text-xs text-slate-200 capitalize">
+                                                                    {doc.document_type.replace(/_/g, ' ')}
+                                                                </h4>
+                                                            </div>
                                                             <a
-                                                                href={doc.document_url}
+                                                                href={resolvedUrl}
                                                                 target="_blank"
                                                                 rel="noreferrer"
-                                                                className="text-blue-400 hover:text-blue-300 flex flex-col items-center gap-2 p-4 font-mono text-xs"
+                                                                className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/15 text-blue-300 hover:bg-blue-500/25 font-bold border border-blue-500/30 flex items-center gap-1"
                                                             >
-                                                                <FileText className="w-8 h-8 text-blue-400" />
-                                                                <span>Abrir PDF Adjunto</span>
+                                                                <span>Abrir</span>
+                                                                <ExternalLink className="w-2.5 h-2.5" />
                                                             </a>
-                                                        ) : (
-                                                            <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center">
-                                                                <div className="w-12 h-12 rounded-xl bg-[#0B1736] border border-[#1E3A8A] flex items-center justify-center text-blue-400 mb-2">
-                                                                    <ShieldCheck className="w-6 h-6" />
-                                                                </div>
-                                                                <p className="text-[11px] font-mono text-slate-300 font-bold">Documento Registrado</p>
-                                                                <p className="text-[9px] font-mono text-slate-500 mt-0.5">Hash SHA-256 Validado</p>
-                                                            </div>
-                                                        )}
+                                                        </div>
+
+                                                        <div className="h-44 rounded-lg bg-slate-950/80 border border-slate-800 flex items-center justify-center overflow-hidden relative group">
+                                                            {resolvedUrl.toLowerCase().endsWith('.pdf') ? (
+                                                                <a
+                                                                    href={resolvedUrl}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="text-blue-400 hover:text-blue-300 flex flex-col items-center gap-2 p-4 font-mono text-xs"
+                                                                >
+                                                                    <FileText className="w-8 h-8 text-blue-400" />
+                                                                    <span>Abrir PDF Adjunto</span>
+                                                                </a>
+                                                            ) : (
+                                                                <a
+                                                                    href={resolvedUrl}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="w-full h-full block relative"
+                                                                >
+                                                                    <img
+                                                                        src={resolvedUrl}
+                                                                        alt={doc.document_type}
+                                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                                                    />
+                                                                </a>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                )
+                                            })}
                                         </div>
 
                                         {/* Rejection Note */}

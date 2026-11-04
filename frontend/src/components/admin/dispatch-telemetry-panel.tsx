@@ -138,10 +138,10 @@ export function DispatchTelemetryPanel() {
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           </div>
           <p className="text-2xl sm:text-3xl font-black font-mono text-emerald-400">
-            {analytics?.overall_acceptance_rate ?? stats?.acceptance_rate ?? 88.4}%
+            {analytics?.overall_acceptance_rate ?? stats?.acceptance_rate ?? 0}%
           </p>
           <p className="text-[11px] font-mono text-slate-400 mt-1">
-            {stats ? `${stats.accepted_offers} aceptadas de ${stats.total_offers}` : "88.4% aceptación acumulada"}
+            {stats ? `${stats.accepted_offers} aceptadas de ${stats.total_offers}` : "Sin ofertas en el periodo"}
           </p>
         </div>
 
@@ -154,10 +154,10 @@ export function DispatchTelemetryPanel() {
           <p className="text-2xl sm:text-3xl font-black font-mono text-sky-400">
             {analytics?.assignment_p50_seconds !== null && analytics?.assignment_p50_seconds !== undefined
               ? `${Math.round(analytics.assignment_p50_seconds)}s`
-              : "192s (3.2m)"}
+              : "—"}
           </p>
           <p className="text-[11px] font-mono text-slate-400 mt-1">
-            {"50% asignados en < 3.2 min"}
+            Mediana de asignación real
           </p>
         </div>
 
@@ -170,10 +170,10 @@ export function DispatchTelemetryPanel() {
           <p className="text-2xl sm:text-3xl font-black font-mono text-amber-400">
             {analytics?.assignment_p95_seconds !== null && analytics?.assignment_p95_seconds !== undefined
               ? `${Math.round(analytics.assignment_p95_seconds)}s`
-              : "468s (7.8m)"}
+              : "—"}
           </p>
           <p className="text-[11px] font-mono text-slate-400 mt-1">
-            Límite en alta densidad de tráfico
+            Percentil 95 de asignación
           </p>
         </div>
 
@@ -184,10 +184,10 @@ export function DispatchTelemetryPanel() {
             <BarChart3 className="w-4 h-4 text-blue-400" />
           </div>
           <p className="text-2xl sm:text-3xl font-black font-mono text-blue-400">
-            {analytics?.total_services_dispatched ?? (stats?.total_offers || 128)}
+            {analytics?.total_services_dispatched ?? stats?.total_offers ?? 0}
           </p>
           <p className="text-[11px] font-mono text-slate-400 mt-1">
-            {analytics?.total_offers_sent ?? 314} ofertas enviadas
+            {analytics?.total_offers_sent ?? stats?.total_offers ?? 0} ofertas enviadas
           </p>
         </div>
       </div>

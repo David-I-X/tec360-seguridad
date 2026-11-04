@@ -558,6 +558,29 @@ export interface BalanceData {
   free_services_remaining: number
   can_accept_services: boolean
   commission_rate: number
+  welcome_bonus_granted?: boolean
+  welcome_bonus_amount?: number
+}
+
+export interface CourseOnboardingStatus {
+  can_operate: boolean
+  is_verified: boolean
+  required_courses_completed: boolean
+  required_count: number
+  completed_count: number
+  pending_courses: {
+    id: string
+    title: string
+    slug: string
+    category?: string
+    estimated_hours?: number
+  }[]
+}
+
+export async function getCourseOnboardingStatus(): Promise<CourseOnboardingStatus> {
+  const response = await fetchWithAuth("/courses/onboarding-status", { method: "GET" })
+  if (!response.ok) await handleAPIError(response)
+  return response.json()
 }
 
 export interface CreditTransaction {

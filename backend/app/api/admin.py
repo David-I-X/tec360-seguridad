@@ -4,7 +4,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import text
+from sqlalchemy import String, cast, text
 from sqlmodel import Session, func, or_, select
 
 from app.core.database import get_session
@@ -12,6 +12,7 @@ from app.core.security import require_roles
 from app.models.service import Service, ServiceStatus
 from app.models.technician import Technician, calculate_rank_points
 from app.models.user import User
+from app.models.verification import DocumentStatus, TechnicianDocument
 from app.services.sas_service import get_accounting_dashboard
 
 logger = logging.getLogger(__name__)
@@ -94,14 +95,15 @@ async def list_users(
         "pages": (total // limit) + (1 if total % limit > 0 else 0)
     }
 
-@router.put("/users/{user_id}/verify", summary="Verify technician SENA status")
+@router.put("/users/{user_id}/verify", summary="Validar técnico y dar por cursados los cursos obligatorios")
 async def verify_technician(
     user_id: str,
-    is_verified: bool = Query(..., description="True to verify, False to revoke"),
+    is_verified: bool = Query(..., description="True to verify and complete required courses, False to revoke"),
     current_user: dict = Depends(require_roles("admin")),
     session: Session = Depends(get_session)
 ):
     from uuid import UUID
+    from app.api.courses import grant_all_required_courses, revoke_admin_granted_courses
     
     user = session.get(User, UUID(user_id))
     if not user or user.role != "technician":
@@ -112,6 +114,14 @@ async def verify_technician(
         raise HTTPException(status_code=404, detail="Technician profile not found")
         
     tech.is_verified = is_verified
+    tech.verification_status = "verified" if is_verified else "incomplete"
+    courses_completed = 0
+
+    if is_verified:
+        courses_completed = grant_all_required_courses(session, user.id)
+        tech.certifications_count = max(tech.certifications_count or 0, courses_completed)
+    else:
+        revoke_admin_granted_courses(session, user.id)
     
     # Recalculate rank points with verified status bonus (+20)
     points, rank = calculate_rank_points(
@@ -119,7 +129,8 @@ async def verify_technician(
         experience_years=tech.experience_years,
         certifications_count=tech.certifications_count,
         average_rating=tech.average_rating,
-        is_verified=tech.is_verified
+        is_verified=tech.is_verified,
+        specializations_count=len(tech.specializations or []),
     )
     tech.rank_points = points
     tech.rank = rank
@@ -127,7 +138,15 @@ async def verify_technician(
     session.add(tech)
     session.commit()
     
-    return {"message": f"Technician {'verified' if is_verified else 'unverified'} successfully"}
+    return {
+        "message": (
+            f"Técnico validado exitosamente ({courses_completed} curso(s) obligatorio(s) dado(s) por cursado(s))"
+            if is_verified
+            else "Validación de técnico revocada"
+        ),
+        "is_verified": is_verified,
+        "courses_completed": courses_completed,
+    }
 
 @router.put("/users/{user_id}/status", summary="Suspend or activate user")
 async def change_user_status(
@@ -204,12 +223,22 @@ async def list_global_services(
         query = query.where(Service.service_type == service_type)
     if search:
         pattern = f"%{search}%"
+        matching_users = select(User.id).where(
+            or_(
+                User.full_name.ilike(pattern),
+                User.phone.ilike(pattern),
+                User.email.ilike(pattern),
+            )
+        )
         query = query.where(
             or_(
                 Service.title.ilike(pattern),
                 Service.service_address.ilike(pattern),
                 Service.vehicle_plate.ilike(pattern),
                 Service.description.ilike(pattern),
+                cast(Service.id, String).ilike(pattern),
+                Service.client_id.in_(matching_users),
+                Service.technician_id.in_(matching_users),
             )
         )
         
@@ -347,6 +376,24 @@ async def platform_stats(
     total_techs = session.exec(select(func.count()).select_from(select(User).where(User.role == "technician").subquery())).one()
     total_reaction = session.exec(select(func.count()).select_from(select(User).where(User.role == "reaction_team").subquery())).one()
 
+    # Pending technician document verifications and unverified technicians
+    pending_verifications = session.exec(
+        select(func.count()).select_from(
+            select(Technician).where(
+                Technician.id.in_(
+                    select(TechnicianDocument.technician_id).where(
+                        TechnicianDocument.status == DocumentStatus.pending
+                    )
+                )
+            ).subquery()
+        )
+    ).one()
+    unverified_techs = session.exec(
+        select(func.count()).select_from(
+            select(Technician).where(Technician.is_verified == False).subquery()  # noqa: E712
+        )
+    ).one()
+
     # Service counts
     total_services = session.exec(select(func.count()).select_from(select(Service).subquery())).one()
     
@@ -355,12 +402,22 @@ async def platform_stats(
         count = session.exec(select(func.count()).select_from(select(Service).where(Service.status == s.value).subquery())).one()
         status_counts[s.value] = count
 
-    # Gross volume of completed services
+    terminal_completed = ["completed", "confirmed"]
+    terminal_all = ["completed", "confirmed", "cancelled"]
+
+    # Gross volume of completed + confirmed services
     gross_volume_result = session.exec(
         select(func.coalesce(func.sum(Service.estimated_price), 0))
-        .where(Service.status == "completed")
+        .where(Service.status.in_(terminal_completed))
     ).one()
     gross_volume = float(gross_volume_result)
+
+    # Escrow volume in active services
+    escrow_active_result = session.exec(
+        select(func.coalesce(func.sum(Service.estimated_price), 0))
+        .where(Service.status.notin_(terminal_all))
+    ).one()
+    escrow_active = float(escrow_active_result)
 
     # Real Revenue connected to SaaS Vertical (Contabilidad)
     # Under DIAN Concept 1222/2024, Tec360's real revenue is the platform commission,
@@ -390,7 +447,7 @@ async def platform_stats(
     recovery_active = session.exec(select(func.count()).select_from(
         select(Service).where(
             Service.service_type == "vehicle_recovery",
-            Service.status.notin_(["completed", "cancelled"])
+            Service.status.notin_(terminal_all)
         ).subquery()
     )).one()
 
@@ -405,34 +462,45 @@ async def platform_stats(
     mechanics_active = session.exec(select(func.count()).select_from(
         select(Service).where(
             Service.service_type.in_(quick_mechanics_types),
-            Service.status.notin_(["completed", "cancelled"])
+            Service.status.notin_(terminal_all)
         ).subquery()
     )).one()
 
-    # Avg ticket (completed with price)
+    # Installations services (everything else)
+    installations_total = max(0, total_services - recovery_total - mechanics_total)
+    active_services = sum(
+        count for st, count in status_counts.items() if st not in terminal_all
+    )
+    installations_active = max(0, active_services - recovery_active - mechanics_active)
+
+    # Avg ticket (completed + confirmed with price)
     avg_ticket_result = session.exec(
         select(func.coalesce(func.avg(Service.estimated_price), 0))
-        .where(Service.status == "completed", Service.estimated_price.isnot(None))
+        .where(Service.status.in_(terminal_completed), Service.estimated_price.isnot(None))
     ).one()
 
-    completed = status_counts.get("completed", 0)
+    completed = status_counts.get("completed", 0) + status_counts.get("confirmed", 0)
 
     return {
         "users": {
             "clients": total_clients,
             "technicians": total_techs,
             "reaction_team": total_reaction,
-            "total": total_clients + total_techs + total_reaction
+            "total": total_clients + total_techs + total_reaction,
+            "pending_verifications": pending_verifications,
+            "unverified_technicians": unverified_techs,
         },
         "services": {
             "total": total_services,
             "by_status": status_counts,
             "completed": completed,
+            "active": active_services,
             "completion_rate": f"{(completed / total_services * 100):.1f}%" if total_services > 0 else "0%"
         },
         "revenue": {
             "total": real_revenue,
             "gross_volume": gross_volume,
+            "escrow_active": escrow_active,
             "month_income": month_income,
             "month_expenses": month_expenses,
             "month_net_profit": month_net_profit,
@@ -447,6 +515,10 @@ async def platform_stats(
         "quick_mechanics": {
             "total": mechanics_total,
             "active": mechanics_active,
+        },
+        "installations": {
+            "total": installations_total,
+            "active": installations_active,
         }
     }
 

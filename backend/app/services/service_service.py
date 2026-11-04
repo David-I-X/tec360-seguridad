@@ -405,6 +405,16 @@ class ServiceService:
 
             # Validar que el técnico no tenga conflicto de horario (bloque de 2 horas)
             self._check_technician_schedule_conflict(session, technician_id, service)
+
+            # Validar que el técnico haya completado el curso obligatorio o esté validado por el admin
+            if user_role == "technician":
+                from app.api.courses import get_technician_course_gate_status
+                course_gate = get_technician_course_gate_status(session, str(technician_id))
+                if not course_gate["can_operate"]:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="COURSE_REQUIRED: Debes realizar primero el curso obligatorio en Escuela Tec360 antes de aceptar o cotizar un trabajo."
+                    )
             
             # Check if technician is suspended
             from app.services.reputation_service import reputation_service

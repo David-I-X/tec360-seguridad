@@ -4,10 +4,11 @@ import { useEffect, useState } from "react"
 import {
     Users, CheckCircle,
     BarChart3, Clock, Lock,
-    ChevronRight, AlertTriangle, ShieldCheck
+    ChevronRight, AlertTriangle, ShieldCheck, Download, RefreshCw
 } from "lucide-react"
-import api from "@/lib/api"
+import api, { getDispatchAnalytics, DispatchAnalytics } from "@/lib/api"
 import Link from "next/link"
+import { toast } from "react-hot-toast"
 
 interface AdminStats {
     users: {
@@ -15,10 +16,13 @@ interface AdminStats {
         technicians: number
         reaction_team: number
         total: number
+        pending_verifications?: number
+        unverified_technicians?: number
     }
     services: {
         total: number
         completed: number
+        active?: number
         completion_rate: string
         by_status: Record<string, number>
     }
@@ -27,12 +31,21 @@ interface AdminStats {
         average_ticket: number
         currency: string
         gross_volume?: number
+        escrow_active?: number
         month_income?: number
         month_expenses?: number
         month_net_profit?: number
         accounting_connected?: boolean
     }
     recovery: {
+        total: number
+        active: number
+    }
+    quick_mechanics?: {
+        total: number
+        active: number
+    }
+    installations?: {
         total: number
         active: number
     }
@@ -44,26 +57,55 @@ interface TimelineEntry {
     revenue: number
 }
 
+interface RecentServiceItem {
+    id: string
+    title: string
+    service_type: string
+    status: string
+    service_address: string
+    estimated_price: number | null
+    vehicle_plate: string | null
+    client_name: string | null
+    technician_name: string | null
+    created_at: string
+}
+
+function formatCOP(amount: number): string {
+    if (amount >= 1_000_000) {
+        return `$${(amount / 1_000_000).toFixed(1)}M COP`
+    }
+    return `$${Math.round(amount).toLocaleString("es-CO")} COP`
+}
+
 export default function AdminOverview() {
     const [stats, setStats] = useState<AdminStats | null>(null)
     const [timeline, setTimeline] = useState<TimelineEntry[]>([])
+    const [recentServices, setRecentServices] = useState<RecentServiceItem[]>([])
+    const [dispatchAnalytics, setDispatchAnalytics] = useState<DispatchAnalytics | null>(null)
     const [loading, setLoading] = useState(true)
+    const [refreshing, setRefreshing] = useState(false)
+
+    const fetchAll = async () => {
+        try {
+            const [statsRes, timelineRes, servicesRes, dispatchRes] = await Promise.allSettled([
+                api.get("/admin/stats"),
+                api.get("/admin/stats/timeline?weeks=12"),
+                api.get("/admin/services?limit=6"),
+                getDispatchAnalytics(30),
+            ])
+            if (statsRes.status === "fulfilled") setStats(statsRes.value.data)
+            if (timelineRes.status === "fulfilled") setTimeline(timelineRes.value.data.timeline || [])
+            if (servicesRes.status === "fulfilled") setRecentServices(servicesRes.value.data.items || [])
+            if (dispatchRes.status === "fulfilled") setDispatchAnalytics(dispatchRes.value)
+        } catch (error) {
+            console.error("Error fetching admin stats:", error)
+        } finally {
+            setLoading(false)
+            setRefreshing(false)
+        }
+    }
 
     useEffect(() => {
-        const fetchAll = async () => {
-            try {
-                const [statsRes, timelineRes] = await Promise.allSettled([
-                    api.get("/admin/stats"),
-                    api.get("/admin/stats/timeline?weeks=12"),
-                ])
-                if (statsRes.status === "fulfilled") setStats(statsRes.value.data)
-                if (timelineRes.status === "fulfilled") setTimeline(timelineRes.value.data.timeline || [])
-            } catch (error) {
-                console.error("Error fetching admin stats:", error)
-            } finally {
-                setLoading(false)
-            }
-        }
         fetchAll()
     }, [])
 
@@ -78,30 +120,79 @@ export default function AdminOverview() {
         )
     }
 
-    const m = stats || {
-        users: { total: 1428, clients: 1280, technicians: 124, reaction_team: 24 },
-        services: { total: 1968, completed: 1840, completion_rate: "98.2%", by_status: { in_progress: 128 } },
-        revenue: { total: 42800000, average_ticket: 320000, currency: "COP", gross_volume: 42800000, accounting_connected: true },
-        recovery: { total: 48, active: 0 },
+    const m: AdminStats = stats || {
+        users: { total: 0, clients: 0, technicians: 0, reaction_team: 0, pending_verifications: 0 },
+        services: { total: 0, completed: 0, active: 0, completion_rate: "0%", by_status: {} },
+        revenue: { total: 0, average_ticket: 0, currency: "COP", gross_volume: 0, escrow_active: 0, accounting_connected: false },
+        recovery: { total: 0, active: 0 },
+        quick_mechanics: { total: 0, active: 0 },
+        installations: { total: 0, active: 0 },
     }
 
-    // Normalized timeline with fallback to realistic data if empty
-    const displayTimeline = timeline.length > 0 ? timeline : [
-        { week: "2026-08-11", services: 42, revenue: 13440000 },
-        { week: "2026-08-18", services: 48, revenue: 15360000 },
-        { week: "2026-08-25", services: 52, revenue: 16640000 },
-        { week: "2026-09-01", services: 59, revenue: 18880000 },
-        { week: "2026-09-08", services: 64, revenue: 20480000 },
-        { week: "2026-09-15", services: 71, revenue: 22720000 },
-        { week: "2026-09-22", services: 78, revenue: 24960000 },
-        { week: "2026-09-29", services: 85, revenue: 27200000 },
-        { week: "2026-10-06", services: 92, revenue: 29440000 },
-        { week: "2026-10-13", services: 104, revenue: 33280000 },
-        { week: "2026-10-20", services: 116, revenue: 37120000 },
-        { week: "2026-10-27", services: 128, revenue: 42800000 },
-    ]
+    const activeServicesCount =
+        m.services.active ??
+        Object.entries(m.services.by_status || {})
+            .filter(([st]) => !["completed", "confirmed", "cancelled"].includes(st))
+            .reduce((acc, [, count]) => acc + count, 0)
 
+    const totalServicesCount = Math.max(m.services.total, 0)
+    const recoveryTotal = m.recovery?.total ?? 0
+    const mechanicsTotal = m.quick_mechanics?.total ?? 0
+    const installationsTotal = m.installations?.total ?? Math.max(0, totalServicesCount - recoveryTotal - mechanicsTotal)
+
+    const instSharePct = totalServicesCount > 0 ? Math.round((installationsTotal / totalServicesCount) * 100) : 0
+    const reacSharePct = totalServicesCount > 0 ? Math.round((recoveryTotal / totalServicesCount) * 100) : 0
+    const mecSharePct = totalServicesCount > 0 ? Math.max(0, 100 - instSharePct - reacSharePct) : 0
+
+    const grossVolume = m.revenue.gross_volume ?? m.revenue.total ?? 0
+    const escrowActive = m.revenue.escrow_active ?? 0
+    const avgTicket = m.revenue.average_ticket > 0 ? m.revenue.average_ticket : 0
+
+    // Timeline growth vs previous week
+    const displayTimeline = timeline
     const maxServices = Math.max(...displayTimeline.map(t => t.services), 1)
+    const lastWeekServices = displayTimeline.length >= 1 ? displayTimeline[displayTimeline.length - 1].services : 0
+    const prevWeekServices = displayTimeline.length >= 2 ? displayTimeline[displayTimeline.length - 2].services : 0
+    const weeklyDeltaPct =
+        prevWeekServices > 0
+            ? (((lastWeekServices - prevWeekServices) / prevWeekServices) * 100).toFixed(1)
+            : lastWeekServices > 0
+            ? "+100.0"
+            : "0.0"
+
+    const handleDownloadReportCSV = () => {
+        const rows = [
+            ["Metrica", "Valor"],
+            ["Total Usuarios", String(m.users.total)],
+            ["Clientes", String(m.users.clients)],
+            ["Tecnicos Certificados Tec360", String(m.users.technicians)],
+            ["Equipo Reaccion 24/7", String(m.users.reaction_team)],
+            ["Verificaciones Pendientes", String(m.users.pending_verifications ?? 0)],
+            ["Total Servicios", String(m.services.total)],
+            ["Servicios Completados/Confirmados", String(m.services.completed)],
+            ["Servicios Activos en Curso", String(activeServicesCount)],
+            ["Tasa de Exito", m.services.completion_rate],
+            ["Instalaciones Vehiculares", String(installationsTotal)],
+            ["Reaccion Inmediata 24/7", String(recoveryTotal)],
+            ["Mecanica Express", String(mechanicsTotal)],
+            ["Volumen Bruto Completado (COP)", String(grossVolume)],
+            ["Custodia Activa Escrow (COP)", String(escrowActive)],
+            ["Comision / Ingreso Plataforma (COP)", String(m.revenue.total)],
+            ["Ticket Promedio (COP)", String(Math.round(avgTicket))],
+            [],
+            ["Semana", "Servicios", "Volumen COP"],
+            ...displayTimeline.map((t) => [t.week, String(t.services), String(t.revenue)]),
+        ]
+        const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + rows.map((r) => r.join(",")).join("\n")
+        const encodedUri = encodeURI(csvContent)
+        const link = document.createElement("a")
+        link.setAttribute("href", encodedUri)
+        link.setAttribute("download", `tec360_reporte_ejecutivo_${new Date().toISOString().slice(0, 10)}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        toast.success("Reporte ejecutivo CSV descargado")
+    }
 
     return (
         <div className="space-y-6 font-sans">
@@ -115,18 +206,37 @@ export default function AdminOverview() {
                         Monitoreo central en tiempo real de usuarios, custodia de fondos Escrow y velocidad operativa
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <span className="px-3 py-1.5 rounded-xl bg-[#0B1736] border border-[#1E3A8A] text-[#93C5FD] text-xs font-mono font-semibold flex items-center gap-2 shadow-sm">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        ⚡ MOTOR DISPATCH V2 · DIAN 100%
-                    </span>
+                <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setRefreshing(true)
+                            fetchAll()
+                        }}
+                        disabled={refreshing}
+                        className="px-3 py-1.5 rounded-xl bg-[#0B132B] hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-mono font-semibold flex items-center gap-1.5 transition-all"
+                    >
+                        <RefreshCw className={`w-3.5 h-3.5 text-blue-400 ${refreshing ? "animate-spin" : ""}`} />
+                        <span>Actualizar</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleDownloadReportCSV}
+                        className="px-3 py-1.5 rounded-xl bg-[#0B1736] hover:bg-[#102456] border border-[#1E3A8A] text-[#93C5FD] text-xs font-mono font-semibold flex items-center gap-2 shadow-sm transition-all"
+                    >
+                        <Download className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Descargar Reporte CSV</span>
+                    </button>
                 </div>
             </div>
 
             {/* ─── Top 4 Executive KPI Cards Matrix ─── */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
                 {/* KPI 1: Total Usuarios */}
-                <div className="bg-[#0B132B] border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-md">
+                <Link
+                    href="/admin/usuarios"
+                    className="bg-[#0B132B] border border-slate-800/80 hover:border-blue-500/40 rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-md transition-colors block"
+                >
                     <div className="flex items-center justify-between text-slate-400 mb-2">
                         <span className="text-[10px] sm:text-[11px] font-mono font-semibold tracking-wider text-slate-300 flex items-center gap-1.5">
                             <Users className="w-3.5 h-3.5 text-blue-400" /> TOTAL USUARIOS ACTIVOS
@@ -140,10 +250,13 @@ export default function AdminOverview() {
                     <p className="text-[10px] sm:text-[11px] font-mono text-slate-400 mt-1.5 truncate">
                         {m.users.clients} Clientes · {m.users.technicians} Especialistas · {m.users.reaction_team} Reacción
                     </p>
-                </div>
+                </Link>
 
                 {/* KPI 2: Tasa de Éxito Servicios */}
-                <div className="bg-[#0B132B] border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-md">
+                <Link
+                    href="/admin/servicios"
+                    className="bg-[#0B132B] border border-slate-800/80 hover:border-sky-500/40 rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-md transition-colors block"
+                >
                     <div className="flex items-center justify-between text-slate-400 mb-2">
                         <span className="text-[10px] sm:text-[11px] font-mono font-semibold tracking-wider text-slate-300 flex items-center gap-1.5">
                             <CheckCircle className="w-3.5 h-3.5 text-sky-400" /> TASA DE ÉXITO SERVICIOS
@@ -155,43 +268,51 @@ export default function AdminOverview() {
                         </span>
                     </div>
                     <p className="text-[10px] sm:text-[11px] font-mono text-slate-400 mt-1.5 truncate">
-                        128 Activos en vivo · {m.services.completed} Completados
+                        {activeServicesCount} Activos en vivo · {m.services.completed} Completados ({m.services.total} total)
                     </p>
-                </div>
+                </Link>
 
                 {/* KPI 3: Volumen Escrow */}
-                <div className="bg-[#0B132B] border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-md">
+                <Link
+                    href="/admin/finanzas"
+                    className="bg-[#0B132B] border border-slate-800/80 hover:border-amber-500/40 rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-md transition-colors block"
+                >
                     <div className="flex items-center justify-between text-slate-400 mb-2">
                         <span className="text-[10px] sm:text-[11px] font-mono font-semibold tracking-wider text-slate-300 flex items-center gap-1.5">
-                            <Lock className="w-3.5 h-3.5 text-amber-400" /> VOLUMEN MENSUAL ESCROW
+                            <Lock className="w-3.5 h-3.5 text-amber-400" /> VOLUMEN OPERATIVO ESCROW
                         </span>
                     </div>
                     <div className="flex items-baseline gap-2">
                         <span className="text-2xl sm:text-3xl font-black font-mono text-amber-400">
-                            ${(m.revenue.total / 1000000).toFixed(1)}M COP
+                            {formatCOP(grossVolume)}
                         </span>
                     </div>
                     <p className="text-[10px] sm:text-[11px] font-mono text-slate-400 mt-1.5 truncate">
-                        $18.4M en Custodia · $24.4M Recaudado Wompi
+                        En custodia: ${Math.round(escrowActive).toLocaleString("es-CO")} · Comisión: ${Math.round(m.revenue.total).toLocaleString("es-CO")}
                     </p>
-                </div>
+                </Link>
 
-                {/* KPI 4: Reacción 24/7 */}
-                <div className="bg-[#0B132B] border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-md">
+                {/* KPI 4: Reacción 24/7 & Despacho */}
+                <Link
+                    href="/admin/servicios"
+                    className="bg-[#0B132B] border border-slate-800/80 hover:border-rose-500/40 rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-md transition-colors block"
+                >
                     <div className="flex items-center justify-between text-slate-400 mb-2">
                         <span className="text-[10px] sm:text-[11px] font-mono font-semibold tracking-wider text-slate-300 flex items-center gap-1.5">
-                            <AlertTriangle className="w-3.5 h-3.5 text-rose-400" /> TIEMPO RESPUESTA REACCIÓN
+                            <AlertTriangle className="w-3.5 h-3.5 text-rose-400" /> REACCIÓN 24/7 & DESPACHO
                         </span>
                     </div>
                     <div className="flex items-baseline gap-2">
                         <span className="text-2xl sm:text-3xl font-black font-mono text-rose-400">
-                            42 seg
+                            {dispatchAnalytics?.assignment_p50_seconds !== null && dispatchAnalytics?.assignment_p50_seconds !== undefined
+                                ? `${Math.round(dispatchAnalytics.assignment_p50_seconds)} seg`
+                                : `${m.recovery.active} activas`}
                         </span>
                     </div>
                     <p className="text-[10px] sm:text-[11px] font-mono text-slate-400 mt-1.5 truncate">
-                        {"Meta < 45s · 0 incidentes sin atender · Escuadrón"}
+                        {m.recovery.active} incidentes activos · {m.recovery.total} alertas registradas
                     </p>
-                </div>
+                </Link>
             </div>
 
             {/* ─── Middle Grid: Chart + Pillars Breakdown ─── */}
@@ -205,76 +326,87 @@ export default function AdminOverview() {
                                 Evolución Semanal de Servicios y Volumen Operativo
                             </h3>
                             <p className="text-xs font-mono text-slate-400 mt-0.5">
-                                Métricas consolidadas por los 3 pilares operativos de Tec360
+                                Métricas históricas reales registradas en los últimos 3 meses
                             </p>
                         </div>
                         <span className="px-3 py-1 rounded-lg bg-[#064E3B] border border-[#059669] text-[#6EE7B7] text-xs font-mono font-bold self-start sm:self-auto">
-                            ▲ +28.4% vs mes anterior
+                            {Number(weeklyDeltaPct) >= 0 ? `▲ +${weeklyDeltaPct.replace("+", "")}%` : `▼ ${weeklyDeltaPct}%`} vs sem. previa
                         </span>
                     </div>
 
                     {/* Chart container */}
-                    <div className="h-56 flex items-end gap-2 pt-4 pb-2 border-b border-slate-800/80">
-                        {displayTimeline.map((entry, i) => {
-                            const totalHeightPct = (entry.services / maxServices) * 100
-                            const instPct = totalHeightPct * 0.58
-                            const mecPct = totalHeightPct * 0.28
-                            const reacPct = totalHeightPct * 0.14
-                            const isCurrent = i === displayTimeline.length - 1
+                    {displayTimeline.length === 0 ? (
+                        <div className="h-56 flex flex-col items-center justify-center border-b border-slate-800/80 text-xs font-mono text-slate-500">
+                            No hay servicios registrados en las últimas 12 semanas.
+                        </div>
+                    ) : (
+                        <div className="h-56 flex items-end gap-2 pt-4 pb-2 border-b border-slate-800/80">
+                            {displayTimeline.map((entry, i) => {
+                                const totalHeightPx = Math.max(Math.round((entry.services / maxServices) * 160), 16)
+                                const instRatio = totalServicesCount > 0 ? installationsTotal / totalServicesCount : 0.6
+                                const mecRatio = totalServicesCount > 0 ? mechanicsTotal / totalServicesCount : 0.25
+                                const reacRatio = Math.max(0, 1 - instRatio - mecRatio)
 
-                            return (
-                                <div
-                                    key={i}
-                                    className="flex-1 flex flex-col items-center justify-end h-full group relative cursor-pointer"
-                                    title={`Semana ${i + 1}: ${entry.services} servicios ($${entry.revenue.toLocaleString("es-CO")} COP)`}
-                                >
-                                    {/* Tooltip on hover */}
-                                    <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-950 border border-slate-700 px-2 py-1 rounded text-[10px] font-mono text-slate-200 pointer-events-none whitespace-nowrap z-20 shadow-xl">
-                                        <strong>{entry.services} ops</strong> · ${(entry.revenue / 1000000).toFixed(1)}M
+                                const reacPx = Math.max(Math.round(totalHeightPx * reacRatio), entry.services > 0 && recoveryTotal > 0 ? 4 : 0)
+                                const mecPx = Math.max(Math.round(totalHeightPx * mecRatio), entry.services > 0 && mechanicsTotal > 0 ? 4 : 0)
+                                const instPx = Math.max(totalHeightPx - reacPx - mecPx, 8)
+                                const isCurrent = i === displayTimeline.length - 1
+
+                                return (
+                                    <div
+                                        key={entry.week}
+                                        className="flex-1 flex flex-col items-center justify-end h-full group relative cursor-pointer"
+                                        title={`Semana ${entry.week}: ${entry.services} servicios ($${entry.revenue.toLocaleString("es-CO")} COP)`}
+                                    >
+                                        {/* Tooltip on hover */}
+                                        <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-950 border border-slate-700 px-2 py-1 rounded text-[10px] font-mono text-slate-200 pointer-events-none whitespace-nowrap z-20 shadow-xl">
+                                            <strong>{entry.services} ops</strong> · ${entry.revenue.toLocaleString("es-CO")}
+                                        </div>
+
+                                        {/* Stacked Pillar Bars */}
+                                        <div className="w-full max-w-[36px] flex flex-col items-center gap-0.5 transition-transform duration-200 group-hover:scale-y-105 origin-bottom">
+                                            {reacPx > 0 && (
+                                                <div
+                                                    className="w-full rounded-t-sm bg-[#E11D48] shadow-sm shadow-rose-500/20"
+                                                    style={{ height: `${reacPx}px` }}
+                                                />
+                                            )}
+                                            {mecPx > 0 && (
+                                                <div
+                                                    className="w-full bg-[#F59E0B] shadow-sm shadow-amber-500/20"
+                                                    style={{ height: `${mecPx}px` }}
+                                                />
+                                            )}
+                                            <div
+                                                className="w-full rounded-b-sm bg-[#2563EB] shadow-sm shadow-blue-500/20"
+                                                style={{ height: `${instPx}px` }}
+                                            />
+                                        </div>
+
+                                        <span className={`text-[9px] font-mono mt-2 truncate max-w-full ${
+                                            isCurrent ? "text-sky-400 font-bold" : "text-slate-500"
+                                        }`}>
+                                            {entry.week.slice(5)}
+                                        </span>
                                     </div>
-
-                                    {/* Stacked Pillar Bars */}
-                                    <div className="w-full max-w-[36px] flex flex-col items-center gap-0.5 transition-transform duration-200 group-hover:scale-y-105 origin-bottom">
-                                        {/* Reacción (Carmine) */}
-                                        <div
-                                            className="w-full rounded-t-sm bg-[#E11D48] shadow-sm shadow-rose-500/20"
-                                            style={{ height: `${Math.max(reacPct, 3)}px` }}
-                                        />
-                                        {/* Mecánica (Amber) */}
-                                        <div
-                                            className="w-full bg-[#F59E0B] shadow-sm shadow-amber-500/20"
-                                            style={{ height: `${Math.max(mecPct, 5)}px` }}
-                                        />
-                                        {/* Instalaciones (Blue) */}
-                                        <div
-                                            className="w-full rounded-b-sm bg-[#2563EB] shadow-sm shadow-blue-500/20"
-                                            style={{ height: `${Math.max(instPct, 12)}px` }}
-                                        />
-                                    </div>
-
-                                    <span className={`text-[9px] font-mono mt-2 truncate max-w-full ${
-                                        isCurrent ? "text-sky-400 font-bold" : "text-slate-500"
-                                    }`}>
-                                        S{i + 1}
-                                    </span>
-                                </div>
-                            )
-                        })}
-                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
 
                     <div className="flex items-center justify-between pt-3 text-[11px] font-mono text-slate-400">
-                        <div className="flex items-center gap-4">
+                        <div className="flex flex-wrap items-center gap-4">
                             <span className="flex items-center gap-1.5">
-                                <span className="w-2.5 h-2.5 rounded-sm bg-[#2563EB]" /> Instalaciones (58%)
+                                <span className="w-2.5 h-2.5 rounded-sm bg-[#2563EB]" /> Instalaciones ({instSharePct}%)
                             </span>
                             <span className="flex items-center gap-1.5">
-                                <span className="w-2.5 h-2.5 rounded-sm bg-[#F59E0B]" /> Mecánica (28%)
+                                <span className="w-2.5 h-2.5 rounded-sm bg-[#F59E0B]" /> Mecánica ({mecSharePct}%)
                             </span>
                             <span className="flex items-center gap-1.5">
-                                <span className="w-2.5 h-2.5 rounded-sm bg-[#E11D48]" /> Reacción 24/7 (14%)
+                                <span className="w-2.5 h-2.5 rounded-sm bg-[#E11D48]" /> Reacción 24/7 ({reacSharePct}%)
                             </span>
                         </div>
-                        <span className="text-slate-500 hidden sm:inline">12 Semanas Consolidadas</span>
+                        <span className="text-slate-500 hidden sm:inline">{displayTimeline.length} Semanas con Actividad</span>
                     </div>
                 </div>
 
@@ -286,7 +418,7 @@ export default function AdminOverview() {
                             Demanda por Pilar Operativo
                         </h3>
                         <p className="text-xs font-mono text-slate-400 mt-0.5">
-                            Aislamiento cromático y distribución de ingresos
+                            Distribución real en base de datos ({totalServicesCount} servicios totales)
                         </p>
                     </div>
 
@@ -295,12 +427,12 @@ export default function AdminOverview() {
                         <div className="p-3.5 rounded-xl bg-[#0B1736] border border-[#1E3A8A] space-y-1">
                             <div className="flex items-center justify-between">
                                 <span className="text-xs font-mono font-bold text-[#93C5FD]">
-                                    🛰️ INSTALACIONES VEHICULARES (58%)
+                                    🛰️ INSTALACIONES VEHICULARES ({instSharePct}%)
                                 </span>
-                                <span className="text-[10px] font-mono text-blue-400 font-bold">74 ops</span>
+                                <span className="text-[10px] font-mono text-blue-400 font-bold">{installationsTotal} ops</span>
                             </div>
                             <p className="text-[11px] font-mono text-[#BFDBFE]">
-                                Ticket $320.000 COP · ★ 4.95 Técnico Certificado Tec360
+                                {m.installations?.active ?? 0} activas · Ticket prom. ${Math.round(avgTicket).toLocaleString("es-CO")} COP
                             </p>
                         </div>
 
@@ -308,12 +440,12 @@ export default function AdminOverview() {
                         <div className="p-3.5 rounded-xl bg-[#200A14] border border-[#4C0519] space-y-1">
                             <div className="flex items-center justify-between">
                                 <span className="text-xs font-mono font-bold text-[#FDA4AF]">
-                                    🚨 REACCIÓN INMEDIATA 24/7 (14%)
+                                    🚨 REACCIÓN INMEDIATA 24/7 ({reacSharePct}%)
                                 </span>
-                                <span className="text-[10px] font-mono text-rose-400 font-bold">18 ops</span>
+                                <span className="text-[10px] font-mono text-rose-400 font-bold">{recoveryTotal} ops</span>
                             </div>
                             <p className="text-[11px] font-mono text-[#FECDD3]">
-                                {"Arribo < 8 min · ★ 5.0 Escuadrón Motorizado Rápido"}
+                                {m.recovery.active} activas en calle · {m.users.reaction_team} agentes de reacción
                             </p>
                         </div>
 
@@ -321,12 +453,12 @@ export default function AdminOverview() {
                         <div className="p-3.5 rounded-xl bg-[#241908] border border-[#451A03] space-y-1">
                             <div className="flex items-center justify-between">
                                 <span className="text-xs font-mono font-bold text-[#FDE68A]">
-                                    🧰 MECÁNICA EXPRESS (28%)
+                                    🧰 MECÁNICA EXPRESS ({mecSharePct}%)
                                 </span>
-                                <span className="text-[10px] font-mono text-amber-400 font-bold">36 ops</span>
+                                <span className="text-[10px] font-mono text-amber-400 font-bold">{mechanicsTotal} ops</span>
                             </div>
                             <p className="text-[11px] font-mono text-[#FEF08A]">
-                                Repuestos en mano · ★ 4.90 Técnico Certificado Tec360
+                                {m.quick_mechanics?.active ?? 0} activas · {m.users.technicians} Técnicos Certificados Tec360
                             </p>
                         </div>
                     </div>
@@ -343,85 +475,76 @@ export default function AdminOverview() {
                 </div>
             </div>
 
-            {/* ─── Bottom Section: Live Audit Feed (FigCraft Board 11) ─── */}
+            {/* ─── Bottom Section: Live Audit Feed (Real Services from DB) ─── */}
             <div className="bg-[#080F24] border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl backdrop-blur-xl space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
                         <h3 className="text-sm sm:text-base font-bold text-slate-100 flex items-center gap-2">
                             <Clock className="w-4 h-4 text-amber-400" />
-                            Actividad Operativa en Tiempo Real & Auditoría Escrow
+                            Actividad Operativa Reciente & Auditoría Escrow
                         </h3>
                         <p className="text-xs font-mono text-slate-400 mt-0.5">
-                            Registro inmutable de hitos operativos, alertas de reacción y recaudos financieros Wompi / DIAN
+                            Últimos servicios reales registrados en la plataforma (haz clic en cualquiera para abrir su expediente)
                         </p>
                     </div>
                     <span className="text-[11px] font-mono text-emerald-400 flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                        Sincronización en Vivo
+                        Sincronizado con Base de Datos
                     </span>
                 </div>
 
-                <div className="space-y-2.5">
-                    {/* Event 1: Escrow Liberado */}
-                    <div className="p-3.5 rounded-xl bg-[#0B1736] border border-[#1E3A8A] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono">
-                        <div className="flex items-center gap-2 text-[#93C5FD]">
-                            <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold text-[10px]">
-                                🔒 ESCROW LIBERADO
-                            </span>
-                            <span>
-                                Servicio <strong>#SRV-101</strong> (Mazda CX-30 · <span className="text-white bg-slate-950 px-1 py-0.5 rounded border border-slate-700">KLS-842</span>) completado por Carlos Mendoza (★ 4.95 · Técnico Certificado Tec360).
-                            </span>
-                        </div>
-                        <span className="text-emerald-400 font-bold shrink-0">
-                            +$320.000 COP · DIAN Validado
-                        </span>
+                {recentServices.length === 0 ? (
+                    <div className="p-6 rounded-xl bg-[#070D1E] border border-slate-800 text-center text-xs font-mono text-slate-400">
+                        No hay servicios registrados todavía.
                     </div>
+                ) : (
+                    <div className="space-y-2.5">
+                        {recentServices.map((svc) => {
+                            const isRecovery = svc.service_type === "vehicle_recovery"
+                            const isMechanics = [
+                                "oil_change", "tire_change", "battery_service",
+                                "brake_service", "chain_kit_service", "spark_bulbs_wipers"
+                            ].includes(svc.service_type)
+                            const boxStyle = isRecovery
+                                ? "bg-[#200A14] border-[#4C0519] text-[#FDA4AF]"
+                                : isMechanics
+                                ? "bg-[#241908] border-[#451A03] text-[#FDE68A]"
+                                : "bg-[#0B1736] border-[#1E3A8A] text-[#93C5FD]"
 
-                    {/* Event 2: Despacho Ola 1 */}
-                    <div className="p-3.5 rounded-xl bg-[#200A14] border border-[#4C0519] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono">
-                        <div className="flex items-center gap-2 text-[#FDA4AF]">
-                            <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold text-[10px]">
-                                🚨 DESPACHO OLA 1
-                            </span>
-                            <span>
-                                Alerta de Reacción <strong>#SRV-102</strong> (Toyota Prado · <span className="text-white bg-slate-950 px-1 py-0.5 rounded border border-slate-700">UYT-109</span>) asignada en 38s a Escuadrón Patrulla Delta 4.
-                            </span>
-                        </div>
-                        <span className="text-rose-300 font-bold shrink-0">
-                            {"Arribo estimado < 6 min"}
-                        </span>
+                            return (
+                                <Link
+                                    key={svc.id}
+                                    href={`/admin/servicios?search=${encodeURIComponent(svc.vehicle_plate || svc.id.slice(0, 8))}`}
+                                    className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono hover:brightness-110 transition-all block ${boxStyle}`}
+                                >
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="px-2 py-0.5 rounded bg-black/30 font-bold text-[10px] uppercase">
+                                            {svc.status}
+                                        </span>
+                                        <span>
+                                            <strong>#{svc.id.slice(0, 8)}</strong> · {svc.title}
+                                            {svc.vehicle_plate && (
+                                                <>
+                                                    {" "}·{" "}
+                                                    <span className="text-white bg-slate-950 px-1.5 py-0.5 rounded border border-slate-700">
+                                                        {svc.vehicle_plate}
+                                                    </span>
+                                                </>
+                                            )}
+                                            {" "}— Cliente: <strong>{svc.client_name || "Titular Tec360"}</strong>
+                                            {svc.technician_name && (
+                                                <> · Especialista: <strong>{svc.technician_name}</strong></>
+                                            )}
+                                        </span>
+                                    </div>
+                                    <span className="text-emerald-400 font-bold shrink-0">
+                                        {svc.estimated_price ? `$${svc.estimated_price.toLocaleString("es-CO")} COP` : "Por cotizar"}
+                                    </span>
+                                </Link>
+                            )
+                        })}
                     </div>
-
-                    {/* Event 3: Mecánica en Sitio */}
-                    <div className="p-3.5 rounded-xl bg-[#241908] border border-[#451A03] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono">
-                        <div className="flex items-center gap-2 text-[#FDE68A]">
-                            <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold text-[10px]">
-                                🧰 MECÁNICA EN SITIO
-                            </span>
-                            <span>
-                                Servicio <strong>#SRV-103</strong> (Tracker · <span className="text-white bg-slate-950 px-1 py-0.5 rounded border border-slate-700">WZX-332</span>) en ejecución por Diego Patiño (★ 4.80 · Técnico Certificado Tec360).
-                            </span>
-                        </div>
-                        <span className="text-amber-300 font-bold shrink-0">
-                            Repuestos Validados
-                        </span>
-                    </div>
-
-                    {/* Event 4: Factura DIAN */}
-                    <div className="p-3.5 rounded-xl bg-[#070D1E] border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono">
-                        <div className="flex items-center gap-2 text-slate-300">
-                            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-bold text-[10px]">
-                                🧾 FACTURA ELECTRÓNICA
-                            </span>
-                            <span>
-                                CUFE generado para Distribuidora Antioquia SAS por <strong>$450.000 COP</strong> con retención en la fuente aplicada.
-                            </span>
-                        </div>
-                        <span className="text-slate-400 font-bold shrink-0">
-                            Sincronizado DIAN
-                        </span>
-                    </div>
-                </div>
+                )}
 
                 <div className="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10px] font-mono text-slate-500">
                     <span>🔒 Centro de Control Central Tec360 v3.0 · Custodia Escrow · Red de Especialistas Certificados Tec360</span>

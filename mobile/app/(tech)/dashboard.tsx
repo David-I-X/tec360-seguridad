@@ -59,6 +59,8 @@ export default function TechDashboardScreen() {
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'installations' | 'mechanics'>('all');
   const [showBasicCoursesModal, setShowBasicCoursesModal] = useState(false);
+  const [coursesModalMode, setCoursesModalMode] = useState<'intro' | 'gate'>('intro');
+  const [canOperateCourses, setCanOperateCourses] = useState<boolean>(true);
 
   // Estados de despacho inteligente en vivo
   const [dispatchOffers, setDispatchOffers] = useState<DispatchOffer[]>([]);
@@ -118,6 +120,11 @@ export default function TechDashboardScreen() {
   }, [loadDispatch, isOnline]);
 
   const handleAcceptOffer = async (offerId: string) => {
+    if (!canOperateCourses && user?.role !== 'reaction_team') {
+      setCoursesModalMode('gate');
+      setShowBasicCoursesModal(true);
+      return;
+    }
     try {
       setIsDispatchProcessing(true);
       const res = await acceptDispatchOffer(offerId);
@@ -130,6 +137,11 @@ export default function TechDashboardScreen() {
       load();
       loadDispatch();
     } catch (e: any) {
+      if (e?.message?.includes('COURSE_REQUIRED')) {
+        setCoursesModalMode('gate');
+        setShowBasicCoursesModal(true);
+        return;
+      }
       Alert.alert('No se pudo tomar la oferta', e.message || 'La oferta pudo expirar o fue tomada por otro técnico.');
       loadDispatch();
     } finally {
@@ -216,11 +228,18 @@ export default function TechDashboardScreen() {
         }
       } catch (_) {}
 
-      // Active course in Escuela Tec
+      // Active course in Escuela Tec & onboarding gate status
       try {
-        const courses = await getMyCoursesList();
+        const [courses, gateRes] = await Promise.all([
+          getMyCoursesList().catch(() => []),
+          fetchWithAuth('/courses/onboarding-status').catch(() => null),
+        ]);
         const uncompleted = (courses || []).find((c: any) => !c.quiz_passed) || (courses || [])[0];
         setActiveCourse(uncompleted || null);
+        if (gateRes && gateRes.ok) {
+          const gateData = await gateRes.json();
+          setCanOperateCourses(Boolean(gateData.can_operate));
+        }
       } catch (_) {}
     } catch (e) { console.error(e); }
     finally { setIsLoading(false); setRefreshing(false); }
@@ -229,6 +248,11 @@ export default function TechDashboardScreen() {
   useEffect(() => { load(); }, [load]);
 
   const handleAcceptService = async (serviceId: string) => {
+    if (!canOperateCourses && user?.role !== 'reaction_team') {
+      setCoursesModalMode('gate');
+      setShowBasicCoursesModal(true);
+      return;
+    }
     setAcceptingId(serviceId);
     try {
       const res = await fetchWithAuth(`/services/${serviceId}/accept`, { method: 'POST' });
@@ -239,6 +263,11 @@ export default function TechDashboardScreen() {
       load(); // Reload
       Alert.alert('¡Servicio Aceptado!', 'El servicio ha sido asignado a tu cuenta.');
     } catch (e: any) {
+      if (e?.message?.includes('COURSE_REQUIRED')) {
+        setCoursesModalMode('gate');
+        setShowBasicCoursesModal(true);
+        return;
+      }
       Alert.alert('No se pudo aceptar', e.message || 'Error al aceptar el servicio');
     } finally {
       setAcceptingId(null);
@@ -607,6 +636,7 @@ export default function TechDashboardScreen() {
         onDismiss={handleDismissIntroModal}
         onStartCourse={handleStartIntroCourse}
         onViewAllCourses={handleViewAllIntroCourses}
+        mode={coursesModalMode}
       />
     </View>
   );

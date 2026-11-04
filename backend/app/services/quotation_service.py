@@ -77,9 +77,17 @@ class QuotationService:
         if existing:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ya enviaste una cotización para este servicio")
         
-        # 4. Obtener info del técnico
+        # 4. Obtener info del técnico y validar curso obligatorio / validación admin
         technician = session.get(User, tech_uuid)
         tech_profile = _get_technician_profile(session, tech_uuid)
+
+        from app.api.courses import get_technician_course_gate_status
+        course_gate = get_technician_course_gate_status(session, str(tech_uuid))
+        if not course_gate["can_operate"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="COURSE_REQUIRED: Debes realizar primero el curso obligatorio en Escuela Tec360 antes de aceptar o cotizar un trabajo."
+            )
         
         # 5. Crear cotización
         expires_at = None

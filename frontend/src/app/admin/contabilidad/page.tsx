@@ -18,7 +18,8 @@ import {
     ShieldCheck,
     ArrowDownRight,
     ArrowUpRight,
-    Lock
+    Lock,
+    Search
 } from "lucide-react"
 import api from "@/lib/api"
 
@@ -159,26 +160,22 @@ export default function ContabilidadPage() {
     const [refreshing, setRefreshing] = useState(false)
     const [tenant, setTenant] = useState<TenantInfo | null>({ id: 1, name: "Tec360 Seguridad S.A.S.", plan: "ENTERPRISE", is_active: true })
     const [accounting, setAccounting] = useState<AccountingDashboard>({
-        month_income: 42800000,
-        month_expenses: 14200000,
-        month_net_profit: 28600000,
+        month_income: 0,
+        month_expenses: 0,
+        month_net_profit: 0,
         is_profitable: true,
-        income_count: 128,
-        expense_count: 18,
-        expenses_by_category: [
-            { category: "repuestos y hardware gps", total: 6800000, percentage: 48, count: 8 },
-            { category: "infraestructura nube y sockets", total: 4200000, percentage: 30, count: 4 },
-            { category: "combustible y patrullas reacción", total: 2400000, percentage: 17, count: 4 },
-            { category: "servicios bancarios y pasarela", total: 800000, percentage: 5, count: 2 },
-        ],
+        income_count: 0,
+        expense_count: 0,
+        expenses_by_category: [],
     })
     const [invoices, setInvoices] = useState<DianInvoice[]>([])
     const [entries, setEntries] = useState<AccountingEntry[]>([])
     const [contacts, setContacts] = useState<SyncedContact[]>([])
 
-    // Active Tab
+    // Active Tab & Search
     const [activeTab, setActiveTab] = useState<"invoices" | "ledger" | "contacts" | "pnl">("invoices")
     const [invoiceFilter, setInvoiceFilter] = useState<string>("all")
+    const [searchQuery, setSearchQuery] = useState("")
     const [copiedCufe, setCopiedCufe] = useState<string | null>(null)
 
     // Modal state for Expense
@@ -190,39 +187,63 @@ export default function ContabilidadPage() {
     const [savingExpense, setSavingExpense] = useState(false)
     const [expenseFeedback, setExpenseFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const urlParams = new URLSearchParams(window.location.search)
+            const q = urlParams.get("search")
+            if (q) setSearchQuery(q)
+        }
+    }, [])
+
     const fetchData = async () => {
         try {
-            const [dashRes, invRes, entriesRes, contactsRes] = await Promise.allSettled([
+            const [dashRes, invRes, entriesRes, contactsRes, statsRes] = await Promise.allSettled([
                 api.get("/admin/vertical/dashboard"),
                 api.get("/admin/vertical/invoices"),
                 api.get("/admin/vertical/entries"),
                 api.get("/admin/vertical/contacts"),
+                api.get("/admin/stats"),
             ])
 
-            if (dashRes.status === "fulfilled" && dashRes.value.data.success) {
+            if (dashRes.status === "fulfilled" && dashRes.value.data?.success) {
                 setTenant(dashRes.value.data.tenant)
                 setAccounting(dashRes.value.data.accounting || {})
+            } else if (statsRes.status === "fulfilled" && statsRes.value.data?.revenue) {
+                const rev = statsRes.value.data.revenue
+                const svcCompleted = statsRes.value.data.services?.completed ?? 0
+                setAccounting({
+                    month_income: rev.month_income || rev.total || 0,
+                    month_expenses: rev.month_expenses || 0,
+                    month_net_profit: rev.month_net_profit || (rev.total || 0),
+                    is_profitable: true,
+                    income_count: svcCompleted,
+                    expense_count: 0,
+                    expenses_by_category: [],
+                })
             }
-            if (invRes.status === "fulfilled" && invRes.value.data.success && invRes.value.data.invoices?.length > 0) {
-                setInvoices(invRes.value.data.invoices)
+
+            if (invRes.status === "fulfilled" && invRes.value.data?.success) {
+                setInvoices(invRes.value.data.invoices || [])
             } else {
-                setInvoices(fallbackInvoices)
+                setInvoices([])
             }
-            if (entriesRes.status === "fulfilled" && entriesRes.value.data.success && entriesRes.value.data.entries?.length > 0) {
-                setEntries(entriesRes.value.data.entries)
+
+            if (entriesRes.status === "fulfilled" && entriesRes.value.data?.success) {
+                setEntries(entriesRes.value.data.entries || [])
             } else {
-                setEntries(fallbackEntries)
+                setEntries([])
             }
-            if (contactsRes.status === "fulfilled" && contactsRes.value.data.success && contactsRes.value.data.contacts?.length > 0) {
-                setContacts(contactsRes.value.data.contacts)
+
+            if (contactsRes.status === "fulfilled" && contactsRes.value.data?.success) {
+                setContacts(contactsRes.value.data.contacts || [])
             } else {
-                setContacts(fallbackContacts)
+                setContacts([])
             }
         } catch (error) {
-            console.error("Error cargando contabilidad vertical, usando datos consolidados:", error)
-            setInvoices(fallbackInvoices)
-            setEntries(fallbackEntries)
-            setContacts(fallbackContacts)
+            console.error("Error cargando contabilidad vertical:", error)
+            setInvoices([])
+            setEntries([])
+            setContacts([])
         } finally {
             setLoading(false)
             setRefreshing(false)
@@ -300,18 +321,42 @@ export default function ContabilidadPage() {
         }
     }
 
-    // Numbers & Calculations
-    const monthIncome = parseFloat(String(accounting.month_income || "42800000"))
-    const monthExpenses = parseFloat(String(accounting.month_expenses || "14200000"))
-    const monthNetProfit = parseFloat(String(accounting.month_net_profit || "28600000"))
+    // Numbers & Calculations (respetando ceros reales)
+    const monthIncome = parseFloat(String(accounting.month_income ?? 0)) || 0
+    const monthExpenses = parseFloat(String(accounting.month_expenses ?? 0)) || 0
+    const monthNetProfit = parseFloat(String(accounting.month_net_profit ?? (monthIncome - monthExpenses))) || 0
     const isProfitable = monthNetProfit >= 0
+
+    const normalizedSearch = searchQuery.trim().toLowerCase()
 
     // Filter Invoices
     const filteredInvoices = invoices.filter((inv) => {
-        if (invoiceFilter === "all") return true
-        if (invoiceFilter === "mandate") return inv.invoice_type === "mandate_service" || !inv.invoice_type
-        if (invoiceFilter === "commission") return inv.invoice_type === "platform_commission"
-        return true
+        if (invoiceFilter === "mandate" && inv.invoice_type !== "mandate_service" && inv.invoice_type) return false
+        if (invoiceFilter === "commission" && inv.invoice_type !== "platform_commission") return false
+        if (!normalizedSearch) return true
+        return (
+            inv.invoice_number?.toLowerCase().includes(normalizedSearch) ||
+            inv.cufe?.toLowerCase().includes(normalizedSearch) ||
+            inv.dian_status?.toLowerCase().includes(normalizedSearch)
+        )
+    })
+
+    const filteredEntries = entries.filter((entry) => {
+        if (!normalizedSearch) return true
+        return (
+            entry.category?.toLowerCase().includes(normalizedSearch) ||
+            entry.description?.toLowerCase().includes(normalizedSearch) ||
+            String(entry.id).includes(normalizedSearch)
+        )
+    })
+
+    const filteredContacts = contacts.filter((c) => {
+        if (!normalizedSearch) return true
+        return (
+            c.name?.toLowerCase().includes(normalizedSearch) ||
+            c.phone?.toLowerCase().includes(normalizedSearch) ||
+            c.email?.toLowerCase().includes(normalizedSearch)
+        )
     })
 
     if (loading) {
@@ -379,7 +424,7 @@ export default function ContabilidadPage() {
                         </span>
                     </div>
                     <p className="text-[10px] sm:text-[11px] font-mono text-slate-400 mt-1.5 truncate">
-                        COP · {accounting.income_count || 128} operaciones del mes
+                        COP · {accounting.income_count ?? 0} operaciones del mes
                     </p>
                 </div>
 
@@ -435,31 +480,44 @@ export default function ContabilidadPage() {
                 </div>
             </div>
 
-            {/* ─── Tabs Navigation ─── */}
-            <div className="border-b border-slate-800/80 flex items-center gap-2 overflow-x-auto pb-1">
-                {[
-                    { id: "invoices", label: `Facturas Electrónicas DIAN (${invoices.length})`, icon: Receipt },
-                    { id: "ledger", label: `Libro Contable & Flujo (${entries.length})`, icon: FileText },
-                    { id: "pnl", label: "Estado de Resultados P&L", icon: TrendingUp },
-                    { id: "contacts", label: `Contactos Facturación (${contacts.length})`, icon: Users },
-                ].map(tab => {
-                    const Icon = tab.icon
-                    const isActive = activeTab === tab.id
-                    return (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-mono font-semibold transition-all whitespace-nowrap ${
-                                isActive
-                                    ? "bg-[#0B1736] text-[#93C5FD] border border-[#1E3A8A] shadow-sm"
-                                    : "text-slate-400 hover:text-slate-200 hover:bg-[#0B132B] border border-transparent"
-                            }`}
-                        >
-                            <Icon className={`w-3.5 h-3.5 ${isActive ? "text-blue-400" : "text-slate-500"}`} />
-                            <span>{tab.label}</span>
-                        </button>
-                    )
-                })}
+            {/* ─── Tabs Navigation & Search ─── */}
+            <div className="border-b border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-3 pb-2">
+                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    {[
+                        { id: "invoices", label: `Facturas Electrónicas DIAN (${filteredInvoices.length})`, icon: Receipt },
+                        { id: "ledger", label: `Libro Contable & Flujo (${filteredEntries.length})`, icon: FileText },
+                        { id: "pnl", label: "Estado de Resultados P&L", icon: TrendingUp },
+                        { id: "contacts", label: `Contactos Facturación (${filteredContacts.length})`, icon: Users },
+                    ].map(tab => {
+                        const Icon = tab.icon
+                        const isActive = activeTab === tab.id
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-mono font-semibold transition-all whitespace-nowrap ${
+                                    isActive
+                                        ? "bg-[#0B1736] text-[#93C5FD] border border-[#1E3A8A] shadow-sm"
+                                        : "text-slate-400 hover:text-slate-200 hover:bg-[#0B132B] border border-transparent"
+                                }`}
+                            >
+                                <Icon className={`w-3.5 h-3.5 ${isActive ? "text-blue-400" : "text-slate-500"}`} />
+                                <span>{tab.label}</span>
+                            </button>
+                        )
+                    })}
+                </div>
+
+                <div className="relative w-full md:w-72 shrink-0">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Buscar factura, CUFE, asiento o contacto..."
+                        className="w-full pl-9 pr-3 py-1.5 bg-[#0B132B] border border-slate-800 rounded-xl text-xs font-mono text-slate-200 outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder:text-slate-500"
+                    />
+                </div>
             </div>
 
             {/* ─── TAB 1: Facturación Electrónica DIAN ─── */}
@@ -509,7 +567,13 @@ export default function ContabilidadPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800/50">
-                                    {filteredInvoices.map((inv) => {
+                                    {filteredInvoices.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={7} className="px-5 py-10 text-center text-slate-400">
+                                                No se encontraron facturas electrónicas DIAN con los filtros aplicados.
+                                            </td>
+                                        </tr>
+                                    ) : filteredInvoices.map((inv) => {
                                         const isCommission = inv.invoice_type === "platform_commission"
                                         return (
                                             <tr key={inv.id} className="hover:bg-[#0B132B]/60 transition-colors">
@@ -597,7 +661,13 @@ export default function ContabilidadPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/50">
-                                {entries.map((entry) => {
+                                {filteredEntries.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-5 py-10 text-center text-slate-400">
+                                            No hay asientos contables registrados para el criterio actual.
+                                        </td>
+                                    </tr>
+                                ) : filteredEntries.map((entry) => {
                                     const isIncome = entry.entry_type === "income"
                                     const amount = parseFloat(String(entry.amount))
 
@@ -724,7 +794,13 @@ export default function ContabilidadPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/50">
-                                {contacts.map((c) => (
+                                {filteredContacts.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="px-5 py-10 text-center text-slate-400">
+                                            No hay contactos fiscales sincronizados para el criterio actual.
+                                        </td>
+                                    </tr>
+                                ) : filteredContacts.map((c) => (
                                     <tr key={c.id} className="hover:bg-[#0B132B]/60 transition-colors">
                                         <td className="px-5 py-3.5 font-bold text-blue-400">
                                             #{c.id}

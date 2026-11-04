@@ -18,6 +18,8 @@ from sqlmodel import Session, select
 from app.models.credit import (
     COMMISSION_RATE,
     FREE_SERVICES_LIMIT,
+    WELCOME_BONUS_AMOUNT,
+    WELCOME_BONUS_REFERENCE,
     CreditTransaction,
     CreditTransactionType,
     TechnicianCredit,
@@ -33,18 +35,54 @@ class CreditService:
     async def get_or_create_credit(
         self, session: Session, technician_id: str
     ) -> TechnicianCredit:
-        """Obtiene o crea el registro de créditos de un técnico."""
-        tech_uuid = UUID(technician_id)
+        """Obtiene o crea el registro de créditos de un técnico, otorgando el bono de bienvenida de $200.000 COP."""
+        tech_uuid = UUID(str(technician_id))
         credit = session.exec(
             select(TechnicianCredit).where(
                 TechnicianCredit.technician_id == tech_uuid
             )
         ).first()
         if not credit:
-            credit = TechnicianCredit(technician_id=tech_uuid)
+            credit = TechnicianCredit(
+                technician_id=tech_uuid,
+                balance=WELCOME_BONUS_AMOUNT,
+                total_recharged=WELCOME_BONUS_AMOUNT,
+            )
             session.add(credit)
+            bonus_txn = CreditTransaction(
+                technician_id=tech_uuid,
+                transaction_type=CreditTransactionType.bonus,
+                amount=WELCOME_BONUS_AMOUNT,
+                balance_after=WELCOME_BONUS_AMOUNT,
+                description="¡Te regalamos $200.000 en créditos por bienvenida!",
+                external_reference=WELCOME_BONUS_REFERENCE,
+            )
+            session.add(bonus_txn)
             session.commit()
             session.refresh(credit)
+        elif credit.total_recharged == 0 and credit.balance == 0:
+            has_bonus = session.exec(
+                select(CreditTransaction).where(
+                    CreditTransaction.technician_id == tech_uuid,
+                    CreditTransaction.external_reference == WELCOME_BONUS_REFERENCE,
+                )
+            ).first()
+            if not has_bonus:
+                credit.balance += WELCOME_BONUS_AMOUNT
+                credit.total_recharged += WELCOME_BONUS_AMOUNT
+                credit.updated_at = datetime.utcnow()
+                session.add(credit)
+                bonus_txn = CreditTransaction(
+                    technician_id=tech_uuid,
+                    transaction_type=CreditTransactionType.bonus,
+                    amount=WELCOME_BONUS_AMOUNT,
+                    balance_after=credit.balance,
+                    description="¡Te regalamos $200.000 en créditos por bienvenida!",
+                    external_reference=WELCOME_BONUS_REFERENCE,
+                )
+                session.add(bonus_txn)
+                session.commit()
+                session.refresh(credit)
         return credit
 
     async def get_balance(self, session: Session, technician_id: str) -> dict:
@@ -60,6 +98,8 @@ class CreditService:
             "free_services_remaining": free_remaining,
             "can_accept_services": can_accept,
             "commission_rate": COMMISSION_RATE,
+            "welcome_bonus_granted": True,
+            "welcome_bonus_amount": WELCOME_BONUS_AMOUNT,
         }
 
     async def get_transactions(

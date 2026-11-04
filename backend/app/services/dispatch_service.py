@@ -431,6 +431,15 @@ class DispatchService:
             session.commit()
             raise HTTPException(status.HTTP_409_CONFLICT, "Este servicio ya fue tomado por otro técnico o no está disponible")
 
+        # 1.5 Validar curso obligatorio o validación admin (para técnicos regulares)
+        from app.api.courses import get_technician_course_gate_status
+        course_gate = get_technician_course_gate_status(session, str(tech_uuid))
+        if not course_gate["can_operate"]:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "COURSE_REQUIRED: Debes realizar primero el curso obligatorio en Escuela Tec360 antes de aceptar o cotizar un trabajo."
+            )
+
         # 2. Descontar créditos del técnico
         try:
             from app.services.credit_service import credit_service

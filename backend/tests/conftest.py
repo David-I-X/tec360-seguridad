@@ -125,6 +125,7 @@ def test_tech_user(session: Session):
         specializations=["gps_installation"],
         experience_years=3,
         bio="Técnico de prueba",
+        is_verified=True,
     )
     session.add(tech)
     session.commit()
