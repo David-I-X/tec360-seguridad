@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { phoneSchema, formatPhoneNumber } from "@/lib/validations"
 import type { PhoneFormData } from "@/lib/validations"
 import { useAuth, PublicOnlyRoute } from "@/lib/auth-context"
-import { setupRecaptcha, sendFirebaseOTP } from "@/lib/firebase"
+import { setupRecaptcha, sendFirebaseOTP, isFirebaseConfigured } from "@/lib/firebase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -163,7 +163,7 @@ function PhoneAuthContent() {
         return
       }
 
-      if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+      if (isFirebaseConfigured) {
         // Enviar OTP vía Google Firebase Phone Auth (10.000 SMS gratis)
         const verifier = await setupRecaptcha("recaptcha-container", recaptchaSize)
         const confirmation = await sendFirebaseOTP(formattedPhone, verifier)

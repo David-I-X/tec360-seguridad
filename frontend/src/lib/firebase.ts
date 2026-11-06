@@ -7,14 +7,21 @@ import {
   type Auth,
 } from "firebase/auth"
 
+const rawApiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY
+const apiKey = (rawApiKey && rawApiKey !== "true" && rawApiKey !== "undefined")
+  ? rawApiKey
+  : "AIzaSyAaKZK-zgkxn3kFaCKZ8FbQ5QHgtJIo69E"
+
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyAaKZK-zgkxn3kFaCKZ8FbQ5QHgtJIo69E",
+  apiKey,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "tec-360.firebaseapp.com",
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "tec-360",
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "tec-360.firebasestorage.app",
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "483030234278",
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:483030234278:web:f3a8e0137db97088b7f067",
 }
+
+export const isFirebaseConfigured = Boolean(apiKey && apiKey.startsWith("AIzaSy"))
 
 // Inicialización segura de Firebase Client (solo en navegador)
 let app: FirebaseApp | undefined

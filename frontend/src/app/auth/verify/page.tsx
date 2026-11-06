@@ -8,6 +8,7 @@ import { otpSchema } from "@/lib/validations"
 import type { OTPFormData } from "@/lib/validations"
 import { useAuth, PublicOnlyRoute } from "@/lib/auth-context"
 import { useToast } from "@/components/ui/use-toast"
+import { isFirebaseConfigured } from "@/lib/firebase"
 import { maskPhoneNumber } from "@/lib/validations"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -163,7 +164,7 @@ function VerifyOTPContent() {
       setIsLoading(true)
       setError("")
 
-      if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY && (window as any).recaptchaVerifier) {
+      if (isFirebaseConfigured && (window as any).recaptchaVerifier) {
         const { sendFirebaseOTP } = await import("@/lib/firebase")
         const confirmation = await sendFirebaseOTP(phone, (window as any).recaptchaVerifier)
         ;(window as any).confirmationResult = confirmation
