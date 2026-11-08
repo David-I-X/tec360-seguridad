@@ -114,6 +114,61 @@ export function ServiceTypeSelector({
                 })}
             </div>
 
+            {category === "installations" && (
+                <div className="p-4 sm:p-5 rounded-xl border border-violet-500/25 bg-violet-500/5 backdrop-blur-md space-y-4">
+                    <div>
+                        <p className="text-xs font-mono font-bold text-violet-400 uppercase tracking-wider mb-2.5">
+                          Dispositivo de Seguridad · ¿Quién suministra el equipo?
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                onClick={() => onSuppliesProviderChange?.("client")}
+                                className={cn(
+                                    "flex items-start gap-3 p-3.5 rounded-xl border-2 text-left transition-all cursor-pointer",
+                                    suppliesProvider === "client"
+                                        ? "border-violet-500 bg-violet-500/15 text-violet-300"
+                                        : "border-white/[0.08] hover:border-violet-500/40 bg-[#0B0F19]/80 text-slate-400"
+                                )}
+                            >
+                                <span className="text-2xl shrink-0">🧰</span>
+                                <div>
+                                    <p className="text-xs sm:text-sm font-bold text-white font-display">Ya tengo el dispositivo / equipo</p>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">Solo requiero la instalación profesional del técnico certificado</p>
+                                </div>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => onSuppliesProviderChange?.("technician")}
+                                className={cn(
+                                    "flex items-start gap-3 p-3.5 rounded-xl border-2 text-left transition-all cursor-pointer",
+                                    suppliesProvider === "technician"
+                                        ? "border-violet-500 bg-violet-500/15 text-violet-300"
+                                        : "border-white/[0.08] hover:border-violet-500/40 bg-[#0B0F19]/80 text-slate-400"
+                                )}
+                            >
+                                <span className="text-2xl shrink-0">📦</span>
+                                <div>
+                                    <p className="text-xs sm:text-sm font-bold text-white font-display">El técnico debe suministrar el equipo</p>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">El técnico cotizará e incluirá el dispositivo homologado (GPS, Alarma o Dashcam)</p>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-xs font-mono font-semibold text-slate-300 uppercase tracking-wide block mb-1.5">
+                            Marca / Modelo / Referencia del dispositivo <span className="text-slate-500 normal-case font-normal">(opcional)</span>
+                        </label>
+                        <Input
+                            placeholder="Ej: GPS Coban 303G, Dashcam 70mai A500S, Alarma Nemesis..."
+                            value={suppliesNotes}
+                            onChange={(e) => onSuppliesNotesChange?.(e.target.value)}
+                            className="bg-[#111827]/80 border-white/[0.12] text-white font-mono text-xs rounded-xl"
+                        />
+                    </div>
+                </div>
+            )}
+
             {category === "mechanics" && (
                 <div className="p-4 sm:p-5 rounded-xl border border-amber-500/25 bg-amber-500/5 backdrop-blur-md space-y-4">
                     <div>

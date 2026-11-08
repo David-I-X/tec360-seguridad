@@ -1,5 +1,7 @@
 "use client"
 
+import { cn } from "@/lib/utils"
+
 import { useEffect, useState, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -343,17 +345,35 @@ function ServiceDetailDrawer({
                                 </div>
                             )}
 
-                            {/* Quick Mechanics metadata */}
+                            {/* Supplies / Device metadata */}
                             {detail.service_metadata?.supplies_provider && (
-                                <div className="bg-[#241908]/80 rounded-xl p-4 border border-[#451A03]">
-                                    <p className="text-[10px] text-amber-400 mb-2 font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
-                                        <Wrench className="w-3.5 h-3.5" /> Insumos & Repuestos de Mecánica
+                                <div className={cn(
+                                    "rounded-xl p-4 border",
+                                    detail.service_metadata?.service_category === "installations"
+                                        ? "bg-[#0B1528]/80 border-[#1E3A8A]"
+                                        : "bg-[#241908]/80 border-[#451A03]"
+                                )}>
+                                    <p className={cn(
+                                        "text-[10px] mb-2 font-mono font-bold uppercase tracking-wider flex items-center gap-1.5",
+                                        detail.service_metadata?.service_category === "installations"
+                                            ? "text-blue-400"
+                                            : "text-amber-400"
+                                    )}>
+                                        <Wrench className="w-3.5 h-3.5" /> {detail.service_metadata?.service_category === "installations" ? "Dispositivo & Equipo de Seguridad" : "Insumos & Repuestos de Mecánica"}
                                     </p>
                                     <div className="space-y-1.5 text-xs text-slate-200">
                                         <div>
-                                            <span className="text-slate-400">Origen de Repuestos:</span>{" "}
-                                            <span className="font-semibold text-amber-300">
-                                                {detail.service_metadata.supplies_provider === "client" ? "🧰 Cliente suministra repuestos" : "🚚 Técnico Certificado Tec360 suministra repuestos"}
+                                            <span className="text-slate-400">
+                                                {detail.service_metadata?.service_category === "installations" ? "Origen de Dispositivo:" : "Origen de Repuestos:"}
+                                            </span>{" "}
+                                            <span className={cn(
+                                                "font-semibold",
+                                                detail.service_metadata?.service_category === "installations" ? "text-blue-300" : "text-amber-300"
+                                            )}>
+                                                {detail.service_metadata?.service_category === "installations"
+                                                    ? (detail.service_metadata.supplies_provider === "client" ? "🧰 Cliente suministra dispositivo" : "📦 Técnico Certificado Tec360 suministra equipo")
+                                                    : (detail.service_metadata.supplies_provider === "client" ? "🧰 Cliente suministra repuestos" : "🚚 Técnico Certificado Tec360 suministra repuestos")
+                                                }
                                             </span>
                                         </div>
                                         {detail.service_metadata.supplies_notes && (

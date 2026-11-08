@@ -40,7 +40,8 @@ class QuotationService:
         session: Session,
         service_id: str,
         quotation_data: QuotationCreate,
-        technician_id: str
+        technician_id: str,
+        assigned_by_org: bool = False,
     ) -> QuotationResponse:
         """
         Técnico crea una cotización para un servicio
@@ -50,6 +51,21 @@ class QuotationService:
             tech_uuid = UUID(technician_id)
         except ValueError:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "ID inválido")
+
+        from app.services.credit_service import credit_service
+        org_membership = credit_service.get_active_org_membership(session, str(tech_uuid))
+        if org_membership:
+            org, member = org_membership
+            if member.org_role == "owner":
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    "OWNER_CANNOT_OPERATE: El dueño del taller no cotiza como técnico de campo.",
+                )
+            if org.dispatch_mode == "manual" and not assigned_by_org:
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    f"MANUAL_DISPATCH_MODE: Tu taller ({org.name}) tiene activada la asignación centralizada. El administrador del taller gestiona los trabajos.",
+                )
         
         # 1. Verificar que el servicio existe y está pending
         service = session.get(Service, service_uuid)

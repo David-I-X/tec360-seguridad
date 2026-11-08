@@ -60,9 +60,14 @@ export const onboardingSchema = z.object({
       "Email inválido"
     ),
   
-  user_type: z.enum(["client", "technician"], {
+  user_type: z.enum(["client", "technician", "company_admin"], {
     errorMap: () => ({ message: "Selecciona un tipo de usuario" }),
   }),
+  company_name: z.string().optional(),
+  nit: z.string().optional(),
+  city: z.string().optional(),
+  dispatch_mode: z.enum(["manual", "direct"]).optional(),
+  organization_id: z.string().optional(),
 })
 
 export type OnboardingFormData = z.infer<typeof onboardingSchema>

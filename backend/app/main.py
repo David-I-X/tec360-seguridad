@@ -26,6 +26,7 @@ from app.api import webhooks as webhooks_router
 from app.api import admin_vertical as admin_vertical_router
 from app.api import courses as courses_router
 from app.api import dispatch as dispatch_router
+from app.api import organizations as organizations_router
 import os
 import logging
 import time
@@ -212,6 +213,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 # --- Routers ---
 app.include_router(auth.router)
+app.include_router(auth.router, prefix="/api")
 app.include_router(example.router)
 app.include_router(services.router)
 app.include_router(technicians.router)
@@ -231,6 +233,10 @@ app.include_router(notifications_router.router)
 
 # Intelligent Dispatch
 app.include_router(dispatch_router.router)
+
+# Organizations / Talleres (Cuentas Empresa)
+app.include_router(organizations_router.router)
+app.include_router(organizations_router.router, prefix="/api")
 
 # Quotations
 app.include_router(quotations_router.router)

@@ -30,8 +30,12 @@ function NotificationSetup() {
     responseListenerRef.current = addNotificationResponseListener((response) => {
       const data = response.notification.request.content.data;
       if (data?.service_id) {
-        const role = user.role === 'technician' ? 'tech' : 'client';
-        router.push(`/(${role})/service/${data.service_id}` as any);
+        if (user.role === 'company_admin') {
+          router.push('/(tech)/taller' as any);
+        } else {
+          const role = user.role === 'technician' ? 'tech' : 'client';
+          router.push(`/(${role})/service/${data.service_id}` as any);
+        }
       }
     });
 

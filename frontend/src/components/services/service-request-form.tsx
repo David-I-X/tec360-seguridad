@@ -284,13 +284,11 @@ export function ServiceRequestForm() {
                 vehicle_model: data.vehicle_model,
                 vehicle_plate: data.vehicle_plate,
                 estimated_price: data.estimated_price,
-                ...(formMode === "mechanics" ? {
-                    service_metadata: {
-                        service_category: "quick_mechanics",
-                        supplies_provider: suppliesProvider,
-                        supplies_notes: suppliesNotes.trim() || null,
-                    }
-                } : {})
+                service_metadata: {
+                    service_category: formMode === "mechanics" ? "quick_mechanics" : "installations",
+                    supplies_provider: suppliesProvider,
+                    supplies_notes: suppliesNotes.trim() || null,
+                }
             })
 
             // If there's a vehicle photo, compress and upload it

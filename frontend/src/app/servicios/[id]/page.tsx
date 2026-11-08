@@ -1,5 +1,7 @@
 "use client"
 
+import { cn } from "@/lib/utils"
+
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { format } from "date-fns"
@@ -811,14 +813,24 @@ function ServiceDetailContent() {
                                     {service.description || "Sin descripción proporcionada por el usuario."}
                                     {service.service_metadata?.supplies_provider && (
                                         <span className="block mt-2 pt-2 border-t border-slate-200/80 dark:border-white/10">
-                                            <span className="block text-xs font-semibold text-amber-600 dark:text-amber-400">
-                                                {service.service_metadata.supplies_provider === "client"
-                                                    ? "🧰 El cliente suministra el repuesto / insumo (Solo mano de obra)"
-                                                    : "🚚 El técnico debe suministrar y cotizar el repuesto / insumo"}
+                                            <span className={cn(
+                                                "block text-xs font-semibold",
+                                                service.service_metadata?.service_category === "installations"
+                                                    ? "text-blue-600 dark:text-blue-400"
+                                                    : "text-amber-600 dark:text-amber-400"
+                                            )}>
+                                                {service.service_metadata?.service_category === "installations"
+                                                    ? (service.service_metadata.supplies_provider === "client"
+                                                        ? "🧰 El cliente suministra el dispositivo (Solo mano de obra e instalación)"
+                                                        : "📦 El técnico debe suministrar y cotizar el equipo homologado")
+                                                    : (service.service_metadata.supplies_provider === "client"
+                                                        ? "🧰 El cliente suministra el repuesto / insumo (Solo mano de obra)"
+                                                        : "🚚 El técnico debe suministrar y cotizar el repuesto / insumo")
+                                                }
                                             </span>
                                             {service.service_metadata.supplies_notes && (
                                                 <span className="block text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
-                                                    <strong>Referencia insumo:</strong> {service.service_metadata.supplies_notes}
+                                                    <strong>{service.service_metadata?.service_category === "installations" ? "Referencia dispositivo:" : "Referencia insumo:"}</strong> {service.service_metadata.supplies_notes}
                                                 </span>
                                             )}
                                         </span>

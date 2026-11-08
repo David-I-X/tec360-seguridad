@@ -137,6 +137,7 @@ export default function TechDashboardScreen() {
       load();
       loadDispatch();
     } catch (e: any) {
+      if (e?.message?.includes('MANUAL_DISPATCH_MODE')) { Alert.alert('Asignación por tu Taller', 'Tu taller tiene activo el despacho manual. Solicítale al administrador de tu taller que te asigne este servicio.'); return; }
       if (e?.message?.includes('COURSE_REQUIRED')) {
         setCoursesModalMode('gate');
         setShowBasicCoursesModal(true);
@@ -263,6 +264,7 @@ export default function TechDashboardScreen() {
       load(); // Reload
       Alert.alert('¡Servicio Aceptado!', 'El servicio ha sido asignado a tu cuenta.');
     } catch (e: any) {
+      if (e?.message?.includes('MANUAL_DISPATCH_MODE')) { Alert.alert('Asignación por tu Taller', 'Tu taller tiene activo el despacho manual. Solicítale al administrador de tu taller que te asigne este servicio.'); return; }
       if (e?.message?.includes('COURSE_REQUIRED')) {
         setCoursesModalMode('gate');
         setShowBasicCoursesModal(true);
@@ -307,7 +309,7 @@ export default function TechDashboardScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.greeting} numberOfLines={1}>Hola, {user?.full_name?.split(' ')[0]}</Text>
-                <Text style={styles.role}>Técnico certificado</Text>
+                <Text style={styles.role}>{user?.organization?.name ? `Técnico certificado • ${user.organization.name}` : 'Técnico certificado'}</Text>
               </View>
             </View>
 
@@ -583,6 +585,7 @@ export default function TechDashboardScreen() {
         }
         renderItem={({ item }) => {
           const t = typeIcon[item.service_type] || typeIcon.other;
+          const isMechanics = (item.service_metadata?.service_category === 'quick_mechanics') || ['oil_change', 'tire_change', 'battery_service', 'brake_service', 'chain_kit_service', 'spark_bulbs_wipers'].includes(item.service_type);
           return (
             <View style={styles.serviceCard}>
               <View style={styles.cardRow}>
@@ -590,8 +593,10 @@ export default function TechDashboardScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
                   {item.service_metadata?.supplies_provider && (
-                    <Text style={{ color: '#fbbf24', fontSize: 11, fontWeight: '700', marginTop: 2 }}>
-                      {item.service_metadata.supplies_provider === 'client' ? '🧰 Cliente pone repuesto' : '🚚 Técnico lleva repuesto'}
+                    <Text style={{ color: isMechanics ? '#fbbf24' : '#60a5fa', fontSize: 11, fontWeight: '700', marginTop: 2 }}>
+                      {isMechanics
+                        ? (item.service_metadata.supplies_provider === 'client' ? '🧰 Cliente pone repuesto' : '🚚 Técnico lleva repuesto')
+                        : (item.service_metadata.supplies_provider === 'client' ? '🧰 Cliente tiene equipo' : '📦 Técnico lleva equipo')}
                       {item.service_metadata.supplies_notes ? ` · ${item.service_metadata.supplies_notes}` : ''}
                     </Text>
                   )}

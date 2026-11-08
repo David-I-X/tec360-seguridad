@@ -358,17 +358,44 @@ class ServiceService:
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     async def accept_service(
-        self, session: Session, service_id: str, technician_id: str, user_role: str = "technician"
+        self,
+        session: Session,
+        service_id: str,
+        technician_id: str,
+        user_role: str = "technician",
+        assigned_by_org: bool = False,
     ) -> ServiceResponse:
         try:
             from uuid import UUID as UUIDType
             from app.models.service import ServiceType
             from app.models.quotation import Quotation, QuotationStatus
+            from app.services.credit_service import credit_service
+
+            if user_role == "company_admin":
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    "OWNER_CANNOT_OPERATE: El dueño del taller administra la operación y asigna trabajos a sus técnicos, pero no opera como técnico de campo.",
+                )
+
+            org_membership = credit_service.get_active_org_membership(session, str(technician_id))
+            if org_membership:
+                org, member = org_membership
+                if member.org_role == "owner":
+                    raise HTTPException(
+                        status.HTTP_403_FORBIDDEN,
+                        "OWNER_CANNOT_OPERATE: El dueño del taller administra la operación y asigna trabajos a sus técnicos, pero no opera como técnico de campo.",
+                    )
+                if org.dispatch_mode == "manual" and not assigned_by_org:
+                    raise HTTPException(
+                        status.HTTP_403_FORBIDDEN,
+                        f"MANUAL_DISPATCH_MODE: Tu taller ({org.name}) tiene activada la asignación centralizada. El administrador del taller es quien asigna los trabajos.",
+                    )
 
             try:
                 svc_uuid = UUIDType(str(service_id))
+                tech_uuid = UUIDType(str(technician_id))
             except ValueError:
-                raise HTTPException(status.HTTP_400_BAD_REQUEST, "ID de servicio inválido")
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "ID de servicio o técnico inválido")
 
             # C4: Atomic row lock with FOR UPDATE to prevent race-condition double assignment
             service = session.exec(
@@ -419,9 +446,9 @@ class ServiceService:
             # Check if technician is suspended
             from app.services.reputation_service import reputation_service
             from app.models.technician import Technician
-            is_suspended = await reputation_service.is_suspended(session, technician_id)
+            is_suspended = await reputation_service.is_suspended(session, str(tech_uuid))
             if is_suspended:
-                tech = session.exec(select(Technician).where(Technician.user_id == technician_id)).first()
+                tech = session.exec(select(Technician).where(Technician.user_id == tech_uuid)).first()
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=f"Tu cuenta está suspendida hasta {tech.suspended_until.strftime('%d/%m/%Y %H:%M') if tech and tech.suspended_until else 'pronto'}. No puedes aceptar servicios durante la suspensión."
@@ -432,7 +459,7 @@ class ServiceService:
                 from app.services.credit_service import credit_service
                 service_amount = service.estimated_price or 0
                 check = await credit_service.can_accept_service(
-                    session, str(technician_id), service_amount
+                    session, str(tech_uuid), service_amount
                 )
                 if not check["can_accept"]:
                     raise HTTPException(
@@ -441,7 +468,7 @@ class ServiceService:
                     )
                 await credit_service.deduct_for_service(
                     session=session,
-                    technician_id=str(technician_id),
+                    technician_id=str(tech_uuid),
                     service_id=str(service.id),
                     service_amount=service_amount,
                 )
@@ -452,9 +479,9 @@ class ServiceService:
                 logging.warning(f"Credit check bypassed due to internal error: {credit_err}")
             
             # Obtener info del técnico para enviar al cliente
-            technician = session.exec(select(User).where(User.id == technician_id)).first()
+            technician = session.exec(select(User).where(User.id == tech_uuid)).first()
                 
-            service.technician_id = technician_id
+            service.technician_id = tech_uuid
             service.status = ServiceStatus.assigned
             session.add(service)
 

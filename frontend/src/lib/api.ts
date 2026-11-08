@@ -82,6 +82,17 @@ export interface AuthResponse {
 export interface OnboardingResponse {
   success: true
   message: string
+  access_token?: string
+  refresh_token?: string
+  organization?: {
+    id: string
+    name: string
+    nit?: string | null
+    city: string
+    dispatch_mode: "manual" | "direct"
+    wallet_balance: number
+    welcome_bonus_granted: boolean
+  } | null
   user: {
     id: string
     phone: string
@@ -329,7 +340,12 @@ export async function verifyFirebaseToken(idToken: string): Promise<AuthResponse
 export async function completeOnboarding(data: {
   full_name: string
   email?: string
-  user_type: "client" | "technician"
+  user_type: "client" | "technician" | "company_admin"
+  company_name?: string
+  nit?: string
+  city?: string
+  dispatch_mode?: "manual" | "direct"
+  organization_id?: string
 }): Promise<OnboardingResponse> {
   const response = await fetchWithAuth("/auth/onboarding", {
     method: "POST",
@@ -344,6 +360,10 @@ export async function completeOnboarding(data: {
   }
 
   const responseData: OnboardingResponse = await response.json()
+
+  if (responseData.access_token && responseData.refresh_token) {
+    saveTokens(responseData.access_token, responseData.refresh_token)
+  }
 
   // Actualizar usuario en localStorage
   saveUser(responseData.user)
@@ -560,6 +580,14 @@ export interface BalanceData {
   commission_rate: number
   welcome_bonus_granted?: boolean
   welcome_bonus_amount?: number
+  is_organization_wallet?: boolean
+  organization_id?: string
+  organization_name?: string
+  org_wallet_balance?: number
+  credit_quota?: number | null
+  quota_used?: number
+  quota_remaining?: number | null
+  dispatch_mode?: "manual" | "direct"
 }
 
 export interface CourseOnboardingStatus {
@@ -975,5 +1003,21 @@ export async function getDispatchStats(): Promise<DispatchStats> {
   return response.json()
 }
 
+
+export interface PublicOrganizationItem {
+  id: string
+  name: string
+  city: string
+  nit?: string | null
+}
+
+export async function getPublicOrganizations(): Promise<{ organizations: PublicOrganizationItem[] }> {
+  const baseUrl = getApiBaseUrl().replace(/\/$/, "")
+  const response = await fetch(`${baseUrl}/organizations/public-list`, { method: "GET" })
+  if (!response.ok) {
+    return { organizations: [] }
+  }
+  return response.json()
+}
 
 export default api;

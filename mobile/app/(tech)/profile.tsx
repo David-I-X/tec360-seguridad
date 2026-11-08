@@ -166,7 +166,7 @@ export default function TechProfileScreen() {
       </View>
 
       {/* Rank & Escuela Tec Motivation Banner */}
-      {(() => {
+      {user?.role !== 'company_admin' && (() => {
         const currentRank = techProfile?.rank || 'bronze';
         const rankConfig = RANK_TIERS[currentRank] || RANK_TIERS.bronze;
         const currentPoints = techProfile?.rank_points || 0;
@@ -215,8 +215,13 @@ export default function TechProfileScreen() {
       })()}
 
       {/* Menu Items */}
-      <Text style={styles.sectionTitle}>GESTIÓN</Text>
+      <Text style={styles.sectionTitle}>{user?.role === 'company_admin' ? 'GESTIÓN DE TALLER Y SUBCUENTAS' : 'GESTIÓN'}</Text>
       <View style={styles.menuSection}>
+        {user?.role === 'company_admin' && renderMenuItem('business-outline', 'Consola de Mi Taller', () => router.push('/(tech)/taller' as any), '#00F0FF')}
+        {user?.role === 'company_admin' && renderMenuItem('people-outline', 'Subcuentas y Cupos', () => router.push({ pathname: '/(tech)/taller', params: { tab: 'team' } } as any), '#00F0FF')}
+        {user?.role === 'company_admin' && renderMenuItem('flash-outline', 'Despacho de Servicios', () => router.push({ pathname: '/(tech)/taller', params: { tab: 'dispatch' } } as any), COLORS.primaryLight)}
+        {user?.role === 'company_admin' && renderMenuItem('wallet-outline', 'Billetera Corporativa ($200.000)', () => router.push({ pathname: '/(tech)/taller', params: { tab: 'wallet' } } as any), COLORS.green)}
+        {user?.role !== 'company_admin' && user?.organization?.name && renderMenuItem('business-outline', `Taller: ${user.organization.name} (Cupo)`, () => router.push('/(tech)/wallet' as any), '#00F0FF')}
         {renderMenuItem('school-outline', 'Escuela Tec', () => router.push('/(tech)/escuela' as any), COLORS.primaryLight)}
         {renderMenuItem('person-outline', 'Editar perfil', () => router.push('/(tech)/edit-profile' as any))}
         {renderMenuItem('pricetags-outline', 'Mis cotizaciones', () => router.push('/(tech)/quotations' as any))}

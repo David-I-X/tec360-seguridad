@@ -16,7 +16,7 @@ interface BalanceData {
   commission_rate: number;
   can_accept_services: boolean;
   welcome_bonus_granted?: boolean;
-  welcome_bonus_amount?: number;
+  welcome_bonus_amount?: number; is_organization_wallet?: boolean; organization_name?: string | null; org_wallet_balance?: number | null; credit_quota?: number | null; quota_used?: number | null; quota_remaining?: number | null; dispatch_mode?: 'manual' | 'direct' | null;
 }
 
 interface CreditTransaction {
@@ -78,7 +78,7 @@ export default function WalletScreen() {
       if (balRes.ok) {
         const balData = await balRes.json();
         setBalance(balData);
-        if (!welcomeShownRef.current) {
+        if (!welcomeShownRef.current && !balData.is_organization_wallet) {
           welcomeShownRef.current = true;
           showWelcomeBonusAlert(balData.welcome_bonus_amount || 200000);
         }
@@ -194,14 +194,14 @@ export default function WalletScreen() {
           colors={['#1e1b4b', '#18181b']}
           style={styles.balanceCard}
         >
-          <Text style={styles.balanceLabel}>Saldo Disponible</Text>
+          <Text style={styles.balanceLabel}>{balance?.is_organization_wallet ? `Cupo Operativo • ${balance.organization_name || 'Tu Taller'}` : 'Saldo Disponible'}</Text>
           <Text style={styles.balanceAmount}>
             {balance ? formatCOP(balance.balance) : '$0'}
           </Text>
           
           <TouchableOpacity onPress={() => showWelcomeBonusAlert(balance?.welcome_bonus_amount || 200000)}>
             <Text style={styles.freeServicesLabel}>
-              🎁 ¡Te regalamos $200.000 en créditos por bienvenida!
+              {balance?.is_organization_wallet ? `🏢 Saldo Taller: ${formatCOP(balance.org_wallet_balance || 0)} • Cupo usado: ${formatCOP(balance.quota_used || 0)}${balance.credit_quota !== null && balance.credit_quota !== undefined ? ` / ${formatCOP(balance.credit_quota)}` : ' (Sin tope)'} • Despacho: ${balance.dispatch_mode === 'direct' ? 'Directo' : 'Asignado por Taller'}` : '🎁 ¡Te regalamos $200.000 en créditos por bienvenida!'}
             </Text>
           </TouchableOpacity>
 

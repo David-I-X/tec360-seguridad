@@ -15,6 +15,8 @@ export default function IndexRedirect() {
       router.replace('/(auth)/login');
     } else if (!user.onboarding_completed && !user.full_name) {
       router.replace('/(auth)/onboarding');
+    } else if (user.role === 'company_admin') {
+      router.replace('/(tech)/taller' as any);
     } else if (user.role === 'technician') {
       router.replace('/(tech)/dashboard');
     } else {

@@ -29,7 +29,8 @@ from app.main import app
 # DATABASE FIXTURES
 # ============================================
 
-test_engine = create_engine(settings.DATABASE_URL, echo=False)
+_connect_args = {"connect_timeout": 2} if "postgresql" in settings.DATABASE_URL else {}
+test_engine = create_engine(settings.DATABASE_URL, echo=False, connect_args=_connect_args)
 
 
 def override_get_session():

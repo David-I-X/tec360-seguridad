@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -11,7 +11,7 @@ import { setupRecaptcha, sendFirebaseOTP, isFirebaseConfigured } from "@/lib/fir
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, ArrowLeft, Radio, Check, Smartphone } from "lucide-react"
+import { Loader2, ArrowLeft, Radio, Check, Smartphone, Zap } from "lucide-react"
 import Link from "next/link"
 import { Tec360Logo } from "@/components/brand/tec360-logo"
 
@@ -83,6 +83,20 @@ function PhoneAuthContent() {
   const [selectedCountry, setSelectedCountry] = useState<CountryKey>("CO")
   const [phoneInput, setPhoneInput] = useState("")
   const [recaptchaSize, setRecaptchaSize] = useState<"invisible" | "normal">("invisible")
+  const [isLocalHost, setIsLocalHost] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const host = window.location.hostname
+      const isLocal =
+        host === "localhost" ||
+        host === "127.0.0.1" ||
+        host.startsWith("192.168.") ||
+        host.startsWith("10.") ||
+        process.env.NEXT_PUBLIC_USE_LOCAL_OTP === "true"
+      setIsLocalHost(isLocal)
+    }
+  }, [])
 
   const {
     handleSubmit,
@@ -149,6 +163,27 @@ function PhoneAuthContent() {
     setValue("phone", value, { shouldValidate: value.length === 13 })
   }
 
+  // Acceso rápido para desarrollo local (Bypass Firebase)
+  const handleDevBypass = async () => {
+    try {
+      setIsLoading(true)
+      setError("")
+      const rawDigits = phoneInput.replace(/\D/g, "").replace(/^(57|52)/, "")
+      const basePhone = rawDigits.length === 10 
+        ? formatPhoneNumber(phoneInput, selectedCountry) 
+        : (selectedCountry === "MX" ? "+525512345678" : "+573001234567")
+      
+      await requestOTP(basePhone)
+      sessionStorage.setItem("auth_provider", "local")
+      sessionStorage.setItem("pending_phone", basePhone)
+      router.push("/auth/verify")
+    } catch (err: any) {
+      setError(err.message || "Error al solicitar OTP local")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const onSubmit = async () => {
     try {
       setIsLoading(true)
@@ -163,14 +198,30 @@ function PhoneAuthContent() {
         return
       }
 
-      if (isFirebaseConfigured) {
-        // Enviar OTP vía Google Firebase Phone Auth (10.000 SMS gratis)
-        const verifier = await setupRecaptcha("recaptcha-container", recaptchaSize)
-        const confirmation = await sendFirebaseOTP(formattedPhone, verifier)
-        ;(window as any).confirmationResult = confirmation
-        sessionStorage.setItem("auth_provider", "firebase")
+      // En desarrollo local (localhost / red privada) desacoplamos Firebase Phone Auth
+      // para evitar bloqueos por reCAPTCHA / dominios no registrados en Google Console.
+      // En producción (tec-360.tech), se ejecuta Firebase Phone Auth con SMS reales.
+      const shouldBypassFirebase = isLocalHost && process.env.NEXT_PUBLIC_FORCE_FIREBASE !== "true"
+
+      if (!shouldBypassFirebase && isFirebaseConfigured) {
+        try {
+          // Enviar OTP vía Google Firebase Phone Auth (10.000 SMS gratis)
+          const verifier = await setupRecaptcha("recaptcha-container", recaptchaSize)
+          const confirmation = await sendFirebaseOTP(formattedPhone, verifier)
+          ;(window as any).confirmationResult = confirmation
+          sessionStorage.setItem("auth_provider", "firebase")
+        } catch (firebaseErr: any) {
+          // Si estamos en localhost y Firebase falla, fallback automático a OTP local sin bloquear al desarrollador
+          if (isLocalHost) {
+            console.warn("Firebase falló en local (auth/invalid-app-credential u otro), aplicando fallback a backend OTP:", firebaseErr)
+            await requestOTP(formattedPhone)
+            sessionStorage.setItem("auth_provider", "local")
+          } else {
+            throw firebaseErr
+          }
+        }
       } else {
-        // Fallback a OTP local/dev
+        // Fallback a OTP local/dev backend
         await requestOTP(formattedPhone)
         sessionStorage.setItem("auth_provider", "local")
       }
@@ -350,6 +401,30 @@ function PhoneAuthContent() {
               <p className="text-xs text-center text-amber-400 font-medium">
                 Por favor marca la casilla &quot;No soy un robot&quot; arriba y haz clic de nuevo en enviar.
               </p>
+            )}
+
+            {/* Acceso Rápido Local para Pruebas (Solo visible en localhost / dev) */}
+            {isLocalHost && (
+              <div className="pt-2 border-t border-white/[0.08] space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-mono">
+                  <span className="text-cyan-400 flex items-center gap-1 font-semibold">
+                    <Zap className="h-3 w-3 text-amber-400" /> ENTORNO LOCAL
+                  </span>
+                  <span className="text-amber-400 font-bold bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
+                    CÓDIGO: 123456
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleDevBypass}
+                  disabled={isLoading}
+                  className="w-full py-4 text-xs font-mono font-bold bg-cyan-950/40 hover:bg-cyan-900/40 border-cyan-500/30 text-cyan-300 hover:text-cyan-200 cursor-pointer"
+                >
+                  <Zap className="h-3.5 w-3.5 mr-2 text-amber-400" />
+                  Acceso Rápido Local (Bypass Firebase)
+                </Button>
+              </div>
             )}
           </form>
 

@@ -848,7 +848,10 @@ function ServiceCard({ service, onAction, onQuote, isProcessing, variant }: any)
                 {service.service_metadata?.supplies_provider && (
                     <div className={`p-2 rounded-lg border text-[11px] space-y-0.5 ${pillarTheme.suppliesBadge}`}>
                         <p className="font-semibold">
-                            {service.service_metadata.supplies_provider === "client" ? "🧰 Cliente pone el repuesto" : "🚚 Técnico suministra repuesto"}
+                            {pillarTheme.pillar === "mechanics"
+                                ? (service.service_metadata.supplies_provider === "client" ? "🧰 Cliente pone el repuesto" : "🚚 Técnico suministra repuesto")
+                                : (service.service_metadata.supplies_provider === "client" ? "🧰 Cliente tiene el dispositivo" : "📦 Técnico suministra dispositivo")
+                            }
                         </p>
                         {service.service_metadata.supplies_notes && (
                             <p className="text-[10px] opacity-90 truncate">Ref: {service.service_metadata.supplies_notes}</p>

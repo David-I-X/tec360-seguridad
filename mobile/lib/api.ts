@@ -228,7 +228,7 @@ export async function verifyFirebaseToken(idToken: string): Promise<AuthResponse
 export async function completeOnboarding(data: {
   full_name: string;
   email?: string;
-  user_type: "client" | "technician";
+  user_type: "client" | "technician" | "company_admin"; company_name?: string; nit?: string; city?: string; dispatch_mode?: "manual" | "direct"; organization_id?: string;
 }): Promise<OnboardingResponse> {
   const response = await fetchWithAuth("/auth/onboarding", {
     method: "POST",
@@ -238,8 +238,18 @@ export async function completeOnboarding(data: {
   if (!response.ok) await handleAPIError(response);
 
   const responseData: OnboardingResponse = await response.json();
-  await saveUser(responseData.user);
+  if ((responseData as any).access_token && (responseData as any).refresh_token) { await saveTokens((responseData as any).access_token, (responseData as any).refresh_token); } await saveUser(responseData.user);
   return responseData;
+}
+
+export async function getPublicOrganizations(): Promise<{ organizations: Array<{ id: string; name: string; city: string; nit?: string | null }> }> {
+  try {
+    const response = await fetch(`${API_URL.replace(/\/$/, "")}/organizations/public-list`, { method: "GET" });
+    if (!response.ok) return { organizations: [] };
+    return response.json();
+  } catch {
+    return { organizations: [] };
+  }
 }
 
 export async function getCurrentUser(): Promise<UserResponse> {
@@ -346,7 +356,7 @@ export interface BalanceData {
   total_consumed: number;
   free_services_remaining: number;
   can_accept_services: boolean;
-  commission_rate: number;
+  commission_rate: number; welcome_bonus_granted?: boolean; welcome_bonus_amount?: number; is_organization_wallet?: boolean; organization_id?: string | null; organization_name?: string | null; org_wallet_balance?: number | null; credit_quota?: number | null; quota_used?: number | null; quota_remaining?: number | null; dispatch_mode?: "manual" | "direct" | null;
 }
 
 export interface CreditTransaction {
@@ -829,4 +839,201 @@ export async function getDemandHotspots(): Promise<DemandHotspotsResponse> {
   if (!response.ok) await handleAPIError(response);
   return response.json();
 }
+
+// ============================================
+// TALLERES / CUENTAS EMPRESA (ORGANIZATIONS)
+// ============================================
+
+export interface OrganizationMemberInfo {
+  id: string;
+  user_id: string;
+  full_name?: string | null;
+  phone: string;
+  email?: string | null;
+  org_role: 'owner' | 'manager' | 'technician';
+  status: string;
+  credit_quota: number | null;
+  quota_used: number;
+  quota_remaining: number | null;
+  courses_validated_by_org: boolean;
+  technician_id?: string | null;
+  is_available?: boolean | null;
+  is_verified?: boolean | null;
+  rank?: string | null;
+  average_rating?: number | null;
+  total_services?: number | null;
+}
+
+export interface OrganizationDashboardData {
+  id: string;
+  name: string;
+  nit?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  city: string;
+  owner_user_id: string;
+  dispatch_mode: 'manual' | 'direct';
+  wallet_balance: number;
+  total_recharged: number;
+  total_consumed: number;
+  welcome_bonus_granted: boolean;
+  welcome_bonus_amount: number;
+  is_active: boolean;
+  my_org_role: 'owner' | 'manager' | 'technician';
+  my_credit_quota: number | null;
+  my_quota_used: number;
+  members_count: number;
+  technicians_count: number;
+  members: OrganizationMemberInfo[];
+}
+
+export async function registerOrganization(payload: {
+  name: string;
+  nit?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  dispatch_mode?: 'manual' | 'direct';
+}): Promise<OrganizationDashboardData> {
+  const response = await fetchWithAuth('/organizations/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function getMyOrganization(): Promise<OrganizationDashboardData> {
+  const response = await fetchWithAuth('/organizations/me', { method: 'GET' });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function updateMyOrganization(payload: {
+  name?: string;
+  nit?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  dispatch_mode?: 'manual' | 'direct';
+}): Promise<OrganizationDashboardData> {
+  const response = await fetchWithAuth('/organizations/me', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function addOrganizationMember(payload: {
+  phone: string;
+  full_name: string;
+  email?: string;
+  org_role?: 'manager' | 'technician';
+  credit_quota?: number | null;
+  validate_courses_immediately?: boolean;
+}): Promise<{ success: boolean; message: string; member: OrganizationMemberInfo }> {
+  const response = await fetchWithAuth('/organizations/me/members', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function updateMemberQuota(
+  memberId: string,
+  payload: { credit_quota: number | null; reset_used?: boolean }
+): Promise<{
+  success: boolean;
+  member_id: string;
+  credit_quota: number | null;
+  quota_used: number;
+  quota_remaining: number | null;
+}> {
+  const response = await fetchWithAuth(`/organizations/me/members/${memberId}/quota`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function removeOrganizationMember(memberId: string): Promise<{ success: boolean; message: string }> {
+  const response = await fetchWithAuth(`/organizations/me/members/${memberId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function validateMemberCourses(
+  memberId: string
+): Promise<{ success: boolean; message: string; member_id: string; courses_validated_by_org: boolean }> {
+  const response = await fetchWithAuth(`/organizations/me/members/${memberId}/validate-courses`, {
+    method: 'POST',
+  });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function rechargeOrganizationWallet(payload: {
+  amount: number;
+  payment_method?: string;
+  external_reference?: string;
+}): Promise<{
+  success: boolean;
+  message: string;
+  organization_id: string;
+  amount: number;
+  wallet_balance: number;
+  total_recharged: number;
+}> {
+  const response = await fetchWithAuth('/organizations/me/wallet/recharge', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function getOrganizationServices(): Promise<{
+  organization_id: string;
+  dispatch_mode: 'manual' | 'direct';
+  available_services: any[];
+  team_services: any[];
+}> {
+  const response = await fetchWithAuth('/organizations/me/services', { method: 'GET' });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function assignServiceToMember(
+  serviceId: string,
+  technicianUserId: string
+): Promise<{
+  success: boolean;
+  message: string;
+  service_id: string;
+  assigned_technician_user_id: string;
+  assigned_technician_name?: string;
+  status: string;
+}> {
+  const response = await fetchWithAuth(`/organizations/me/services/${serviceId}/assign`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ technician_user_id: technicianUserId }),
+  });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
 

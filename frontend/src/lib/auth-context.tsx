@@ -53,7 +53,12 @@ interface AuthContextType {
   completeOnboarding: (data: {
     full_name: string
     email?: string
-    user_type: "client" | "technician"
+    user_type: "client" | "technician" | "company_admin"
+    company_name?: string
+    nit?: string
+    city?: string
+    dispatch_mode?: "manual" | "direct"
+    organization_id?: string
   }) => Promise<void>
   logout: () => void
   refreshUser: () => Promise<void>
@@ -180,7 +185,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const completeOnboarding = async (data: {
     full_name: string
     email?: string
-    user_type: "client" | "technician"
+    user_type: "client" | "technician" | "company_admin"
+    company_name?: string
+    nit?: string
+    city?: string
+    dispatch_mode?: "manual" | "direct"
+    organization_id?: string
   }): Promise<void> => {
     try {
       const response = await apiCompleteOnboarding(data)
@@ -277,7 +287,12 @@ export function ProtectedRoute({
     if (allowedRoles && allowedRoles.length > 0 && user?.role) {
       if (!allowedRoles.includes(user.role)) {
         // Role-aware redirect when user doesn't have the required role
-        const fallback = (user.role === "technician" || user.role === "reaction_team") ? "/tecnicos/dashboard" : "/servicios"
+        const fallback =
+          user.role === "company_admin"
+            ? "/taller/dashboard"
+            : user.role === "technician" || user.role === "reaction_team"
+            ? "/tecnicos/dashboard"
+            : "/servicios"
         router.push(fallback)
         return
       }
@@ -344,7 +359,9 @@ export function PublicOnlyRoute({
         router.push(redirectTo)
       } else {
         // Role-aware redirect
-        if (user?.role === "technician" || user?.role === "reaction_team") {
+        if (user?.role === "company_admin") {
+          router.push("/taller/dashboard")
+        } else if (user?.role === "technician" || user?.role === "reaction_team") {
           router.push("/tecnicos/dashboard")
         } else if (!user?.full_name) {
           // New client without profile — go straight to service creation (includes onboarding)

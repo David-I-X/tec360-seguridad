@@ -19,6 +19,9 @@ import {
   Wallet,
   GraduationCap,
   ArrowUpRight,
+  Building2,
+  Users,
+  Zap,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import Link from "next/link"
@@ -51,8 +54,10 @@ export function Navbar() {
   const { user, isAuthenticated, logout } = useAuth()
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [activeQueryTab, setActiveQueryTab] = useState<string | null>(null)
   const pathname = usePathname()
   const isLanding = pathname === "/"
+  const userOrg = (user as any)?.organization
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20)
@@ -62,6 +67,10 @@ export function Navbar() {
 
   useEffect(() => {
     setIsMobileMenuOpen(false)
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search)
+      setActiveQueryTab(sp.get("tab"))
+    }
   }, [pathname])
 
   const getNavLinks = () => {
@@ -80,15 +89,33 @@ export function Navbar() {
       ]
     }
 
-    if (user.role === "technician" || user.role === "reaction_team") {
+    if (user.role === "company_admin") {
       return [
-        { href: "/tecnicos/dashboard", label: "Dashboard", icon: Wrench },
-        { href: "/tecnicos/mis-cotizaciones", label: "Cotizaciones", icon: FileText },
-        { href: "/tecnicos/billetera", label: "Billetera", icon: Wallet },
+        { href: "/taller/dashboard", label: "Panel Taller", icon: Building2 },
+        { href: "/taller/dashboard?tab=team", label: "Subcuentas y Cupos", icon: Users },
+        { href: "/taller/dashboard?tab=dispatch", label: "Despacho", icon: Zap },
+        { href: "/taller/dashboard?tab=wallet", label: "Billetera Taller", icon: Wallet },
         { href: "/escuela", label: "Escuela Tec", icon: GraduationCap },
-        { href: "/descargar-app", label: "Descargar App", icon: Download },
         { href: "/configuracion", label: "Configuración", icon: Settings },
       ]
+    }
+
+    if (user.role === "technician" || user.role === "reaction_team") {
+      const links = [
+        { href: "/tecnicos/dashboard", label: "Dashboard", icon: Wrench },
+        { href: "/tecnicos/mis-cotizaciones", label: "Cotizaciones", icon: FileText },
+        {
+          href: "/tecnicos/billetera",
+          label: userOrg ? "Billetera (Cupo)" : "Billetera",
+          icon: Wallet,
+        },
+        { href: "/escuela", label: "Escuela Tec", icon: GraduationCap },
+      ]
+      if (userOrg?.org_role === "manager") {
+        links.unshift({ href: "/taller/dashboard", label: "Mi Taller", icon: Building2 })
+      }
+      links.push({ href: "/configuracion", label: "Configuración", icon: Settings })
+      return links
     }
 
     return [
@@ -100,6 +127,16 @@ export function Navbar() {
   }
 
   const navLinks = getNavLinks()
+
+  const isLinkActive = (href: string) => {
+    const [basePath, qs] = href.split("?")
+    if (pathname !== basePath) return false
+    if (!qs) {
+      return !activeQueryTab
+    }
+    const targetTab = new URLSearchParams(qs).get("tab")
+    return activeQueryTab === targetTab
+  }
 
   const getUserInitials = () => {
     if (!user?.full_name) return "U"
@@ -113,13 +150,17 @@ export function Navbar() {
     if (!user?.role) return null
     const roleMap: Record<string, { label: string; color: string }> = {
       client: { label: "Cliente", color: "bg-blue-500" },
-      technician: { label: "Técnico", color: "bg-emerald-500" },
+      technician: {
+        label: userOrg ? "Técnico de Taller" : "Técnico Certificado",
+        color: "bg-emerald-500",
+      },
+      company_admin: { label: "Taller / Empresa", color: "bg-cyan-600" },
       admin: { label: "Admin", color: "bg-purple-500" },
     }
     const role = roleMap[user.role]
     if (!role) return null
     return (
-      <span className={`text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full ${role.color}`}>
+      <span className={`text-[10px] font-bold text-white px-2 py-0.5 rounded-full ${role.color}`}>
         {role.label}
       </span>
     )
@@ -152,9 +193,9 @@ export function Navbar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-6">
+          <div className="hidden lg:flex items-center gap-2">
             {isLanding && !isAuthenticated ? (
-              <>
+              <div className="flex items-center gap-6">
                 {landingSections.map((section) => (
                   <a
                     key={section.href}
@@ -171,28 +212,59 @@ export function Navbar() {
                   <span>App Móvil</span>
                   <ArrowUpRight className="h-3.5 w-3.5" />
                 </Link>
-              </>
+              </div>
             ) : (
-              navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all",
-                    isLanding
-                      ? "text-[#B4B0C8] hover:text-[#F8FAFC] hover:bg-white/[0.06]"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  )}
-                >
-                  <link.icon className="h-4 w-4" />
-                  {link.label}
-                </Link>
-              ))
+              <div className="flex items-center gap-1.5 rounded-full bg-[#050810]/70 border border-slate-800/80 px-2 py-1">
+                {navLinks.map((link) => {
+                  const active = isLinkActive(link.href)
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => {
+                        const [, qs] = link.href.split("?")
+                        setActiveQueryTab(qs ? new URLSearchParams(qs).get("tab") : null)
+                      }}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full transition-all",
+                        active
+                          ? "bg-[#131B2E] text-[#00F0FF] border border-[#00F0FF]/40 shadow-[0_0_12px_rgba(0,240,255,0.12)]"
+                          : isLanding
+                            ? "text-[#B4B0C8] hover:text-[#F8FAFC] hover:bg-white/[0.06]"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      <link.icon className={cn("h-3.5 w-3.5", active && "text-[#00F0FF]")} />
+                      {link.label}
+                    </Link>
+                  )
+                })}
+              </div>
             )}
           </div>
 
           {/* Actions */}
           <div className="flex items-center gap-2.5">
+            {isAuthenticated && user?.role === "company_admin" && (
+              <Link
+                href="/taller/dashboard?tab=wallet"
+                className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#131B2E] border border-[#00F0FF]/35 text-[11px] font-mono font-bold text-[#00F0FF] hover:border-[#00F0FF] transition-colors"
+              >
+                <Building2 className="h-3.5 w-3.5" />
+                <span>TALLER • BONO $200.000</span>
+              </Link>
+            )}
+
+            {isAuthenticated && user?.role === "technician" && userOrg?.name && (
+              <Link
+                href="/tecnicos/billetera"
+                className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#131B2E] border border-violet-500/35 text-[11px] font-mono font-bold text-[#00F0FF] hover:border-[#00F0FF] transition-colors"
+              >
+                <Building2 className="h-3.5 w-3.5 text-violet-400" />
+                <span className="truncate max-w-[160px]">{userOrg.name}</span>
+              </Link>
+            )}
+
             {isAuthenticated && <NotificationBell />}
 
             {/* Theme Toggle only on inner routes — Landing is 100% Dark Immersive */}
@@ -237,8 +309,8 @@ export function Navbar() {
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-60">
-                  <DropdownMenuLabel className="flex items-center justify-between">
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuLabel className="flex items-center justify-between gap-2">
                     <span>Mi Cuenta</span>
                     {getRoleBadge()}
                   </DropdownMenuLabel>
@@ -247,8 +319,42 @@ export function Navbar() {
                     {user?.full_name && <div className="font-medium text-foreground">{user.full_name}</div>}
                     {user?.phone && <div className="text-xs">{maskPhoneNumber(user.phone)}</div>}
                     {user?.email && <div className="text-xs">{user.email}</div>}
+                    {userOrg?.name && (
+                      <div className="mt-1.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/30 text-[11px] font-mono font-semibold text-cyan-400">
+                        <Building2 className="h-3 w-3" />
+                        <span className="truncate max-w-[180px]">{userOrg.name}</span>
+                      </div>
+                    )}
                   </div>
                   <DropdownMenuSeparator />
+                  {user?.role === "company_admin" && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/taller/dashboard" className="cursor-pointer font-semibold text-cyan-400">
+                          <Building2 className="mr-2 h-4 w-4" />
+                          Consola de Taller
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/taller/dashboard?tab=team" className="cursor-pointer">
+                          <Users className="mr-2 h-4 w-4" />
+                          Subcuentas y Cupos
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/taller/dashboard?tab=dispatch" className="cursor-pointer">
+                          <Zap className="mr-2 h-4 w-4" />
+                          Despacho de Servicios
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/taller/dashboard?tab=wallet" className="cursor-pointer text-emerald-400">
+                          <Wallet className="mr-2 h-4 w-4" />
+                          Billetera Única ($200.000)
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   {user?.role === "client" && (
                     <>
                       <DropdownMenuItem asChild>
@@ -267,10 +373,18 @@ export function Navbar() {
                   )}
                   {user?.role === "technician" && (
                     <>
+                      {userOrg?.org_role === "manager" && (
+                        <DropdownMenuItem asChild>
+                          <Link href="/taller/dashboard" className="cursor-pointer font-semibold text-cyan-400">
+                            <Building2 className="mr-2 h-4 w-4" />
+                            Consola de Mi Taller
+                          </Link>
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem asChild>
                         <Link href="/tecnicos/dashboard" className="cursor-pointer">
                           <Wrench className="mr-2 h-4 w-4" />
-                          Dashboard
+                          Dashboard de Trabajos
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
@@ -282,7 +396,13 @@ export function Navbar() {
                       <DropdownMenuItem asChild>
                         <Link href="/tecnicos/billetera" className="cursor-pointer">
                           <Wallet className="mr-2 h-4 w-4" />
-                          Billetera
+                          {userOrg ? "Billetera (Cupo de Taller)" : "Billetera"}
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/escuela" className="cursor-pointer">
+                          <GraduationCap className="mr-2 h-4 w-4" />
+                          Escuela Tec360
                         </Link>
                       </DropdownMenuItem>
                     </>
@@ -420,19 +540,46 @@ export function Navbar() {
                   </>
                 ) : (
                   <>
-                    {navLinks.map((link) => (
-                      <Link
-                        key={link.href}
-                        href={link.href}
-                        className={cn(
-                          "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors",
-                          isLanding ? "hover:bg-white/[0.06] text-[#F8FAFC]" : "hover:bg-muted/50"
-                        )}
-                      >
-                        <link.icon className="h-5 w-5 text-muted-foreground" />
-                        {link.label}
-                      </Link>
-                    ))}
+                    {user?.role === "company_admin" && (
+                      <div className="mb-2 px-3.5 py-2.5 rounded-xl bg-[#131B2E] border border-[#00F0FF]/30">
+                        <div className="text-[10px] font-mono font-bold text-[#00F0FF] uppercase tracking-wider">
+                          Cuenta Empresa • Taller
+                        </div>
+                        <div className="text-xs font-semibold text-slate-200 mt-0.5">
+                          Billetera Única + Subcuentas
+                        </div>
+                      </div>
+                    )}
+                    {navLinks.map((link) => {
+                      const active = isLinkActive(link.href)
+                      return (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          onClick={() => {
+                            const [, qs] = link.href.split("?")
+                            setActiveQueryTab(qs ? new URLSearchParams(qs).get("tab") : null)
+                            setIsMobileMenuOpen(false)
+                          }}
+                          className={cn(
+                            "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-colors",
+                            active
+                              ? "bg-[#131B2E] text-[#00F0FF] border border-[#00F0FF]/40 font-semibold"
+                              : isLanding
+                                ? "hover:bg-white/[0.06] text-[#F8FAFC]"
+                                : "hover:bg-muted/50"
+                          )}
+                        >
+                          <link.icon
+                            className={cn(
+                              "h-5 w-5",
+                              active ? "text-[#00F0FF]" : "text-muted-foreground"
+                            )}
+                          />
+                          {link.label}
+                        </Link>
+                      )
+                    })}
                     <div className="border-t border-border mt-3 pt-3">
                       {!isAuthenticated && (
                         <Link

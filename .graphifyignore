@@ -1,0 +1,25 @@
+# Graphify Ignore Patterns for Tec360 Seguridad
+# Ignorar entregables binarios y activos pesados de diseño/branding
+brand-workspace/
+
+# Ignorar ejemplos de ilustraciones SVG/Canvas de la skill anatomy (180+ archivos .mjs/.js)
+.agents/skills/anatomy/examples/
+
+# Ignorar carpetas de scratch y logs temporales
+scratch/
+
+# Entornos virtuales y dependencias
+.venv/
+venv/
+node_modules/
+.next/
+dist/
+build/
+coverage/
+.pytest_cache/
+
+# Archivos sin simbolos AST soportados que impiden fast-path en manifest.json
+*.sql
+**/*.sql
+backend/pyproject.toml
+

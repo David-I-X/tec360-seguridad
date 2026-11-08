@@ -35,13 +35,22 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.role === "technician" || user.role === "reaction_team") {
+      if (user.role === "company_admin") {
+        router.push("/taller/dashboard")
+      } else if (user.role === "technician" || user.role === "reaction_team") {
         router.push("/tecnicos/dashboard")
       } else {
         router.push("/servicios")
       }
     }
   }, [isAuthenticated, user, router])
+
+  const handleSelectRoleAndContinue = (role: "client" | "technician" | "company_admin") => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("preferred_onboarding_role", role)
+    }
+    router.push("/auth/phone")
+  }
 
   return (
     <div className="min-h-screen bg-[#050810] text-slate-100 flex items-center justify-center relative overflow-hidden px-4 pt-24 pb-12">
@@ -91,7 +100,13 @@ export default function RegisterPage() {
           {/* Role Cards */}
           <motion.div initial="hidden" animate="visible" custom={1} variants={fadeUp} className="space-y-3.5 mb-7">
             {/* CLIENT Card */}
-            <div className="group relative overflow-hidden rounded-xl border border-violet-500/20 bg-violet-950/15 p-4 sm:p-5 hover:border-violet-500/40 transition-all duration-300">
+            <div
+              onClick={() => handleSelectRoleAndContinue("client")}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && handleSelectRoleAndContinue("client")}
+              className="group relative overflow-hidden rounded-xl border border-violet-500/20 bg-violet-950/15 p-4 sm:p-5 hover:border-violet-500/50 transition-all duration-300 cursor-pointer"
+            >
               <div className="absolute -top-8 -right-8 w-24 h-24 bg-violet-600/10 rounded-full blur-xl group-hover:bg-violet-600/20 transition-colors" />
               <div className="relative flex items-start gap-4">
                 <div className="shrink-0 flex h-12 w-12 items-center justify-center rounded-xl bg-violet-600/20 border border-violet-500/30 text-violet-300">
@@ -130,7 +145,13 @@ export default function RegisterPage() {
             </div>
 
             {/* TECHNICIAN Card */}
-            <div className="group relative overflow-hidden rounded-xl border border-emerald-500/20 bg-emerald-950/15 p-4 sm:p-5 hover:border-emerald-500/40 transition-all duration-300">
+            <div
+              onClick={() => handleSelectRoleAndContinue("technician")}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && handleSelectRoleAndContinue("technician")}
+              className="group relative overflow-hidden rounded-xl border border-emerald-500/20 bg-emerald-950/15 p-4 sm:p-5 hover:border-emerald-500/50 transition-all duration-300 cursor-pointer"
+            >
               <div className="absolute -top-8 -right-8 w-24 h-24 bg-emerald-600/10 rounded-full blur-xl group-hover:bg-emerald-600/20 transition-colors" />
               <div className="relative flex items-start gap-4">
                 <div className="shrink-0 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-300">
@@ -155,6 +176,41 @@ export default function RegisterPage() {
                     </span>
                     <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-cyan-300 bg-cyan-500/15 border border-cyan-500/20 rounded-md px-2 py-0.5">
                       <FileCheck className="h-3 w-3" /> Despacho en Ruta
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* WORKSHOP / COMPANY ACCOUNT Card */}
+            <div
+              onClick={() => handleSelectRoleAndContinue("company_admin")}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && handleSelectRoleAndContinue("company_admin")}
+              className="group relative overflow-hidden rounded-xl border border-cyan-500/25 bg-cyan-950/15 p-4 sm:p-5 hover:border-cyan-400/60 transition-all duration-300 cursor-pointer"
+            >
+              <div className="absolute -top-8 -right-8 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-500/20 transition-colors" />
+              <div className="relative flex items-start gap-4">
+                <div className="shrink-0 flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-300">
+                  <ShieldAlert className="h-6 w-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-base font-bold text-white font-display">Soy Taller / Cuenta Empresa</h3>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                      MULTI-TÉCNICO
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mb-3">
+                    Administra tu equipo de técnicos con billetera única, asignación de cupos individuales, validación de cursos y despacho centralizado o directo.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-emerald-300 bg-emerald-500/15 border border-emerald-500/20 rounded-md px-2 py-0.5">
+                      <CheckCircle2 className="h-3 w-3" /> Bono $200.000 por Taller
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-cyan-300 bg-cyan-500/15 border border-cyan-500/20 rounded-md px-2 py-0.5">
+                      <Users className="h-3 w-3" /> Subcuentas y Cupos
                     </span>
                   </div>
                 </div>

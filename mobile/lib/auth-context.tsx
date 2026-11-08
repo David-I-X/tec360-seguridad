@@ -17,6 +17,19 @@ import {
 // TYPES
 // ============================================
 
+export interface UserOrganizationSummary {
+  id: string;
+  name: string;
+  nit?: string | null;
+  city: string;
+  dispatch_mode: "manual" | "direct";
+  wallet_balance: number;
+  org_role: "owner" | "manager" | "technician";
+  credit_quota?: number | null;
+  quota_used: number;
+  quota_remaining?: number | null;
+}
+
 export interface User {
   id: string;
   phone: string;
@@ -25,8 +38,10 @@ export interface User {
   avatar_url?: string;
   role?: string;
   onboarding_completed?: boolean;
+  is_new_technician?: boolean;
   user_metadata?: Record<string, any>;
   average_rating?: number;
+  organization?: UserOrganizationSummary | null;
 }
 
 interface AuthContextType {
@@ -97,6 +112,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!user.onboarding_completed && !user.full_name) {
         router.replace("/(auth)/onboarding");
+      } else if (user.role === "company_admin") {
+        router.replace("/(tech)/taller" as any);
       } else if (user.role === "technician") {
         router.replace("/(tech)/dashboard");
       } else {

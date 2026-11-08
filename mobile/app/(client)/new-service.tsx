@@ -402,13 +402,11 @@ export default function NewServiceScreen() {
           vehicle_type: vehicleType || undefined,
           vehicle_model: vehicleModel || undefined,
           vehicle_plate: vehiclePlate ? vehiclePlate.trim() : undefined,
-          ...(formMode === 'mechanics' ? {
-            service_metadata: {
-              service_category: 'quick_mechanics',
-              supplies_provider: suppliesProvider,
-              supplies_notes: suppliesNotes.trim() || null,
-            },
-          } : {}),
+          service_metadata: {
+            service_category: formMode === 'mechanics' ? 'quick_mechanics' : 'installations',
+            supplies_provider: suppliesProvider,
+            supplies_notes: suppliesNotes.trim() || null,
+          },
         }),
       });
 
@@ -795,6 +793,51 @@ export default function NewServiceScreen() {
               ))}
             </View>
 
+
+            {formMode === 'normal' && (
+              <View style={styles.suppliesBoxInstallations}>
+                <Text style={styles.inputLabel}>¿Quién suministra el equipo o dispositivo?</Text>
+                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.suppliesOptionCard,
+                      suppliesProvider === 'client' && styles.suppliesOptionCardActiveInstallations,
+                    ]}
+                    onPress={() => setSuppliesProvider('client')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ fontSize: 22, marginBottom: 4 }}>🧰</Text>
+                    <Text style={[styles.suppliesOptionTitle, suppliesProvider === 'client' && { color: COLORS.primary }]}>
+                      Ya tengo el equipo
+                    </Text>
+                    <Text style={styles.suppliesOptionSub}>Solo requiero instalación</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.suppliesOptionCard,
+                      suppliesProvider === 'technician' && styles.suppliesOptionCardActiveInstallations,
+                    ]}
+                    onPress={() => setSuppliesProvider('technician')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ fontSize: 22, marginBottom: 4 }}>📦</Text>
+                    <Text style={[styles.suppliesOptionTitle, suppliesProvider === 'technician' && { color: COLORS.primary }]}>
+                      El técnico lo lleva
+                    </Text>
+                    <Text style={styles.suppliesOptionSub}>Cotizar e incluir equipo</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.inputLabel}>Marca / Modelo / Referencia del dispositivo (opcional)</Text>
+                <TextInput
+                  style={[styles.input, { marginBottom: 4 }]}
+                  placeholder="Ej: GPS Coban 303G, Dashcam 70mai A500S, Alarma..."
+                  placeholderTextColor="#555872"
+                  value={suppliesNotes}
+                  onChangeText={setSuppliesNotes}
+                />
+              </View>
+            )}
 
             {formMode === 'mechanics' && (
               <View style={styles.suppliesBox}>
@@ -1411,6 +1454,8 @@ const styles = StyleSheet.create({
   modeBtnTextMechanics: { color: '#fbbf24' },
   mechanicsBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, backgroundColor: 'rgba(245,158,11,0.14)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.35)', borderRadius: RADIUS.round, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 10 },
   mechanicsBadgeText: { color: '#fbbf24', fontSize: 11, fontWeight: '700' },
+  suppliesBoxInstallations: { backgroundColor: 'rgba(37,99,235,0.06)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(37,99,235,0.25)', padding: 14, marginBottom: 16 },
+  suppliesOptionCardActiveInstallations: { borderColor: COLORS.primary, backgroundColor: 'rgba(37,99,235,0.14)' },
   suppliesBox: { backgroundColor: 'rgba(245,158,11,0.06)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(245,158,11,0.25)', padding: 14, marginBottom: 16 },
   suppliesOptionCard: { flex: 1, backgroundColor: COLORS.bgCard, borderRadius: 12, padding: 12, borderWidth: 2, borderColor: COLORS.border, alignItems: 'center' },
   suppliesOptionCardActive: { borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.14)' },

@@ -76,7 +76,12 @@ class FirebaseVerifyRequest(BaseModel):
 class OnboardingRequest(BaseModel):
     full_name: str
     email: str = None
-    user_type: str # client, technician
+    user_type: str  # client, technician, company_admin
+    company_name: str = None
+    nit: str = None
+    city: str = "Medellín"
+    dispatch_mode: str = "manual"
+    organization_id: str = None
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
@@ -289,18 +294,44 @@ async def complete_onboarding(
     user.full_name = data.full_name
     if data.email:
         user.email = data.email
-    # Only allow client/technician via public onboarding
-    if data.user_type not in ("client", "technician"):
+    # Allow client, technician, or company_admin (Taller) via public onboarding
+    if data.user_type not in ("client", "technician", "company_admin"):
         raise HTTPException(status_code=403, detail="Rol no permitido desde el registro público")
     user.role = data.user_type
-    
+
     session.add(user)
     session.commit()
     session.refresh(user)
 
     is_new_technician = False
-    if user.role == "technician":
+    organization_summary = None
+    if user.role == "company_admin":
+        from app.api.organizations import create_organization_for_owner
+        workshop_name = (data.company_name or "").strip() or f"Taller {data.full_name.strip()}"
+        org = create_organization_for_owner(
+            session=session,
+            owner_user=user,
+            name=workshop_name,
+            nit=data.nit,
+            email=data.email,
+            city=data.city or "Medellín",
+            dispatch_mode=data.dispatch_mode if data.dispatch_mode in ("manual", "direct") else "manual",
+        )
+        organization_summary = {
+            "id": str(org.id),
+            "name": org.name,
+            "nit": org.nit,
+            "city": org.city,
+            "dispatch_mode": org.dispatch_mode,
+            "wallet_balance": org.wallet_balance,
+            "welcome_bonus_granted": org.welcome_bonus_granted,
+        }
+    elif user.role == "technician":
         from app.models.technician import Technician
+        from app.models.organization import Organization, OrganizationMember, OrgMemberStatus, OrgRole
+        from app.models.credit import TechnicianCredit
+        from uuid import UUID
+
         existing_tech = session.exec(select(Technician).where(Technician.user_id == user.id)).first()
         if not existing_tech:
             new_tech = Technician(
@@ -314,7 +345,59 @@ async def complete_onboarding(
             session.add(new_tech)
             session.commit()
             is_new_technician = True
-    
+
+        # Si el técnico seleccionó vincularse a una Organización/Taller existente en el onboarding
+        if data.organization_id and data.organization_id.strip():
+            try:
+                org_uuid = UUID(data.organization_id.strip())
+                org = session.get(Organization, org_uuid)
+            except Exception:
+                org = None
+
+            if org and org.is_active:
+                existing_mem = session.exec(
+                    select(OrganizationMember).where(
+                        OrganizationMember.user_id == user.id,
+                        OrganizationMember.status == OrgMemberStatus.active.value,
+                    )
+                ).first()
+                if not existing_mem:
+                    mem = OrganizationMember(
+                        organization_id=org.id,
+                        user_id=user.id,
+                        org_role=OrgRole.technician.value,
+                        status=OrgMemberStatus.active.value,
+                        credit_quota=None,
+                        quota_used=0.0,
+                        invited_phone=user.phone,
+                    )
+                    session.add(mem)
+
+                # Asegurar que no reciba bono individual duplicado (usa billetera corporativa del taller)
+                tech_credit = session.exec(
+                    select(TechnicianCredit).where(TechnicianCredit.technician_id == user.id)
+                ).first()
+                if not tech_credit:
+                    tech_credit = TechnicianCredit(
+                        technician_id=user.id,
+                        balance=0.0,
+                        total_recharged=0.0,
+                        total_consumed=0.0,
+                        welcome_bonus_granted=True,
+                    )
+                    session.add(tech_credit)
+
+                session.commit()
+                organization_summary = {
+                    "id": str(org.id),
+                    "name": org.name,
+                    "nit": org.nit,
+                    "city": org.city,
+                    "dispatch_mode": org.dispatch_mode,
+                    "wallet_balance": org.wallet_balance,
+                    "welcome_bonus_granted": org.welcome_bonus_granted,
+                }
+
     # Background task for CRM sync
     async def sync_and_save(uid: str):
         from app.core.database import engine
@@ -329,10 +412,23 @@ async def complete_onboarding(
                     bg_session.commit()
 
     background_tasks.add_task(sync_and_save, user.id)
-    
+
+    new_access_token = create_access_token(
+        subject=user.id,
+        expires_delta=timedelta(days=7),
+        extra_claims={"role": user.role},
+    )
+    new_refresh_token = create_refresh_token(
+        subject=user.id,
+        extra_claims={"role": user.role},
+    )
+
     return {
         "success": True,
         "message": "Perfil actualizado",
+        "access_token": new_access_token,
+        "refresh_token": new_refresh_token,
+        "organization": organization_summary,
         "user": {
             "id": str(user.id),
             "phone": user.phone,

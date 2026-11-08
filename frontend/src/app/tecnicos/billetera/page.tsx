@@ -514,6 +514,52 @@ export default function BilleteraPage() {
           </div>
         </div>
 
+        {/* ─── Workshop Shared Wallet & Quota Banner (when technician belongs to a Taller) ─── */}
+        {currentBalance.is_organization_wallet && (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-cyan-950/60 via-[#080F24] to-emerald-950/40 border border-cyan-500/40 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-[10px] font-mono font-bold uppercase">
+                  🏢 Billetera de Taller
+                </span>
+                <span className="text-sm font-bold text-white">
+                  {currentBalance.organization_name}
+                </span>
+              </div>
+              <span className="text-xs font-mono text-cyan-300">
+                Modo Despacho:{" "}
+                <strong>
+                  {currentBalance.dispatch_mode === "manual"
+                    ? "Asignación Centralizada por Taller"
+                    : "Recepción Directa"}
+                </strong>
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono pt-1">
+              <div className="p-2.5 rounded-xl bg-black/40 border border-white/10">
+                <span className="text-[10px] text-slate-400 block">SALDO GENERAL DEL TALLER</span>
+                <span className="text-sm font-bold text-emerald-400">
+                  {formatCOP(currentBalance.org_wallet_balance ?? currentBalance.balance)}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-black/40 border border-white/10">
+                <span className="text-[10px] text-slate-400 block">MI CUPO ASIGNADO EN TALLER</span>
+                <span className="text-sm font-bold text-cyan-300">
+                  {currentBalance.credit_quota !== null && currentBalance.credit_quota !== undefined
+                    ? formatCOP(currentBalance.credit_quota)
+                    : "Sin tope individual"}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-black/40 border border-white/10">
+                <span className="text-[10px] text-slate-400 block">MI CUPO CONSUMIDO</span>
+                <span className="text-sm font-bold text-amber-400">
+                  {formatCOP(currentBalance.quota_used ?? currentBalance.total_consumed)}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ─── Domain & Escrow Clarification Banner ─── */}
         <div className="p-3.5 rounded-xl bg-[#080F24] border border-[#1E3A8A]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
           <div className="flex items-center gap-2 text-[#BFDBFE]">
