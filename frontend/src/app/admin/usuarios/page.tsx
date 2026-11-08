@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import {
     Ban, CheckCircle, UserCog, Search,
     Users, ShieldCheck, AlertTriangle, ChevronRight,
-    Sparkles, Filter, ExternalLink
+    Sparkles, Filter, ExternalLink, Building2
 } from "lucide-react"
 import { toast } from "react-hot-toast"
 import api from "@/lib/api"
@@ -24,13 +24,18 @@ interface AdminUser {
     rank?: string
     total_services?: number
     average_rating?: number
+    // Organization / Workshop specific
+    organization_id?: string | null
+    organization_name?: string | null
+    org_role?: string | null
 }
 
 const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
     client: { label: "Cliente", color: "text-slate-300", bg: "bg-slate-800/80", border: "border-slate-700" },
     technician: { label: "Especialista Certificado", color: "text-[#93C5FD]", bg: "bg-[#0B1736]", border: "border-[#1E3A8A]" },
-    admin: { label: "Super Admin", color: "text-amber-400", bg: "bg-amber-500/15", border: "border-amber-500/30" },
+    company_admin: { label: "Organización / Taller", color: "text-cyan-300", bg: "bg-cyan-500/15", border: "border-cyan-500/30" },
     reaction_team: { label: "Escuadrón Reacción", color: "text-rose-400", bg: "bg-rose-500/15", border: "border-rose-500/30" },
+    admin: { label: "Super Admin", color: "text-amber-400", bg: "bg-amber-500/15", border: "border-amber-500/30" },
 }
 
 const fallbackUsers: AdminUser[] = [
@@ -222,8 +227,9 @@ export default function AdminUsersPage() {
     const handleRoleChange = async (userId: string, newRole: string) => {
         try {
             setChangingRole(userId)
-            await api.put(`/admin/users/${userId}/role`, { role: newRole })
-            toast.success(`Rol cambiado a ${ROLE_CONFIG[newRole]?.label || newRole}`)
+            const res = await api.put(`/admin/users/${userId}/role`, { role: newRole })
+            const orgInfo = res?.data?.organization_name ? ` (${res.data.organization_name})` : ""
+            toast.success(`Rol cambiado a ${ROLE_CONFIG[newRole]?.label || newRole}${orgInfo}`)
             fetchUsers()
             fetchGlobalCounts()
         } catch (error) {
@@ -509,6 +515,21 @@ export default function AdminUsersPage() {
                                                                 {user.rank} {user.average_rating ? `· ★ ${user.average_rating.toFixed(2)}` : ""}
                                                             </p>
                                                         )}
+                                                        {user.organization_name && (
+                                                            <p className="text-[10px] text-cyan-400 mt-0.5 flex items-center gap-1">
+                                                                <Building2 className="w-3 h-3" /> {user.organization_name}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                ) : user.role === "company_admin" ? (
+                                                    <div>
+                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-cyan-500/15 border border-cyan-500/30 text-cyan-300">
+                                                            <Building2 className="w-3 h-3 text-cyan-400" />
+                                                            {user.organization_name || "Titular de Organización / Taller"}
+                                                        </span>
+                                                        <p className="text-[10px] text-slate-400 mt-1">
+                                                            Billetera Compartida · Gestión de Flota
+                                                        </p>
                                                     </div>
                                                 ) : user.role === "reaction_team" ? (
                                                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-rose-500/15 border border-rose-500/30 text-rose-300">

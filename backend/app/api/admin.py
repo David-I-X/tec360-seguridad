@@ -9,6 +9,7 @@ from sqlmodel import Session, func, or_, select
 
 from app.core.database import get_session
 from app.core.security import require_roles
+from app.models.organization import Organization, OrganizationMember, OrgMemberStatus
 from app.models.service import Service, ServiceStatus
 from app.models.technician import Technician, calculate_rank_points
 from app.models.user import User
@@ -37,6 +38,11 @@ class AdminUserResponse(BaseModel):
     rank: Optional[str] = None
     total_services: Optional[int] = None
     average_rating: Optional[float] = None
+
+    # Organization / Workshop specific
+    organization_id: Optional[str] = None
+    organization_name: Optional[str] = None
+    org_role: Optional[str] = None
 
 @router.get("/users", summary="List all users", response_model=dict)
 async def list_users(
@@ -85,6 +91,34 @@ async def list_users(
                     "rank": tech.rank,
                     "total_services": tech.total_services,
                     "average_rating": tech.average_rating,
+                })
+
+        member = session.exec(
+            select(OrganizationMember).where(
+                OrganizationMember.user_id == u.id,
+                OrganizationMember.status == OrgMemberStatus.active.value,
+            )
+        ).first()
+        if member:
+            org = session.get(Organization, member.organization_id)
+            if org and org.is_active:
+                user_data.update({
+                    "organization_id": str(org.id),
+                    "organization_name": org.name,
+                    "org_role": member.org_role,
+                })
+        elif u.role == "company_admin":
+            owned_org = session.exec(
+                select(Organization).where(
+                    Organization.owner_id == u.id,
+                    Organization.is_active == True,  # noqa: E712
+                )
+            ).first()
+            if owned_org:
+                user_data.update({
+                    "organization_id": str(owned_org.id),
+                    "organization_name": owned_org.name,
+                    "org_role": "owner",
                 })
         result_list.append(user_data)
         
@@ -172,7 +206,8 @@ async def change_user_status(
 
 
 class RoleChangeRequest(BaseModel):
-    role: str  # "client" | "technician" | "admin" | "reaction_team"
+    role: str  # "client" | "technician" | "admin" | "reaction_team" | "company_admin"
+    organization_name: Optional[str] = None
 
 @router.put("/users/{user_id}/role", summary="Change user role")
 async def change_user_role(
@@ -182,8 +217,10 @@ async def change_user_role(
     session: Session = Depends(get_session)
 ):
     from uuid import UUID
+    from app.api.organizations import create_organization_for_owner
+    from app.models.organization import OrgRole
     
-    allowed_roles = ["client", "technician", "admin", "reaction_team"]
+    allowed_roles = ["client", "technician", "admin", "reaction_team", "company_admin"]
     if body.role not in allowed_roles:
         raise HTTPException(status_code=400, detail=f"Role must be one of: {allowed_roles}")
     
@@ -192,16 +229,92 @@ async def change_user_role(
         raise HTTPException(status_code=404, detail="User not found")
     
     old_role = user.role
-    user.role = body.role
-    session.add(user)
-    session.commit()
+    organization_name: Optional[str] = None
+
+    if body.role == "company_admin":
+        existing_org = session.exec(
+            select(Organization).where(
+                Organization.owner_id == user.id,
+                Organization.is_active == True,  # noqa: E712
+            )
+        ).first()
+        existing_member = session.exec(
+            select(OrganizationMember).where(
+                OrganizationMember.user_id == user.id,
+                OrganizationMember.status == OrgMemberStatus.active.value,
+            )
+        ).first()
+
+        if existing_org:
+            # Asegurar que no tenga perfil Technician y que su membresía sea owner
+            owner_tech = session.exec(select(Technician).where(Technician.user_id == user.id)).first()
+            if owner_tech:
+                session.delete(owner_tech)
+            if not existing_member:
+                session.add(
+                    OrganizationMember(
+                        organization_id=existing_org.id,
+                        user_id=user.id,
+                        org_role=OrgRole.owner.value,
+                        status=OrgMemberStatus.active.value,
+                        invited_phone=user.phone,
+                    )
+                )
+            else:
+                existing_member.org_role = OrgRole.owner.value
+                session.add(existing_member)
+            if body.organization_name and body.organization_name.strip():
+                existing_org.name = body.organization_name.strip()
+                session.add(existing_org)
+            user.role = "company_admin"
+            session.add(user)
+            session.commit()
+            organization_name = existing_org.name
+        elif existing_member:
+            org = session.get(Organization, existing_member.organization_id)
+            owner_tech = session.exec(select(Technician).where(Technician.user_id == user.id)).first()
+            if owner_tech:
+                session.delete(owner_tech)
+            existing_member.org_role = OrgRole.owner.value
+            session.add(existing_member)
+            user.role = "company_admin"
+            session.add(user)
+            session.commit()
+            organization_name = org.name if org else None
+        else:
+            default_org_name = (
+                body.organization_name.strip()
+                if body.organization_name and body.organization_name.strip()
+                else f"Taller {user.full_name or user.phone or user.email.split('@')[0]}"
+            )
+            org = create_organization_for_owner(
+                session=session,
+                owner_user=user,
+                name=default_org_name,
+            )
+            organization_name = org.name
+    else:
+        user.role = body.role
+        session.add(user)
+        if body.role == "technician":
+            tech = session.exec(select(Technician).where(Technician.user_id == user.id)).first()
+            if not tech:
+                session.add(
+                    Technician(
+                        user_id=user.id,
+                        specializations=["gps_installation"],
+                        is_available=True,
+                    )
+                )
+        session.commit()
     
     return {
         "message": f"Role changed from '{old_role}' to '{body.role}'",
         "user_id": user_id,
         "phone": user.phone,
         "full_name": user.full_name,
-        "role": user.role
+        "role": user.role,
+        "organization_name": organization_name,
     }
 
 # --- Admin Services Management ---
@@ -375,6 +488,8 @@ async def platform_stats(
     total_clients = session.exec(select(func.count()).select_from(select(User).where(User.role == "client").subquery())).one()
     total_techs = session.exec(select(func.count()).select_from(select(User).where(User.role == "technician").subquery())).one()
     total_reaction = session.exec(select(func.count()).select_from(select(User).where(User.role == "reaction_team").subquery())).one()
+    total_company_admins = session.exec(select(func.count()).select_from(select(User).where(User.role == "company_admin").subquery())).one()
+    total_orgs = session.exec(select(func.count()).select_from(select(Organization).where(Organization.is_active == True).subquery())).one()  # noqa: E712
 
     # Pending technician document verifications and unverified technicians
     pending_verifications = session.exec(
@@ -486,7 +601,9 @@ async def platform_stats(
             "clients": total_clients,
             "technicians": total_techs,
             "reaction_team": total_reaction,
-            "total": total_clients + total_techs + total_reaction,
+            "company_admins": total_company_admins,
+            "organizations": total_orgs,
+            "total": total_clients + total_techs + total_reaction + total_company_admins,
             "pending_verifications": pending_verifications,
             "unverified_technicians": unverified_techs,
         },

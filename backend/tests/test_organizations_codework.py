@@ -34,26 +34,26 @@ from app.api.organizations import (
 )
 from app.models.course import (
     Course,
-    CourseQuiz,
-    Enrollment,
-    Lesson,
-    LessonProgress,
+    CourseQuiz,  # noqa: F401
+    Enrollment,  # noqa: F401
+    Lesson,  # noqa: F401
+    LessonProgress,  # noqa: F401
 )
 from app.models.credit import (
     WELCOME_BONUS_AMOUNT,
-    CreditTransaction,
+    CreditTransaction,  # noqa: F401
     TechnicianCredit,
 )
-from app.models.dispatch import DispatchOffer
+from app.models.dispatch import DispatchOffer  # noqa: F401
 from app.models.organization import (
     DispatchMode,
-    Organization,
-    OrganizationMember,
+    Organization,  # noqa: F401
+    OrganizationMember,  # noqa: F401
     OrgRole,
 )
-from app.models.payment import Payment
-from app.models.quotation import Quotation
-from app.models.schedule import TechnicianSchedule
+from app.models.payment import Payment  # noqa: F401
+from app.models.quotation import Quotation  # noqa: F401
+from app.models.schedule import TechnicianSchedule  # noqa: F401
 from app.models.service import Service, ServiceStatus, ServiceType, VehicleType
 from app.models.technician import Technician
 from app.models.user import User
@@ -519,6 +519,103 @@ def test_ca5_workshop_assigns_service_to_technician_and_deducts_shared_wallet(sq
     assert org_after["wallet"]["balance"] == 185000.0
     assert org_after["wallet"]["total_consumed"] == 15000.0
     assert org_after[" wallet" if " wallet" in org_after else "wallet"]["total_quota_used"] == 15000.0
+
+
+def test_ca6_admin_can_change_user_role_to_company_admin_and_provisions_organization(sqlite_session: Session):
+    """
+    CA-6:
+    - El Super Admin puede cambiar el rol de un usuario a `company_admin` (Organización / Taller)
+      desde `/admin/users/{user_id}/role`.
+    - Al promoverlo a `company_admin`, si no tiene taller activo se provisiona automáticamente su
+      `Organization` + `OrganizationMember(org_role="owner")` + bono de bienvenida de $200.000 COP,
+      y se elimina cualquier perfil `Technician` previo (regla: el dueño no trabaja como técnico).
+    - `GET /admin/users` expone `organization_name` y `GET /organizations/me` funciona sin 404.
+    """
+    from app.api.admin import RoleChangeRequest, change_user_role, list_users, platform_stats
+
+    admin_user = User(
+        id=uuid4(),
+        email="superadmin@tec360.co",
+        phone="+573000000001",
+        full_name="Super Admin",
+        hashed_password="hash",
+        role="admin",
+        is_active=True,
+    )
+    target_user = User(
+        id=uuid4(),
+        email="nuevo_taller@tec360.co",
+        phone="+573007776655",
+        full_name="Roberto Gómez",
+        hashed_password="hash",
+        role="technician",
+        is_active=True,
+    )
+    sqlite_session.add(admin_user)
+    sqlite_session.add(target_user)
+    sqlite_session.flush()
+
+    # Tenía perfil Technician antes de ser promovido a dueño de taller
+    prior_tech = Technician(
+        user_id=target_user.id,
+        specializations=["gps_installation"],
+        is_available=True,
+    )
+    sqlite_session.add(prior_tech)
+    sqlite_session.commit()
+
+    admin_ctx = {"id": str(admin_user.id), "role": "admin"}
+
+    # Cambiar rol a company_admin desde el endpoint de Admin
+    role_res = _run_async(
+        change_user_role(
+            user_id=str(target_user.id),
+            body=RoleChangeRequest(role="company_admin", organization_name="Taller Roberto GPS"),
+            current_user=admin_ctx,
+            session=sqlite_session,
+        )
+    )
+    assert role_res["role"] == "company_admin"
+    assert role_res["organization_name"] == "Taller Roberto GPS"
+
+    sqlite_session.refresh(target_user)
+    assert target_user.role == "company_admin"
+
+    # El perfil Technician previo fue removido (el dueño no opera como técnico)
+    tech_after = sqlite_session.exec(
+        select(Technician).where(Technician.user_id == target_user.id)
+    ).first()
+    assert tech_after is None
+
+    # El usuario promovido puede consultar GET /organizations/me y tiene su bono de $200.000 COP
+    org_me = _run_async(
+        get_my_organization(
+            current_user={"id": str(target_user.id), "role": "company_admin"},
+            session=sqlite_session,
+        )
+    )
+    assert org_me["name"] == "Taller Roberto GPS"
+    assert org_me["wallet"]["balance"] == WELCOME_BONUS_AMOUNT
+
+    # GET /admin/users filtrando por company_admin devuelve el usuario con su organization_name
+    users_res = _run_async(
+        list_users(
+            skip=0,
+            limit=50,
+            role="company_admin",
+            search=None,
+            current_user=admin_ctx,
+            session=sqlite_session,
+        )
+    )
+    assert users_res["total"] >= 1
+    found = [u for u in users_res["items"] if u["id"] == str(target_user.id)]
+    assert len(found) == 1
+    assert found[0]["organization_name"] == "Taller Roberto GPS"
+
+    # GET /admin/stats incluye el conteo de organizaciones / talleres
+    stats_res = _run_async(platform_stats(current_user=admin_ctx, session=sqlite_session))
+    assert stats_res["users"]["organizations"] >= 1
 
 
 def UUID_from_str(val: str):
