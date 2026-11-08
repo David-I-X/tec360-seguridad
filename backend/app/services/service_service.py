@@ -133,12 +133,13 @@ class ServiceService:
             # Traer info de usuarios
             client = session.exec(select(User).where(User.id == service.client_id)).first()
             technician = None
+            technician_rating: Optional[float] = None
             if service.technician_id:
                 technician = session.exec(select(User).where(User.id == service.technician_id)).first()
                 if technician:
                     tech_model = session.exec(select(Technician).where(Technician.user_id == technician.id)).first()
                     if tech_model and tech_model.average_rating is not None:
-                        setattr(technician, "average_rating", float(tech_model.average_rating))
+                        technician_rating = float(tech_model.average_rating)
 
             # Traer info del pago más reciente (con datos DIAN)
             payment = session.exec(
@@ -149,7 +150,13 @@ class ServiceService:
                 from app.services.payment_service import payment_service
                 payment = await payment_service.ensure_tech_commission_invoice(session, payment)
 
-            return self._to_response(service, client=client, technician=technician, payment=payment)
+            return self._to_response(
+                service,
+                client=client,
+                technician=technician,
+                payment=payment,
+                technician_rating=technician_rating,
+            )
             
         except HTTPException:
             raise
@@ -1235,6 +1242,7 @@ class ServiceService:
         client: User = None,
         technician: User = None,
         payment: Optional[Payment] = None,
+        technician_rating: Optional[float] = None,
     ) -> ServiceResponse:
         """Helper para convertir DB model a Response Schema"""
         lat = 0.0
@@ -1312,7 +1320,11 @@ class ServiceService:
             )
             
         if technician:
-            tech_rating = getattr(technician, "average_rating", None)
+            tech_rating = (
+                technician_rating
+                if technician_rating is not None
+                else getattr(technician, "average_rating", None)
+            )
             response_kwargs["technician"] = ServiceTechnician(
                 id=str(technician.id),
                 email=technician.email,
