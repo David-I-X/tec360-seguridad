@@ -1,9 +1,9 @@
 ---
 name: brandingwork
-description: Pipeline completo de branding de Tec360 Seguridad con enfoque FigCraft-first (diseñar y auditar en FigCraft ANTES de escribir código). Activar SIEMPRE que el usuario diga "ejecútalo con brandingwork", "ejecutalo con brandingwork", "brandingwork" o pida iterar el branding/UI con este pipeline.
+description: Pipeline completo de branding de Tec360 Seguridad con enfoque FigCraft-first y auditoría adversarial Elephanfish (Google Elephant-Goldfish Model). Activar SIEMPRE que el usuario diga "ejecútalo con brandingwork", "ejecutalo con brandingwork", "brandingwork" o pida iterar el branding/UI con este pipeline.
 ---
 
-# brandingwork — Pipeline de Branding FigCraft-First
+# brandingwork — Pipeline de Branding FigCraft-First & Elephanfish (EGM)
 
 Cuando el usuario diga **"ejecútalo con brandingwork"**, ejecuta TODAS las fases en este orden. No saltes fases; si una herramienta MCP no está disponible, documéntalo en el artefacto final y continúa con la siguiente.
 
@@ -33,10 +33,29 @@ Cuando el usuario diga **"ejecútalo con brandingwork"**, ejecuta TODAS las fase
 - Componente único de marca: `frontend/src/components/brand/tec360-logo.tsx`.
 - `npx tsc --noEmit` y `npm run lint` dentro de `frontend/`.
 
-## Fase 5 — Auditoría multimodal cerrada
-- Capturas Playwright desktop + móvil de cada vista tocada; comparar contra el board FigCraft.
-- Corregir discrepancias antes de entregar.
+## Fase 5 — Auditoría Multimodal Cerrada con Elephant-Goldfish Model (EGM)
+Para erradicar el sesgo de confirmación del agente constructor (el Elefante), la auditoría visual se ejecuta mediante la arquitectura oficial de **`google/elephant-goldfish-model`**:
 
-## Fase 6 — Cierre
+1. **Captura Real Multimodal:**
+   - Generar capturas Playwright desktop (`1440x900`) y móvil (`390x844`) de cada vista modificada hacia `brand-workspace/deliverables/audit/`.
+2. **Orquestación con `egm-review-loop` (Enjambre Goldfish sin sesgo):**
+   - Invocar subagentes efímeros de solo lectura mediante `invoke_subagent` asignando la persona **`egm-brand-visual`** (`agents/brand_visual_critic.md`) acompañada de `egm-design` y `egm-style`.
+   - **Aislamiento Estricto de Contexto:** El Goldfish recibe **únicamente**:
+     * `TargetFile`: Componentes y vistas modificadas.
+     * `Standards`: `.agents/plugins/egm/resources/document_standards/tec360-brand-standard.md`.
+     * `GoldfishContext`: `[DESIGN.md, brand-workspace/deliverables/brand-tokens.json, capturas Playwright y FigCraft]`.
+     * **Cero historial de chat previo** (evaluación fría e incorruptible).
+3. **Resolución en Contexto Elefante con `egm-resolve`:**
+   - El Elefante recopila los hallazgos en `goldfish_review_report.md`, clasificando cada ítem como `PROPOSE FIX | CONTEST | ESCALATE | DECLINE`.
+   - Se aplican correcciones a código y estilos para todos los `🔴 Blocker` y `🟡 Major` encontrados.
+   - El ciclo de `egm-review-loop` se repite hasta obtener una **ronda limpia** (cero Blockers y cero Majors no resueltos).
+4. **Verificación de Consistencia con `egm-drift-report`:**
+   - Ejecutar `egm-drift-report` para contrastar `DESIGN.md` y el board `.figcraft` contra el código implementado en `frontend/` y `mobile/`, asegurando que el reporte `{YYYY-MM-DD}_DRIFT_REPORT.md` certifique `"No drift detected."`.
+
+## Fase 6 — Cierre y Trazabilidad
 - `graphify update .`
-- Artefacto `brandingwork_iteracion_N.md` con: board FigCraft vs implementación, archivos tocados, verificaciones.
+- Generar artefacto `brandingwork_iteracion_N.md` documentando:
+  * Board FigCraft vs implementación real.
+  * Reporte `goldfish_review_report.md` de EGM.
+  * Reporte `egm-drift-report` de fidelidad de diseño.
+  * Archivos tocados y pruebas de calidad aprobadas.

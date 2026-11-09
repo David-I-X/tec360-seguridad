@@ -111,6 +111,7 @@ services:
       - certbot_www:/var/www/certbot:ro
       - certbot_certs:/etc/letsencrypt:ro
       - uploads_data:/opt/tec360-seguridad/uploads:ro
+      - nginx_cache:/var/cache/nginx
     networks:
       - tec360_net
 
@@ -129,6 +130,7 @@ volumes:
   certbot_www:
   certbot_certs:
   uploads_data:
+  nginx_cache:
 
 
 networks:
