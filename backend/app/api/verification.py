@@ -6,7 +6,7 @@ from typing import List
 from app.core.database import get_session
 from app.core.security import get_current_user
 from app.models.user import User
-from app.models.technician import Technician
+from app.models.technician import Technician, ensure_technician_profile
 from app.models.verification import TechnicianDocument, DocumentStatus
 from app.schemas.verification import (
     DocumentResponse,
@@ -24,18 +24,20 @@ router = APIRouter(prefix="/verification", tags=["Verification"])
 
 
 def get_current_technician(current_user: dict = Depends(get_current_user), session: Session = Depends(get_session)) -> Technician:
-    if current_user["role"] != "technician":
+    if current_user["role"] not in ("technician", "reaction_team"):
         raise HTTPException(status_code=403, detail="Not a technician")
-    tech = session.exec(select(Technician).where(Technician.user_id == UUID(current_user["id"]))).first()
+    u_uuid = UUID(str(current_user["id"]))
+    tech = session.exec(select(Technician).where(Technician.user_id == u_uuid)).first()
     if not tech:
-        raise HTTPException(status_code=404, detail="Technician profile not found")
+        tech = ensure_technician_profile(session, u_uuid)
+        session.commit()
     return tech
 
 
 def get_current_admin(current_user: dict = Depends(get_current_user), session: Session = Depends(get_session)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Requires admin role")
-    user = session.get(User, UUID(current_user["id"]))
+    user = session.get(User, UUID(str(current_user["id"])))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user

@@ -41,7 +41,7 @@ from app.models.organization import (
     OrgRole,
 )
 from app.models.service import Service, ServiceStatus
-from app.models.technician import Technician
+from app.models.technician import Technician, ensure_technician_profile
 from app.models.user import User
 
 router = APIRouter(prefix="/organizations", tags=["Organizations / Talleres"])
@@ -150,12 +150,13 @@ def create_organization_for_owner(
     owner_user.updated_at = datetime.utcnow()
     session.add(owner_user)
 
-    # Si por alguna razón tenía perfil Technician previo, deshabilitar disponibilidad
+    # Si por alguna razón tenía perfil Technician previo, deshabilitar disponibilidad (preservar FK)
     owner_tech = session.exec(
         select(Technician).where(Technician.user_id == owner_user.id)
     ).first()
     if owner_tech:
-        session.delete(owner_tech)
+        owner_tech.is_available = False
+        session.add(owner_tech)
 
     org = Organization(
         name=name.strip(),
@@ -569,13 +570,15 @@ async def add_organization_member(
         tech = session.exec(
             select(Technician).where(Technician.user_id == user.id)
         ).first()
+        if not user.city and org.city:
+            user.city = org.city
+            session.add(user)
         if not tech:
             tech = Technician(
                 user_id=user.id,
                 specializations=payload.specializations or ["gps_installation"],
                 experience_years=1,
                 bio=f"Técnico miembro del taller {org.name}",
-                city=org.city,
                 is_available=True,
                 is_verified=payload.validate_courses_immediately,
                 verification_status="approved" if payload.validate_courses_immediately else "unverified",
@@ -748,14 +751,11 @@ async def validate_member_courses_by_workshop(
             "Solo se pueden validar cursos operativos a miembros con rol de técnico",
         )
 
-    tech = session.exec(
-        select(Technician).where(Technician.user_id == member.user_id)
-    ).first()
-    if tech:
-        tech.is_verified = True
-        tech.verification_status = "approved"
-        tech.updated_at = datetime.utcnow()
-        session.add(tech)
+    tech = ensure_technician_profile(session, member.user_id)
+    tech.is_verified = True
+    tech.verification_status = "approved"
+    tech.updated_at = datetime.utcnow()
+    session.add(tech)
 
     courses_granted = grant_all_required_courses(session, member.user_id)
     session.commit()

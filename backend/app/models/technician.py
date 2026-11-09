@@ -1,7 +1,7 @@
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID, uuid4
-from sqlmodel import Field, SQLModel, JSON
+from sqlmodel import Field, SQLModel, JSON, select
 from sqlalchemy import Column
 from geoalchemy2 import Geometry
 from enum import Enum
@@ -141,3 +141,26 @@ def calculate_rank_points(
             rank = rank_name
 
     return points, rank
+
+
+def ensure_technician_profile(
+    session,
+    user_id: UUID | str,
+    default_specializations: Optional[List[str]] = None,
+    is_available: bool = True,
+) -> Technician:
+    """
+    Retrieves the Technician profile for `user_id`, or auto-provisions one if missing.
+    Prevents 404 'Technician profile not found' for users assigned role='technician'.
+    """
+    u_uuid = UUID(str(user_id))
+    tech = session.exec(select(Technician).where(Technician.user_id == u_uuid)).first()
+    if not tech:
+        tech = Technician(
+            user_id=u_uuid,
+            specializations=default_specializations or ["gps_installation"],
+            is_available=is_available,
+        )
+        session.add(tech)
+        session.flush()
+    return tech

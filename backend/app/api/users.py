@@ -1,10 +1,11 @@
 from typing import Optional
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.core.database import get_session
 from app.core.security import get_current_user
 from app.models.user import User
-from app.models.technician import Technician
+from app.models.technician import Technician, ensure_technician_profile
 from app.models.push_token import PushToken, PushTokenCreate
 from pydantic import BaseModel
 
@@ -27,7 +28,7 @@ async def get_my_profile(
     current_user: dict = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    user = session.get(User, current_user["id"])
+    user = session.get(User, UUID(str(current_user["id"])))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
@@ -46,19 +47,21 @@ async def get_my_profile(
     
     if user.role == "technician":
         tech = session.exec(select(Technician).where(Technician.user_id == user.id)).first()
-        if tech:
-            response["technician_profile"] = {
-                "id": str(tech.id),
-                "bio": tech.bio,
-                "experience_years": tech.experience_years,
-                "service_radius_km": tech.service_radius_km,
-                "specializations": tech.specializations,
-                "rank": tech.rank,
-                "rank_points": tech.rank_points,
-                "average_rating": tech.average_rating,
-                "total_services": tech.total_services,
-                "is_verified": tech.is_verified,
-            }
+        if not tech:
+            tech = ensure_technician_profile(session, user.id)
+            session.commit()
+        response["technician_profile"] = {
+            "id": str(tech.id),
+            "bio": tech.bio,
+            "experience_years": tech.experience_years,
+            "service_radius_km": tech.service_radius_km,
+            "specializations": tech.specializations,
+            "rank": tech.rank,
+            "rank_points": tech.rank_points,
+            "average_rating": tech.average_rating,
+            "total_services": tech.total_services,
+            "is_verified": tech.is_verified,
+        }
             
     return response
 
@@ -68,7 +71,7 @@ async def update_my_profile(
     current_user: dict = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    user = session.get(User, current_user["id"])
+    user = session.get(User, UUID(str(current_user["id"])))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
@@ -89,9 +92,7 @@ async def update_my_technician_profile(
     if current_user["role"] != "technician":
         raise HTTPException(status_code=403, detail="Not a technician")
         
-    tech = session.exec(select(Technician).where(Technician.user_id == current_user["id"])).first()
-    if not tech:
-        raise HTTPException(status_code=404, detail="Technician profile not found")
+    tech = ensure_technician_profile(session, current_user["id"])
         
     update_dict = update_data.model_dump(exclude_unset=True)
     for key, value in update_dict.items():
@@ -106,7 +107,7 @@ async def delete_my_account(
     current_user: dict = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    user = session.get(User, current_user["id"])
+    user = session.get(User, UUID(str(current_user["id"])))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
@@ -129,7 +130,7 @@ async def register_push_token(
     current_user: dict = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    user_id = current_user["id"]
+    user_id = UUID(str(current_user["id"]))
     existing = session.exec(select(PushToken).where(PushToken.token == token_data.token)).first()
     
     if existing:
@@ -152,4 +153,3 @@ async def register_push_token(
     session.add(new_token)
     session.commit()
     return {"message": "Token registered successfully", "token_id": str(new_token.id)}
-

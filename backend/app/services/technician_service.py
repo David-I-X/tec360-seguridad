@@ -8,10 +8,11 @@ from decimal import Decimal
 import math
 from datetime import datetime, timedelta
 import re
+from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlmodel import Session, select, func
-from app.models.technician import Technician
+from app.models.technician import Technician, ensure_technician_profile
 from app.models.user import User
 from app.models.service import Service
 from app.schemas.technician import (
@@ -37,27 +38,24 @@ class TechnicianService:
         Crea el perfil de técnico para un usuario.
         """
         try:
-            # Verificar que el usuario existe y es técnico
-            user = session.get(User, user_id)
+            u_uuid = UUID(str(user_id))
+            user = session.get(User, u_uuid)
             if not user:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Usuario no encontrado")
             
-            if user.role != "technician":
+            if user.role not in ("technician", "reaction_team"):
                 raise HTTPException(status.HTTP_400_BAD_REQUEST, "El usuario debe tener rol 'technician'")
             
-            # Verificar que no existe ya un perfil
-            existing = session.exec(select(Technician).where(Technician.user_id == user_id)).first()
+            existing = session.exec(select(Technician).where(Technician.user_id == u_uuid)).first()
             if existing:
                 raise HTTPException(status.HTTP_400_BAD_REQUEST, "El técnico ya tiene un perfil creado")
             
-            # Crear perfil
-            # PostGIS Location
             current_location_wkt = None
             if technician_data.current_lat and technician_data.current_lon:
                 current_location_wkt = f"POINT({technician_data.current_lon} {technician_data.current_lat})"
 
             db_tech = Technician(
-                user_id=user_id,
+                user_id=u_uuid,
                 sena_certification_number=technician_data.sena_certification_number,
                 specializations=technician_data.specializations,
                 experience_years=technician_data.experience_years,
@@ -72,8 +70,7 @@ class TechnicianService:
             session.commit()
             session.refresh(db_tech)
             
-            # Recargar con user
-            return await self.get_technician_by_user_id(session, user_id)
+            return await self.get_technician_by_user_id(session, str(u_uuid))
         
         except HTTPException:
             raise
@@ -88,19 +85,24 @@ class TechnicianService:
         include_user_info: bool = True
     ) -> TechnicianResponse:
         try:
-            # Check by user_id or technician_id since frontend might send either
+            u_uuid = UUID(str(user_id))
             tech = session.exec(
                 select(Technician).where(
-                    (Technician.user_id == user_id) | (Technician.id == user_id)
+                    (Technician.user_id == u_uuid) | (Technician.id == u_uuid)
                 )
             ).first()
             if not tech:
-                raise HTTPException(status.HTTP_404_NOT_FOUND, "Perfil de técnico no encontrado")
+                user = session.get(User, u_uuid)
+                if user and user.role in ("technician", "reaction_team"):
+                    tech = ensure_technician_profile(session, u_uuid)
+                    session.commit()
+                    session.refresh(tech)
+                else:
+                    raise HTTPException(status.HTTP_404_NOT_FOUND, "Perfil de técnico no encontrado")
             
             user_data = None
             if include_user_info:
-                user = session.get(User, tech.user_id)
-                user_data = user
+                user_data = session.get(User, tech.user_id)
 
             return self._to_response(tech, user_data)
             
@@ -115,14 +117,16 @@ class TechnicianService:
         technician_id: str
     ) -> TechnicianResponse:
         try:
-            tech = session.get(Technician, technician_id)
+            tech = session.get(Technician, UUID(str(technician_id)))
             if not tech:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Técnico no encontrado")
             
             user = session.get(User, tech.user_id)
             return self._to_response(tech, user)
+        except HTTPException:
+            raise
         except Exception as e:
-             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Error: {str(e)}")
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Error: {str(e)}")
 
     async def update_technician_profile(
         self,
@@ -131,9 +135,14 @@ class TechnicianService:
         technician_data: TechnicianUpdate
     ) -> TechnicianResponse:
         try:
-            tech = session.exec(select(Technician).where(Technician.user_id == user_id)).first()
+            u_uuid = UUID(str(user_id))
+            tech = session.exec(select(Technician).where(Technician.user_id == u_uuid)).first()
             if not tech:
-                raise HTTPException(status.HTTP_404_NOT_FOUND, "Perfil no encontrado")
+                user = session.get(User, u_uuid)
+                if user and user.role in ("technician", "reaction_team"):
+                    tech = ensure_technician_profile(session, u_uuid)
+                else:
+                    raise HTTPException(status.HTTP_404_NOT_FOUND, "Perfil no encontrado")
 
             update_data = technician_data.model_dump(exclude_none=True)
             for k, v in update_data.items():
@@ -143,8 +152,10 @@ class TechnicianService:
             session.commit()
             session.refresh(tech)
             
-            user = session.get(User, user_id)
+            user = session.get(User, u_uuid)
             return self._to_response(tech, user)
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Error al actualizar: {str(e)}")
 
@@ -155,9 +166,14 @@ class TechnicianService:
         location_data: TechnicianLocationUpdate
     ) -> Dict[str, Any]:
         try:
-            tech = session.exec(select(Technician).where(Technician.user_id == user_id)).first()
+            u_uuid = UUID(str(user_id))
+            tech = session.exec(select(Technician).where(Technician.user_id == u_uuid)).first()
             if not tech:
-                raise HTTPException(status.HTTP_404_NOT_FOUND, "Perfil no encontrado")
+                user = session.get(User, u_uuid)
+                if user and user.role in ("technician", "reaction_team"):
+                    tech = ensure_technician_profile(session, u_uuid)
+                else:
+                    raise HTTPException(status.HTTP_404_NOT_FOUND, "Perfil no encontrado")
             
             tech.current_location = f"POINT({location_data.current_lon} {location_data.current_lat})"
             session.add(tech)
@@ -168,6 +184,8 @@ class TechnicianService:
                 "latitude": location_data.current_lat,
                 "longitude": location_data.current_lon
             }
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Error ubicación: {str(e)}")
 
@@ -178,9 +196,14 @@ class TechnicianService:
         is_available: bool
     ) -> Dict[str, Any]:
         try:
-            tech = session.exec(select(Technician).where(Technician.user_id == user_id)).first()
+            u_uuid = UUID(str(user_id))
+            tech = session.exec(select(Technician).where(Technician.user_id == u_uuid)).first()
             if not tech:
-                raise HTTPException(status.HTTP_404_NOT_FOUND, "Perfil no encontrado")
+                user = session.get(User, u_uuid)
+                if user and user.role in ("technician", "reaction_team"):
+                    tech = ensure_technician_profile(session, u_uuid)
+                else:
+                    raise HTTPException(status.HTTP_404_NOT_FOUND, "Perfil no encontrado")
                 
             tech.is_available = is_available
             session.add(tech)
@@ -190,8 +213,10 @@ class TechnicianService:
                 "message": f"Ahora estás {'disponible' if is_available else 'no disponible'}",
                 "is_available": is_available
             }
+        except HTTPException:
+            raise
         except Exception as e:
-             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
 
     async def list_technicians(
         self,
@@ -210,18 +235,12 @@ class TechnicianService:
             if verified_only:
                 query = query.where(Technician.is_verified)
             if is_available is not None:
-                 query = query.where(Technician.is_available == is_available)
+                query = query.where(Technician.is_available == is_available)
             if min_rating:
-                 query = query.where(Technician.average_rating >= min_rating)
+                query = query.where(Technician.average_rating >= min_rating)
             if city:
-                 query = query.where(User.city == city)
+                query = query.where(User.city == city)
             
-            # Specialization filter (JSONB check is tricky in SQLModel pure python, usually needed SA operators)
-            # For now, simplistic check or skip if complex.
-            # query = query.where(func.jsonb_exists(Technician.specializations, specialization)) if specialization else query
-            # We'll skip precise JSON filtering for this specific refactor step to avoid import complexity, or assuming simple list.
-            
-            # Count
             count_q = select(func.count()).select_from(query.subquery())
             total = session.exec(count_q).one()
             
@@ -261,21 +280,43 @@ class TechnicianService:
         user_id: str
     ) -> TechnicianStatsResponse:
         try:
-            tech = session.exec(select(Technician).where(Technician.user_id == user_id)).first()
+            u_uuid = UUID(str(user_id))
+            tech = session.exec(select(Technician).where(Technician.user_id == u_uuid)).first()
             if not tech:
-                 raise HTTPException(404, "Not found")
+                user = session.get(User, u_uuid)
+                if user and user.role in ("technician", "reaction_team"):
+                    tech = ensure_technician_profile(session, u_uuid)
+                    session.commit()
+                    session.refresh(tech)
+                else:
+                    raise HTTPException(404, "Not found")
                  
-            # Stats from Services table
-            # completed
-            completed = session.exec(select(func.count()).where(Service.technician_id == user_id, Service.status == "completed")).one()
-            in_progress = session.exec(select(func.count()).where(Service.technician_id == user_id, Service.status == "in_progress")).one()
-            cancelled = session.exec(select(func.count()).where(Service.technician_id == user_id, Service.status == "cancelled")).one()
+            completed = session.exec(
+                select(func.count()).where(
+                    Service.technician_id == u_uuid,
+                    Service.status.in_(["completed", "confirmed"]),
+                )
+            ).one()
+            in_progress = session.exec(
+                select(func.count()).where(
+                    Service.technician_id == u_uuid,
+                    Service.status == "in_progress",
+                )
+            ).one()
+            cancelled = session.exec(
+                select(func.count()).where(
+                    Service.technician_id == u_uuid,
+                    Service.status == "cancelled",
+                )
+            ).one()
             
-            # total earned (sum)
-            # COALESCE to avoid None
-            total_earned = session.exec(select(func.sum(Service.final_price)).where(Service.technician_id == user_id, Service.status == "completed")).one() or 0
+            total_earned = session.exec(
+                select(func.sum(Service.estimated_price)).where(
+                    Service.technician_id == u_uuid,
+                    Service.status.in_(["completed", "confirmed"]),
+                )
+            ).one() or 0
             
-            # Date-based counts
             now = datetime.utcnow()
             month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             week_start = now - timedelta(days=now.weekday())  # Monday
@@ -283,14 +324,14 @@ class TechnicianService:
 
             services_this_month = session.exec(
                 select(func.count()).where(
-                    Service.technician_id == user_id,
+                    Service.technician_id == u_uuid,
                     Service.created_at >= month_start
                 )
             ).one()
 
             services_this_week = session.exec(
                 select(func.count()).where(
-                    Service.technician_id == user_id,
+                    Service.technician_id == u_uuid,
                     Service.created_at >= week_start
                 )
             ).one()
@@ -301,10 +342,12 @@ class TechnicianService:
                 in_progress_services=in_progress,
                 cancelled_services=cancelled,
                 average_rating=tech.average_rating,
-                total_earned=Decimal(total_earned),
+                total_earned=Decimal(str(total_earned)),
                 services_this_month=services_this_month,
                 services_this_week=services_this_week
             )
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(500, str(e))
 

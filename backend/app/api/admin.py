@@ -9,9 +9,9 @@ from sqlmodel import Session, func, or_, select
 
 from app.core.database import get_session
 from app.core.security import require_roles
-from app.models.organization import Organization, OrganizationMember, OrgMemberStatus
+from app.models.organization import Organization, OrganizationMember, OrgMemberStatus, OrgRole
 from app.models.service import Service, ServiceStatus
-from app.models.technician import Technician, calculate_rank_points
+from app.models.technician import Technician, calculate_rank_points, ensure_technician_profile
 from app.models.user import User
 from app.models.verification import DocumentStatus, TechnicianDocument
 from app.services.sas_service import get_accounting_dashboard
@@ -68,7 +68,43 @@ async def list_users(
         
     total = session.exec(select(func.count()).select_from(query.subquery())).one()
     users = session.exec(query.order_by(User.created_at.desc()).offset(skip).limit(limit)).all()
-    
+
+    user_ids = [u.id for u in users]
+    tech_map: dict = {}
+    member_map: dict = {}
+    owned_org_map: dict = {}
+    org_by_id: dict = {}
+    provisioned_missing_tech = False
+
+    if user_ids:
+        for t in session.exec(select(Technician).where(Technician.user_id.in_(user_ids))).all():
+            tech_map[t.user_id] = t
+
+        active_members = session.exec(
+            select(OrganizationMember).where(
+                OrganizationMember.user_id.in_(user_ids),
+                OrganizationMember.status == OrgMemberStatus.active.value,
+            )
+        ).all()
+        org_ids = {m.organization_id for m in active_members}
+        for m in active_members:
+            member_map[m.user_id] = m
+
+        owned_orgs = session.exec(
+            select(Organization).where(
+                Organization.owner_id.in_(user_ids),
+                Organization.is_active == True,  # noqa: E712
+            )
+        ).all()
+        for o in owned_orgs:
+            owned_org_map[o.owner_id] = o
+            org_by_id[o.id] = o
+            org_ids.discard(o.id)
+
+        if org_ids:
+            for o in session.exec(select(Organization).where(Organization.id.in_(org_ids))).all():
+                org_by_id[o.id] = o
+
     result_list = []
     for u in users:
         user_data = {
@@ -81,47 +117,44 @@ async def list_users(
             "created_at": u.created_at,
             "avatar_url": u.avatar_url,
         }
-        
-        if u.role == "technician":
-            tech = session.exec(select(Technician).where(Technician.user_id == u.id)).first()
-            if tech:
-                user_data.update({
-                    "sena_certification_number": tech.sena_certification_number,
-                    "is_verified": tech.is_verified,
-                    "rank": tech.rank,
-                    "total_services": tech.total_services,
-                    "average_rating": tech.average_rating,
-                })
 
-        member = session.exec(
-            select(OrganizationMember).where(
-                OrganizationMember.user_id == u.id,
-                OrganizationMember.status == OrgMemberStatus.active.value,
-            )
-        ).first()
-        if member:
-            org = session.get(Organization, member.organization_id)
-            if org and org.is_active:
-                user_data.update({
-                    "organization_id": str(org.id),
-                    "organization_name": org.name,
-                    "org_role": member.org_role,
-                })
-        elif u.role == "company_admin":
-            owned_org = session.exec(
-                select(Organization).where(
-                    Organization.owner_id == u.id,
-                    Organization.is_active == True,  # noqa: E712
-                )
-            ).first()
-            if owned_org:
-                user_data.update({
-                    "organization_id": str(owned_org.id),
-                    "organization_name": owned_org.name,
-                    "org_role": "owner",
-                })
+        if u.role == "technician":
+            tech = tech_map.get(u.id)
+            if not tech:
+                tech = ensure_technician_profile(session, u.id)
+                tech_map[u.id] = tech
+                provisioned_missing_tech = True
+            user_data.update({
+                "sena_certification_number": tech.sena_certification_number,
+                "is_verified": tech.is_verified,
+                "rank": tech.rank,
+                "total_services": tech.total_services,
+                "average_rating": tech.average_rating,
+            })
+
+        if u.role in ("company_admin", "technician"):
+            member = member_map.get(u.id)
+            if member:
+                org = org_by_id.get(member.organization_id)
+                if org and org.is_active:
+                    user_data.update({
+                        "organization_id": str(org.id),
+                        "organization_name": org.name,
+                        "org_role": member.org_role,
+                    })
+            elif u.role == "company_admin":
+                owned_org = owned_org_map.get(u.id)
+                if owned_org and owned_org.is_active:
+                    user_data.update({
+                        "organization_id": str(owned_org.id),
+                        "organization_name": owned_org.name,
+                        "org_role": "owner",
+                    })
         result_list.append(user_data)
-        
+
+    if provisioned_missing_tech:
+        session.commit()
+
     return {
         "items": result_list,
         "total": total,
@@ -139,13 +172,11 @@ async def verify_technician(
     from uuid import UUID
     from app.api.courses import grant_all_required_courses, revoke_admin_granted_courses
     
-    user = session.get(User, UUID(user_id))
-    if not user or user.role != "technician":
+    user = session.get(User, UUID(str(user_id)))
+    if not user or user.role not in ("technician", "reaction_team"):
         raise HTTPException(status_code=404, detail="Technician not found")
         
-    tech = session.exec(select(Technician).where(Technician.user_id == user.id)).first()
-    if not tech:
-        raise HTTPException(status_code=404, detail="Technician profile not found")
+    tech = ensure_technician_profile(session, user.id)
         
     tech.is_verified = is_verified
     tech.verification_status = "verified" if is_verified else "incomplete"
@@ -157,12 +188,12 @@ async def verify_technician(
     else:
         revoke_admin_granted_courses(session, user.id)
     
-    # Recalculate rank points with verified status bonus (+20)
+    # Recalculate rank points with verified status bonus (+25)
     points, rank = calculate_rank_points(
-        total_services=tech.total_services,
-        experience_years=tech.experience_years,
-        certifications_count=tech.certifications_count,
-        average_rating=tech.average_rating,
+        total_services=tech.total_services or 0,
+        experience_years=tech.experience_years or 0,
+        certifications_count=tech.certifications_count or 0,
+        average_rating=tech.average_rating or 0.0,
         is_verified=tech.is_verified,
         specializations_count=len(tech.specializations or []),
     )
@@ -218,13 +249,12 @@ async def change_user_role(
 ):
     from uuid import UUID
     from app.api.organizations import create_organization_for_owner
-    from app.models.organization import OrgRole
     
     allowed_roles = ["client", "technician", "admin", "reaction_team", "company_admin"]
     if body.role not in allowed_roles:
         raise HTTPException(status_code=400, detail=f"Role must be one of: {allowed_roles}")
     
-    user = session.get(User, UUID(user_id))
+    user = session.get(User, UUID(str(user_id)))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -233,24 +263,31 @@ async def change_user_role(
 
     if body.role == "company_admin":
         existing_org = session.exec(
-            select(Organization).where(
-                Organization.owner_id == user.id,
-                Organization.is_active == True,  # noqa: E712
-            )
+            select(Organization).where(Organization.owner_id == user.id)
         ).first()
-        existing_member = session.exec(
-            select(OrganizationMember).where(
-                OrganizationMember.user_id == user.id,
-                OrganizationMember.status == OrgMemberStatus.active.value,
-            )
-        ).first()
+        all_memberships = session.exec(
+            select(OrganizationMember).where(OrganizationMember.user_id == user.id)
+        ).all()
+
+        # El dueño es administrativo: deshabilitar disponibilidad sin borrar Technician (preserva FK de documentos/quizzes)
+        owner_tech = session.exec(select(Technician).where(Technician.user_id == user.id)).first()
+        if owner_tech:
+            owner_tech.is_available = False
+            session.add(owner_tech)
 
         if existing_org:
-            # Asegurar que no tenga perfil Technician y que su membresía sea owner
-            owner_tech = session.exec(select(Technician).where(Technician.user_id == user.id)).first()
-            if owner_tech:
-                session.delete(owner_tech)
-            if not existing_member:
+            existing_org.is_active = True
+            if body.organization_name and body.organization_name.strip():
+                existing_org.name = body.organization_name.strip()
+            session.add(existing_org)
+
+            own_member = next((m for m in all_memberships if m.organization_id == existing_org.id), None)
+            for m in all_memberships:
+                if m.organization_id != existing_org.id and m.status == OrgMemberStatus.active.value:
+                    m.status = OrgMemberStatus.suspended.value
+                    session.add(m)
+
+            if not own_member:
                 session.add(
                     OrganizationMember(
                         organization_id=existing_org.id,
@@ -261,27 +298,22 @@ async def change_user_role(
                     )
                 )
             else:
-                existing_member.org_role = OrgRole.owner.value
-                session.add(existing_member)
-            if body.organization_name and body.organization_name.strip():
-                existing_org.name = body.organization_name.strip()
-                session.add(existing_org)
+                own_member.org_role = OrgRole.owner.value
+                own_member.status = OrgMemberStatus.active.value
+                session.add(own_member)
+
             user.role = "company_admin"
             session.add(user)
             session.commit()
             organization_name = existing_org.name
-        elif existing_member:
-            org = session.get(Organization, existing_member.organization_id)
-            owner_tech = session.exec(select(Technician).where(Technician.user_id == user.id)).first()
-            if owner_tech:
-                session.delete(owner_tech)
-            existing_member.org_role = OrgRole.owner.value
-            session.add(existing_member)
-            user.role = "company_admin"
-            session.add(user)
-            session.commit()
-            organization_name = org.name if org else None
         else:
+            # Si pertenecía como técnico/manager a otro taller ajeno, suspender esa membresía antes de crear su propio taller
+            for m in all_memberships:
+                if m.status == OrgMemberStatus.active.value:
+                    m.status = OrgMemberStatus.suspended.value
+                    session.add(m)
+            session.flush()
+
             default_org_name = (
                 body.organization_name.strip()
                 if body.organization_name and body.organization_name.strip()
@@ -296,16 +328,25 @@ async def change_user_role(
     else:
         user.role = body.role
         session.add(user)
-        if body.role == "technician":
-            tech = session.exec(select(Technician).where(Technician.user_id == user.id)).first()
-            if not tech:
-                session.add(
-                    Technician(
-                        user_id=user.id,
-                        specializations=["gps_installation"],
-                        is_available=True,
-                    )
-                )
+
+        # Si el usuario era owner activo de un taller y pasa a otro rol, suspender membresía owner
+        # para evitar bloqueo OWNER_CANNOT_OPERATE cuando opere como técnico o cliente
+        owner_memberships = session.exec(
+            select(OrganizationMember).where(
+                OrganizationMember.user_id == user.id,
+                OrganizationMember.org_role == OrgRole.owner.value,
+                OrganizationMember.status == OrgMemberStatus.active.value,
+            )
+        ).all()
+        for om in owner_memberships:
+            om.status = OrgMemberStatus.suspended.value
+            session.add(om)
+
+        if body.role in ("technician", "reaction_team"):
+            tech = ensure_technician_profile(session, user.id)
+            tech.is_available = True
+            session.add(tech)
+
         session.commit()
     
     return {
@@ -358,11 +399,26 @@ async def list_global_services(
     total = session.exec(select(func.count()).select_from(query.subquery())).one()
     services = session.exec(query.order_by(Service.created_at.desc()).offset(skip).limit(limit)).all()
     
-    # Resolve client and technician names
+    # Resolve client and technician names in a single batch query
+    related_user_ids = {
+        uid
+        for s in services
+        for uid in (s.client_id, s.technician_id)
+        if uid is not None
+    }
+    user_lookup = {
+        u.id: u
+        for u in (
+            session.exec(select(User).where(User.id.in_(related_user_ids))).all()
+            if related_user_ids
+            else []
+        )
+    }
+
     items = []
     for s in services:
-        client = session.get(User, s.client_id) if s.client_id else None
-        technician = session.get(User, s.technician_id) if s.technician_id else None
+        client = user_lookup.get(s.client_id) if s.client_id else None
+        technician = user_lookup.get(s.technician_id) if s.technician_id else None
         items.append({
             "id": str(s.id),
             "title": s.title,
