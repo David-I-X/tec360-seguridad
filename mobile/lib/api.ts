@@ -786,6 +786,11 @@ export interface DispatchOffer {
   vehicle_type?: string | null;
   vehicle_model?: string | null;
   vehicle_plate?: string | null;
+  service_description?: string | null;
+  client_notes?: string | null;
+  scheduled_date?: string | null;
+  vehicle_photo_url?: string | null;
+  service_metadata?: Record<string, any> | null;
 }
 
 export interface DispatchOfferListResponse {

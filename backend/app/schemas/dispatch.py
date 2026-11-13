@@ -25,13 +25,18 @@ class DispatchOfferResponse(BaseModel):
 
     # Datos contextuales del servicio para visualización del técnico
     service_title: Optional[str] = None
+    service_description: Optional[str] = None
+    client_notes: Optional[str] = None
     service_type: Optional[str] = None
     service_address: Optional[str] = None
     service_city: Optional[str] = None
+    scheduled_date: Optional[datetime] = None
     estimated_price: Optional[float] = None
     vehicle_type: Optional[str] = None
     vehicle_model: Optional[str] = None
     vehicle_plate: Optional[str] = None
+    vehicle_photo_url: Optional[str] = None
+    service_metadata: Optional[Dict[str, Any]] = None
 
 
 class DispatchOfferListResponse(BaseModel):

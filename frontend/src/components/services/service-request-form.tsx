@@ -11,7 +11,7 @@ import { Loader2, ArrowRight, ArrowLeft, MapPin, Check, Car, Clock, DollarSign, 
 import dynamic from "next/dynamic"
 
 import { cn } from "@/lib/utils"
-import { createServiceRequest } from "@/lib/api"
+import { createServiceRequest, fetchWithAuth } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -255,7 +255,7 @@ export function ServiceRequestForm() {
                 "battery_service": "Batería (Inicio / Cambio)",
                 "brake_service": "Pastillas y Ajuste de Frenos",
                 "chain_kit_service": "Kit de Arrastre / Cadena",
-                "spark_bulbs_wipers": "Bujías, Bombillos o Plumillas",
+                "spark_bulbs_wipers": "Vehículo no enciende",
                 "other": "Servicio Técnico"
             }[data.service_type] || "Servicio"
 
@@ -304,14 +304,13 @@ export function ServiceRequestForm() {
                     formData.append("file", compressedFile)
                     formData.append("service_id", result.id)
 
-                    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
-                    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
-
-                    await fetch(`${API_URL}/uploads/vehicle-photo`, {
+                    const res = await fetchWithAuth("/uploads/vehicle-photo", {
                         method: "POST",
-                        headers: { Authorization: `Bearer ${token}` },
                         body: formData,
                     })
+                    if (!res.ok) {
+                        throw new Error(`Upload failed (${res.status})`)
+                    }
                 } catch (photoErr) {
                     console.error("Error al subir foto del vehículo:", photoErr)
                     // We don't block the flow if photo fails, just log it
@@ -985,7 +984,7 @@ export function ServiceRequestForm() {
 
                                     {/* Vehicle photo */}
                                     <div className="space-y-2">
-                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Foto del vehículo</p>
+                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Foto del vehículo o problema (ayuda al técnico)</p>
                                         <label
                                             htmlFor="vehicle-photo"
                                             className={cn(
@@ -1013,8 +1012,8 @@ export function ServiceRequestForm() {
                                                         <span className="text-3xl">🚗</span>
                                                     </div>
                                                     <div>
-                                                        <p className="text-sm font-medium">Sube una foto de tu vehículo</p>
-                                                        <p className="text-xs text-muted-foreground">Ayuda al técnico a identificarlo</p>
+                                                        <p className="text-sm font-medium">Sube una foto de tu vehículo o falla</p>
+                                                        <p className="text-xs text-muted-foreground">El técnico la verá antes de aceptar el servicio</p>
                                                     </div>
                                                 </>
                                             )}
@@ -1039,11 +1038,11 @@ export function ServiceRequestForm() {
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                                    Descripción <span className="normal-case font-normal">(opcional)</span>
+                                                    Observaciones para el técnico <span className="normal-case font-normal">(opcional)</span>
                                                 </FormLabel>
                                                 <FormControl>
                                                     <Textarea
-                                                        placeholder="Cuéntale algo más al técnico..."
+                                                        placeholder="Describe qué falla presenta tu vehículo, síntomas, si no enciende o referencias de acceso..."
                                                         className="resize-none min-h-[80px] text-sm bg-muted/20"
                                                         {...field}
                                                     />

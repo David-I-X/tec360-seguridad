@@ -22,7 +22,11 @@ import {
     Radio,
     ChevronRight,
     Navigation,
-    Lock
+    Lock,
+    Camera,
+    Eye,
+    MessageSquare,
+    X
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
@@ -34,6 +38,8 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/components/ui/use-toast"
+import { getImageUrl } from "@/lib/utils"
+import { getClientObservations } from "@/lib/service-utils"
 import { 
     getAvailableServices, 
     getUserServices, 
@@ -158,6 +164,8 @@ export function TechnicianDashboard() {
     const [dispatchOffers, setDispatchOffers] = useState<DispatchOffer[]>([])
     const [demandHotspots, setDemandHotspots] = useState<DemandHotspot[]>([])
     const [isDispatchProcessing, setIsDispatchProcessing] = useState(false)
+    const [detailService, setDetailService] = useState<any | null>(null)
+    const [zoomPhotoUrl, setZoomPhotoUrl] = useState<string | null>(null)
 
     const fetchCourseOnboarding = async () => {
         try {
@@ -637,6 +645,8 @@ export function TechnicianDashboard() {
                                             service={service}
                                             onAction={() => handleAccept(service.id)}
                                             onQuote={() => handleQuote(service.id)}
+                                            onViewDetail={() => setDetailService(service)}
+                                            onPreviewPhoto={(url: string) => setZoomPhotoUrl(url)}
                                             isProcessing={processingId === service.id}
                                             variant="available"
                                         />
@@ -758,13 +768,188 @@ export function TechnicianDashboard() {
                 pendingCourseSlug={courseStatus?.pending_courses?.[0]?.slug}
                 pendingCourseTitle={courseStatus?.pending_courses?.[0]?.title}
             />
+
+            {/* Modal Detalle Completo de Servicio antes de Aceptar / Cotizar */}
+            {detailService && (() => {
+                const detailTheme = getPillarTheme(detailService)
+                const detailObs = getClientObservations(detailService)
+                const detailPhoto = detailService.vehicle_photo_url ? getImageUrl(detailService.vehicle_photo_url) : ""
+                const detailDate = detailService.scheduled_date ? new Date(detailService.scheduled_date) : null
+                const detailPrice = detailService.estimated_price
+                    ? new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(detailService.estimated_price)
+                    : null
+
+                return (
+                    <div
+                        className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
+                        onClick={() => setDetailService(null)}
+                    >
+                        <div
+                            className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl bg-slate-950 border border-white/15 shadow-2xl p-5 sm:p-6 space-y-4"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="space-y-1.5">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider border ${detailTheme.categoryBadge}`}>
+                                        {detailTheme.label}
+                                    </span>
+                                    <h3 className="text-lg font-extrabold text-white leading-snug">
+                                        {detailService.title}
+                                    </h3>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setDetailService(null)}
+                                    className="p-2 rounded-full bg-slate-900 text-slate-300 hover:text-white border border-white/10 cursor-pointer"
+                                    aria-label="Cerrar detalle"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+
+                            {(detailService.vehicle_model || detailService.vehicle_plate) && (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-mono font-bold border ${detailTheme.plateBadge}`}>
+                                        <Car className="h-3.5 w-3.5" />
+                                        {detailService.vehicle_model ? `${detailService.vehicle_model.toUpperCase()} · ` : ""}
+                                        {detailService.vehicle_plate ? detailService.vehicle_plate.toUpperCase() : "VEHÍCULO REGISTRADO"}
+                                    </span>
+                                    {detailPrice && (
+                                        <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 px-3 py-1 rounded-lg">
+                                            {detailPrice}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Ubicación + Fecha y Hora */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                                <div className="p-3 rounded-xl bg-slate-900/80 border border-white/10 space-y-1">
+                                    <span className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-400">
+                                        <MapPin className="h-3.5 w-3.5 text-blue-400" /> Lugar del servicio
+                                    </span>
+                                    <p className="text-slate-100 font-medium">
+                                        {detailService.service_address}{detailService.service_city ? `, ${detailService.service_city}` : ""}
+                                    </p>
+                                </div>
+                                <div className="p-3 rounded-xl bg-slate-900/80 border border-white/10 space-y-1">
+                                    <span className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-slate-400">
+                                        <Calendar className="h-3.5 w-3.5 text-amber-400" /> Fecha y hora
+                                    </span>
+                                    <p className="text-slate-100 font-medium capitalize">
+                                        {detailDate
+                                            ? format(detailDate, "EEEE d 'de' MMMM · h:mm a", { locale: es })
+                                            : (detailService.scheduled_time || "Coordinación inmediata")}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Observaciones Protagonistas */}
+                            <div className="p-4 rounded-xl bg-amber-500/15 border border-amber-400/50 space-y-1.5">
+                                <span className="flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-wider text-amber-300">
+                                    <MessageSquare className="h-3.5 w-3.5" />
+                                    Observaciones y falla reportada por el cliente
+                                </span>
+                                <p className="text-sm text-slate-100 leading-relaxed font-medium whitespace-pre-wrap">
+                                    {detailObs.primary || "El cliente no registró observaciones adicionales."}
+                                </p>
+                                {detailObs.notes && (
+                                    <p className="text-xs text-amber-200/90 pt-1 border-t border-amber-400/20">
+                                        Nota adicional: {detailObs.notes}
+                                    </p>
+                                )}
+                            </div>
+
+                            {detailService.service_metadata?.supplies_provider && (
+                                <div className={`p-3 rounded-xl border text-xs ${detailTheme.suppliesBadge}`}>
+                                    <p className="font-semibold">
+                                        {detailTheme.pillar === "mechanics"
+                                            ? (detailService.service_metadata.supplies_provider === "client" ? "🧰 Cliente pone el repuesto" : "🚚 Técnico suministra repuesto")
+                                            : (detailService.service_metadata.supplies_provider === "client" ? "🧰 Cliente tiene el dispositivo" : "📦 Técnico suministra dispositivo")
+                                        }
+                                    </p>
+                                    {detailService.service_metadata.supplies_notes && (
+                                        <p className="text-[11px] opacity-90 mt-0.5">Ref: {detailService.service_metadata.supplies_notes}</p>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Foto enviada por el cliente al crear el servicio */}
+                            {detailPhoto && (
+                                <div className="space-y-1.5">
+                                    <span className="flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                                        <Camera className="h-3.5 w-3.5 text-blue-400" />
+                                        Foto subida por el cliente (toca para ampliar)
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setZoomPhotoUrl(detailPhoto)}
+                                        className="w-full h-56 rounded-xl overflow-hidden border border-white/15 bg-black cursor-pointer"
+                                    >
+                                        <img src={detailPhoto} alt="Foto enviada por el cliente" className="w-full h-full object-cover hover:scale-[1.02] transition-transform" />
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="flex flex-col sm:flex-row gap-2.5 pt-2 border-t border-white/10">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        const sid = detailService.id
+                                        setDetailService(null)
+                                        handleQuote(sid)
+                                    }}
+                                    disabled={processingId === detailService.id}
+                                    className="sm:w-36 rounded-xl border-white/15 bg-slate-900 hover:bg-slate-800 text-slate-200 font-mono text-xs cursor-pointer"
+                                >
+                                    Cotizar
+                                </Button>
+                                <Button
+                                    onClick={() => {
+                                        const sid = detailService.id
+                                        setDetailService(null)
+                                        handleAccept(sid)
+                                    }}
+                                    disabled={processingId === detailService.id}
+                                    className={`flex-1 rounded-xl text-xs py-2.5 cursor-pointer ${detailTheme.primaryBtn}`}
+                                >
+                                    <CheckCircle className="mr-1.5 h-4 w-4" />
+                                    {detailTheme.acceptLabel}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            })()}
+
+            {/* Lightbox de Foto Ampliada */}
+            {zoomPhotoUrl && (
+                <div
+                    className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
+                    onClick={() => setZoomPhotoUrl(null)}
+                >
+                    <div className="relative max-w-2xl w-full rounded-2xl overflow-hidden bg-slate-950 border border-white/15 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                        <button
+                            type="button"
+                            onClick={() => setZoomPhotoUrl(null)}
+                            className="absolute top-3 right-3 z-10 p-2 rounded-full bg-slate-900/90 text-white hover:bg-slate-800 border border-white/15 cursor-pointer"
+                            aria-label="Cerrar foto"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                        <img src={zoomPhotoUrl} alt="Foto del vehículo enviada por el cliente" className="w-full max-h-[80vh] object-contain bg-black" />
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
 
-function ServiceCard({ service, onAction, onQuote, isProcessing, variant }: any) {
+function ServiceCard({ service, onAction, onQuote, onViewDetail, onPreviewPhoto, isProcessing, variant }: any) {
     const isCompleted = ["completed", "confirmed"].includes(service.status)
     const pillarTheme = getPillarTheme(service)
+    const clientObservations = getClientObservations(service)
+    const clientPhotoUrl = service.vehicle_photo_url ? getImageUrl(service.vehicle_photo_url) : ""
 
     // Corner status badge: the ONLY element that changes color dynamically based on status
     const currentStatus = variant === "available" ? "available" : service.status
@@ -859,6 +1044,41 @@ function ServiceCard({ service, onAction, onQuote, isProcessing, variant }: any)
                     </div>
                 )}
 
+                {/* Client Observations Callout */}
+                {clientObservations.primary && (
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-400/40 space-y-1">
+                        <span className="flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-amber-300">
+                            <MessageSquare className="h-3 w-3 shrink-0" />
+                            Observaciones del cliente
+                        </span>
+                        <p className="text-slate-100 text-xs leading-snug line-clamp-3 font-medium">
+                            {clientObservations.primary}
+                        </p>
+                        {clientObservations.notes && (
+                            <p className="text-amber-200/90 text-[11px] line-clamp-2">Nota: {clientObservations.notes}</p>
+                        )}
+                    </div>
+                )}
+
+                {/* Client Creation Photo */}
+                {clientPhotoUrl && (
+                    <button
+                        type="button"
+                        onClick={() => onPreviewPhoto ? onPreviewPhoto(clientPhotoUrl) : onViewDetail?.()}
+                        className="group relative w-full h-28 rounded-xl overflow-hidden border border-white/10 hover:border-amber-400/50 transition-colors bg-slate-900 cursor-pointer block"
+                        title="Ampliar foto enviada por el cliente"
+                    >
+                        <img
+                            src={clientPhotoUrl}
+                            alt="Foto enviada por el cliente"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                        <span className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-950/85 border border-white/15 text-[10px] font-mono text-slate-200">
+                            <Camera className="h-3 w-3 text-amber-400" /> Foto cliente
+                        </span>
+                    </button>
+                )}
+
                 {/* Price Display */}
                 {formattedPrice && (
                     <div className="pt-1 flex items-baseline justify-between">
@@ -887,34 +1107,47 @@ function ServiceCard({ service, onAction, onQuote, isProcessing, variant }: any)
                 )}
             </CardContent>
 
-            <CardFooter className="flex gap-2 pt-0 pb-4 px-5">
+            <CardFooter className="flex flex-col gap-2 pt-0 pb-4 px-5">
                 {variant === "available" ? (
                     <>
-                        <Button
-                            className={`flex-1 rounded-xl text-xs py-2.5 transition-all ${pillarTheme.primaryBtn}`}
-                            onClick={onAction}
-                            disabled={isProcessing}
-                        >
-                            {isProcessing ? (
-                                <>
-                                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                                    Procesando...
-                                </>
-                            ) : (
-                                <>
-                                    <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
-                                    {pillarTheme.acceptLabel}
-                                </>
-                            )}
-                        </Button>
-                        <Button
-                            variant="outline"
-                            className="w-24 rounded-xl border-white/10 bg-slate-900/60 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-mono transition-all"
-                            onClick={onQuote}
-                            disabled={isProcessing}
-                        >
-                            Cotizar
-                        </Button>
+                        <div className="flex gap-2 w-full">
+                            <Button
+                                className={`flex-1 rounded-xl text-xs py-2.5 transition-all cursor-pointer ${pillarTheme.primaryBtn}`}
+                                onClick={onAction}
+                                disabled={isProcessing}
+                            >
+                                {isProcessing ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                        Procesando...
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
+                                        {pillarTheme.acceptLabel}
+                                    </>
+                                )}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="w-24 rounded-xl border-white/10 bg-slate-900/60 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-mono transition-all cursor-pointer"
+                                onClick={onQuote}
+                                disabled={isProcessing}
+                            >
+                                Cotizar
+                            </Button>
+                        </div>
+                        {onViewDetail && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full h-8 rounded-lg text-[11px] font-mono text-slate-300 hover:text-white hover:bg-slate-900/90 border border-white/5 cursor-pointer gap-1.5"
+                                onClick={onViewDetail}
+                            >
+                                <Eye className="h-3.5 w-3.5 text-blue-400" />
+                                Ver detalle completo y foto
+                            </Button>
+                        )}
                     </>
                 ) : (
                     <Button

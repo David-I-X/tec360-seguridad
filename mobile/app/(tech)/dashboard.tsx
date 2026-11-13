@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Switch, Image, Alert,
+  ActivityIndicator, RefreshControl, Switch, Image, Alert, Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +23,7 @@ import {
 import { COLORS, NEU, RADIUS } from '@/constants/theme';
 import { NeuIcon, NeuButton } from '@/components/neu';
 import { BasicCoursesModal } from '@/components/BasicCoursesModal';
+import { getClientObservations, getMobileImageUrl } from '@/lib/service-utils';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -38,7 +39,7 @@ const typeIcon: Record<string, { icon: IconName; color: string }> = {
   battery_service:     { icon: 'battery-charging', color: '#34d399' },
   brake_service:       { icon: 'hand-left', color: '#fb7185' },
   chain_kit_service:   { icon: 'link', color: '#a855f7' },
-  spark_bulbs_wipers:  { icon: 'bulb', color: '#facc15' },
+  spark_bulbs_wipers:  { icon: 'flash', color: '#facc15' },
   vehicle_recovery:    { icon: 'shield-half', color: COLORS.red },
   other:               { icon: 'construct', color: COLORS.textSecondary },
 };
@@ -67,6 +68,7 @@ export default function TechDashboardScreen() {
   const [demandHotspots, setDemandHotspots] = useState<DemandHotspot[]>([]);
   const [isDispatchProcessing, setIsDispatchProcessing] = useState(false);
   const [offerCountdowns, setOfferCountdowns] = useState<Record<string, number>>({});
+  const [zoomPhotoUrl, setZoomPhotoUrl] = useState<string | null>(null);
 
   // Countdown timer para ofertas prioritarias
   useEffect(() => {
@@ -395,12 +397,59 @@ export default function TechDashboardScreen() {
                         <Text style={styles.detailChipText}>{offer.vehicle_plate.toUpperCase()}</Text>
                       </View>
                     )}
+                    {offer.scheduled_date && (
+                      <View style={styles.detailChip}>
+                        <Ionicons name="calendar-outline" size={12} color={COLORS.yellow} />
+                        <Text style={styles.detailChipText}>
+                          {new Date(offer.scheduled_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })} · {new Date(offer.scheduled_date).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </Text>
+                      </View>
+                    )}
                     {formattedPrice && (
                       <View style={[styles.detailChip, styles.detailChipPrice]}>
                         <Text style={styles.priceChipText}>{formattedPrice}</Text>
                       </View>
                     )}
                   </View>
+
+                  {(() => {
+                    const offerObs = getClientObservations({
+                      description: offer.service_description,
+                      client_notes: offer.client_notes,
+                      service_metadata: offer.service_metadata,
+                    });
+                    const offerPhoto = getMobileImageUrl(offer.vehicle_photo_url);
+                    if (!offerObs.primary && !offerPhoto) return null;
+                    return (
+                      <View style={{ marginBottom: 12, gap: 8 }}>
+                        {offerObs.primary && (
+                          <View style={styles.obsBox}>
+                            <View style={styles.obsHeader}>
+                              <Ionicons name="chatbubble-ellipses-outline" size={13} color="#fbbf24" />
+                              <Text style={styles.obsLabel}>OBSERVACIONES DEL CLIENTE</Text>
+                            </View>
+                            <Text style={styles.obsText} numberOfLines={3}>{offerObs.primary}</Text>
+                            {offerObs.notes && (
+                              <Text style={styles.obsNotes} numberOfLines={2}>Nota: {offerObs.notes}</Text>
+                            )}
+                          </View>
+                        )}
+                        {offerPhoto && (
+                          <TouchableOpacity
+                            style={styles.clientPhotoWrap}
+                            activeOpacity={0.85}
+                            onPress={() => setZoomPhotoUrl(offerPhoto)}
+                          >
+                            <Image source={{ uri: offerPhoto }} style={styles.clientPhotoImg} resizeMode="cover" />
+                            <View style={styles.clientPhotoBadge}>
+                              <Ionicons name="camera-outline" size={12} color="#fbbf24" />
+                              <Text style={styles.clientPhotoBadgeText}>Foto cliente · Toca para ampliar</Text>
+                            </View>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    );
+                  })()}
 
                   {/* Actions */}
                   <View style={styles.priorityOfferActions}>
@@ -586,6 +635,9 @@ export default function TechDashboardScreen() {
         renderItem={({ item }) => {
           const t = typeIcon[item.service_type] || typeIcon.other;
           const isMechanics = (item.service_metadata?.service_category === 'quick_mechanics') || ['oil_change', 'tire_change', 'battery_service', 'brake_service', 'chain_kit_service', 'spark_bulbs_wipers'].includes(item.service_type);
+          const obs = getClientObservations(item);
+          const clientPhoto = getMobileImageUrl(item.vehicle_photo_url);
+          const dateVal = item.scheduled_date || item.requested_date || item.created_at;
           return (
             <View style={styles.serviceCard}>
               <View style={styles.cardRow}>
@@ -602,22 +654,70 @@ export default function TechDashboardScreen() {
                   )}
                   <View style={styles.cardMeta}>
                     <Ionicons name="location-outline" size={13} color={COLORS.textMuted} />
-                    <Text style={styles.cardMetaText}>{item.service_city || 'Sin ubicación'}</Text>
-                    {(item.scheduled_date || item.requested_date || item.created_at) && (
-                      <>
-                        <Text style={styles.cardMetaSep}>·</Text>
-                        <Ionicons name="time-outline" size={13} color={COLORS.textMuted} />
-                        <Text style={styles.cardMetaText}>
-                          {new Date(item.scheduled_date || item.requested_date || item.created_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                        </Text>
-                      </>
-                    )}
+                    <Text style={styles.cardMetaText} numberOfLines={1}>
+                      {item.service_address || item.service_city || 'Sin ubicación'}
+                    </Text>
                   </View>
+                  {dateVal && (
+                    <View style={[styles.cardMeta, { marginTop: 3 }]}>
+                      <Ionicons name="calendar-outline" size={13} color={COLORS.yellow} />
+                      <Text style={styles.cardMetaText}>
+                        {new Date(dateVal).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })} · {new Date(dateVal).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 {item.estimated_price && (
                   <Text style={styles.cardPrice}>${item.estimated_price.toLocaleString('es-CO')}</Text>
                 )}
               </View>
+
+              {obs.primary && (
+                <View style={[styles.obsBox, { marginBottom: 12 }]}>
+                  <View style={styles.obsHeader}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={13} color="#fbbf24" />
+                    <Text style={styles.obsLabel}>OBSERVACIONES DEL CLIENTE</Text>
+                  </View>
+                  <Text style={styles.obsText} numberOfLines={3}>{obs.primary}</Text>
+                  {obs.notes && (
+                    <Text style={styles.obsNotes} numberOfLines={2}>Nota: {obs.notes}</Text>
+                  )}
+                </View>
+              )}
+
+              {clientPhoto && (
+                <TouchableOpacity
+                  style={[styles.clientPhotoWrap, { marginBottom: 12 }]}
+                  activeOpacity={0.85}
+                  onPress={() => setZoomPhotoUrl(clientPhoto)}
+                >
+                  <Image source={{ uri: clientPhoto }} style={styles.clientPhotoImg} resizeMode="cover" />
+                  <View style={styles.clientPhotoBadge}>
+                    <Ionicons name="camera-outline" size={12} color="#fbbf24" />
+                    <Text style={styles.clientPhotoBadgeText}>Foto del cliente · Toca para ampliar</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+
+              <View style={styles.cardSecondaryRow}>
+                <TouchableOpacity
+                  style={styles.secondaryCardBtn}
+                  onPress={() => router.push(`/(tech)/service/${item.id}` as any)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="eye-outline" size={15} color="#93c5fd" />
+                  <Text style={styles.secondaryCardBtnText}>Ver detalle</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.secondaryCardBtn}
+                  onPress={() => router.push(`/(tech)/quotation/${item.id}/new` as any)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="document-text-outline" size={15} color="#c4b5fd" />
+                  <Text style={styles.secondaryCardBtnText}>Cotizar</Text>
+                </TouchableOpacity>
+              </View>
+
               <NeuButton
                 label="Aceptar servicio"
                 icon="checkmark-circle"
@@ -643,6 +743,29 @@ export default function TechDashboardScreen() {
         onViewAllCourses={handleViewAllIntroCourses}
         mode={coursesModalMode}
       />
+
+      <Modal
+        visible={!!zoomPhotoUrl}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setZoomPhotoUrl(null)}
+      >
+        <View style={styles.zoomModalBackdrop}>
+          <TouchableOpacity
+            style={styles.zoomCloseBtn}
+            onPress={() => setZoomPhotoUrl(null)}
+          >
+            <Ionicons name="close" size={24} color="#fff" />
+          </TouchableOpacity>
+          {zoomPhotoUrl && (
+            <Image
+              source={{ uri: zoomPhotoUrl }}
+              style={styles.zoomFullImg}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -966,5 +1089,113 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontSize: 10,
     marginTop: 2,
+  },
+  obsBox: {
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.45)',
+    borderRadius: 12,
+    padding: 12,
+    gap: 4,
+  },
+  obsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  obsLabel: {
+    color: '#fbbf24',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  obsText: {
+    color: '#f8fafc',
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  obsNotes: {
+    color: '#fde68a',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  clientPhotoWrap: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: '#020617',
+    height: 120,
+  },
+  clientPhotoImg: {
+    width: '100%',
+    height: '100%',
+  },
+  clientPhotoBadge: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(2,6,23,0.85)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  clientPhotoBadgeText: {
+    color: '#f8fafc',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  cardSecondaryRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  secondaryCardBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(15,23,42,0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  secondaryCardBtnText: {
+    color: '#e2e8f0',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  zoomModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  zoomCloseBtn: {
+    position: 'absolute',
+    top: 52,
+    right: 20,
+    zIndex: 10,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(30,41,59,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  zoomFullImg: {
+    width: '100%',
+    height: '75%',
   },
 });

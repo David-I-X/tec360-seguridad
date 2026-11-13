@@ -25,6 +25,28 @@ import math
 from datetime import datetime, timedelta
 from geoalchemy2.shape import to_shape
 
+QUICK_MECHANICS_TYPES = {
+    "oil_change",
+    "tire_change",
+    "battery_service",
+    "brake_service",
+    "chain_kit_service",
+    "spark_bulbs_wipers",
+}
+
+
+def requires_vehicle_inspection(service: Service) -> bool:
+    """Retorna True solo cuando el servicio requiere inspección vehicular previa (instalaciones/mantenimiento)."""
+    raw_type = service.service_type.value if hasattr(service.service_type, "value") else str(service.service_type or "")
+    service_type = raw_type.lower()
+    if service_type == "vehicle_recovery":
+        return False
+    category = str((service.service_metadata or {}).get("service_category") or "").lower()
+    if service_type in QUICK_MECHANICS_TYPES or category == "quick_mechanics" or "mechanic" in category:
+        return False
+    return True
+
+
 class ServiceService:
     """
     Clase para manejar toda la lógica de negocio de servicios.
@@ -46,19 +68,29 @@ class ServiceService:
             # Verificar que el usuario existe en DB (debería, por auth)
             # No necesitamos hacer upsert manual como en Supabase
             
+            # Preservar client_notes en service_metadata sin alterar esquema SQL de Service
+            merged_metadata = dict(service_data.service_metadata or {})
+            client_notes = getattr(service_data, "client_notes", None)
+            if client_notes and client_notes.strip():
+                merged_metadata["client_notes"] = client_notes.strip()
+
+            effective_description = service_data.description
+            if (not effective_description or not effective_description.strip()) and client_notes and client_notes.strip():
+                effective_description = client_notes.strip()
+
             # Crear instancia de Servicio
             db_service = Service(
                 client_id=client_id,
                 service_type=service_data.service_type,
                 title=service_data.title,
-                description=service_data.description,
+                description=effective_description,
                 service_address=service_data.service_address,
                 # PostGIS Geometry: POINT(lon lat)
                 service_location=f"POINT({service_data.service_lon} {service_data.service_lat})",
                 scheduled_date=service_data.scheduled_date,
                 estimated_price=service_data.estimated_price,
                 status=ServiceStatus.pending,
-                service_metadata=service_data.service_metadata,
+                service_metadata=merged_metadata or None,
                 vehicle_type=service_data.vehicle_type,
                 vehicle_model=service_data.vehicle_model,
                 vehicle_plate=service_data.vehicle_plate,
@@ -270,6 +302,7 @@ class ServiceService:
             status=s.status,
             title=s.title,
             description=s.description,
+            client_notes=(s.service_metadata or {}).get("client_notes"),
             service_address=s.service_address,
             service_city=city,
             service_lat=lat,
@@ -584,8 +617,8 @@ class ServiceService:
             if str(service.technician_id) != technician_id:
                 raise HTTPException(status.HTTP_403_FORBIDDEN, "No estás asignado a este servicio")
 
-            # Validar inspección vehicular obligatoria para transición a in_progress (excepto vehicle_recovery)
-            if new_status == "in_progress" and service.service_type != "vehicle_recovery":
+            # Validar inspección vehicular obligatoria para transición a in_progress (instalaciones/mantenimiento)
+            if new_status == "in_progress" and requires_vehicle_inspection(service):
                 metadata = service.service_metadata or {}
                 inspection = metadata.get("vehicle_inspection")
                 if not inspection:
@@ -820,6 +853,12 @@ class ServiceService:
 
             if str(service.technician_id) != technician_id:
                 raise HTTPException(status.HTTP_403_FORBIDDEN, "No estás asignado a este servicio")
+
+            if not requires_vehicle_inspection(service):
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    "La inspección previa vehicular no aplica para mecánica rápida ni recuperación vehicular.",
+                )
 
             if service.status not in (ServiceStatus.arrived, ServiceStatus.in_progress):
                 raise HTTPException(
@@ -1276,6 +1315,7 @@ class ServiceService:
             "status": service.status,
             "title": service.title,
             "description": service.description,
+            "client_notes": (service.service_metadata or {}).get("client_notes"),
             "service_address": service.service_address,
             "service_city": city,
             "service_lat": lat,

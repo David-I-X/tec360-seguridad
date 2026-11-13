@@ -12,7 +12,7 @@ import {
     BatteryCharging,
     OctagonAlert,
     Link2,
-    Lightbulb,
+    Zap,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
@@ -40,7 +40,7 @@ const quickMechanicsServices: ServiceType[] = [
     { id: "battery_service", label: "Batería / Corriente", subtitle: "Inicio o reemplazo (< 30 min)", icon: BatteryCharging, color: "bg-emerald-500 text-white" },
     { id: "brake_service", label: "Pastillas de Freno", subtitle: "Cambio y ajuste (< 1 hora)", icon: OctagonAlert, color: "bg-rose-500 text-white" },
     { id: "chain_kit_service", label: "Kit de Arrastre", subtitle: "Cadena moto (< 45 min)", icon: Link2, color: "bg-violet-500 text-white" },
-    { id: "spark_bulbs_wipers", label: "Bujías y Bombillos", subtitle: "Luces / plumillas (< 30 min)", icon: Lightbulb, color: "bg-amber-400 text-slate-950" },
+    { id: "spark_bulbs_wipers", label: "Vehículo no enciende", subtitle: "Falla de arranque / corriente (< 30 min)", icon: Zap, color: "bg-amber-400 text-slate-950" },
 ]
 
 interface ServiceTypeSelectorProps {

@@ -42,9 +42,13 @@ export default function ServiceConfirmationSheet({
   const handleConfirmInspection = async () => {
     setIsSubmitting(true);
     try {
-      await fetchWithAuth(`/services/${service.id}/inspection/confirm`, {
+      const res = await fetchWithAuth(`/services/${service.id}/inspection/confirm`, {
         method: 'POST',
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || 'No se pudo confirmar la inspección');
+      }
       Alert.alert(
         '✅ Inspección confirmada',
         'Has confirmado el estado previo del vehículo. El técnico ya puede comenzar el servicio.'
@@ -76,8 +80,13 @@ export default function ServiceConfirmationSheet({
           payment_method: paymentMethod,
         }),
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || 'No se pudo confirmar la finalización');
+      }
+      const data = await res.json().catch(() => ({}));
       Alert.alert('🎉 ¡Servicio finalizado!', 'Gracias por confirmar tu conformidad y calificar el trabajo.');
-      onSuccess(res);
+      onSuccess(data);
       onClose();
     } catch (err: any) {
       Alert.alert('Error', err.message || 'No se pudo confirmar la finalización');

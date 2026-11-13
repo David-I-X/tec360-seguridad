@@ -26,6 +26,7 @@ import { TrackingSimulator } from "@/components/services/tracking-simulator"
 import { DispatchRadarCard } from "@/components/services/dispatch-radar-card"
 import { StarDisplay } from "@/components/ui/star-rating"
 import { getAvatarUrl } from "@/lib/utils"
+import { requiresVehicleInspection } from "@/lib/service-utils"
 import Link from "next/link"
 import {
     AlertDialog,
@@ -80,7 +81,7 @@ const typeLabels: Record<string, string> = {
     battery_service: "Batería (Inicio / Cambio)",
     brake_service: "Pastillas y Ajuste de Frenos",
     chain_kit_service: "Kit de Arrastre / Cadena",
-    spark_bulbs_wipers: "Bujías, Bombillos o Plumillas",
+    spark_bulbs_wipers: "Vehículo no enciende",
     vehicle_recovery: "Equipo de Reacción Inmediata",
     other: "Servicio Técnico Especializado",
 }
@@ -839,7 +840,7 @@ function ServiceDetailContent() {
                             </div>
 
                             {/* Pre-service Inspection Card (if inspection exists and not confirmed yet) */}
-                            {service.service_metadata?.vehicle_inspection && !service.service_metadata?.vehicle_inspection?.client_confirmed && user?.role === "client" && (
+                            {requiresVehicleInspection(service) && service.service_metadata?.vehicle_inspection && !service.service_metadata?.vehicle_inspection?.client_confirmed && user?.role === "client" && (
                                 <div className="rounded-2xl p-4 bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-amber-500/10 border border-blue-500/40 space-y-3 shadow-md">
                                     <div className="flex items-start gap-3">
                                         <div className="p-2 rounded-xl bg-blue-500/20 text-blue-500 shrink-0 text-xl">

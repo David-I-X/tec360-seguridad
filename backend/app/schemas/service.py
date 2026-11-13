@@ -380,6 +380,7 @@ class ServiceListResponse(BaseModel):
     status: str
     title: str
     description: Optional[str] = None
+    client_notes: Optional[str] = None
     service_address: Optional[str] = None
     service_city: str
     service_lat: Optional[float] = None

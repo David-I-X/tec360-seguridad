@@ -30,7 +30,7 @@ const MECHANICS_SERVICE_TYPES = [
   { key: 'battery_service', label: 'Batería / Corriente', emoji: '🔋', sub: '< 30 min' },
   { key: 'brake_service', label: 'Pastillas de Freno', emoji: '🛑', sub: '< 1 hora' },
   { key: 'chain_kit_service', label: 'Kit de Arrastre', emoji: '⛓️', sub: '< 45 min' },
-  { key: 'spark_bulbs_wipers', label: 'Bujías y Bombillos', emoji: '💡', sub: '< 30 min' },
+  { key: 'spark_bulbs_wipers', label: 'Vehículo no enciende', emoji: '⚡', sub: '< 30 min' },
 ];
 
 const ALL_SERVICE_TYPES = [...SERVICE_TYPES, ...MECHANICS_SERVICE_TYPES];
@@ -884,8 +884,8 @@ export default function NewServiceScreen() {
               </View>
             )}
 
-            <Text style={styles.inputLabel}>Descripción (opcional)</Text>
-            <TextInput style={[styles.input, { height: 80, textAlignVertical: 'top' }]} placeholder="Describe lo que necesitas..." placeholderTextColor="#555872" value={description} onChangeText={setDescription} multiline />
+            <Text style={styles.inputLabel}>Observaciones para el técnico (opcional)</Text>
+            <TextInput style={[styles.input, { height: 80, textAlignVertical: 'top' }]} placeholder="Describe la falla, síntomas, si el vehículo no enciende o referencias de acceso..." placeholderTextColor="#555872" value={description} onChangeText={setDescription} multiline />
           </View>
         )}
 
@@ -914,7 +914,7 @@ export default function NewServiceScreen() {
             <Text style={styles.inputLabel}>Placa</Text>
             <TextInput style={styles.input} placeholder="Ej: ABC-123" placeholderTextColor="#555872" value={vehiclePlate} onChangeText={setVehiclePlate} autoCapitalize="characters" />
 
-            <Text style={styles.inputLabel}>Foto del vehículo</Text>
+            <Text style={styles.inputLabel}>Foto del vehículo o falla</Text>
             <View style={styles.photoRow}>
               <TouchableOpacity style={styles.photoButton} onPress={takeVehiclePhoto}>
                 <Ionicons name="camera" size={24} color="#8b5cf6" />

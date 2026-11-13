@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  Image, Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { fetchWithAuth } from '@/lib/api';
+import { fetchWithAuth, getServiceById } from '@/lib/api';
+import { getClientObservations, getMobileImageUrl } from '@/lib/service-utils';
 
 export default function NewQuotationScreen() {
   const router = useRouter();
@@ -15,6 +17,20 @@ export default function NewQuotationScreen() {
   const [description, setDescription] = useState('');
   const [expiresIn, setExpiresIn] = useState('72'); // default 3 days
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [service, setService] = useState<any>(null);
+  const [isLoadingService, setIsLoadingService] = useState(true);
+  const [zoomPhotoUrl, setZoomPhotoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) {
+      setIsLoadingService(false);
+      return;
+    }
+    getServiceById(id)
+      .then((data) => setService(data?.service || data))
+      .catch(() => {})
+      .finally(() => setIsLoadingService(false));
+  }, [id]);
 
   const handleSubmit = async () => {
     const numAmount = parseFloat(amount.replace(/[^0-9.]/g, ''));
@@ -64,7 +80,76 @@ export default function NewQuotationScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.form} keyboardShouldPersistTaps="handled">
+      <ScrollView style={styles.form} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 24 }}>
+        {isLoadingService ? (
+          <View style={[styles.summaryCard, { alignItems: 'center', paddingVertical: 20 }]}>
+            <ActivityIndicator color="#8b5cf6" />
+          </View>
+        ) : service && (() => {
+          const obs = getClientObservations(service);
+          const clientPhoto = getMobileImageUrl(service.vehicle_photo_url);
+          const dateVal = service.scheduled_date || service.requested_date || service.created_at;
+          return (
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryEyebrow}>DETALLE DEL SERVICIO</Text>
+              <Text style={styles.summaryTitle}>{service.title}</Text>
+
+              {(service.vehicle_model || service.vehicle_plate) && (
+                <View style={styles.summaryMetaRow}>
+                  <Ionicons name="car-outline" size={14} color="#60a5fa" />
+                  <Text style={styles.summaryMetaText}>
+                    {service.vehicle_model ? `${service.vehicle_model} · ` : ''}
+                    {service.vehicle_plate || 'Sin placa'}
+                  </Text>
+                </View>
+              )}
+
+              {service.service_address && (
+                <View style={styles.summaryMetaRow}>
+                  <Ionicons name="location-outline" size={14} color="#eab308" />
+                  <Text style={styles.summaryMetaText}>
+                    {service.service_address}{service.service_city ? `, ${service.service_city}` : ''}
+                  </Text>
+                </View>
+              )}
+
+              {dateVal && (
+                <View style={styles.summaryMetaRow}>
+                  <Ionicons name="calendar-outline" size={14} color="#fbbf24" />
+                  <Text style={styles.summaryMetaText}>
+                    {new Date(dateVal).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })} · {new Date(dateVal).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.obsBox}>
+                <View style={styles.obsHeader}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={14} color="#fbbf24" />
+                  <Text style={styles.obsLabel}>OBSERVACIONES Y FALLA REPORTADA</Text>
+                </View>
+                <Text style={styles.obsText}>
+                  {obs.primary || 'El cliente no registró observaciones adicionales.'}
+                </Text>
+                {obs.notes && <Text style={styles.obsNote}>Nota adicional: {obs.notes}</Text>}
+              </View>
+
+              {clientPhoto && (
+                <TouchableOpacity
+                  style={styles.photoWrap}
+                  activeOpacity={0.85}
+                  onPress={() => setZoomPhotoUrl(clientPhoto)}
+                >
+                  <Image source={{ uri: clientPhoto }} style={styles.photoImg} resizeMode="cover" />
+                  <View style={styles.photoBadge}>
+                    <Ionicons name="camera-outline" size={12} color="#fbbf24" />
+                    <Text style={styles.photoBadgeText}>Foto del cliente · Toca para ampliar</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        })()}
+
         <View style={styles.card}>
           <Text style={styles.label}>Precio propuesto (COP)</Text>
           <View style={styles.priceInputContainer}>
@@ -123,6 +208,21 @@ export default function NewQuotationScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </View>
+      <Modal
+        visible={!!zoomPhotoUrl}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setZoomPhotoUrl(null)}
+      >
+        <View style={styles.zoomBackdrop}>
+          <TouchableOpacity style={styles.zoomCloseBtn} onPress={() => setZoomPhotoUrl(null)}>
+            <Ionicons name="close" size={24} color="#fff" />
+          </TouchableOpacity>
+          {zoomPhotoUrl && (
+            <Image source={{ uri: zoomPhotoUrl }} style={styles.zoomFullImg} resizeMode="contain" />
+          )}
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -145,4 +245,77 @@ const styles = StyleSheet.create({
   submitGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 18 },
   submitEmoji: { fontSize: 20 },
   submitText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  summaryCard: {
+    backgroundColor: 'rgba(10,14,28,0.85)',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(80,60,160,0.3)',
+    marginBottom: 14,
+    gap: 8,
+  },
+  summaryEyebrow: { color: '#94a3b8', fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+  summaryTitle: { color: '#f8fafc', fontSize: 16, fontWeight: '800', lineHeight: 22 },
+  summaryMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  summaryMetaText: { color: '#cbd5e1', fontSize: 12, flex: 1 },
+  obsBox: {
+    marginTop: 4,
+    backgroundColor: 'rgba(245,158,11,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.45)',
+    borderRadius: 12,
+    padding: 12,
+    gap: 4,
+  },
+  obsHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  obsLabel: { color: '#fbbf24', fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
+  obsText: { color: '#f8fafc', fontSize: 13, fontWeight: '600', lineHeight: 19 },
+  obsNote: { color: '#fde68a', fontSize: 12, marginTop: 2 },
+  photoWrap: {
+    marginTop: 4,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: '#020617',
+    height: 150,
+  },
+  photoImg: { width: '100%', height: '100%' },
+  photoBadge: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(2,6,23,0.85)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  photoBadgeText: { color: '#f8fafc', fontSize: 10, fontWeight: '700' },
+  zoomBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  zoomCloseBtn: {
+    position: 'absolute',
+    top: 52,
+    right: 20,
+    zIndex: 10,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(30,41,59,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  zoomFullImg: { width: '100%', height: '75%' },
 });

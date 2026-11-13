@@ -130,7 +130,7 @@ const TYPE_LABELS: Record<string, string> = {
     battery_service: "Batería / Sistema Eléctrico",
     brake_service: "Pastillas de Freno",
     chain_kit_service: "Kit de Arrastre",
-    spark_bulbs_wipers: "Bujías / Plumillas",
+    spark_bulbs_wipers: "Vehículo no enciende",
     vehicle_recovery: "Equipo Reacción Inmediata 24/7",
     other: "Servicio Especializado",
 }

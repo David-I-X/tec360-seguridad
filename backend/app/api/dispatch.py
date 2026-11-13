@@ -124,7 +124,18 @@ async def get_service_dispatch_offers(
             expires_at=o.expires_at,
             responded_at=o.responded_at,
             service_title=service.title,
+            service_description=service.description,
+            client_notes=(service.service_metadata or {}).get("client_notes"),
             service_type=service.service_type.value if hasattr(service.service_type, "value") else str(service.service_type),
+            service_address=service.service_address,
+            service_city=getattr(service, "service_city", None) or (service.service_address.split(",")[-1].strip() if service.service_address and "," in service.service_address else "Medellín"),
+            scheduled_date=service.scheduled_date,
+            estimated_price=float(service.estimated_price) if service.estimated_price else None,
+            vehicle_type=service.vehicle_type,
+            vehicle_model=service.vehicle_model,
+            vehicle_plate=service.vehicle_plate,
+            vehicle_photo_url=service.vehicle_photo_url,
+            service_metadata=service.service_metadata,
         )
         for o in offers
     ]

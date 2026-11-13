@@ -99,8 +99,8 @@ async def get_service_types():
             },
             {
                 "value": "spark_bulbs_wipers",
-                "label": "Bujías, Bombillos o Plumillas",
-                "description": "Reemplazo rápido de bujías, iluminación o plumillas"
+                "label": "Vehículo no enciende",
+                "description": "Diagnóstico y desvare rápido de encendido, batería, fusibles o iluminación"
             },
             {
                 "value": "vehicle_recovery",

@@ -7,6 +7,8 @@ import { ServiceWorkerRegistration } from "@/components/pwa/sw-register"
 import { PushAutoRegister } from "@/components/pwa/push-auto-register"
 import { Navbar } from "@/components/navbar"
 import { AnalyticsProvider } from "@/components/analytics/analytics-provider"
+import { Toaster } from "@/components/ui/toaster"
+import { Toaster as HotToaster } from "react-hot-toast"
 import "./globals.css"
 
 const archivoFont = Archivo({
@@ -186,6 +188,8 @@ export default function RootLayout({
             {children}
             <PushAutoRegister />
           </AuthProvider>
+          <Toaster />
+          <HotToaster position="top-right" toastOptions={{ duration: 4000 }} />
           <ServiceWorkerRegistration />
           <AnalyticsProvider />
         </ThemeProvider>

@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
+import { fetchWithAuth } from "@/lib/api"
 import { INSPECTION_CATEGORIES } from "@/components/technician/vehicle-inspection-modal"
 
 interface ServiceConfirmationModalProps {
@@ -15,7 +16,7 @@ interface ServiceConfirmationModalProps {
     onClose: () => void
     mode: "inspection" | "completion"
     service: any
-    token: string
+    token?: string
     onSuccess: (updatedService?: any) => void
 }
 
@@ -24,14 +25,12 @@ export function ServiceConfirmationModal({
     onClose,
     mode,
     service,
-    token,
     onSuccess,
 }: ServiceConfirmationModalProps) {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
-
     // Inspection review state
     const [expandedCategory, setExpandedCategory] = useState<string>("luces")
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [submitError, setSubmitError] = useState<string | null>(null)
 
     // Rating & completion state
     const [rating, setRating] = useState<number>(5)
@@ -45,14 +44,13 @@ export function ServiceConfirmationModal({
 
     // ─── Handle Confirm Inspection ─────────────────────────
     const handleConfirmInspection = async () => {
-        if (!token) return
+        setSubmitError(null)
         setIsSubmitting(true)
         try {
-            const res = await fetch(`${API_URL}/services/${service.id}/inspection/confirm`, {
+            const res = await fetchWithAuth(`/services/${service.id}/inspection/confirm`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
                 }
             })
 
@@ -68,9 +66,11 @@ export function ServiceConfirmationModal({
             onSuccess()
             onClose()
         } catch (err: any) {
+            const message = err?.message || "No se pudo confirmar la inspección."
+            setSubmitError(message)
             toast({
                 title: "Error",
-                description: err.message,
+                description: message,
                 variant: "destructive"
             })
         } finally {
@@ -80,14 +80,13 @@ export function ServiceConfirmationModal({
 
     // ─── Handle Confirm Completion + Rating ────────────────
     const handleConfirmCompletion = async () => {
-        if (!token) return
+        setSubmitError(null)
         setIsSubmitting(true)
         try {
-            const res = await fetch(`${API_URL}/services/${service.id}/confirm`, {
+            const res = await fetchWithAuth(`/services/${service.id}/confirm`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
                 },
                 body: JSON.stringify({
                     rating,
@@ -109,9 +108,11 @@ export function ServiceConfirmationModal({
             onSuccess(updated)
             onClose()
         } catch (err: any) {
+            const message = err?.message || "No se pudo confirmar la conformidad."
+            setSubmitError(message)
             toast({
                 title: "Error",
-                description: err.message,
+                description: message,
                 variant: "destructive"
             })
         } finally {
@@ -391,53 +392,61 @@ export function ServiceConfirmationModal({
                     </div>
 
                     {/* Footer */}
-                    <div className="p-4 border-t border-border/40 bg-muted/20 flex gap-3">
-                        <Button
-                            variant="outline"
-                            onClick={onClose}
-                            className="flex-1"
-                            disabled={isSubmitting}
-                        >
-                            Cerrar
-                        </Button>
-
-                        {mode === "inspection" ? (
-                            <Button
-                                onClick={handleConfirmInspection}
-                                disabled={isSubmitting}
-                                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold h-11 shadow-lg shadow-green-600/25"
-                            >
-                                {isSubmitting ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                        Confirmando...
-                                    </>
-                                ) : (
-                                    <>
-                                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                                        Confirmar Estado de Mi Vehículo
-                                    </>
-                                )}
-                            </Button>
-                        ) : (
-                            <Button
-                                onClick={handleConfirmCompletion}
-                                disabled={isSubmitting}
-                                className="flex-1 gradient-brand text-white font-bold h-11 shadow-lg shadow-blue-600/25"
-                            >
-                                {isSubmitting ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                        Enviando...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Check className="w-4 h-4 mr-2" />
-                                        Confirmar Conformidad
-                                    </>
-                                )}
-                            </Button>
+                    <div className="p-4 border-t border-border/40 bg-muted/20 space-y-3">
+                        {submitError && (
+                            <div className="flex items-start gap-2 rounded-xl bg-red-500/15 border border-red-500/40 px-3 py-2 text-xs text-red-300">
+                                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                                <span>{submitError}</span>
+                            </div>
                         )}
+                        <div className="flex gap-3">
+                            <Button
+                                variant="outline"
+                                onClick={onClose}
+                                className="flex-1"
+                                disabled={isSubmitting}
+                            >
+                                Cerrar
+                            </Button>
+
+                            {mode === "inspection" ? (
+                                <Button
+                                    onClick={handleConfirmInspection}
+                                    disabled={isSubmitting}
+                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold h-11 shadow-lg shadow-green-600/25"
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                            Confirmando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                                            Confirmar Estado de Mi Vehículo
+                                        </>
+                                    )}
+                                </Button>
+                            ) : (
+                                <Button
+                                    onClick={handleConfirmCompletion}
+                                    disabled={isSubmitting}
+                                    className="flex-1 gradient-brand text-white font-bold h-11 shadow-lg shadow-blue-600/25"
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                            Enviando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Check className="w-4 h-4 mr-2" />
+                                            Confirmar Conformidad
+                                        </>
+                                    )}
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 </motion.div>
             </div>

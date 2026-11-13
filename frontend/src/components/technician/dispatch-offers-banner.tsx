@@ -2,9 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Zap, Clock, MapPin, Car, CheckCircle2, XCircle, AlertTriangle, Loader2 } from "lucide-react"
+import { format } from "date-fns"
+import { es } from "date-fns/locale"
+import { Zap, Clock, MapPin, Car, CheckCircle2, XCircle, Loader2, Calendar, Camera, MessageSquare, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DispatchOffer } from "@/lib/api"
+import { getImageUrl } from "@/lib/utils"
+import { getClientObservations } from "@/lib/service-utils"
 
 interface DispatchOffersBannerProps {
   offers: DispatchOffer[]
@@ -21,6 +25,7 @@ export function DispatchOffersBanner({
 }: DispatchOffersBannerProps) {
   // Manejo de temporizador en segundos para cada oferta activa
   const [countdowns, setCountdowns] = useState<Record<string, number>>({})
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null)
 
   useEffect(() => {
     // Inicializar segundos de cada oferta
@@ -124,8 +129,8 @@ export function DispatchOffersBanner({
                     </p>
                   </div>
 
-                  {/* Datos del vehículo y precio */}
-                  <div className="flex flex-wrap items-center gap-3 text-xs font-mono pt-1">
+                  {/* Datos del vehículo, horario y precio */}
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-mono pt-1">
                     {(offer.vehicle_model || offer.vehicle_plate) && (
                       <span className="inline-flex items-center gap-1.5 text-slate-300 bg-slate-900/80 px-2.5 py-1 rounded-lg border border-white/10">
                         <Car className="h-3.5 w-3.5 text-blue-400" />
@@ -135,12 +140,60 @@ export function DispatchOffersBanner({
                         </strong>
                       </span>
                     )}
+                    {offer.scheduled_date && (
+                      <span className="inline-flex items-center gap-1.5 text-slate-200 bg-slate-900/80 px-2.5 py-1 rounded-lg border border-white/10">
+                        <Calendar className="h-3.5 w-3.5 text-amber-400" />
+                        {format(new Date(offer.scheduled_date), "d MMM · h:mm a", { locale: es })}
+                      </span>
+                    )}
                     {formattedPrice && (
                       <span className="text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-500/40 px-2.5 py-1 rounded-lg">
                         {formattedPrice}
                       </span>
                     )}
                   </div>
+
+                  {/* Observaciones destacadas + Foto del cliente */}
+                  {(() => {
+                    const obs = getClientObservations({
+                      description: offer.service_description,
+                      client_notes: offer.client_notes,
+                      service_metadata: offer.service_metadata,
+                    })
+                    const photoUrl = offer.vehicle_photo_url ? getImageUrl(offer.vehicle_photo_url) : ""
+                    if (!obs.primary && !photoUrl) return null
+                    return (
+                      <div className="mt-2 flex flex-col sm:flex-row gap-2.5 items-stretch">
+                        {obs.primary && (
+                          <div className="flex-1 p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/40 text-xs">
+                            <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-amber-300 mb-0.5">
+                              <MessageSquare className="h-3 w-3" />
+                              Observaciones del cliente
+                            </span>
+                            <p className="text-slate-100 leading-snug line-clamp-3 font-medium">
+                              {obs.primary}
+                            </p>
+                            {obs.notes && (
+                              <p className="text-amber-200/90 text-[11px] mt-1">Nota: {obs.notes}</p>
+                            )}
+                          </div>
+                        )}
+                        {photoUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewPhotoUrl(photoUrl)}
+                            className="group relative w-full sm:w-24 h-20 rounded-xl overflow-hidden border border-amber-400/40 bg-slate-900 shrink-0 cursor-pointer"
+                            title="Ampliar foto enviada por el cliente"
+                          >
+                            <img src={photoUrl} alt="Foto del cliente" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                            <span className="absolute inset-x-0 bottom-0 bg-slate-950/80 text-[10px] font-mono text-amber-300 py-0.5 px-1 flex items-center justify-center gap-1">
+                              <Camera className="h-3 w-3" /> Ver foto
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </div>
 
                 {/* Lado derecho: Contador regresivo y botones de acción */}
@@ -188,6 +241,25 @@ export function DispatchOffersBanner({
           )
         })}
       </AnimatePresence>
+
+      {previewPhotoUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setPreviewPhotoUrl(null)}
+        >
+          <div className="relative max-w-2xl w-full rounded-2xl overflow-hidden bg-slate-950 border border-white/15 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setPreviewPhotoUrl(null)}
+              className="absolute top-3 right-3 z-10 p-2 rounded-full bg-slate-900/90 text-white hover:bg-slate-800 border border-white/15 cursor-pointer"
+              aria-label="Cerrar vista previa"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <img src={previewPhotoUrl} alt="Foto del vehículo enviada por el cliente" className="w-full max-h-[80vh] object-contain bg-black" />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

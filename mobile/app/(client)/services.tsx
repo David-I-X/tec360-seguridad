@@ -45,7 +45,7 @@ const serviceTypeConfigs: Record<string, ServiceTypeConfig> = {
   battery_service:    { label: 'Batería (Inicio / Cambio)',  icon: 'battery-charging', color: '#34d399', bg: 'rgba(52,211,153,0.15)' },
   brake_service:      { label: 'Pastillas y Ajuste Frenos',  icon: 'hand-left',     color: '#fb7185', bg: 'rgba(251,113,133,0.15)' },
   chain_kit_service:  { label: 'Kit de Arrastre / Cadena',   icon: 'link',          color: '#a855f7', bg: 'rgba(168,85,247,0.15)' },
-  spark_bulbs_wipers: { label: 'Bujías, Bombillos / Plumillas', icon: 'bulb',       color: '#facc15', bg: 'rgba(250,204,21,0.15)' },
+  spark_bulbs_wipers: { label: 'Vehículo no enciende',          icon: 'flash',      color: '#facc15', bg: 'rgba(250,204,21,0.15)' },
   vehicle_recovery:   { label: 'Equipo de Reacción',        icon: 'shield-half', color: '#f87171', bg: 'rgba(248,113,113,0.15)' },
   other:              { label: 'Servicio Técnico',          icon: 'construct', color: '#94a3b8', bg: 'rgba(148,163,184,0.15)' },
 };

@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Marker } from 'react-native-maps';
 import { getServiceById, getAuthToken, API_URL, fetchWithAuth } from '@/lib/api';
+import { requiresVehicleInspection } from '@/lib/service-utils';
 import { serviceWebSocket } from '@/lib/websocket';
 import {
   TecMapView,
@@ -284,9 +285,10 @@ export default function ServiceDetailScreen() {
     ? `$${Number(service.estimated_price).toLocaleString('es-CO')}`
     : null;
 
+  const requiresInspection = requiresVehicleInspection(service);
   const inspection = service?.service_metadata?.vehicle_inspection;
   const hasInspection = !!inspection;
-  const needsInspectionConfirmation = hasInspection && !inspection.client_confirmed && service?.status !== 'completed' && service?.status !== 'confirmed';
+  const needsInspectionConfirmation = requiresInspection && hasInspection && !inspection.client_confirmed && service?.status !== 'completed' && service?.status !== 'confirmed';
 
   const getRegion = () => {
     if (techLocation) {

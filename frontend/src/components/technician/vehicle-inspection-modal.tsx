@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
+import { fetchWithAuth } from "@/lib/api"
 
 export interface InspectionCategoryDef {
     id: string
@@ -91,25 +92,26 @@ interface VehicleInspectionModalProps {
     isOpen: boolean
     onClose: () => void
     serviceId: string
+    serviceStatus?: string
     vehicleModel?: string
     vehiclePlate?: string
     existingInspection?: any
     onInspectionConfirmed: () => void
-    token: string
+    onInspectionSubmitted?: (inspection: any) => void
+    token?: string
 }
 
 export function VehicleInspectionModal({
     isOpen,
     onClose,
     serviceId,
+    serviceStatus,
     vehicleModel,
     vehiclePlate,
     existingInspection,
     onInspectionConfirmed,
-    token
+    onInspectionSubmitted,
 }: VehicleInspectionModalProps) {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
-
     // Initialize default categories where everything defaults to "good" (fast completion)
     const [categoriesState, setCategoriesState] = useState<InspectionDataState>(() => {
         if (existingInspection?.categories) {
@@ -129,6 +131,7 @@ export function VehicleInspectionModal({
     const [generalNotes, setGeneralNotes] = useState<string>(existingInspection?.general_notes || "")
     const [expandedCategory, setExpandedCategory] = useState<string>(INSPECTION_CATEGORIES[0].id)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [submitError, setSubmitError] = useState<string | null>(null)
     const [isSubmitted, setIsSubmitted] = useState(!!existingInspection)
     const [isClientConfirmed, setIsClientConfirmed] = useState(!!existingInspection?.client_confirmed)
     const [elapsedMinutes, setElapsedMinutes] = useState(0)
@@ -184,15 +187,24 @@ export function VehicleInspectionModal({
         }))
     }
 
+    const isArrivalRequired = Boolean(
+        serviceStatus && !["arrived", "in_progress"].includes(serviceStatus)
+    )
+
     const handleSubmitInspection = async () => {
-        if (!token) return
+        if (isArrivalRequired) {
+            const msg = "Debes marcar 'He llegado al lugar' antes de enviar la inspección previa."
+            setSubmitError(msg)
+            toast({ title: "Acción requerida", description: msg, variant: "destructive" })
+            return
+        }
+        setSubmitError(null)
         setIsSubmitting(true)
         try {
-            const res = await fetch(`${API_URL}/services/${serviceId}/inspection`, {
+            const res = await fetchWithAuth(`/services/${serviceId}/inspection`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
                 },
                 body: JSON.stringify({
                     vehicle_km: vehicleKm.trim() || undefined,
@@ -203,18 +215,27 @@ export function VehicleInspectionModal({
 
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}))
-                throw new Error(err.detail || "Error al enviar la inspección")
+                const detail = Array.isArray(err?.detail)
+                    ? err.detail.map((e: any) => e.msg || JSON.stringify(e)).join(", ")
+                    : err?.detail
+                throw new Error(detail || "Error al enviar la inspección")
             }
 
+            const data = await res.json().catch(() => ({}))
             setIsSubmitted(true)
+            if (data?.inspection) {
+                onInspectionSubmitted?.(data.inspection)
+            }
             toast({
                 title: "📋 Inspección enviada al cliente",
                 description: "Se envió una copia a la pantalla del cliente para su confirmación."
             })
         } catch (err: any) {
+            const message = err?.message || "No se pudo enviar la inspección. Intenta nuevamente."
+            setSubmitError(message)
             toast({
-                title: "Error",
-                description: err.message,
+                title: "Error al enviar inspección",
+                description: message,
                 variant: "destructive"
             })
         } finally {
@@ -517,32 +538,42 @@ export function VehicleInspectionModal({
 
                     {/* Footer Actions */}
                     {!isSubmitted && (
-                        <div className="p-4 border-t border-border/40 bg-muted/20 flex gap-3">
-                            <Button
-                                variant="outline"
-                                onClick={onClose}
-                                className="flex-1"
-                                disabled={isSubmitting}
-                            >
-                                Cancelar
-                            </Button>
-                            <Button
-                                onClick={handleSubmitInspection}
-                                disabled={isSubmitting}
-                                className="flex-1 gradient-brand text-white font-bold h-11 shadow-lg shadow-blue-500/20"
-                            >
-                                {isSubmitting ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                        Enviando...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Send className="w-4 h-4 mr-2" />
-                                        Enviar al Cliente
-                                    </>
-                                )}
-                            </Button>
+                        <div className="p-4 border-t border-border/40 bg-muted/20 space-y-3">
+                            {(submitError || isArrivalRequired) && (
+                                <div className="flex items-start gap-2 rounded-xl bg-red-500/15 border border-red-500/40 px-3 py-2 text-xs text-red-300">
+                                    <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                                    <span>
+                                        {submitError || "Primero debes presionar '📍 He llegado al lugar' antes de enviar la inspección."}
+                                    </span>
+                                </div>
+                            )}
+                            <div className="flex gap-3">
+                                <Button
+                                    variant="outline"
+                                    onClick={onClose}
+                                    className="flex-1"
+                                    disabled={isSubmitting}
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button
+                                    onClick={handleSubmitInspection}
+                                    disabled={isSubmitting || isArrivalRequired}
+                                    className="flex-1 gradient-brand text-white font-bold h-11 shadow-lg shadow-blue-500/20 disabled:opacity-50"
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                            Enviando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Send className="w-4 h-4 mr-2" />
+                                            Enviar al Cliente
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </motion.div>

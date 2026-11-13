@@ -239,7 +239,7 @@ async def get_available_specializations():
             {"value": "battery_service", "label": "Batería (Inicio / Cambio)", "icon": "🔋"},
             {"value": "brake_service", "label": "Pastillas y Ajuste de Frenos", "icon": "🛑"},
             {"value": "chain_kit_service", "label": "Kit de Arrastre / Cadena (Motos)", "icon": "⛓️"},
-            {"value": "spark_bulbs_wipers", "label": "Bujías, Bombillos o Plumillas", "icon": "💡"},
+            {"value": "spark_bulbs_wipers", "label": "Vehículo no enciende", "icon": "⚡"},
             {"value": "other", "label": "Otros", "icon": "🛠️"}
         ]
     }

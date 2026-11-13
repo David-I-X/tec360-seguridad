@@ -13,6 +13,7 @@ import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { getServiceById, fetchWithAuth, getAuthToken, API_URL } from '@/lib/api';
+import { requiresVehicleInspection, getClientObservations, getMobileImageUrl } from '@/lib/service-utils';
 import {
   TecMapView,
   TecMapViewRef,
@@ -130,6 +131,25 @@ export default function TechServiceScreen() {
   const [adjustmentData, setAdjustmentData] = useState({ amount: '', desc: '' });
   const [isSubmittingAdjustment, setIsSubmittingAdjustment] = useState(false);
   const [inspectionVisible, setInspectionVisible] = useState(false);
+  const [zoomPhotoUrl, setZoomPhotoUrl] = useState<string | null>(null);
+  const [isAccepting, setIsAccepting] = useState(false);
+
+  const handleAcceptFromDetail = async () => {
+    setIsAccepting(true);
+    try {
+      const res = await fetchWithAuth(`/services/${id}/accept`, { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || 'No se pudo aceptar el servicio');
+      }
+      await loadService();
+      Alert.alert('¡Servicio Aceptado!', 'El servicio ha sido asignado a tu cuenta.');
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'No se pudo aceptar el servicio');
+    } finally {
+      setIsAccepting(false);
+    }
+  };
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const mapRef = useRef<TecMapViewRef | null>(null);
   const lastRouteFetch = useRef<{ lat: number; lng: number } | null>(null);
@@ -231,16 +251,17 @@ export default function TechServiceScreen() {
   }, [myLocation, service?.service_lat, service?.service_lon]);
 
   const isRecovery = service?.service_type === 'vehicle_recovery';
+  const requiresInspection = requiresVehicleInspection(service);
   const inspection = service?.service_metadata?.vehicle_inspection;
   const hasInspection = !!inspection;
-  const isInspectionConfirmed = !isRecovery ? (inspection?.client_confirmed || false) : true;
+  const isInspectionConfirmed = requiresInspection ? (inspection?.client_confirmed || false) : true;
 
   const handleStatusChange = async () => {
     const action = STATUS_ACTIONS[service?.status];
     if (!action) return;
 
     if (action.next === 'in_progress') {
-      if (!isRecovery && !isInspectionConfirmed) {
+      if (requiresInspection && !isInspectionConfirmed) {
         setInspectionVisible(true);
         return;
       }
@@ -258,9 +279,13 @@ export default function TechServiceScreen() {
 
     setIsUpdating(true);
     try {
-      await fetchWithAuth(`/services/${id}/status?new_status=${action.next}`, {
+      const res = await fetchWithAuth(`/services/${id}/status?new_status=${action.next}`, {
         method: 'PATCH',
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || 'No se pudo actualizar el estado del servicio');
+      }
       setService((prev: any) => prev ? { ...prev, status: action.next } : prev);
 
       if (action.next === 'completed') {
@@ -291,7 +316,11 @@ export default function TechServiceScreen() {
     formData.append('file', { uri, name: `${stage}.jpg`, type: 'image/jpeg' } as any);
     formData.append('service_id', id!);
     formData.append('image_type', stage);
-    await fetchWithAuth('/uploads/service-photo', { method: 'POST', body: formData });
+    const res = await fetchWithAuth('/uploads/service-photo', { method: 'POST', body: formData });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || 'Error al subir fotografía de evidencia');
+    }
   };
 
   // Check if payment already registered for this service
@@ -544,6 +573,41 @@ export default function TechServiceScreen() {
           )}
         </View>
 
+        {(() => {
+          const obs = getClientObservations(service);
+          const clientPhoto = getMobileImageUrl(service?.vehicle_photo_url);
+          if (!obs.primary && !clientPhoto) return null;
+          return (
+            <View style={{ gap: 12, marginBottom: SPACING.md }}>
+              {obs.primary && (
+                <View style={styles.obsCard}>
+                  <View style={styles.obsHeader}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={15} color="#fbbf24" />
+                    <Text style={styles.obsTitle}>OBSERVACIONES DEL CLIENTE</Text>
+                  </View>
+                  <Text style={styles.obsBody}>{obs.primary}</Text>
+                  {obs.notes && <Text style={styles.obsNote}>Nota adicional: {obs.notes}</Text>}
+                </View>
+              )}
+              {clientPhoto && (
+                <View style={styles.clientPhotoCard}>
+                  <View style={styles.obsHeader}>
+                    <Ionicons name="camera-outline" size={15} color="#60a5fa" />
+                    <Text style={[styles.obsTitle, { color: '#93c5fd' }]}>FOTO ENVIADA POR EL CLIENTE (TOCA PARA AMPLIAR)</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.clientPhotoTouchable}
+                    activeOpacity={0.85}
+                    onPress={() => setZoomPhotoUrl(clientPhoto)}
+                  >
+                    <Image source={{ uri: clientPhoto }} style={styles.clientPhotoImage} resizeMode="cover" />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          );
+        })()}
+
         {isTracking && (
           <View style={styles.trackingBanner}>
             <View style={styles.trackingDot} />
@@ -579,7 +643,7 @@ export default function TechServiceScreen() {
         )}
 
         {/* Inspection buttons for arrived status */}
-        {service?.status === 'arrived' && !isRecovery && !hasInspection && (
+        {service?.status === 'arrived' && requiresInspection && !hasInspection && (
           <TouchableOpacity
             style={styles.actionBtn}
             onPress={() => setInspectionVisible(true)}
@@ -592,7 +656,7 @@ export default function TechServiceScreen() {
           </TouchableOpacity>
         )}
 
-        {service?.status === 'arrived' && !isRecovery && hasInspection && !isInspectionConfirmed && (
+        {service?.status === 'arrived' && requiresInspection && hasInspection && !isInspectionConfirmed && (
           <TouchableOpacity
             style={styles.actionBtn}
             onPress={() => setInspectionVisible(true)}
@@ -605,7 +669,7 @@ export default function TechServiceScreen() {
           </TouchableOpacity>
         )}
 
-        {action && (service?.status !== 'arrived' || isRecovery || isInspectionConfirmed) && (
+        {action && (service?.status !== 'arrived' || !requiresInspection || isInspectionConfirmed) && (
           <TouchableOpacity
             style={[styles.actionBtn, isUpdating && { opacity: 0.6 }]}
             onPress={handleStatusChange}
@@ -624,16 +688,34 @@ export default function TechServiceScreen() {
         )}
 
         {service?.status === 'pending' && (
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => router.push(`/(tech)/quotation/${id}/new` as any)}
-            activeOpacity={0.8}
-          >
-            <LinearGradient colors={['#a855f7', '#9333ea']} style={styles.actionGradient}>
-              <Text style={styles.actionEmoji}>💰</Text>
-              <Text style={styles.actionText}>Cotizar Servicio</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+          <View style={{ gap: 10 }}>
+            <TouchableOpacity
+              style={[styles.actionBtn, isAccepting && { opacity: 0.6 }]}
+              onPress={handleAcceptFromDetail}
+              disabled={isAccepting}
+              activeOpacity={0.8}
+            >
+              <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.actionGradient}>
+                {isAccepting ? <ActivityIndicator color="#fff" /> : (
+                  <>
+                    <Text style={styles.actionEmoji}>✅</Text>
+                    <Text style={styles.actionText}>Aceptar Servicio</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() => router.push(`/(tech)/quotation/${id}/new` as any)}
+              activeOpacity={0.8}
+            >
+              <LinearGradient colors={['#a855f7', '#9333ea']} style={styles.actionGradient}>
+                <Text style={styles.actionEmoji}>💰</Text>
+                <Text style={styles.actionText}>Cotizar Servicio</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         )}
 
         {['completed', 'confirmed'].includes(service?.status) && (() => {
@@ -905,11 +987,39 @@ export default function TechServiceScreen() {
         visible={inspectionVisible}
         onClose={() => setInspectionVisible(false)}
         serviceId={id!}
+        vehicleModel={service?.vehicle_model}
+        vehiclePlate={service?.vehicle_plate}
         existingInspection={service?.service_metadata?.vehicle_inspection}
+        onInspectionConfirmed={() => {
+          loadService();
+        }}
         onSuccess={() => {
           loadService();
         }}
       />
+
+      <Modal
+        visible={!!zoomPhotoUrl}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setZoomPhotoUrl(null)}
+      >
+        <View style={styles.zoomBackdrop}>
+          <TouchableOpacity
+            style={styles.zoomCloseBtn}
+            onPress={() => setZoomPhotoUrl(null)}
+          >
+            <Ionicons name="close" size={24} color="#fff" />
+          </TouchableOpacity>
+          {zoomPhotoUrl && (
+            <Image
+              source={{ uri: zoomPhotoUrl }}
+              style={styles.zoomFullImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1075,4 +1185,53 @@ const styles = StyleSheet.create({
   },
   clientInvoiceActionText: { color: '#86efac', fontSize: 13, fontWeight: '700' },
   clientInvoiceActionSub: { color: '#22c55e', fontSize: 11, marginTop: 2 },
+  obsCard: {
+    backgroundColor: 'rgba(245,158,11,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.45)',
+    borderRadius: 16,
+    padding: 16,
+    gap: 6,
+  },
+  obsHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  obsTitle: { color: '#fbbf24', fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
+  obsBody: { color: '#f8fafc', fontSize: 14, fontWeight: '600', lineHeight: 20 },
+  obsNote: { color: '#fde68a', fontSize: 12, marginTop: 2 },
+  clientPhotoCard: {
+    backgroundColor: 'rgba(10,14,28,0.8)',
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    borderRadius: 16,
+    padding: 14,
+    gap: 10,
+  },
+  clientPhotoTouchable: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#020617',
+    height: 170,
+  },
+  clientPhotoImage: { width: '100%', height: '100%' },
+  zoomBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  zoomCloseBtn: {
+    position: 'absolute',
+    top: 52,
+    right: 20,
+    zIndex: 10,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(30,41,59,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  zoomFullImage: { width: '100%', height: '75%' },
 });

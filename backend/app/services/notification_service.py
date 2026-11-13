@@ -144,7 +144,7 @@ class NotificationService:
             "battery_service": "Batería (Inicio / Cambio)",
             "brake_service": "Pastillas y Ajuste de Frenos",
             "chain_kit_service": "Kit de Arrastre / Cadena",
-            "spark_bulbs_wipers": "Bujías, Bombillos o Plumillas",
+            "spark_bulbs_wipers": "Vehículo no enciende",
             "other": "Servicio Técnico",
         }
         type_label = SERVICE_TYPE_LABELS.get(service_type, service_title)

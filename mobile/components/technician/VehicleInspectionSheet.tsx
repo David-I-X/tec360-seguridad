@@ -126,6 +126,7 @@ export default function VehicleInspectionSheet({
   const [generalNotes, setGeneralNotes] = useState(existingInspection?.general_notes || '');
   const [expandedCat, setExpandedCat] = useState<string>('luces');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(!!existingInspection);
   const [isClientConfirmed, setIsClientConfirmed] = useState(!!existingInspection?.client_confirmed);
   const [elapsedMins, setElapsedMins] = useState(0);
@@ -179,9 +180,10 @@ export default function VehicleInspectionSheet({
   };
 
   const handleSubmit = async () => {
+    setSubmitError(null);
     setIsSubmitting(true);
     try {
-      await fetchWithAuth(`/services/${serviceId}/inspection`, {
+      const res = await fetchWithAuth(`/services/${serviceId}/inspection`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -191,15 +193,24 @@ export default function VehicleInspectionSheet({
         }),
       });
 
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        const detail = Array.isArray(errData?.detail)
+          ? errData.detail.map((e: any) => e.msg || JSON.stringify(e)).join(', ')
+          : errData?.detail;
+        throw new Error(detail || 'No se pudo registrar la inspección');
+      }
+
       setIsSubmitted(true);
       onSuccess?.();
-      onInspectionConfirmed?.();
       Alert.alert(
         '📋 Inspección enviada',
         'Se ha enviado una copia en tiempo real a la pantalla del cliente para su confirmación.'
       );
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'No se pudo registrar la inspección');
+      const msg = err?.message || 'No se pudo registrar la inspección';
+      setSubmitError(msg);
+      Alert.alert('Error', msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -491,7 +502,14 @@ export default function VehicleInspectionSheet({
 
           {/* Footer */}
           {!isSubmitted && (
-            <View style={styles.footer}>
+            <View style={{ borderTopWidth: 1, borderTopColor: '#1e243d', backgroundColor: '#13172b' }}>
+              {submitError && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 20, marginTop: 12, padding: 10, borderRadius: 10, backgroundColor: 'rgba(239,68,68,0.14)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.4)' }}>
+                  <Ionicons name="alert-circle" size={16} color="#f87171" />
+                  <Text style={{ flex: 1, color: '#fca5a5', fontSize: 12 }}>{submitError}</Text>
+                </View>
+              )}
+              <View style={[styles.footer, { borderTopWidth: 0 }]}>
               <TouchableOpacity
                 style={styles.cancelBtn}
                 onPress={onClose}
@@ -520,6 +538,7 @@ export default function VehicleInspectionSheet({
                   )}
                 </LinearGradient>
               </TouchableOpacity>
+              </View>
             </View>
           )}
         </View>

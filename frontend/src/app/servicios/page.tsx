@@ -107,7 +107,7 @@ const serviceTypeConfigs: Record<string, ServiceTypeConfig> = {
   battery_service: { label: "Batería (Inicio / Cambio)", icon: Wrench, color: "text-amber-400 bg-amber-500/10 border-amber-500/25" },
   brake_service: { label: "Pastillas y Ajuste de Frenos", icon: Wrench, color: "text-amber-400 bg-amber-500/10 border-amber-500/25" },
   chain_kit_service: { label: "Kit de Arrastre / Cadena", icon: Wrench, color: "text-amber-400 bg-amber-500/10 border-amber-500/25" },
-  spark_bulbs_wipers: { label: "Bujías, Bombillos o Plumillas", icon: Wrench, color: "text-amber-400 bg-amber-500/10 border-amber-500/25" },
+  spark_bulbs_wipers: { label: "Vehículo no enciende", icon: Wrench, color: "text-amber-400 bg-amber-500/10 border-amber-500/25" },
   vehicle_recovery: { label: "Equipo de Reacción 24/7", icon: ShieldAlert, color: "text-rose-400 bg-rose-500/10 border-rose-500/25" },
   other: { label: "Servicio Técnico", icon: Wrench, color: "text-blue-400 bg-blue-500/10 border-blue-500/25" },
 }

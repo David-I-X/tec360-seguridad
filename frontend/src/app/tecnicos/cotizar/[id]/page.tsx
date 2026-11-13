@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { format } from "date-fns"
+import { es } from "date-fns/locale"
 import { 
     ArrowLeft, Send, Loader2, DollarSign, FileText, Clock, 
-    AlertCircle, Shield, Car, CheckCircle2, Wrench, Radio, Info
+    AlertCircle, Shield, Car, CheckCircle2, Wrench, Radio, Info,
+    MapPin, Calendar, Camera, MessageSquare, X
 } from "lucide-react"
 import { motion } from "framer-motion"
 
@@ -13,19 +16,28 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import { createQuotation, QuotationCreate } from "@/lib/quotations"
-import { getCourseOnboardingStatus, CourseOnboardingStatus } from "@/lib/api"
+import { getCourseOnboardingStatus, CourseOnboardingStatus, getServiceById } from "@/lib/api"
 import { BasicCoursesModal } from "@/components/technician/BasicCoursesModal"
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+import { getImageUrl } from "@/lib/utils"
+import { getClientObservations, isQuickMechanicsService } from "@/lib/service-utils"
 
 interface ServiceInfo {
     id: string
     title: string
-    description: string
+    description?: string | null
+    client_notes?: string | null
     service_type: string
     service_address: string
-    client_name?: string
-    vehicle_plate?: string
+    service_city?: string | null
+    scheduled_date?: string | null
+    client_name?: string | null
+    client?: { full_name?: string | null } | null
+    vehicle_plate?: string | null
+    vehicle_model?: string | null
+    vehicle_type?: string | null
+    vehicle_photo_url?: string | null
+    estimated_price?: number | null
+    service_metadata?: Record<string, any> | null
 }
 
 const FALLBACK_SERVICE: ServiceInfo = {
@@ -49,6 +61,7 @@ export function QuotationFormContent() {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [courseStatus, setCourseStatus] = useState<CourseOnboardingStatus | null>(null)
     const [showCourseGateModal, setShowCourseGateModal] = useState(false)
+    const [zoomPhotoUrl, setZoomPhotoUrl] = useState<string | null>(null)
 
     // Form state
     const [amount, setAmount] = useState("480,000")
@@ -70,21 +83,12 @@ export function QuotationFormContent() {
 
     useEffect(() => {
         async function fetchService() {
-            const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
-
             try {
-                if (token) {
-                    const response = await fetch(`${API_URL}/services/${serviceId}`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                    })
-
-                    if (response.ok) {
-                        const data = await response.json()
-                        setService(data)
-                        return
-                    }
+                const data = await getServiceById(serviceId)
+                if (data) {
+                    setService(data)
+                    return
                 }
-                // Fallback to operational demonstration
                 setService({
                     ...FALLBACK_SERVICE,
                     id: serviceId
@@ -215,10 +219,13 @@ export function QuotationFormContent() {
                     <div className="p-6 rounded-2xl bg-[#080F24] border border-slate-800 space-y-4">
                         <div className="flex items-center justify-between">
                             <span className="text-xs font-mono uppercase tracking-wider text-slate-400">
-                                Misión Solicitada
+                                Detalle de la Solicitud
                             </span>
-                            <Badge className="bg-blue-500/15 text-blue-400 border-blue-500/30 text-[10px] font-mono">
-                                INSTALACIONES
+                            <Badge className={isQuickMechanicsService(currentService)
+                                ? "bg-amber-500/15 text-amber-300 border-amber-500/30 text-[10px] font-mono"
+                                : "bg-blue-500/15 text-blue-400 border-blue-500/30 text-[10px] font-mono"
+                            }>
+                                {isQuickMechanicsService(currentService) ? "MECÁNICA EXPRESS" : "SERVICIO TÉCNICO"}
                             </Badge>
                         </div>
 
@@ -226,29 +233,108 @@ export function QuotationFormContent() {
                             <h2 className="text-lg font-bold text-white leading-snug">
                                 {currentService.title}
                             </h2>
-                            <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
-                                <Car className="h-3.5 w-3.5 text-blue-400" />
-                                <span>Placa: <strong className="text-slate-200 font-mono">{currentService.vehicle_plate || "KLS-842"}</strong></span>
-                            </p>
+                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                                {(currentService.vehicle_model || currentService.vehicle_plate) && (
+                                    <span className="inline-flex items-center gap-1.5 text-xs text-slate-200 bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-700/80">
+                                        <Car className="h-3.5 w-3.5 text-blue-400" />
+                                        {currentService.vehicle_model ? `${currentService.vehicle_model} · ` : ""}
+                                        <strong className="font-mono">{currentService.vehicle_plate || "SIN PLACA"}</strong>
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
-                        <div className="pt-2 border-t border-slate-800/80 space-y-2 text-xs text-slate-300">
-                            <div>
-                                <span className="text-slate-500 block">Ubicación de atención:</span>
-                                <span className="text-slate-200">{currentService.service_address}</span>
-                            </div>
-                            {currentService.client_name && (
+                        <div className="pt-3 border-t border-slate-800/80 space-y-3 text-xs text-slate-300">
+                            <div className="flex items-start gap-2">
+                                <MapPin className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
                                 <div>
-                                    <span className="text-slate-500 block">Cliente:</span>
-                                    <span className="text-slate-200">{currentService.client_name}</span>
+                                    <span className="text-slate-500 block text-[11px]">Ubicación de atención</span>
+                                    <span className="text-slate-100 font-medium">
+                                        {currentService.service_address}
+                                        {currentService.service_city ? `, ${currentService.service_city}` : ""}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {currentService.scheduled_date && (
+                                <div className="flex items-start gap-2">
+                                    <Calendar className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                                    <div>
+                                        <span className="text-slate-500 block text-[11px]">Fecha y hora programada</span>
+                                        <span className="text-slate-100 font-medium capitalize">
+                                            {format(new Date(currentService.scheduled_date), "EEEE d 'de' MMMM · h:mm a", { locale: es })}
+                                        </span>
+                                    </div>
                                 </div>
                             )}
-                            <div>
-                                <span className="text-slate-500 block">Alcance requerido por el usuario:</span>
-                                <p className="mt-1 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-300 leading-relaxed text-xs">
-                                    {currentService.description}
-                                </p>
-                            </div>
+
+                            {(currentService.client?.full_name || currentService.client_name) && (
+                                <div>
+                                    <span className="text-slate-500 block text-[11px]">Cliente</span>
+                                    <span className="text-slate-200 font-medium">{currentService.client?.full_name || currentService.client_name}</span>
+                                </div>
+                            )}
+
+                            {/* Prominent Client Observations */}
+                            {(() => {
+                                const observations = getClientObservations(currentService)
+                                return (
+                                    <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-400/40 space-y-1.5">
+                                        <span className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider font-bold text-amber-300">
+                                            <MessageSquare className="h-3.5 w-3.5" />
+                                            Observaciones y falla reportada
+                                        </span>
+                                        <p className="text-slate-100 leading-relaxed text-sm font-medium whitespace-pre-wrap">
+                                            {observations.primary || "El cliente no dejó observaciones adicionales."}
+                                        </p>
+                                        {observations.notes && (
+                                            <p className="text-amber-200/90 text-xs pt-1 border-t border-amber-400/20">
+                                                Nota adicional: {observations.notes}
+                                            </p>
+                                        )}
+                                    </div>
+                                )
+                            })()}
+
+                            {/* Supplies Info if present */}
+                            {currentService.service_metadata?.supplies_provider && (
+                                <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-700/80 text-xs">
+                                    <span className="text-slate-400 block text-[11px] font-mono uppercase">Repuestos / Insumos</span>
+                                    <p className="text-slate-200 font-semibold mt-0.5">
+                                        {currentService.service_metadata.supplies_provider === "client"
+                                            ? "🧰 El cliente suministra el repuesto / dispositivo"
+                                            : "🚚 Técnico debe suministrar el repuesto / dispositivo"}
+                                    </p>
+                                    {currentService.service_metadata.supplies_notes && (
+                                        <p className="text-slate-400 text-[11px] mt-1">Ref: {currentService.service_metadata.supplies_notes}</p>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Client Uploaded Photo */}
+                            {currentService.vehicle_photo_url && (() => {
+                                const photoUrl = getImageUrl(currentService.vehicle_photo_url)
+                                if (!photoUrl) return null
+                                return (
+                                    <div className="space-y-1.5">
+                                        <span className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider font-bold text-slate-400">
+                                            <Camera className="h-3.5 w-3.5 text-blue-400" />
+                                            Foto enviada por el cliente (toca para ampliar)
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setZoomPhotoUrl(photoUrl)}
+                                            className="group relative w-full h-44 rounded-xl overflow-hidden border border-slate-700 hover:border-blue-400 transition-colors cursor-pointer bg-slate-950"
+                                        >
+                                            <img
+                                                src={photoUrl}
+                                                alt="Foto del vehículo enviada por el cliente"
+                                                className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform"
+                                            />
+                                        </button>
+                                    </div>
+                                )
+                            })()}
                         </div>
 
                         {/* Escrow Custody Assurance Notice */}
@@ -371,6 +457,25 @@ export function QuotationFormContent() {
                 pendingCourseSlug={courseStatus?.pending_courses?.[0]?.slug}
                 pendingCourseTitle={courseStatus?.pending_courses?.[0]?.title}
             />
+
+            {zoomPhotoUrl && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
+                    onClick={() => setZoomPhotoUrl(null)}
+                >
+                    <div className="relative max-w-2xl w-full rounded-2xl overflow-hidden bg-slate-950 border border-white/15 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                        <button
+                            type="button"
+                            onClick={() => setZoomPhotoUrl(null)}
+                            className="absolute top-3 right-3 z-10 p-2 rounded-full bg-slate-900/90 text-white hover:bg-slate-800 border border-white/15 cursor-pointer"
+                            aria-label="Cerrar foto"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                        <img src={zoomPhotoUrl} alt="Foto del vehículo enviada por el cliente" className="w-full max-h-[80vh] object-contain bg-black" />
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

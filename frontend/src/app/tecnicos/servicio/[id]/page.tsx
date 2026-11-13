@@ -22,8 +22,9 @@ import { ServiceChat } from "@/components/chat/ServiceChat"
 import { VehicleInspectionModal } from "@/components/technician/vehicle-inspection-modal"
 
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
-import { getServiceById, getApiBaseUrl } from "@/lib/api"
+import { getServiceById, getApiBaseUrl, fetchWithAuth } from "@/lib/api"
 import { getImageUrl } from "@/lib/utils"
+import { requiresVehicleInspection, getClientObservations } from "@/lib/service-utils"
 import { useLocationTracking } from "@/lib/use-location-tracking"
 import { serviceWebSocket } from "@/lib/websocket"
 import { Button } from "@/components/ui/button"
@@ -68,7 +69,7 @@ const typeLabels: Record<string, string> = {
     battery_service: "Batería (Inicio / Cambio)",
     brake_service: "Pastillas y Ajuste de Frenos",
     chain_kit_service: "Kit de Arrastre / Cadena",
-    spark_bulbs_wipers: "Bujías, Bombillos o Plumillas",
+    spark_bulbs_wipers: "Vehículo no enciende",
     vehicle_recovery: "Equipo de Reacción Inmediata",
     other: "Servicio Técnico Especializado",
 }
@@ -331,6 +332,7 @@ function TechnicianServiceContent() {
     const [isSlideOpen, setIsSlideOpen] = useState(true)
     const [isMobile, setIsMobile] = useState(false)
     const [isChatOpen, setIsChatOpen] = useState(false)
+    const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null)
 
     // Detect mobile viewport (< 640px)
     useEffect(() => {
@@ -341,6 +343,7 @@ function TechnicianServiceContent() {
     }, [])
 
     const isRecovery = service?.service_type === "vehicle_recovery"
+    const requiresInspection = requiresVehicleInspection(service)
     const displayStages: PhotoStage[] = isRecovery ? ["after"] : ["before", "during", "after"]
 
     const getStageMeta = (stage: PhotoStage) => {
@@ -493,12 +496,10 @@ function TechnicianServiceContent() {
 
     /* ─── Status update ─────────────────────────── */
     const updateStatus = async (newStatus: string) => {
-        if (!token) return
         setIsUpdating(true)
         try {
-            const response = await fetch(`${API_URL}/services/${params.id}/status?new_status=${newStatus}`, {
+            const response = await fetchWithAuth(`/services/${params.id}/status?new_status=${newStatus}`, {
                 method: "PATCH",
-                headers: { Authorization: `Bearer ${token}` },
             })
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}))
@@ -516,7 +517,7 @@ function TechnicianServiceContent() {
                 setShowPaymentModal(true)
             }
         } catch (err: any) {
-            toast({ title: "Error", description: err.message, variant: "destructive" })
+            toast({ title: "Error", description: err?.message || "No se pudo actualizar el estado", variant: "destructive" })
         } finally {
             setIsUpdating(false)
         }
@@ -597,9 +598,9 @@ function TechnicianServiceContent() {
                         quality
                     )
                 }
-                img.onerror = (err) => reject(err)
+                img.onerror = () => reject(new Error("No se pudo procesar la imagen seleccionada"))
             }
-            reader.onerror = (err) => reject(err)
+            reader.onerror = () => reject(new Error("Error leyendo el archivo de imagen"))
         })
     }
 
@@ -616,9 +617,8 @@ function TechnicianServiceContent() {
             formData.append("service_id", params.id as string)
             formData.append("image_type", stage)
 
-            const response = await fetch(`${API_URL}/uploads/service-photo`, {
+            const response = await fetchWithAuth("/uploads/service-photo", {
                 method: "POST",
-                headers: { Authorization: `Bearer ${token}` },
                 body: formData,
             })
 
@@ -637,7 +637,11 @@ function TechnicianServiceContent() {
             }
             setPendingPhotoFor(null)
         } catch (err: any) {
-            toast({ title: "Error al subir foto", description: err.message, variant: "destructive" })
+            toast({
+                title: "Error al subir foto",
+                description: err?.message || "Ocurrió un error al subir la fotografía",
+                variant: "destructive",
+            })
         }
     }
 
@@ -652,7 +656,7 @@ function TechnicianServiceContent() {
     }
 
     const handleInProgress = () => {
-        if (!isRecovery) {
+        if (requiresInspection) {
             const inspection = service?.service_metadata?.vehicle_inspection
             if (!inspection) {
                 setShowInspectionModal(true)
@@ -748,10 +752,23 @@ function TechnicianServiceContent() {
                 isOpen={showInspectionModal}
                 onClose={() => setShowInspectionModal(false)}
                 serviceId={service.id}
+                serviceStatus={service.status}
                 vehicleModel={service.vehicle_model}
                 vehiclePlate={service.vehicle_plate}
                 existingInspection={service.service_metadata?.vehicle_inspection}
                 token={token || ""}
+                onInspectionSubmitted={(inspection) => {
+                    setService((prev: any) => {
+                        if (!prev) return prev
+                        return {
+                            ...prev,
+                            service_metadata: {
+                                ...(prev.service_metadata || {}),
+                                vehicle_inspection: inspection,
+                            },
+                        }
+                    })
+                }}
                 onInspectionConfirmed={() => {
                     setService((prev: any) => {
                         if (!prev) return prev
@@ -1265,30 +1282,87 @@ function TechnicianServiceContent() {
                                 </div>
                             )}
 
+                            {/* 6b. CLIENT OBSERVATIONS (Protagonista) */}
+                            {(() => {
+                                const clientObservations = getClientObservations(service)
+                                if (!clientObservations.primary) return null
+                                return (
+                                    <div className="rounded-2xl p-4 bg-amber-500/15 border border-amber-500/45 shadow-sm space-y-1.5">
+                                        <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-amber-600 dark:text-amber-300 flex items-center gap-1.5">
+                                            <MessageSquare className="w-3.5 h-3.5" /> OBSERVACIONES DEL CLIENTE
+                                        </span>
+                                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100 leading-relaxed whitespace-pre-wrap">
+                                            {clientObservations.primary}
+                                        </p>
+                                        {clientObservations.notes && (
+                                            <p className="text-xs text-amber-700 dark:text-amber-200/90 pt-1 border-t border-amber-500/20">
+                                                Nota adicional: {clientObservations.notes}
+                                            </p>
+                                        )}
+                                    </div>
+                                )
+                            })()}
+
                             {/* 7. VEHICLE PHOTO REFERENCE (if client uploaded one) */}
                             {service.vehicle_photo_url && (
                                 <div className="rounded-2xl p-4 bg-slate-100/90 dark:bg-slate-900/80 border border-slate-200/90 dark:border-white/10 shadow-sm space-y-2">
                                     <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                                        <Camera className="w-3.5 h-3.5" /> FOTO REFERENCIA DEL VEHÍCULO
+                                        <Camera className="w-3.5 h-3.5" /> FOTO REFERENCIA DEL VEHÍCULO (TOCA PARA AMPLIAR)
                                     </span>
-                                    <div className="rounded-xl overflow-hidden aspect-video border border-slate-200 dark:border-white/10 bg-slate-950">
+                                    <button
+                                        type="button"
+                                        onClick={() => setPreviewPhotoUrl(getImageUrl(service.vehicle_photo_url) || null)}
+                                        className="w-full rounded-xl overflow-hidden aspect-video border border-slate-200 dark:border-white/10 bg-slate-950 cursor-pointer block"
+                                    >
                                         <img
                                             src={getImageUrl(service.vehicle_photo_url)}
                                             alt="Vehículo del cliente"
-                                            className="w-full h-full object-cover"
+                                            className="w-full h-full object-cover hover:scale-[1.02] transition-transform"
                                         />
-                                    </div>
+                                    </button>
                                 </div>
                             )}
 
                             {/* 8. VEHICLE INSPECTION (Checklist Previo) */}
-                            {!isRecovery && (
+                            {requiresInspection && (
                                 (() => {
                                     const inspection = service?.service_metadata?.vehicle_inspection
                                     const isConfirmed = inspection?.client_confirmed
                                     const hasInspection = !!inspection
 
                                     if (!hasInspection) {
+                                        const canInspect = ["arrived", "in_progress"].includes(service.status)
+                                        if (!canInspect) {
+                                            return (
+                                                <div className="rounded-2xl p-4 bg-slate-100/90 dark:bg-slate-900/70 border border-slate-300/80 dark:border-white/10 space-y-3 shadow-sm">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="p-2 rounded-xl bg-amber-500/15 text-amber-500 shrink-0 text-xl">
+                                                            📋
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                                                                Inspección Previa (al llegar al sitio)
+                                                            </h4>
+                                                            <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5 leading-snug">
+                                                                {service.status === "en_route"
+                                                                    ? "Primero marca '📍 He llegado al lugar' cuando estés frente al vehículo para habilitar el checklist previo."
+                                                                    : "Disponible después de iniciar recorrido ('Estoy en camino') y marcar llegada."}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    {service.status === "en_route" && (
+                                                        <Button
+                                                            onClick={handleArrived}
+                                                            disabled={isUpdating}
+                                                            className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-md cursor-pointer py-2.5 rounded-xl"
+                                                        >
+                                                            <MapPin className="mr-1.5 h-4 w-4" />
+                                                            {isUpdating ? "Actualizando..." : "He llegado al lugar (Habilitar Inspección)"}
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            )
+                                        }
                                         return (
                                             <div className="rounded-2xl p-4 bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-amber-500/10 border border-blue-500/30 space-y-3 shadow-sm">
                                                 <div className="flex items-start gap-3">
@@ -1656,7 +1730,7 @@ function TechnicianServiceContent() {
                                     const isConfirmed = inspection?.client_confirmed
                                     const hasInspection = !!inspection
 
-                                    if (isRecovery) {
+                                    if (!requiresInspection) {
                                         return (
                                             <Button
                                                 onClick={handleInProgress}
@@ -1860,6 +1934,26 @@ function TechnicianServiceContent() {
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* ─── Zoom Photo Modal ────────────────── */}
+            {previewPhotoUrl && (
+                <div
+                    className="fixed inset-0 z-[70] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
+                    onClick={() => setPreviewPhotoUrl(null)}
+                >
+                    <div className="relative max-w-2xl w-full rounded-2xl overflow-hidden bg-slate-950 border border-white/15 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                        <button
+                            type="button"
+                            onClick={() => setPreviewPhotoUrl(null)}
+                            className="absolute top-3 right-3 z-10 p-2 rounded-full bg-slate-900/90 text-white hover:bg-slate-800 border border-white/15 cursor-pointer"
+                            aria-label="Cerrar foto"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                        <img src={previewPhotoUrl} alt="Foto del vehículo enviada por el cliente" className="w-full max-h-[80vh] object-contain bg-black" />
+                    </div>
+                </div>
+            )}
 
             {/* ─── Client Chat Sheet ────────────────── */}
             {token && (
