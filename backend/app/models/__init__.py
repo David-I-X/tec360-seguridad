@@ -6,7 +6,13 @@ from app.models.technician import Technician, TechnicianRank
 from app.models.service import Service, ServiceStatus, ServiceType, VehicleType
 from app.models.quotation import Quotation, QuotationStatus
 from app.models.payment import Payment, PaymentStatus, PaymentMethod
-from app.models.credit import TechnicianCredit, CreditTransaction, CreditTransactionType
+from app.models.credit import (
+    TechnicianCredit,
+    CreditTransaction,
+    CreditTransactionType,
+    CreditTopUpRequest,
+    CreditTopUpStatus,
+)
 from app.models.verification import (
     TechnicianDocument,
     QuizQuestion,
@@ -56,6 +62,8 @@ __all__ = [
     "TechnicianCredit",
     "CreditTransaction",
     "CreditTransactionType",
+    "CreditTopUpRequest",
+    "CreditTopUpStatus",
     "TechnicianDocument",
     "QuizQuestion",
     "QuizAttempt",

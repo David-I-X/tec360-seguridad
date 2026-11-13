@@ -1,10 +1,17 @@
-import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Modal, TextInput, Platform, KeyboardAvoidingView, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert, AppState, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, SPACING, RADIUS, FONTS, SHADOWS, NEU } from '@/constants/theme';
-import { fetchWithAuth, rechargeCreditsIntent, rechargeCreditsConfirm } from '@/lib/api';
+import * as Notifications from 'expo-notifications';
+import { COLORS, RADIUS, NEU } from '@/constants/theme';
+import {
+  fetchWithAuth,
+  getMyTopUpRequests,
+  subscribeUserTopUpEvents,
+  type TopUpRequestItem,
+} from '@/lib/api';
+import { BreBTopUpModal } from '@/components/topup/BreBTopUpModal';
 import { useFocusEffect } from 'expo-router';
 
 interface BalanceData {
@@ -33,18 +40,10 @@ interface CreditTransaction {
 export default function WalletScreen() {
   const [balance, setBalance] = useState<BalanceData | null>(null);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
+  const [topUpRequests, setTopUpRequests] = useState<TopUpRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rechargeModalVisible, setRechargeModalVisible] = useState(false);
-  const [customAmount, setCustomAmount] = useState('50000');
-  const [paymentMethod, setPaymentMethod] = useState<'pse' | 'nequi' | 'daviplata' | 'card'>('pse');
-  const [isRecharging, setIsRecharging] = useState(false);
-  const [rechargeError, setRechargeError] = useState<string | null>(null);
-  const [rechargeSuccess, setRechargeSuccess] = useState<{
-    txId: string;
-    amount: number;
-    balanceAfter: number;
-  } | null>(null);
 
   const welcomeShownRef = useRef(false);
 
@@ -68,11 +67,12 @@ export default function WalletScreen() {
     );
   };
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const [balRes, txnRes] = await Promise.all([
+      const [balRes, txnRes, reqsData] = await Promise.all([
         fetchWithAuth('/credits/balance'),
-        fetchWithAuth('/credits/transactions?limit=50')
+        fetchWithAuth('/credits/transactions?limit=50'),
+        getMyTopUpRequests(5).catch(() => [] as TopUpRequestItem[]),
       ]);
 
       if (balRes.ok) {
@@ -84,58 +84,56 @@ export default function WalletScreen() {
         }
       }
       if (txnRes.ok) setTransactions(await txnRes.json());
+      setTopUpRequests(reqsData);
     } catch (e) {
       console.error('[Wallet] Error loading data:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
+
+  const hasPendingTopUp = topUpRequests.some((r) => r.status === 'pending');
 
   useFocusEffect(
     useCallback(() => {
       fetchData();
-    }, [])
+    }, [fetchData])
   );
+
+  useEffect(() => {
+    if (!hasPendingTopUp) return;
+
+    const unsubscribeWs = subscribeUserTopUpEvents(fetchData);
+    const appSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') fetchData();
+    });
+    const notifSub = Notifications.addNotificationReceivedListener((notif) => {
+      if (notif.request.content.data?.notification_type === 'credit_topup') {
+        fetchData();
+      }
+    });
+
+    return () => {
+      unsubscribeWs();
+      appSub.remove();
+      notifSub.remove();
+    };
+  }, [fetchData, hasPendingTopUp]);
+
+  // Al recibir push aunque no hubiera foco completo, mantenerse al día sin polling.
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      if (response.notification.request.content.data?.notification_type === 'credit_topup') {
+        fetchData();
+      }
+    });
+    return () => sub.remove();
+  }, [fetchData]);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchData();
-  };
-
-  const handleRecharge = async () => {
-    const amount = Number(customAmount);
-    if (!amount || amount < 10000) {
-      setRechargeError('El monto mínimo de recarga es $10.000 COP');
-      return;
-    }
-
-    setIsRecharging(true);
-    setRechargeError(null);
-
-    try {
-      // 1. Iniciar intención de recarga
-      const intent = await rechargeCreditsIntent(amount, paymentMethod);
-      
-      // 2. Simulación de procesamiento bancario seguro (1.5s)
-      await new Promise(r => setTimeout(r, 1500));
-
-      // 3. Confirmar recarga con pasarela
-      const confirmRes = await rechargeCreditsConfirm(intent.transaction_id, amount, paymentMethod);
-
-      setRechargeSuccess({
-        txId: confirmRes.transaction_id,
-        amount: confirmRes.amount || amount,
-        balanceAfter: confirmRes.balance_after,
-      });
-
-      fetchData();
-    } catch (e: any) {
-      console.error('Error recharging:', e);
-      setRechargeError(e.message || 'Error al procesar la recarga. Intenta nuevamente.');
-    } finally {
-      setIsRecharging(false);
-    }
   };
 
   const formatCOP = (num: number) => {
@@ -234,6 +232,55 @@ export default function WalletScreen() {
           </View>
         </LinearGradient>
 
+        {/* Recargas pendientes o recientes */}
+        {topUpRequests.length > 0 && (
+          <View style={{ marginBottom: 18 }}>
+            <Text style={styles.sectionTitle}>Solicitudes de recarga Bre-B</Text>
+            {topUpRequests.map((req) => {
+              const isPending = req.status === 'pending';
+              const isApproved = req.status === 'approved';
+              const badgeColor = isPending ? COLORS.yellow : isApproved ? COLORS.green : COLORS.red;
+              const statusLabel = isPending ? 'En revisión' : isApproved ? 'Aprobada' : 'Rechazada';
+              return (
+                <View key={req.id} style={styles.txnItem}>
+                  <View style={[styles.txnIconWrap, { backgroundColor: badgeColor + '20' }]}>
+                    <Ionicons
+                      name={isPending ? 'time-outline' : isApproved ? 'checkmark-circle-outline' : 'close-circle-outline'}
+                      size={20}
+                      color={badgeColor}
+                    />
+                  </View>
+                  <View style={styles.txnInfo}>
+                    <Text style={styles.txnDesc} numberOfLines={1}>
+                      Recarga {formatCOP(req.amount)}
+                      {req.reference_hint ? ` · Ref ${req.reference_hint}` : ''}
+                    </Text>
+                    <Text style={styles.txnDate} numberOfLines={2}>
+                      {req.reject_reason
+                        ? req.reject_reason
+                        : (() => {
+                            const iso = /([zZ]|[+-]\d{2}:?\d{2})$/.test(req.created_at)
+                              ? req.created_at
+                              : `${req.created_at}Z`;
+                            const dt = new Date(iso);
+                            return `${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}`;
+                          })()}
+                    </Text>
+                  </View>
+                  <View style={styles.txnAmountWrap}>
+                    <Text style={[styles.txnAmount, { color: badgeColor, fontSize: 12 }]}>
+                      {statusLabel}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
         {/* Transactions list */}
         <Text style={styles.sectionTitle}>Historial Reciente</Text>
         
@@ -270,143 +317,12 @@ export default function WalletScreen() {
         )}
       </ScrollView>
 
-      {/* Recharge Modal */}
-      <Modal visible={rechargeModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalContent}>
-            {rechargeSuccess ? (
-              <View style={styles.successBox}>
-                <Ionicons name="checkmark-circle" size={60} color={COLORS.green} />
-                <Text style={styles.successTitle}>¡Recarga Exitosa!</Text>
-                <Text style={styles.successSubtitle}>
-                  Se agregaron {formatCOP(rechargeSuccess.amount)} a tu saldo disponible.
-                </Text>
-                <View style={styles.successDetails}>
-                  <Text style={styles.successDetailText}>
-                    Referencia: {rechargeSuccess.txId}
-                  </Text>
-                  <Text style={styles.successDetailText}>
-                    Nuevo Saldo: {formatCOP(rechargeSuccess.balanceAfter)}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.closeSuccessBtn}
-                  onPress={() => {
-                    setRechargeSuccess(null);
-                    setRechargeModalVisible(false);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient colors={['#7c3aed', '#6d28d9']} style={styles.payBtnGradient}>
-                    <Text style={styles.payBtnText}>Entendido</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Recargar Créditos</Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (!isRecharging) {
-                        setRechargeError(null);
-                        setRechargeModalVisible(false);
-                      }
-                    }}
-                  >
-                    <Ionicons name="close" size={24} color={COLORS.text} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Métodos de Pago */}
-                <Text style={styles.inputLabel}>Selecciona método de pago</Text>
-                <View style={styles.methodSelectorRow}>
-                  {[
-                    { id: 'pse', label: 'PSE', icon: 'business-outline' },
-                    { id: 'nequi', label: 'Nequi', icon: 'phone-portrait-outline' },
-                    { id: 'daviplata', label: 'Daviplata', icon: 'wallet-outline' },
-                    { id: 'card', label: 'Tarjeta', icon: 'card-outline' },
-                  ].map(m => {
-                    const active = paymentMethod === m.id;
-                    return (
-                      <TouchableOpacity
-                        key={m.id}
-                        style={[styles.methodChip, active && styles.methodChipActive]}
-                        onPress={() => setPaymentMethod(m.id as any)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons
-                          name={m.icon as any}
-                          size={16}
-                          color={active ? '#fff' : COLORS.textMuted}
-                        />
-                        <Text style={[styles.methodChipText, active && styles.methodChipTextActive]}>
-                          {m.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                {/* Presets */}
-                <Text style={styles.inputLabel}>Monto a recargar</Text>
-                <View style={styles.presetAmounts}>
-                  {[20000, 50000, 100000, 200000].map(amount => (
-                    <TouchableOpacity 
-                      key={amount} 
-                      style={[styles.presetBtn, Number(customAmount) === amount && styles.presetBtnActive]}
-                      onPress={() => setCustomAmount(amount.toString())}
-                    >
-                      <Text style={[styles.presetText, Number(customAmount) === amount && styles.presetTextActive]}>
-                        {formatCOP(amount)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <View style={styles.inputWrap}>
-                  <Text style={styles.currencySymbol}>$</Text>
-                  <TextInput
-                    style={styles.amountInput}
-                    keyboardType="numeric"
-                    value={customAmount}
-                    onChangeText={setCustomAmount}
-                    placeholder="50000"
-                    placeholderTextColor="#555872"
-                  />
-                </View>
-
-                {rechargeError && (
-                  <View style={styles.errorBox}>
-                    <Ionicons name="alert-circle" size={16} color="#f87171" />
-                    <Text style={styles.errorText}>{rechargeError}</Text>
-                  </View>
-                )}
-
-                <TouchableOpacity 
-                  style={[styles.payBtn, isRecharging && { opacity: 0.7 }]} 
-                  onPress={handleRecharge}
-                  disabled={isRecharging}
-                  activeOpacity={0.8}
-                >
-                  <LinearGradient colors={['#7c3aed', '#6d28d9']} style={styles.payBtnGradient}>
-                    {isRecharging ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <ActivityIndicator color="#fff" size="small" />
-                        <Text style={styles.payBtnText}>Conectando pasarela...</Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.payBtnText}>
-                        Pagar {formatCOP(Number(customAmount) || 0)} COP
-                      </Text>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
-              </>
-            )}
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
+      {/* Recarga Bre-B con comprobante */}
+      <BreBTopUpModal
+        visible={rechargeModalVisible}
+        onClose={() => setRechargeModalVisible(false)}
+        onSubmitted={fetchData}
+      />
     </SafeAreaView>
   );
 }

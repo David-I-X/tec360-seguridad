@@ -2,7 +2,15 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { ProtectedRoute, useAuth } from "@/lib/auth-context"
-import { fetchWithAuth, saveTokens, saveUser } from "@/lib/api"
+import {
+  fetchWithAuth,
+  getMyTopUpRequests,
+  saveTokens,
+  saveUser,
+  subscribeUserTopUpEvents,
+  type TopUpRequestItem,
+} from "@/lib/api"
+import { BreBTopUpModal } from "@/components/topup/BreBTopUpModal"
 import {
   Building2,
   Users,
@@ -184,8 +192,7 @@ function TallerDashboardContent() {
 
   // Recharge Modal
   const [rechargeOpen, setRechargeOpen] = useState(false)
-  const [rechargeAmount, setRechargeAmount] = useState(100000)
-  const [recharging, setRecharging] = useState(false)
+  const [topUpRequests, setTopUpRequests] = useState<TopUpRequestItem[]>([])
 
   const loadOrganization = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -207,12 +214,16 @@ function TallerDashboardContent() {
 
       // Cargar servicios disponibles y del equipo si es owner/manager
       if (data.my_membership.org_role === "owner" || data.my_membership.org_role === "manager") {
-        const svcRes = await fetchWithAuth("/organizations/me/services")
+        const [svcRes, reqsData] = await Promise.all([
+          fetchWithAuth("/organizations/me/services"),
+          getMyTopUpRequests(3).catch(() => [] as TopUpRequestItem[]),
+        ])
         if (svcRes.ok) {
           const svcData = await svcRes.json()
           setAvailableServices(svcData.available_services || [])
           setTeamServices(svcData.team_services || [])
         }
+        setTopUpRequests(reqsData)
       }
     } catch (e: any) {
       setFeedback({ type: "error", message: e.message || "Error al cargar el taller" })
@@ -225,6 +236,13 @@ function TallerDashboardContent() {
   useEffect(() => {
     loadOrganization()
   }, [loadOrganization])
+
+  const hasPendingTopUp = topUpRequests.some((r) => r.status === "pending")
+
+  useEffect(() => {
+    if (!hasPendingTopUp) return
+    return subscribeUserTopUpEvents(() => loadOrganization(true))
+  }, [hasPendingTopUp, loadOrganization])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -403,28 +421,6 @@ function TallerDashboardContent() {
       await loadOrganization(true)
     } catch (err: any) {
       setFeedback({ type: "error", message: err.message })
-    }
-  }
-
-  const handleRechargeWallet = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (rechargeAmount < 10000) return
-    setRecharging(true)
-    try {
-      const res = await fetchWithAuth("/organizations/me/wallet/recharge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: rechargeAmount }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.detail || "Error al recargar billetera del taller")
-      setRechargeOpen(false)
-      setFeedback({ type: "success", message: data.message })
-      await loadOrganization(true)
-    } catch (err: any) {
-      setFeedback({ type: "error", message: err.message })
-    } finally {
-      setRecharging(false)
     }
   }
 
@@ -769,6 +765,48 @@ function TallerDashboardContent() {
                 <span className="font-bold text-emerald-400">{formatCOP(org.wallet.balance * 10)}</span>
               </div>
             </div>
+
+            {topUpRequests.length > 0 && (
+              <div className="pt-3 border-t border-white/10 space-y-2">
+                <span className="text-[10px] font-mono text-slate-400 block">
+                  ÚLTIMAS SOLICITUDES BRE-B
+                </span>
+                <div className="space-y-1.5">
+                  {topUpRequests.map((req) => {
+                    const isPending = req.status === "pending"
+                    const isApproved = req.status === "approved"
+                    const badgeClass = isPending
+                      ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                      : isApproved
+                        ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                        : "bg-rose-500/15 text-rose-300 border-rose-500/30"
+                    const label = isPending ? "En revisión" : isApproved ? "Aprobada" : "Rechazada"
+                    const iso = /([zZ]|[+-]\d{2}:?\d{2})$/.test(req.created_at)
+                      ? req.created_at
+                      : `${req.created_at}Z`
+                    return (
+                      <div
+                        key={req.id}
+                        className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-[11px] font-mono"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-bold text-white truncate">
+                            {formatCOP(req.amount)} COP
+                            {req.reference_hint ? ` · Ref ${req.reference_hint}` : ""}
+                          </p>
+                          <p className="text-[10px] text-slate-400 truncate">
+                            {req.reject_reason || new Date(iso).toLocaleString()}
+                          </p>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-md border text-[10px] font-bold shrink-0 ${badgeClass}`}>
+                          {label}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Workshop Team KPIs */}
@@ -1314,58 +1352,15 @@ function TallerDashboardContent() {
         </div>
       )}
 
-      {/* ─── MODAL: RECARGAR BILLETERA DEL TALLER ─── */}
-      {rechargeOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/15 bg-[#0B0F19] p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-white">Recargar Billetera del Taller</h3>
-              <button onClick={() => setRechargeOpen(false)} className="text-slate-400 hover:text-white">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleRechargeWallet} className="space-y-4 text-xs font-mono">
-              <div className="grid grid-cols-2 gap-2">
-                {[50000, 100000, 200000, 500000].map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => setRechargeAmount(preset)}
-                    className={`py-2.5 rounded-xl border font-bold ${
-                      rechargeAmount === preset
-                        ? "border-emerald-400 bg-emerald-500/20 text-emerald-200"
-                        : "border-white/10 bg-white/5 text-slate-300"
-                    }`}
-                  >
-                    {formatCOP(preset)}
-                  </button>
-                ))}
-              </div>
-
-              <div>
-                <label className="block text-slate-400 uppercase mb-1">Monto en COP</label>
-                <input
-                  type="number"
-                  min={10000}
-                  step={10000}
-                  value={rechargeAmount}
-                  onChange={(e) => setRechargeAmount(Number(e.target.value))}
-                  className="w-full rounded-xl bg-[#111827] border border-white/15 px-3.5 py-2.5 text-white text-sm"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={recharging}
-                className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold"
-              >
-                {recharging ? "Procesando..." : `Acreditar ${formatCOP(rechargeAmount)} al Taller`}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* ─── MODAL: RECARGAR BILLETERA DEL TALLER VÍA BRE-B ─── */}
+      <BreBTopUpModal
+        open={rechargeOpen}
+        onClose={() => setRechargeOpen(false)}
+        onSubmitted={() => loadOrganization(true)}
+        title="Recargar Billetera del Taller"
+        subtitle="Transfiere por Bre-B y adjunta el comprobante para acreditar al taller"
+        presetAmounts={[50000, 100000, 200000, 500000]}
+      />
     </div>
   )
 }

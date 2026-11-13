@@ -450,6 +450,122 @@ export async function rechargeCreditsConfirm(
   return response.json();
 }
 
+export interface TopUpConfig {
+  enabled: boolean;
+  payee_key: string;
+  payee_name: string;
+  qr_url: string;
+  min_amount: number;
+  max_amount: number;
+  can_request: boolean;
+  blocked_reason?: string | null;
+}
+
+export interface TopUpRequestItem {
+  id: string;
+  technician_id: string;
+  amount: number;
+  reference_hint?: string | null;
+  status: "pending" | "approved" | "rejected";
+  reject_reason?: string | null;
+  reviewed_by?: string | null;
+  credit_transaction_id?: string | null;
+  created_at: string;
+  reviewed_at?: string | null;
+}
+
+export function resolveTopUpQrUrl(rawUrl?: string | null): string | null {
+  const cleaned = (rawUrl || "").trim();
+  if (!cleaned) return null;
+  if (/^https?:\/\//i.test(cleaned)) return cleaned;
+  const origin = API_URL.replace(/\/api\/?$/, "");
+  return `${origin}${cleaned.startsWith("/") ? "" : "/"}${cleaned}`;
+}
+
+export async function getTopUpConfig(): Promise<TopUpConfig> {
+  const response = await fetchWithAuth("/credits/recharge/config", { method: "GET" });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function getMyTopUpRequests(limit = 5): Promise<TopUpRequestItem[]> {
+  const safeLimit = Math.min(50, Math.max(1, Number(limit) || 5));
+  const response = await fetchWithAuth(`/credits/recharge/requests?limit=${safeLimit}`, {
+    method: "GET",
+  });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+export async function submitTopUpRequest(params: {
+  amount: number;
+  referenceHint?: string;
+  receiptUri: string;
+  receiptName?: string;
+  receiptMimeType?: string;
+}): Promise<TopUpRequestItem> {
+  const formData = new FormData();
+  formData.append("amount", String(params.amount));
+  if (params.referenceHint && params.referenceHint.trim()) {
+    formData.append("reference_hint", params.referenceHint.trim().slice(0, 12));
+  }
+  formData.append("receipt", {
+    uri: params.receiptUri,
+    name: params.receiptName || `comprobante_${Date.now()}.jpg`,
+    type: params.receiptMimeType || "image/jpeg",
+  } as any);
+
+  const response = await fetchWithAuth("/credits/recharge/requests", {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) await handleAPIError(response);
+  return response.json();
+}
+
+/**
+ * Abre una suscripción WebSocket ligera a `/ws/user` (solo mientras haya recargas pendientes)
+ * para reflejar aprobación o rechazo al instante sin polling.
+ */
+export function subscribeUserTopUpEvents(onTopUpEvent: () => void): () => void {
+  let active = true;
+  let ws: WebSocket | null = null;
+
+  (async () => {
+    try {
+      const token = await getAuthToken();
+      if (!active || !token) return;
+      const wsBase = API_URL.replace(/^http/, "ws").replace(/\/api\/?$/, "");
+      ws = new WebSocket(`${wsBase}/api/ws/user?token=${encodeURIComponent(token)}`);
+      ws.onmessage = (event) => {
+        if (!active) return;
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg?.type === "notification" && msg?.data?.notification_type === "credit_topup") {
+            onTopUpEvent();
+          }
+        } catch {
+          // Ignorar mensajes malformados
+        }
+      };
+    } catch {
+      // Silencioso si no hay red
+    }
+  })();
+
+  return () => {
+    active = false;
+    if (ws) {
+      try {
+        ws.close();
+      } catch {
+        // Ignore close error
+      }
+      ws = null;
+    }
+  };
+}
+
 // ============================================
 // DIGITAL PAYMENTS & DIAN ENDPOINTS
 // ============================================

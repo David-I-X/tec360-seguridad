@@ -773,7 +773,12 @@ async def recharge_organization_wallet(
     current_user: dict = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Recarga la billetera compartida del taller."""
+    """Recarga la billetera compartida del taller (sandbox deshabilitado en producción)."""
+    if settings.ENVIRONMENT == "production" or not settings.SIMULATION_ENABLED:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "La recarga directa simulada está deshabilitada. Usa recarga por Bre-B con comprobante.",
+        )
     org, _ = _require_org_membership(
         session, current_user, allowed_roles=[OrgRole.owner.value, OrgRole.manager.value]
     )

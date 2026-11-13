@@ -61,6 +61,16 @@ services:
       - SAS_VERTICAL_API_KEY=${SAS_VERTICAL_API_KEY}
       - FIREBASE_CREDENTIALS_JSON=${FIREBASE_CREDENTIALS_JSON:-}
       - FIREBASE_CREDENTIALS_PATH=${FIREBASE_CREDENTIALS_PATH:-firebase-credentials.json}
+      - SIMULATION_ENABLED=${SIMULATION_ENABLED:-false}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_ADMIN_CHAT_IDS=${TELEGRAM_ADMIN_CHAT_IDS:-}
+      - TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET:-}
+      - TOPUP_PAYEE_KEY=${TOPUP_PAYEE_KEY:-}
+      - TOPUP_PAYEE_NAME=${TOPUP_PAYEE_NAME:-Tec360 Seguridad}
+      - TOPUP_QR_URL=${TOPUP_QR_URL:-}
+      - TOPUP_MIN_AMOUNT=${TOPUP_MIN_AMOUNT:-10000}
+      - TOPUP_MAX_AMOUNT=${TOPUP_MAX_AMOUNT:-2000000}
+      - TOPUP_RECEIPTS_DIR=${TOPUP_RECEIPTS_DIR:-/opt/tec360-seguridad/uploads/_private/topups}
     volumes:
       - uploads_data:/opt/tec360-seguridad/uploads
       - ./backend/credentials:/app/credentials:ro

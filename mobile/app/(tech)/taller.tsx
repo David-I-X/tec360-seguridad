@@ -26,12 +26,15 @@ import {
   updateMemberQuota,
   removeOrganizationMember,
   validateMemberCourses,
-  rechargeOrganizationWallet,
+  getMyTopUpRequests,
+  subscribeUserTopUpEvents,
   getOrganizationServices,
   assignServiceToMember,
   OrganizationDashboardData,
   OrganizationMemberInfo,
+  type TopUpRequestItem,
 } from '@/lib/api';
+import { BreBTopUpModal } from '@/components/topup/BreBTopUpModal';
 
 export default function TallerConsoleScreen() {
   const insets = useSafeAreaInsets();
@@ -41,14 +44,13 @@ export default function TallerConsoleScreen() {
   const [teamServices, setTeamServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'team' | 'dispatch' | 'wallet'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'dispatch'>('team');
   const [togglingDispatch, setTogglingDispatch] = useState(false);
 
   useEffect(() => {
     if (params.tab === 'dispatch') {
       setActiveTab('dispatch');
     } else if (params.tab === 'wallet') {
-      setActiveTab('wallet');
       setShowRechargeModal(true);
     } else if (params.tab === 'team') {
       setActiveTab('team');
@@ -72,8 +74,7 @@ export default function TallerConsoleScreen() {
 
   // Recharge Modal
   const [showRechargeModal, setShowRechargeModal] = useState(false);
-  const [rechargeAmount, setRechargeAmount] = useState('100000');
-  const [recharging, setRecharging] = useState(false);
+  const [topUpRequests, setTopUpRequests] = useState<TopUpRequestItem[]>([]);
 
   // Assign Service Modal
   const [assigningService, setAssigningService] = useState<any | null>(null);
@@ -88,7 +89,7 @@ export default function TallerConsoleScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [orgData, srvData] = await Promise.all([
+      const [orgData, srvData, reqsData] = await Promise.all([
         getMyOrganization(),
         getOrganizationServices().catch(() => ({
           organization_id: '',
@@ -96,10 +97,12 @@ export default function TallerConsoleScreen() {
           available_services: [],
           team_services: [],
         })),
+        getMyTopUpRequests(3).catch(() => [] as TopUpRequestItem[]),
       ]);
       setOrg(orgData);
       setAvailableServices(srvData.available_services || []);
       setTeamServices(srvData.team_services || []);
+      setTopUpRequests(reqsData);
     } catch (err: any) {
       console.error('[TallerConsole] Error loading organization:', err);
     } finally {
@@ -108,11 +111,18 @@ export default function TallerConsoleScreen() {
     }
   }, []);
 
+  const hasPendingTopUp = topUpRequests.some((r) => r.status === 'pending');
+
   useFocusEffect(
     useCallback(() => {
       loadData();
     }, [loadData])
   );
+
+  useEffect(() => {
+    if (!hasPendingTopUp) return;
+    return subscribeUserTopUpEvents(loadData);
+  }, [loadData, hasPendingTopUp]);
 
   const handleToggleDispatchMode = async (nextMode: 'manual' | 'direct') => {
     if (!org || org.dispatch_mode === nextMode) return;
@@ -216,25 +226,6 @@ export default function TallerConsoleScreen() {
         },
       ]
     );
-  };
-
-  const handleRechargeWallet = async () => {
-    const amount = Number(rechargeAmount);
-    if (!amount || amount < 10000) {
-      Alert.alert('Monto inválido', 'El monto mínimo de recarga es $10.000 COP');
-      return;
-    }
-    setRecharging(true);
-    try {
-      await rechargeOrganizationWallet({ amount, payment_method: 'pse' });
-      setShowRechargeModal(false);
-      await loadData();
-      Alert.alert('Recarga Exitosa', `Se acreditaron ${formatCOP(amount)} a la billetera de tu taller.`);
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'No se pudo recargar la billetera');
-    } finally {
-      setRecharging(false);
-    }
   };
 
   const handleAssignService = async (technicianUserId: string) => {
@@ -408,6 +399,40 @@ export default function TallerConsoleScreen() {
               </Text>
             </View>
           </View>
+
+          {topUpRequests.length > 0 && (
+            <View
+              style={{
+                marginTop: 12,
+                paddingTop: 10,
+                borderTopWidth: 1,
+                borderTopColor: 'rgba(255,255,255,0.08)',
+                gap: 6,
+              }}
+            >
+              <Text style={{ fontSize: 10, fontWeight: '700', color: COLORS.textMuted }}>
+                ÚLTIMAS SOLICITUDES BRE-B
+              </Text>
+              {topUpRequests.map((req) => {
+                const isPending = req.status === 'pending';
+                const isApproved = req.status === 'approved';
+                const color = isPending ? COLORS.yellow : isApproved ? COLORS.green : COLORS.red;
+                const label = isPending ? 'En revisión' : isApproved ? 'Aprobada' : 'Rechazada';
+                return (
+                  <View
+                    key={req.id}
+                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
+                  >
+                    <Text style={{ fontSize: 12, color: COLORS.text, flex: 1 }} numberOfLines={1}>
+                      {formatCOP(req.amount)}
+                      {req.reject_reason ? ` · ${req.reject_reason}` : ''}
+                    </Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color }}>{label}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
         </LinearGradient>
 
         {/* Sub-navigation Tabs */}
@@ -441,18 +466,15 @@ export default function TallerConsoleScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tabBtn, activeTab === 'wallet' && styles.tabBtnActive]}
-            onPress={() => {
-              setActiveTab('wallet');
-              setShowRechargeModal(true);
-            }}
+            style={styles.tabBtn}
+            onPress={() => setShowRechargeModal(true)}
           >
             <Ionicons
               name="wallet-outline"
               size={16}
-              color={activeTab === 'wallet' ? COLORS.onPrimary : COLORS.textSecondary}
+              color={COLORS.textSecondary}
             />
-            <Text style={[styles.tabBtnText, activeTab === 'wallet' && styles.tabBtnTextActive]}>
+            <Text style={styles.tabBtnText}>
               Billetera
             </Text>
           </TouchableOpacity>
@@ -761,39 +783,15 @@ export default function TallerConsoleScreen() {
         </View>
       </Modal>
 
-      {/* Modal: Recargar Billetera Corporativa */}
-      <Modal visible={showRechargeModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Recargar Billetera del Taller</Text>
-              <TouchableOpacity onPress={() => setShowRechargeModal(false)}>
-                <Ionicons name="close" size={22} color={COLORS.text} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.inputLabel}>Monto en COP</Text>
-            <TextInput
-              style={styles.modalInput}
-              keyboardType="numeric"
-              value={rechargeAmount}
-              onChangeText={setRechargeAmount}
-            />
-            <TouchableOpacity
-              style={styles.modalPrimaryBtn}
-              onPress={handleRechargeWallet}
-              disabled={recharging}
-            >
-              {recharging ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.modalPrimaryBtnText}>
-                  Acreditar {formatCOP(Number(rechargeAmount) || 0)}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      {/* Modal: Recargar Billetera Corporativa vía Bre-B */}
+      <BreBTopUpModal
+        visible={showRechargeModal}
+        onClose={() => setShowRechargeModal(false)}
+        onSubmitted={loadData}
+        title="Recargar Billetera del Taller"
+        subtitle="Transfiere por Bre-B y sube la captura para acreditar al taller"
+        presetAmounts={[50000, 100000, 200000, 500000]}
+      />
 
       {/* Modal: Asignar Servicio a Técnico */}
       <Modal visible={!!assigningService} transparent animationType="slide">

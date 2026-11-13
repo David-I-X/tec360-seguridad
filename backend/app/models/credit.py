@@ -13,6 +13,7 @@ Reglas:
 from datetime import datetime
 from uuid import UUID, uuid4
 from typing import Optional
+from sqlalchemy import BigInteger, Column, Index, text
 from sqlmodel import Field, SQLModel
 from enum import Enum
 
@@ -59,6 +60,47 @@ class CreditTransaction(SQLModel, table=True):
     external_reference: Optional[str] = Field(default=None)
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class CreditTopUpStatus(str, Enum):
+    pending = "pending"     # Comprobante enviado, esperando revisión del admin
+    approved = "approved"   # Admin verificó el pago → créditos acreditados
+    rejected = "rejected"   # Admin rechazó (motivo en reject_reason)
+
+
+class CreditTopUpRequest(SQLModel, table=True):
+    """
+    Solicitud de recarga manual: el técnico (o dueño/gerente de Taller) paga por Bre-B
+    a la llave de Tec360 y sube la captura del comprobante. El admin aprueba/rechaza
+    desde el Bot de Telegram (o endpoints admin) y solo entonces se acreditan créditos.
+    """
+    __tablename__ = "credit_topup_requests"
+    __table_args__ = (
+        Index("ix_credit_topup_requests_tech_created", "technician_id", "created_at"),
+        # Un mismo comprobante no puede estar pendiente/aprobado dos veces (anti-reuso).
+        Index(
+            "uq_credit_topup_receipt_sha_active",
+            "receipt_sha256",
+            unique=True,
+            postgresql_where=text("status <> 'rejected'"),
+            sqlite_where=text("status <> 'rejected'"),
+        ),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    technician_id: UUID = Field(foreign_key="users.id", nullable=False)
+    amount: float = Field(nullable=False)
+    reference_hint: Optional[str] = Field(default=None, max_length=12)
+    receipt_path: str = Field(max_length=255)
+    receipt_sha256: str = Field(max_length=64)
+    status: str = Field(default=CreditTopUpStatus.pending.value, max_length=16, index=True)
+    reject_reason: Optional[str] = Field(default=None, max_length=120)
+    telegram_chat_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, nullable=True))
+    telegram_message_id: Optional[int] = Field(default=None, sa_column=Column(BigInteger, nullable=True))
+    reviewed_by: Optional[str] = Field(default=None, max_length=64)
+    credit_transaction_id: Optional[UUID] = Field(default=None, foreign_key="credit_transactions.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    reviewed_at: Optional[datetime] = Field(default=None)
 
 
 # ── Constants ──

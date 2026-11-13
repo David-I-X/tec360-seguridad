@@ -68,6 +68,22 @@ class Settings(BaseSettings):
     # Simulation (field testing)
     SIMULATION_ENABLED: bool = os.getenv("SIMULATION_ENABLED", "false").lower() == "true"
 
+    # Recargas manuales Bre-B + aprobación por Bot de Telegram (costo $0)
+    TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    TELEGRAM_ADMIN_CHAT_IDS: str = os.getenv("TELEGRAM_ADMIN_CHAT_IDS", "")  # IDs separados por coma
+    TELEGRAM_WEBHOOK_SECRET: str = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
+    TOPUP_PAYEE_KEY: str = os.getenv("TOPUP_PAYEE_KEY", "")  # Llave Bre-B (celular, cédula, correo o @alias)
+    TOPUP_PAYEE_NAME: str = os.getenv("TOPUP_PAYEE_NAME", "")
+    TOPUP_QR_URL: str = os.getenv("TOPUP_QR_URL", "")  # Imagen del QR Bre-B exportada desde Nequi/Bancolombia
+    TOPUP_MIN_AMOUNT: float = float(os.getenv("TOPUP_MIN_AMOUNT", "10000"))
+    TOPUP_MAX_AMOUNT: float = float(os.getenv("TOPUP_MAX_AMOUNT", "2000000"))
+    TOPUP_RECEIPTS_DIR: str = os.getenv(
+        "TOPUP_RECEIPTS_DIR",
+        os.path.join(os.getcwd(), "uploads", "_private", "topups")
+        if os.name == "nt"
+        else "/opt/tec360-seguridad/uploads/_private/topups",
+    )
+
     # VAPID / Web Push
     VAPID_PRIVATE_KEY: str = os.getenv("VAPID_PRIVATE_KEY", "jiYgW-HF0vQuS5xwcOts4Q8LSpL4MiU32GCIdEZuYhM")
     VAPID_SUBJECT: str = os.getenv("VAPID_SUBJECT", "mailto:johan@tec-360.tech")

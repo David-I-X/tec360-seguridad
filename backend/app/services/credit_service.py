@@ -203,17 +203,26 @@ class CreditService:
         amount: float,
         external_reference: Optional[str] = None,
         description: str = "Recarga de créditos",
+        commit: bool = True,
     ) -> CreditTransaction:
-        """Recarga de créditos (desde Wompi o admin)."""
+        """Recarga de créditos (desde Wompi o admin) con bloqueo de fila anti-race."""
         if amount <= 0:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
                 "El monto debe ser mayor a 0",
             )
 
+        from app.models.organization import Organization
+
         org_membership = self.get_active_org_membership(session, technician_id)
         if org_membership:
-            org, _ = org_membership
+            org_ref, _ = org_membership
+            org = (
+                session.exec(
+                    select(Organization).where(Organization.id == org_ref.id).with_for_update()
+                ).first()
+                or org_ref
+            )
             org.wallet_balance = round(org.wallet_balance + amount, 2)
             org.total_recharged = round(org.total_recharged + amount, 2)
             org.updated_at = datetime.utcnow()
@@ -228,13 +237,21 @@ class CreditService:
                 external_reference=external_reference or f"ORG:{org.id}",
             )
             session.add(txn)
-            session.commit()
-            session.refresh(txn)
+            if commit:
+                session.commit()
+                session.refresh(txn)
+            else:
+                session.flush()
             return txn
 
         credit = await self.get_or_create_credit(session, technician_id)
-        credit.balance += amount
-        credit.total_recharged += amount
+        locked_credit = session.exec(
+            select(TechnicianCredit).where(TechnicianCredit.id == credit.id).with_for_update()
+        ).first()
+        if locked_credit is not None:
+            credit = locked_credit
+        credit.balance = round(credit.balance + amount, 2)
+        credit.total_recharged = round(credit.total_recharged + amount, 2)
         credit.updated_at = datetime.utcnow()
         session.add(credit)
 
@@ -247,8 +264,12 @@ class CreditService:
             external_reference=external_reference,
         )
         session.add(txn)
-        session.commit()
-        session.refresh(txn)
+        if commit:
+            session.commit()
+            session.refresh(txn)
+        else:
+            session.flush()
+            return txn
 
         # Trigger cash flow entry in SaaS Vertical asynchronously (DIAN Concept 1061/2020)
         import asyncio

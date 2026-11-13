@@ -706,6 +706,121 @@ export async function rechargeCreditsConfirm(
   return response.json()
 }
 
+export interface TopUpConfig {
+  enabled: boolean
+  payee_key: string
+  payee_name: string
+  qr_url: string
+  min_amount: number
+  max_amount: number
+  can_request: boolean
+  blocked_reason?: string | null
+}
+
+export interface TopUpRequestItem {
+  id: string
+  technician_id: string
+  amount: number
+  reference_hint?: string | null
+  status: "pending" | "approved" | "rejected"
+  reject_reason?: string | null
+  reviewed_by?: string | null
+  credit_transaction_id?: string | null
+  created_at: string
+  reviewed_at?: string | null
+}
+
+export async function getTopUpConfig(): Promise<TopUpConfig> {
+  const response = await fetchWithAuth("/credits/recharge/config", { method: "GET" })
+  if (!response.ok) await handleAPIError(response)
+  return response.json()
+}
+
+export async function getMyTopUpRequests(limit = 5): Promise<TopUpRequestItem[]> {
+  const safeLimit = Math.min(50, Math.max(1, Number(limit) || 5))
+  const response = await fetchWithAuth(`/credits/recharge/requests?limit=${safeLimit}`, {
+    method: "GET",
+  })
+  if (!response.ok) await handleAPIError(response)
+  return response.json()
+}
+
+export async function submitTopUpRequest(params: {
+  amount: number
+  referenceHint?: string
+  receiptFile: File
+}): Promise<TopUpRequestItem> {
+  const formData = new FormData()
+  formData.append("amount", String(params.amount))
+  if (params.referenceHint && params.referenceHint.trim()) {
+    formData.append("reference_hint", params.referenceHint.trim().slice(0, 12))
+  }
+  formData.append("receipt", params.receiptFile)
+
+  const response = await fetchWithAuth("/credits/recharge/requests", {
+    method: "POST",
+    body: formData,
+  })
+  if (!response.ok) await handleAPIError(response)
+  return response.json()
+}
+
+/**
+ * Suscribe a eventos de recarga vía WebSocket `/ws/user` solo mientras existan
+ * solicitudes en revisión (`pending`), evitando polling innecesario.
+ */
+export function subscribeUserTopUpEvents(onTopUpEvent: () => void): () => void {
+  if (typeof window === "undefined") return () => {}
+  const token = getAuthToken()
+  if (!token) return () => {}
+
+  const hostname = window.location.hostname
+  const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:"
+  let wsBase = "ws://localhost:8000"
+  if (
+    hostname.includes("tec-360.tech") ||
+    (!hostname.includes("localhost") &&
+      !hostname.includes("127.0.0.1") &&
+      !hostname.match(/^192\.168\./) &&
+      !hostname.match(/^10\./))
+  ) {
+    wsBase = `${wsProto}//${hostname}/api`
+  } else if (hostname.match(/^192\.168\./) || hostname.match(/^10\./)) {
+    wsBase = `${wsProto}//${hostname}:8000`
+  }
+
+  let closed = false
+  let ws: WebSocket | null = null
+  try {
+    ws = new WebSocket(`${wsBase}/ws/user?token=${encodeURIComponent(token)}`)
+    ws.onmessage = (event) => {
+      if (closed) return
+      try {
+        const msg = JSON.parse(event.data)
+        if (msg?.type === "notification" && msg?.data?.notification_type === "credit_topup") {
+          onTopUpEvent()
+        }
+      } catch {
+        // Ignorar payload inválido
+      }
+    }
+  } catch {
+    return () => {}
+  }
+
+  return () => {
+    closed = true
+    if (ws) {
+      try {
+        ws.close(1000)
+      } catch {
+        // Ignorar error de cierre
+      }
+      ws = null
+    }
+  }
+}
+
 
 // ============================================
 // HELPER - Verificar autenticación

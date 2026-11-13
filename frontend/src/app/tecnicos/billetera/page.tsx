@@ -13,8 +13,7 @@ import {
   X,
   Wallet,
   RefreshCw,
-  CheckCircle,
-  Lock,
+  Clock,
   Gift,
   Sparkles,
 } from "lucide-react";
@@ -22,11 +21,13 @@ import { useRouter } from "next/navigation";
 import {
   getCreditBalance,
   getCreditTransactions,
-  rechargeCreditsIntent,
-  rechargeCreditsConfirm,
+  getMyTopUpRequests,
+  subscribeUserTopUpEvents,
   type BalanceData,
   type CreditTransaction,
+  type TopUpRequestItem,
 } from "@/lib/api";
+import { BreBTopUpModal } from "@/components/topup/BreBTopUpModal";
 
 // ── Helpers ──────────────────────────────────────
 
@@ -194,217 +195,6 @@ function WelcomeBonusModal({
   );
 }
 
-// ── Recharge Modal ───────────────────────────────
-
-const PRESET_AMOUNTS = [20000, 50000, 100000, 200000];
-
-type RechargeMethod = "pse" | "card" | "nequi" | "daviplata";
-
-function RechargeModal({
-  open,
-  onClose,
-  onSuccess,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
-  const [amount, setAmount] = useState<number>(50000);
-  const [customAmount, setCustomAmount] = useState("");
-  const [method, setMethod] = useState<RechargeMethod>("pse");
-  const [loading, setLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
-  const [txId, setTxId] = useState<string | null>(null);
-
-  if (!open && !success) return null;
-
-  const effectiveAmount = customAmount ? Number(customAmount) : amount;
-
-  async function handleRecharge() {
-    if (!effectiveAmount || effectiveAmount < 10000) {
-      setError("El monto mínimo de recarga es $10.000 COP");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    setLoadingStep("Conectando con Pasarela Wompi...");
-
-    try {
-      const intentData = await rechargeCreditsIntent(effectiveAmount, method);
-      const transactionId = intentData?.transaction_id || `WMP-${Date.now()}`;
-      setTxId(transactionId);
-
-      setLoadingStep("Validando con la entidad financiera...");
-      await new Promise((r) => setTimeout(r, 900));
-
-      setLoadingStep("Acreditando saldo en tu billetera...");
-      await new Promise((r) => setTimeout(r, 800));
-
-      try {
-        await rechargeCreditsConfirm(transactionId, effectiveAmount, method);
-      } catch {
-        // Fallback optimistic
-      }
-
-      setSuccess(true);
-      onSuccess();
-    } catch {
-      // Local demo fallback
-      setTxId(`WMP-SIM-${Date.now().toString().slice(-6)}`);
-      setSuccess(true);
-      onSuccess();
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleCloseModal() {
-    setError("");
-    setSuccess(false);
-    setTxId(null);
-    onClose();
-  }
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 overflow-y-auto py-8 font-mono">
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={handleCloseModal} />
-      <div className="bg-[#080F24] border border-slate-800 rounded-3xl p-6 w-full max-w-lg relative z-10 space-y-5 my-auto shadow-2xl">
-        {success ? (
-          <div className="py-6 text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400">
-              <CheckCircle className="w-10 h-10" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-xl font-bold text-slate-100">¡Recarga Exitosa!</h3>
-              <p className="text-xs text-slate-300">
-                Se han acreditado{" "}
-                <span className="font-bold text-emerald-400">
-                  {formatCOP(effectiveAmount)} COP
-                </span>{" "}
-                a tu saldo operativo.
-              </p>
-            </div>
-            {txId && (
-              <div className="bg-[#0B132B] border border-slate-800 rounded-xl p-3 inline-block max-w-full">
-                <p className="text-[10px] uppercase font-bold text-slate-400">Referencia Wompi</p>
-                <p className="text-xs text-emerald-300 font-bold truncate select-all">
-                  {txId}
-                </p>
-              </div>
-            )}
-            <div className="pt-2">
-              <button
-                onClick={handleCloseModal}
-                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-white shadow-lg transition-all"
-              >
-                Volver a la Billetera
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div>
-                <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-                  <Wallet className="w-4 h-4 text-blue-400" />
-                  Recargar Créditos de Plataforma
-                </h3>
-                <p className="text-[11px] text-slate-400">
-                  Pasarela Wompi (Tarjetas, PSE, Nequi, Bancolombia) · Mínimo $10.000 COP
-                </p>
-              </div>
-              <button
-                onClick={handleCloseModal}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Presets */}
-            <div className="space-y-2">
-              <label className="text-[11px] text-slate-400 font-semibold">Selecciona un monto sugerido</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {PRESET_AMOUNTS.map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => {
-                      setAmount(preset);
-                      setCustomAmount("");
-                    }}
-                    className={`py-2 rounded-xl font-bold text-xs transition-all ${
-                      amount === preset && !customAmount
-                        ? "bg-[#0B1736] text-[#93C5FD] border border-[#1E3A8A] shadow-sm"
-                        : "bg-[#0B132B] border border-slate-800 text-slate-300 hover:text-white"
-                    }`}
-                  >
-                    {formatCOP(preset)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Custom amount */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] text-slate-400 font-semibold">O ingresa un valor específico</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">$</span>
-                <input
-                  type="number"
-                  placeholder="Ej: 80000"
-                  value={customAmount}
-                  onChange={(e) => setCustomAmount(e.target.value)}
-                  className="w-full bg-[#0B132B] border border-slate-800 rounded-xl py-2 pl-7 pr-4 text-xs font-mono text-white outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            {/* Payment Method Tabs */}
-            <div className="space-y-2">
-              <label className="text-[11px] text-slate-400 font-semibold">Método de Pago</label>
-              <div className="grid grid-cols-4 gap-1.5 p-1 bg-[#0B132B] rounded-xl border border-slate-800">
-                {(["pse", "card", "nequi", "daviplata"] as RechargeMethod[]).map(m => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMethod(m)}
-                    className={`py-1.5 rounded-lg text-xs font-bold transition-all uppercase ${
-                      method === m
-                        ? "bg-[#0B1736] text-[#93C5FD] border border-[#1E3A8A]"
-                        : "text-slate-400 hover:text-slate-200"
-                    }`}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {error && (
-              <p className="text-xs text-rose-400 bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">
-                {error}
-              </p>
-            )}
-
-            <button
-              onClick={handleRecharge}
-              disabled={loading}
-              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-white text-xs shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              <Lock className="w-3.5 h-3.5" />
-              <span>{loading ? loadingStep : `Pagar y Recargar ${formatCOP(effectiveAmount)} COP`}</span>
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ── Main Page ───────────────────────────────────
 
 type TxnFilter = "all" | "credits" | "deductions";
@@ -413,6 +203,7 @@ export default function BilleteraPage() {
   const router = useRouter();
   const [balance, setBalance] = useState<BalanceData | null>(null);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
+  const [topUpRequests, setTopUpRequests] = useState<TopUpRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [txnFilter, setTxnFilter] = useState<TxnFilter>("all");
@@ -424,12 +215,14 @@ export default function BilleteraPage() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const [balData, txnData] = await Promise.all([
+      const [balData, txnData, reqsData] = await Promise.all([
         getCreditBalance(),
         getCreditTransactions(0, 50),
+        getMyTopUpRequests(5).catch(() => [] as TopUpRequestItem[]),
       ]);
       setBalance(balData || fallbackBalance);
       setTransactions(txnData?.length > 0 ? txnData : fallbackTransactions);
+      setTopUpRequests(reqsData);
     } catch {
       setBalance(fallbackBalance);
       setTransactions(fallbackTransactions);
@@ -442,6 +235,13 @@ export default function BilleteraPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const hasPendingTopUp = topUpRequests.some((r) => r.status === "pending");
+
+  useEffect(() => {
+    if (!hasPendingTopUp) return;
+    return subscribeUserTopUpEvents(() => fetchData(true));
+  }, [hasPendingTopUp, fetchData]);
 
   // Mostrar pop-up de bienvenida con los $200.000 en créditos la primera vez
   useEffect(() => {
@@ -644,6 +444,52 @@ export default function BilleteraPage() {
           </div>
         </div>
 
+        {/* ─── Top-Up Requests Section ─── */}
+        {topUpRequests.length > 0 && (
+          <div className="bg-[#080F24] border border-slate-800/80 rounded-2xl p-5 shadow-xl space-y-3">
+            <h2 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-400" />
+              <span>Solicitudes de recarga Bre-B</span>
+            </h2>
+            <div className="space-y-2">
+              {topUpRequests.map((req) => {
+                const isPending = req.status === "pending";
+                const isApproved = req.status === "approved";
+                const badgeClass = isPending
+                  ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                  : isApproved
+                    ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                    : "bg-rose-500/15 text-rose-300 border-rose-500/30";
+                const label = isPending ? "En revisión" : isApproved ? "Aprobada" : "Rechazada";
+                return (
+                  <div
+                    key={req.id}
+                    className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#0B132B] border border-slate-800/70 text-xs font-mono"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-100">
+                        {formatCOP(req.amount)} COP
+                        {req.reference_hint ? ` · Ref ${req.reference_hint}` : ""}
+                      </p>
+                      <p className="text-[11px] text-slate-400 truncate">
+                        {req.reject_reason ||
+                          new Date(
+                            /([zZ]|[+-]\d{2}:?\d{2})$/.test(req.created_at)
+                              ? req.created_at
+                              : `${req.created_at}Z`
+                          ).toLocaleString()}
+                      </p>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold shrink-0 ${badgeClass}`}>
+                      {label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* ─── History Section ─── */}
         <div className="bg-[#080F24] border border-slate-800/80 rounded-2xl p-5 sm:p-6 shadow-xl backdrop-blur-xl space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -765,10 +611,10 @@ export default function BilleteraPage() {
         bonusAmount={welcomeBonusAmount}
       />
 
-      <RechargeModal
+      <BreBTopUpModal
         open={rechargeOpen}
         onClose={() => setRechargeOpen(false)}
-        onSuccess={() => fetchData(true)}
+        onSubmitted={() => fetchData(true)}
       />
     </div>
   );

@@ -139,6 +139,8 @@ async def on_shutdown():
     if settings.ENVIRONMENT != "test":
         from app.core.scheduler import shutdown_scheduler
         shutdown_scheduler()
+    from app.services.telegram_service import close_client
+    await close_client()
 
 
 
@@ -291,14 +293,33 @@ async def serve_local_upload(folder: str, filename: str):
     import os
     from fastapi.responses import FileResponse
     from fastapi import HTTPException
-    
+
+    if settings.ENVIRONMENT == "production":
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Rechazar segmentos internos (_private) y cualquier carácter de path traversal.
+    if (
+        not folder
+        or not filename
+        or folder.startswith("_")
+        or filename.startswith("_")
+        or folder != os.path.basename(folder)
+        or filename != os.path.basename(filename)
+        or ".." in folder
+        or ".." in filename
+    ):
+        raise HTTPException(status_code=404, detail="File not found")
+
     base_dir = os.path.abspath("/opt/tec360-seguridad/uploads")
-    # Prevent path traversal by securing the final path
-    file_path = os.path.abspath(os.path.join(base_dir, folder, filename))
-    
-    if not file_path.startswith(base_dir):
+    folder_dir = os.path.abspath(os.path.join(base_dir, folder))
+    file_path = os.path.abspath(os.path.join(folder_dir, filename))
+
+    if (
+        os.path.commonpath([base_dir, folder_dir]) != base_dir
+        or os.path.commonpath([folder_dir, file_path]) != folder_dir
+    ):
         raise HTTPException(status_code=403, detail="Access denied")
-        
+
     if os.path.isfile(file_path):
         return FileResponse(file_path)
     raise HTTPException(status_code=404, detail="File not found")
